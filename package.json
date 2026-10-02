@@ -1,0 +1,41 @@
+{
+  "name": "miaplacidus",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MIAPLACIDUS browser game remake of Cosmic Forge",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode development",
+    "dev:test": "vite --mode test",
+    "build": "npm run typecheck && vite build --mode production",
+    "build:demo": "npm run typecheck && vite build --mode demo",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint src vite.config.ts --deny-warnings",
+    "format": "oxfmt --write src index.html vite.config.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json",
+    "format:check": "oxfmt --check src index.html vite.config.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json",
+    "check:boundaries": "oxlint src/engine --import-plugin --deny-warnings",
+    "test:unit": "vitest run --passWithNoTests tests/unit",
+    "test:unit:focused": "vitest run --passWithNoTests",
+    "test:e2e": "playwright test --pass-with-no-tests tests/e2e",
+    "test:e2e:focused": "playwright test --pass-with-no-tests"
+  },
+  "dependencies": {
+    "lz-string": "1.5.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  },
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  }
+}

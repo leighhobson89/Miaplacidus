@@ -1,0 +1,36 @@
+:root {
+  color: #e7edf7;
+  background: #08111f;
+  font-family: system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.application-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem;
+  background: radial-gradient(ellipse at 50% 40%, rgb(27 57 91 / 42%), transparent 55%), #08111f;
+}
+
+h1 {
+  margin: 0;
+  color: #f4f7fc;
+  font-size: clamp(1.75rem, 8vw, 4rem);
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-align: center;
+}

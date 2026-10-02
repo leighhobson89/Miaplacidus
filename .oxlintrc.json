@@ -1,0 +1,77 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "jsx-a11y", "oxc", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "eslint/no-debugger": "error",
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/engine/**/*.ts", "src/engine/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^[^./][^/]*($|/).*",
+                "message": "Engine modules may only import relative pure modules."
+              },
+              {
+                "group": [
+                  "**/app",
+                  "**/app/**",
+                  "**/audio",
+                  "**/audio/**",
+                  "**/i18n",
+                  "**/i18n/**",
+                  "**/persistence",
+                  "**/persistence/**",
+                  "**/ui",
+                  "**/ui/**"
+                ],
+                "message": "Engine modules may only depend on engine and content layers."
+              }
+            ]
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          "Audio",
+          "AudioContext",
+          "Element",
+          "Event",
+          "HTMLElement",
+          "HTMLAudioElement",
+          "HTMLButtonElement",
+          "KeyboardEvent",
+          "MouseEvent",
+          "Storage",
+          "Window",
+          "cancelAnimationFrame",
+          "document",
+          "fetch",
+          "localStorage",
+          "navigator",
+          "requestAnimationFrame",
+          "sessionStorage",
+          "setInterval",
+          "setTimeout",
+          "window"
+        ],
+        "no-restricted-properties": [
+          "error",
+          { "object": "globalThis", "property": "document" },
+          { "object": "globalThis", "property": "localStorage" },
+          { "object": "globalThis", "property": "window" }
+        ]
+      }
+    }
+  ]
+}
