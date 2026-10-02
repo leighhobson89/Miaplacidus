@@ -23,11 +23,11 @@ flowchart LR
   TESTS --> UI
 ```
 
-The planned stack is already pinned in [package.json](../../package.json) and its lockfile; no application scaffold has been written. The [Vite guide](https://vite.dev/guide/), [React TypeScript guide](https://react.dev/learn/typescript), [Playwright TypeScript guide](https://playwright.dev/docs/test-typescript) and [Vitest guide](https://vitest.dev/guide/) are implementation references.
+The Vite/React/TypeScript stack and deterministic engine substrate are implemented. The [Vite guide](https://vite.dev/guide/), [React TypeScript guide](https://react.dev/learn/typescript), [Playwright TypeScript guide](https://playwright.dev/docs/test-typescript) and [Vitest guide](https://vitest.dev/guide/) remain implementation references for the outstanding UI and harness tasks.
 
 ## Delivery sequence
 
-**Current progress (2 October 2026):** F-01–F-10 source inspection and documentation are complete against the frozen reference; see the [foundation extraction record](../archive/plans/2026-10-02-foundation-source-extraction.md) and its [source contract](../audit/foundation-source-contract.md), [domain catalogues](../audit/README.md), and [planned test matrix](../audit/foundation-test-plan.md). F-11–F-18 establish the Vite/React/TypeScript app shell, local toolchain, boundaries and stable IDs. Gameplay implementation F-19–F-42 and the M-01 exit gate remain open; no game rules or specs were added in the scaffold slice.
+**Current progress (2 October 2026):** F-01–F-10 source inspection and extraction are complete against the frozen reference; see the [source contract](../audit/foundation-source-contract.md) and [domain catalogues](../audit/README.md). F-11–F-18 provide the browser/toolchain scaffold. F-19–F-30 provide the scoped state and engine/simulation contracts, recorded in the [engine completion plan](../archive/plans/2026-10-02-engine-and-simulation-core.md). F-31–F-42 and the M-01 exit gate remain open; no player-facing gameplay slice or test spec is complete.
 
 | Stage | Work package | Playable or reviewable milestone |
 |---|---|---|

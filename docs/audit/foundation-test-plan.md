@@ -1,6 +1,6 @@
 # Foundation test plan (F-01–F-10)
 
-**Status:** planning only. MIAPLACIDUS has no game-rule/runtime implementation to exercise, so these tests are **not started** and **not run**. `IncrementalGame/AGENTS.md` says the initial audit/harness skeleton documents planned tests instead of adding spec scripts. This file records the future focused test design; it is not evidence of parity or a pass.
+**Status:** planning only. The F-19–F-30 engine/simulation substrate is now implemented, but the focused rule specs are still open under F-39 and the browser harness/specs remain open under F-35–F-40. These tests are **not started** and **not run**. This file records planned checks for the extracted source scenarios; it is not evidence of parity or a pass.
 
 **Reference:** Cosmic Forge snapshot `93e32669c3b35e76cdd4cf82725c14e7215b2fbc` (F-01, 2026-09-17); audit date 2026-10-02. The original functional-area taxonomy is `cosmicForge/cosmicForge/tests/docs/functional-areas.json`. Its eight groups are foundation, economy, space, interstellar, meta, endgame, simulation, and presentation. The remake taxonomy in `docs/plans/feature-parity-checklist.md` adapts these areas; `save-slots` replaces the excluded cloud-save area.
 

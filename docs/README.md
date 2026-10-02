@@ -23,6 +23,7 @@
 - [Reuse and replacement decisions](plans/reuse-decisions.md) — what to port, adapt, or redesign.
 - [Test harness plan](plans/test-harness.md) — test folders and commands are prepared; game specs, Playwright config and fixtures remain future work.
 - [Completed F-11–F-18 toolchain plan](archive/plans/2026-10-02-toolchain-project-structure.md) — app scaffold, module rules, build modes and typed catalogue IDs.
+- [Completed F-19–F-30 engine/simulation plan](archive/plans/2026-10-02-engine-and-simulation-core.md) — scoped state, commands, clocks, timers, transactions, snapshots and recovery.
 - [Product decisions](plans/open-decisions.md) — the owner's settled scope, delivery and save choices.
 
 Treat these as living documents. Cite a source path when changing a parity claim. Complete detailed tasks and master gates only after focused evidence and a playable check, where applicable. Keep the Cosmic Forge source unchanged.

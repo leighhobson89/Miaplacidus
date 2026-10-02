@@ -15,7 +15,7 @@
 - [x] **F-09** Record numerical examples and representative early, mid, travel, rebirth and endgame scenarios from the reference game. Evidence: F-09 sections in all three domain catalogues and [planned test examples](../../audit/foundation-test-plan.md).
 - [x] **F-10** Identify deliberate legacy quirks separately from bugs or stale GDD claims; require a recorded decision before changing a rule. Evidence: [source contract](../../audit/foundation-source-contract.md#f-10--behavior-differences-that-require-an-explicit-decision) and F-10 sections in the domain catalogues.
 
-**F-01–F-18 foundation complete (2 October 2026).** F-01–F-10 record source inspection and extraction; F-11–F-18 establish the app/toolchain scaffold and stable IDs. The scaffold adds no MIAPLACIDUS gameplay feature or test spec. F-19–F-42 and the full M-01 exit gate remain open.
+**F-01–F-30 implementation complete (2 October 2026).** F-01–F-10 record source inspection and extraction; F-11–F-18 establish the app/toolchain scaffold and stable IDs; F-19–F-30 implement the scoped engine and simulation core. This is still engine infrastructure, not a player-facing parity result. See the [F-19–F-30 completion record](../../archive/plans/2026-10-02-engine-and-simulation-core.md). F-31–F-42 and the full M-01 exit gate remain open.
 
 ## Toolchain and project structure
 
@@ -30,18 +30,20 @@
 
 ## Engine and state model
 
-- [ ] **F-19** Split save state into run, permanent, settings and statistics scopes with initial-state factories.
-- [ ] **F-20** Define commands/actions, precondition results, state transitions, selectors and domain events.
-- [ ] **F-21** Make purchase commands atomic across cash and up to three material costs.
-- [ ] **F-22** Port the old precision/affordability policy to pure typed functions and record any approved differences.
-- [ ] **F-23** Create an injectable clock with wall time, simulation time, pause/resume and bounded elapsed steps.
-- [ ] **F-24** Create an injectable seeded random source for stars, weather, events, casino and battles.
-- [ ] **F-25** Define timer IDs, repeat/completion semantics and idempotent completion commands.
-- [ ] **F-26** Define which timers progress during hidden-tab time, offline gains and black-hole time warp.
-- [ ] **F-27** Define an ordered resource transaction tick for production, fuel, crafting, sales and storage clamps.
-- [ ] **F-28** Publish coarse/derived snapshots for React; avoid one React state update per simulation timer.
-- [ ] **F-29** Make state transitions deterministic from state, command, clock input and random seed.
-- [ ] **F-30** Define error boundaries and recovery that leave a valid playable state after a rejected command.
+- [x] **F-19** Split save state into run, permanent, settings and statistics scopes with initial-state factories. Evidence: [scoped state and validation](../../../src/engine/state.ts).
+- [x] **F-20** Define commands/actions, precondition results, state transitions, selectors and domain events. Evidence: [engine commands and selectors](../../../src/engine/commands.ts), [stable action IDs](../../../src/content/ids.ts).
+- [x] **F-21** Make purchase commands atomic across cash and up to three material costs. Evidence: [purchase preconditions and reducer](../../../src/engine/commands.ts).
+- [x] **F-22** Port the old precision/affordability policy to pure typed functions and record any approved differences. Evidence: [typed precision helpers](../../../src/engine/precision.ts), [source comparison](../../archive/plans/2026-10-02-engine-and-simulation-core.md#command-boundary-and-purchases).
+- [x] **F-23** Create an injectable clock with wall time, simulation time, pause/resume and bounded elapsed steps. Evidence: [clock contract](../../../src/engine/clock.ts).
+- [x] **F-24** Create an injectable seeded random source for stars, weather, events, casino and battles. Evidence: [seeded random source](../../../src/engine/random.ts).
+- [x] **F-25** Define timer IDs, repeat/completion semantics and idempotent completion commands. Evidence: [timer policy and completion](../../../src/engine/timers.ts).
+- [x] **F-26** Define which timers progress during hidden-tab time, offline gains and black-hole time warp. Evidence: [timer policies](../../../src/engine/timers.ts), [clock/offline contract](../../../src/engine/clock.ts).
+- [x] **F-27** Define an ordered resource transaction tick for production, fuel, crafting, sales and storage clamps. Evidence: [resource transaction](../../../src/engine/transactions.ts).
+- [x] **F-28** Publish coarse/derived snapshots for React; avoid one React state update per simulation timer. Evidence: [snapshot store](../../../src/engine/store.ts), [React subscription](../../../src/ui/useGameSnapshot.ts).
+- [x] **F-29** Make state transitions deterministic from state, command, clock input and random seed. Evidence: [pure transition boundary](../../../src/engine/commands.ts), [random state](../../../src/engine/random.ts).
+- [x] **F-30** Define error boundaries and recovery that leave a valid playable state after a rejected command. Evidence: [state recovery](../../../src/engine/store.ts), [render recovery](../../../src/ui/GameErrorBoundary.tsx).
+
+**Verification note:** no unit or browser test files were added or run for F-19–F-30; the focused rule specs remain F-39 and the browser specs remain F-40. Infrastructure checks are recorded in the engine completion plan.
 
 ## First vertical slice and test tools
 

@@ -4,11 +4,15 @@ Source taxonomy: Cosmic Forge `tests/docs/functional-areas.json` at the audit sn
 
 ## Source extraction baseline — 2 October 2026
 
-Foundation tasks F-01–F-10 have complete source/documentation evidence against Cosmic Forge commit `93e32669c3b35e76cdd4cf82725c14e7215b2fbc`. See the [source contract](../audit/foundation-source-contract.md), [economy](../audit/foundation-economy.md), [space/interstellar](../audit/foundation-space.md), [meta/endgame](../audit/foundation-meta.md), and [planned test matrix](../audit/foundation-test-plan.md). This records what the reference does and what to verify later; it does not mark any remake feature row evidenced. Runtime implementation and current remake test results remain not started.
+Foundation tasks F-01–F-10 have complete source/documentation evidence against Cosmic Forge commit `93e32669c3b35e76cdd4cf82725c14e7215b2fbc`. See the [source contract](../audit/foundation-source-contract.md), [economy](../audit/foundation-economy.md), [space/interstellar](../audit/foundation-space.md), [meta/endgame](../audit/foundation-meta.md), and [planned test matrix](../audit/foundation-test-plan.md). This records what the reference does and what to verify later; it does not mark any remake feature row evidenced. F-19–F-30 now provide engine infrastructure, but no player-facing functional area has current parity evidence and remake rule-test results remain not started.
 
 ## Toolchain and project-structure work (F-11-F-18)
 
 Scaffolding, local tooling, dependency boundaries and typed catalogue IDs are recorded in the completed [toolchain/project-structure plan](../archive/plans/2026-10-02-toolchain-project-structure.md). These foundation tasks establish implementation infrastructure only. They do not establish player-observable parity: every functional-area row below remains **Not started** until its game behavior is implemented and checked. A successful shell build, typecheck or import-boundary check does not change an area status.
+
+## Engine/simulation substrate (F-19-F-30)
+
+The scoped state tree, deterministic command boundary, precision helpers, injected clock/random source, timer policy, ordered resource transaction, derived snapshot store and recovery path are recorded in the completed [engine/simulation plan](../archive/plans/2026-10-02-engine-and-simulation-core.md). This is implementation infrastructure only; no player-facing functional-area row is evidenced. Focused rule specs remain open under F-39, and the Hydrogen browser slice remains open under F-31-F-40.
 
 ## Foundation
 

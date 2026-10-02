@@ -15,12 +15,17 @@ export const COMPOUND_IDS = ["diesel", "glass", "steel", "concrete", "water", "t
 
 export type CompoundId = (typeof COMPOUND_IDS)[number];
 
+export const ECONOMIC_GOOD_IDS = [...MATERIAL_IDS, ...COMPOUND_IDS] as const;
+export type EconomicGoodId = (typeof ECONOMIC_GOOD_IDS)[number];
+
+export const LOCALE_IDS = ["en", "es", "pt", "de", "it", "fr"] as const;
+export type LocaleId = (typeof LOCALE_IDS)[number];
+
 // Solar is a source-defined internal resource, separate from the eight ordinary materials.
 export const INTERNAL_RESOURCE_IDS = ["solar"] as const;
 
 export type InternalResourceId = (typeof INTERNAL_RESOURCE_IDS)[number];
 export type ResourceId = MaterialId | InternalResourceId;
-export type EconomicGoodId = MaterialId | CompoundId;
 
 const RESOURCE_ID_SET: ReadonlySet<string> = new Set([...MATERIAL_IDS, ...INTERNAL_RESOURCE_IDS]);
 const COMPOUND_ID_SET: ReadonlySet<string> = new Set(COMPOUND_IDS);
@@ -167,6 +172,15 @@ export const ACTION_IDS = [
   "technology.research",
   "system.scan",
   "event.resolve",
+  "clock.advance",
+  "clock.pause",
+  "clock.resume",
+  "timer.add",
+  "timer.pause",
+  "timer.resume",
+  "timer.complete",
+  "settings.update",
+  "random.draw",
 ] as const;
 
 export type ActionId = (typeof ACTION_IDS)[number];
