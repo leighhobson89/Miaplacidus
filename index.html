@@ -4,10 +4,68 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#08111f" />
+    <link rel="icon" type="image/svg+xml" href="./src/assets/favicon.svg" />
     <title>MIAPLACIDUS</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #07101c;
+        color: #eaf1fa;
+        font-family: Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+      }
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(ellipse at 75% -15%, rgb(41 103 135 / 21%), transparent 42rem), #07101c;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      .startup-fallback {
+        display: grid;
+        min-height: 100vh;
+        place-content: center;
+        padding: 2rem;
+        text-align: center;
+      }
+      .startup-fallback h1 {
+        letter-spacing: 0.16em;
+      }
+      .startup-fallback p {
+        color: #96a7bd;
+      }
+      .startup-fallback code {
+        color: #74ddda;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="root">
+      <main class="startup-fallback" data-startup-fallback role="status" aria-live="polite">
+        <div>
+          <p>Hydrogen research systems</p>
+          <h1>MIAPLACIDUS</h1>
+          <p data-startup-message>Starting the Hydrogen exploration…</p>
+          <p data-startup-help hidden>
+            The game did not start. This project needs Vite to compile its TypeScript modules. In
+            the IncrementalGame folder, run <code>npm run dev</code>, then open the local URL
+            printed in the terminal.
+          </p>
+          <noscript>Enable JavaScript to play MIAPLACIDUS.</noscript>
+        </div>
+      </main>
+    </div>
+    <script>
+      window.setTimeout(() => {
+        const fallback = document.querySelector("[data-startup-fallback]");
+        if (!fallback) return;
+        fallback.setAttribute("role", "alert");
+        fallback.querySelector("[data-startup-message]")?.setAttribute("hidden", "");
+        fallback.querySelector("[data-startup-help]")?.removeAttribute("hidden");
+      }, 4000);
+    </script>
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

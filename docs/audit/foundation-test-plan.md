@@ -1,13 +1,13 @@
 # Foundation test plan (F-01–F-10)
 
-**Status:** planning only. The F-19–F-30 engine/simulation substrate is now implemented, but the focused rule specs are still open under F-39 and the browser harness/specs remain open under F-35–F-40. These tests are **not started** and **not run**. This file records planned checks for the extracted source scenarios; it is not evidence of parity or a pass.
+**Status:** this remains a planning matrix for full foundation, economy, travel, rebirth and endgame coverage. M-01 has separate current evidence for the Hydrogen-only slice in the results ledger below and the [parity ledger](../plans/feature-parity-checklist.md). Do not treat the broader planned rows as run or complete.
 
 **Reference:** Cosmic Forge snapshot `93e32669c3b35e76cdd4cf82725c14e7215b2fbc` (F-01, 2026-09-17); audit date 2026-10-02. The original functional-area taxonomy is `cosmicForge/cosmicForge/tests/docs/functional-areas.json`. Its eight groups are foundation, economy, space, interstellar, meta, endgame, simulation, and presentation. The remake taxonomy in `docs/plans/feature-parity-checklist.md` adapts these areas; `save-slots` replaces the excluded cloud-save area.
 
 ## Evidence and status rules
 
 - **Cosmic Forge area IDs/specs** below are test-design and source-behavior leads only. Taxonomy labels such as `green` describe the old project's recorded status, not an independently rerun result and never MIAPLACIDUS coverage.
-- **MIAPLACIDUS area IDs** are the planned target areas from the parity ledger and harness plan. Their result remains **not started / not run** until implementation exists and current evidence is recorded.
+- **MIAPLACIDUS area IDs** are the planned target areas from the parity ledger and harness plan. The current Hydrogen-only evidence is partial; each broad area remains open until its full scope is implemented and checked.
 - Future unit tests should exercise pure calculations and state transitions. Future browser tests should use real controls, deterministic fixtures, the injected clock/random source, and player-observable outcomes. Scenario setup may reach distant prerequisites through the test-only command boundary, but tests of gates and rules must exercise the real engine contract.
 - Keep Cosmic Forge source access read-only. No Cosmic Forge suite was run for this plan, and no test may call its production services.
 
@@ -46,8 +46,9 @@ These checks apply across the functional slices above, not only to a dedicated i
 | Item | Result |
 |---|---|
 | Cosmic Forge suite at the pinned snapshot | Not run for this plan; historical taxonomy status is not a fresh result. |
-| MIAPLACIDUS focused unit tests | Not started; rule/runtime implementation is absent. |
-| MIAPLACIDUS focused E2E tests | Not started; browser harness/specs are placeholders. |
-| Localization/save/rebirth verification | Not started; requires the implementation and localized controls/persistence. |
+| MIAPLACIDUS Hydrogen-slice focused unit tests | 11 passed on 2026-10-02: `npm run test:unit:focused -- tests/unit/hydrogen.spec.ts tests/unit/foundation-engine.spec.ts`. Other planned economy, travel, save, rebirth and endgame rules remain open. |
+| MIAPLACIDUS Hydrogen-slice focused E2E tests | 8 passed on 2026-10-02 in Chrome 153.0.8010.12: `npm run test:e2e:focused -- tests/e2e/app-boot/hydrogen-boot.spec.ts tests/e2e/resources/hydrogen-loop.spec.ts tests/e2e/autobuyers/hydrogen-compressor.spec.ts tests/e2e/performance/hydrogen-baseline.spec.ts --workers=1 --reporter=list`; installed Chrome and no-video environment flags were used on this machine. |
+| Production debug exclusion | Production build passed; emitted assets had no DebugTools chunk, `miaplacidusTest` gateway or scenario installer. |
+| Full-game localization/save/rebirth verification | Not started outside the M-01 six-locale Hydrogen check; save-slot, persistence, travel and rebirth paths require later phases. |
 
-When implementation begins, record exact focused commands, commit/browser, area counts, seed/clock fixture and outcome beside the relevant target-area README and feature plan. Update these statuses only from current MIAPLACIDUS results.
+The first-slice browser baseline uses seed `314159`, locale `en`, viewport `1280x720` and Chrome 153.0.8010.12; exact metrics are in `tests/e2e/performance/README.md`. No Cosmic Forge tests or full MIAPLACIDUS test suite were run for this record.

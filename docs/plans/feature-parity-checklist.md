@@ -4,7 +4,7 @@ Source taxonomy: Cosmic Forge `tests/docs/functional-areas.json` at the audit sn
 
 ## Source extraction baseline — 2 October 2026
 
-Foundation tasks F-01–F-10 have complete source/documentation evidence against Cosmic Forge commit `93e32669c3b35e76cdd4cf82725c14e7215b2fbc`. See the [source contract](../audit/foundation-source-contract.md), [economy](../audit/foundation-economy.md), [space/interstellar](../audit/foundation-space.md), [meta/endgame](../audit/foundation-meta.md), and [planned test matrix](../audit/foundation-test-plan.md). This records what the reference does and what to verify later; it does not mark any remake feature row evidenced. F-19–F-30 now provide engine infrastructure, but no player-facing functional area has current parity evidence and remake rule-test results remain not started.
+Foundation tasks F-01–F-10 have complete source/documentation evidence against Cosmic Forge commit `93e32669c3b35e76cdd4cf82725c14e7215b2fbc`. See the [source contract](../audit/foundation-source-contract.md), [economy](../audit/foundation-economy.md), [space/interstellar](../audit/foundation-space.md), [meta/endgame](../audit/foundation-meta.md), and [test matrix](../audit/foundation-test-plan.md). F-19–F-30 provide engine infrastructure. M-01 adds current player-facing evidence for a Hydrogen-only slice; see the partial evidence below. The broader functional-area rows remain open because their full feature scope has not been implemented.
 
 ## Toolchain and project-structure work (F-11-F-18)
 
@@ -12,7 +12,23 @@ Scaffolding, local tooling, dependency boundaries and typed catalogue IDs are re
 
 ## Engine/simulation substrate (F-19-F-30)
 
-The scoped state tree, deterministic command boundary, precision helpers, injected clock/random source, timer policy, ordered resource transaction, derived snapshot store and recovery path are recorded in the completed [engine/simulation plan](../archive/plans/2026-10-02-engine-and-simulation-core.md). This is implementation infrastructure only; no player-facing functional-area row is evidenced. Focused rule specs remain open under F-39, and the Hydrogen browser slice remains open under F-31-F-40.
+The scoped state tree, deterministic command boundary, precision helpers, injected clock/random source, timer policy, ordered resource transaction, derived snapshot store and recovery path are recorded in the completed [engine/simulation plan](../archive/plans/2026-10-02-engine-and-simulation-core.md). This is implementation infrastructure. The Hydrogen-only slice has current partial evidence under M-01; broader functional-area rows remain open.
+
+## Hydrogen vertical slice evidence (M-01)
+
+This evidence covers the first playable slice and does not close any broad feature area below.
+
+| Area | Current evidence | Still open in the broad area |
+|---|---|---|
+| `app-boot` | Fresh named run reaches Hydrogen with $10, 50 RP, 0/150 Hydrogen, nine semantic tabs, a stable active pane, and only Hydrogen unlocked. Spanish boot locale and local-only requests are checked. | Empty/missing storage, offline startup, demo/build gates, save-slot selection and all other progression starts. |
+| `resources` | Manual +1 collection, $0.02/unit sale, whole-unit sale behavior, 149-Hydrogen storage purchase and 150-to-300 capacity are checked through controls and selectors. | The other seven resources, full sale/storage cases, fusion and all downstream economy paths. |
+| `autobuyers` | One Hydrogen compressor costs 50, produces 2/s, advances through the injected clock and pauses without further production. The 50/57/65 price recurrence is unit-tested. | Other Hydrogen tiers, all other resource/compound buyers, energy, allocations and cap/recovery interactions. |
+| `precision` / `rounding` | Hydrogen fractional sale settlement, two-cent value arithmetic, repeated price ceiling and atomic affordability checks have focused unit evidence. | Cross-system currency/quantity behavior, all resource scales, notation and compound rounding. |
+| `localization` | All six first-slice catalogues pass key/placeholder parity; the browser switches live through all six languages and keeps a stable `lang` value. | Full-game catalogue parity, translation review and long-text/layout review across all screens. |
+| `ui-navigation` | Nine stable tab/pane IDs, locked placeholders and arrow-key tab movement are checked; the Hydrogen control and long German labels stay usable at 390px width without document overflow. | All game panes, focus paths, themes, touch flows and full responsive layouts. |
+| `performance` | Seed `314159`, 1280×720 Chrome run records first-slice frame/heap/DOM/listener metrics; the target late-game fixture design is documented. | Long-run and late-game measurements, cross-browser matrix and release thresholds. |
+
+The reproducible spec commands, outcomes, and measured baseline are in each populated [browser area README](../../tests/e2e/README.md) and the [M-01 completion record](../archive/plans/2026-10-02-hydrogen-vertical-slice.md). Every broad feature row below remains **Not started** until its full normal and failure paths are implemented and checked.
 
 ## Foundation
 

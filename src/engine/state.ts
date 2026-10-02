@@ -25,6 +25,7 @@ export interface GoodState {
 
 export interface RunState {
   readonly pioneerName: string;
+  readonly hydrogenAutobuyerEnabled: boolean;
   readonly cash: number;
   readonly researchPoints: number;
   readonly goods: Readonly<Record<EconomicGoodId, GoodState>>;
@@ -87,6 +88,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
     schemaVersion: 1,
     run: {
       pioneerName: options.pioneerName?.trim() || "Pioneer",
+      hydrogenAutobuyerEnabled: true,
       cash: 10,
       researchPoints: 50,
       goods,
@@ -135,6 +137,7 @@ export function isValidGameState(value: unknown): value is GameState {
   const { run, permanent, settings, statistics } = state;
   if (
     typeof run.pioneerName !== "string" ||
+    typeof run.hydrogenAutobuyerEnabled !== "boolean" ||
     !Number.isFinite(run.cash) ||
     run.cash < 0 ||
     !Number.isFinite(run.researchPoints) ||

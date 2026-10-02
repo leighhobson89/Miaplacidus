@@ -27,7 +27,7 @@ The Vite/React/TypeScript stack and deterministic engine substrate are implement
 
 ## Delivery sequence
 
-**Current progress (2 October 2026):** F-01–F-10 source inspection and extraction are complete against the frozen reference; see the [source contract](../audit/foundation-source-contract.md) and [domain catalogues](../audit/README.md). F-11–F-18 provide the browser/toolchain scaffold. F-19–F-30 provide the scoped state and engine/simulation contracts, recorded in the [engine completion plan](../archive/plans/2026-10-02-engine-and-simulation-core.md). F-31–F-42 and the M-01 exit gate remain open; no player-facing gameplay slice or test spec is complete.
+**Current progress (2 October 2026):** M-01 is complete. F-01–F-10 source inspection and extraction are recorded against the frozen reference; F-11–F-18 provide the browser/toolchain scaffold; F-19–F-30 provide the scoped state and engine/simulation contracts; F-31–F-42 deliver and verify the Hydrogen-only vertical slice. See the [M-01 completion record](../archive/plans/2026-10-02-hydrogen-vertical-slice.md). M-02, local saves and confirmed-name loading, is the next gate; broader gameplay areas remain open.
 
 | Stage | Work package | Playable or reviewable milestone |
 |---|---|---|

@@ -168,6 +168,9 @@ export function isEventId(value: unknown): value is EventId {
 export const ACTION_IDS = [
   "resource.collect",
   "resource.sell",
+  "storage.purchase",
+  "hydrogen.autobuyer.purchase",
+  "hydrogen.autobuyer.toggle",
   "upgrade.purchase",
   "technology.research",
   "system.scan",

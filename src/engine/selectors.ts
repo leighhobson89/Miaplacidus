@@ -1,6 +1,20 @@
 import type { EconomicGoodId, UpgradeId } from "../content/ids";
 import type { GameState, GoodState } from "./state";
-import { checkPurchase, type PurchaseCommand, type PreconditionResult } from "./commands";
+import {
+  checkPreconditions,
+  checkPurchase,
+  type GameCommand,
+  type PurchaseCommand,
+  type PreconditionResult,
+} from "./commands";
+import {
+  HYDROGEN_AUTOBUYER_RATE,
+  HYDROGEN_STORAGE_PRICE_OFFSET,
+  HYDROGEN_STORAGE_MULTIPLIER,
+  hydrogenAutobuyerCount,
+  hydrogenAutobuyerPrice,
+} from "../content/hydrogen";
+import { displayQuantity } from "./precision";
 
 export interface GameSnapshot {
   readonly pioneerName: string;
@@ -15,6 +29,9 @@ export interface GameSnapshot {
   readonly locale: GameState["settings"]["locale"];
   readonly notation: GameState["settings"]["notation"];
   readonly soundEnabled: boolean;
+  readonly hydrogenAutobuyerCount: number;
+  readonly hydrogenAutobuyerEnabled: boolean;
+  readonly hydrogenProductionPerSecond: number;
   readonly revision: number;
 }
 
@@ -32,6 +49,11 @@ export function selectGameSnapshot(state: GameState): GameSnapshot {
     locale: state.settings.locale,
     notation: state.settings.notation,
     soundEnabled: state.settings.soundEnabled,
+    hydrogenAutobuyerCount: hydrogenAutobuyerCount(state.run.upgrades),
+    hydrogenAutobuyerEnabled: state.run.hydrogenAutobuyerEnabled,
+    hydrogenProductionPerSecond: state.run.hydrogenAutobuyerEnabled
+      ? hydrogenAutobuyerCount(state.run.upgrades) * HYDROGEN_AUTOBUYER_RATE
+      : 0,
     revision: state.statistics.acceptedCommands,
   };
 }
@@ -46,4 +68,98 @@ export function selectUpgradeCount(state: GameState, upgradeId: UpgradeId): numb
 
 export function selectPurchase(state: GameState, command: PurchaseCommand): PreconditionResult {
   return checkPurchase(state, command);
+}
+
+export interface HydrogenPurchaseSelection {
+  readonly enabled: boolean;
+  readonly cost: number;
+  readonly capacityAfterPurchase?: number;
+  readonly reasonKey?: string;
+  readonly required?: number;
+}
+
+function purchaseSelection(
+  state: GameState,
+  command: Extract<
+    GameCommand,
+    { readonly type: "storage.purchase" | "hydrogen.autobuyer.purchase" }
+  >,
+  cost: number,
+  capacityAfterPurchase?: number,
+): HydrogenPurchaseSelection {
+  const check = checkPreconditions(state, command);
+  if (check.ok) {
+    return {
+      enabled: true,
+      cost,
+      ...(capacityAfterPurchase === undefined ? {} : { capacityAfterPurchase }),
+    };
+  }
+  return {
+    enabled: false,
+    cost,
+    reasonKey: check.failure.messageKey,
+    ...(check.failure.code === "insufficient-material" ? { required: check.failure.required } : {}),
+    ...(capacityAfterPurchase === undefined ? {} : { capacityAfterPurchase }),
+  };
+}
+
+export function selectHydrogenStoragePurchase(state: GameState): HydrogenPurchaseSelection {
+  const capacity = state.run.goods.hydrogen.storageCapacity;
+  return purchaseSelection(
+    state,
+    { type: "storage.purchase", goodId: "hydrogen" },
+    Math.max(0, capacity - HYDROGEN_STORAGE_PRICE_OFFSET),
+    capacity * HYDROGEN_STORAGE_MULTIPLIER,
+  );
+}
+
+export function selectHydrogenAutobuyerPurchase(state: GameState): HydrogenPurchaseSelection {
+  const owned = hydrogenAutobuyerCount(state.run.upgrades);
+  return purchaseSelection(
+    state,
+    { type: "hydrogen.autobuyer.purchase" },
+    hydrogenAutobuyerPrice(owned),
+  );
+}
+
+export interface HydrogenSaleSelection {
+  readonly enabled: boolean;
+  readonly amount: number;
+  readonly cash: number;
+  readonly reasonKey?: string;
+}
+
+export function selectHydrogenSale(
+  state: GameState,
+  requested: number | "all",
+): HydrogenSaleSelection {
+  const check = checkPreconditions(state, {
+    type: "resource.sell",
+    goodId: "hydrogen",
+    amount: requested,
+  });
+  const stock = state.run.goods.hydrogen.quantity;
+  const wholeStock = displayQuantity(stock);
+  const amount = requested === "all" ? wholeStock : Math.min(wholeStock, requested);
+  const enabled = check.ok && amount > 0;
+  return {
+    enabled,
+    amount,
+    cash: amount * state.run.goods.hydrogen.saleValue,
+    ...(enabled ? {} : { reasonKey: check.ok ? "ui.hydrogen.no-stock" : check.failure.messageKey }),
+  };
+}
+
+export function selectHydrogenCollection(state: GameState): {
+  enabled: boolean;
+  reasonKey?: string;
+} {
+  const hydrogen = state.run.goods.hydrogen;
+  if (!state.run.unlockedResources.includes("hydrogen")) {
+    return { enabled: false, reasonKey: "ui.hydrogen.locked" };
+  }
+  return hydrogen.quantity + 1 <= hydrogen.storageCapacity
+    ? { enabled: true }
+    : { enabled: false, reasonKey: "ui.hydrogen.inventory-full" };
 }

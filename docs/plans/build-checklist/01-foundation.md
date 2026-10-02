@@ -15,7 +15,7 @@
 - [x] **F-09** Record numerical examples and representative early, mid, travel, rebirth and endgame scenarios from the reference game. Evidence: F-09 sections in all three domain catalogues and [planned test examples](../../audit/foundation-test-plan.md).
 - [x] **F-10** Identify deliberate legacy quirks separately from bugs or stale GDD claims; require a recorded decision before changing a rule. Evidence: [source contract](../../audit/foundation-source-contract.md#f-10--behavior-differences-that-require-an-explicit-decision) and F-10 sections in the domain catalogues.
 
-**F-01–F-30 implementation complete (2 October 2026).** F-01–F-10 record source inspection and extraction; F-11–F-18 establish the app/toolchain scaffold and stable IDs; F-19–F-30 implement the scoped engine and simulation core. This is still engine infrastructure, not a player-facing parity result. See the [F-19–F-30 completion record](../../archive/plans/2026-10-02-engine-and-simulation-core.md). F-31–F-42 and the full M-01 exit gate remain open.
+**M-01 foundation complete (2 October 2026).** F-01–F-10 record source inspection and extraction; F-11–F-18 establish the app/toolchain scaffold and stable IDs; F-19–F-30 implement the scoped engine and simulation core; F-31–F-42 deliver and verify the Hydrogen-only vertical slice. See the [engine completion record](../../archive/plans/2026-10-02-engine-and-simulation-core.md) and [Hydrogen slice completion record](../../archive/plans/2026-10-02-hydrogen-vertical-slice.md). Broader feature areas remain open in the parity ledger.
 
 ## Toolchain and project structure
 
@@ -43,21 +43,21 @@
 - [x] **F-29** Make state transitions deterministic from state, command, clock input and random seed. Evidence: [pure transition boundary](../../../src/engine/commands.ts), [random state](../../../src/engine/random.ts).
 - [x] **F-30** Define error boundaries and recovery that leave a valid playable state after a rejected command. Evidence: [state recovery](../../../src/engine/store.ts), [render recovery](../../../src/ui/GameErrorBoundary.tsx).
 
-**Verification note:** no unit or browser test files were added or run for F-19–F-30; the focused rule specs remain F-39 and the browser specs remain F-40. Infrastructure checks are recorded in the engine completion plan.
+**Verification note:** F-19–F-30 has focused unit evidence recorded in the engine completion plan. The first player-facing slice has its own rule and browser evidence under F-39/F-40 below.
 
 ## First vertical slice and test tools
 
-- [ ] **F-31** Render a semantic nine-tab shell with locked placeholders and stable pane IDs.
-- [ ] **F-32** Implement Hydrogen manual gain, quantity/cap readout, sell, storage purchase, cash and one autobuyer through real engine commands.
-- [ ] **F-33** Show affordability and disabled reasons from selectors, never parsed DOM text.
-- [ ] **F-34** Wire English plus five other locale catalogues to the first slice; all visible text uses stable message keys.
-- [ ] **F-35** Add Playwright config, local web server, failure traces/screenshots/video and focused area selection.
-- [ ] **F-36** Add a clean-save browser fixture, fake clock/seed controls and page/console error capture.
-- [ ] **F-37** Add test-only scenario commands through the engine boundary; ensure release builds omit them.
-- [ ] **F-38** Recreate the useful debug scenario menu and searchable variable view only in development/test modes.
-- [ ] **F-39** Add pure tests for precision, tick ordering, purchase atomicity, timers and first-slice unlocks.
-- [ ] **F-40** Add browser tests for boot, Hydrogen loop, keyboard use, locale switch and the first save-ready state.
-- [ ] **F-41** Record a repeatable baseline frame/heap measurement for the first slice and a late-game target fixture design.
-- [ ] **F-42** Update the parity ledger with evidence for implemented portions; leave every unfinished area open.
+- [x] **F-31** Render a semantic nine-tab shell with locked placeholders and stable pane IDs. Evidence: [app shell](../../../src/app/App.tsx), [boot/navigation browser tests](../../../tests/e2e/app-boot/hydrogen-boot.spec.ts).
+- [x] **F-32** Implement Hydrogen manual gain, quantity/cap readout, sell, storage purchase, cash and one autobuyer through real engine commands. Evidence: [Hydrogen commands](../../../src/engine/commands.ts), [content rules](../../../src/content/hydrogen.ts), and [Hydrogen pane](../../../src/app/App.tsx).
+- [x] **F-33** Show affordability and disabled reasons from selectors, never parsed DOM text. Evidence: [purchase and action selectors](../../../src/engine/selectors.ts).
+- [x] **F-34** Wire English plus five other locale catalogues to the first slice; all visible text uses stable message keys. Evidence: [six typed catalogues](../../../src/i18n/messages.ts), [key/placeholder parity unit test](../../../tests/unit/hydrogen.spec.ts), and the six-locale browser check.
+- [x] **F-35** Add Playwright config, local web server, failure traces/screenshots/video and focused area selection. Evidence: [Playwright configuration](../../../playwright.config.ts) and package scripts.
+- [x] **F-36** Add a clean-run browser fixture, fake clock/seed controls and page/console/network error capture. Evidence: [browser fixture](../../../tests/e2e/_harness/fixtures.ts) and [injected test clock](../../../src/app/App.tsx).
+- [x] **F-37** Add test-only scenario commands through the engine boundary; ensure release builds omit them. Evidence: [debug scenario gateway](../../../src/app/testing/DebugTools.tsx), normal command batching in the [engine store](../../../src/engine/store.ts), and production bundle inspection in the [completion record](../../archive/plans/2026-10-02-hydrogen-vertical-slice.md).
+- [x] **F-38** Recreate the useful debug scenario menu and searchable variable view only in development/test modes. Evidence: [development/test-only debug tools](../../../src/app/testing/DebugTools.tsx).
+- [x] **F-39** Add pure tests for precision, tick ordering, purchase atomicity, timers and first-slice unlocks. Evidence: [Hydrogen rule specs](../../../tests/unit/hydrogen.spec.ts) and [foundation engine specs](../../../tests/unit/foundation-engine.spec.ts); 11 focused tests passed.
+- [x] **F-40** Add browser tests for boot, Hydrogen loop, keyboard use, locale switch and the first save-ready state. Evidence: [boot/navigation/localization/responsive and visual startup tests](../../../tests/e2e/app-boot/hydrogen-boot.spec.ts), [resource tests](../../../tests/e2e/resources/hydrogen-loop.spec.ts), and [compressor test](../../../tests/e2e/autobuyers/hydrogen-compressor.spec.ts); all 8 focused UI browser tests passed with screenshot comparisons. A named, valid Hydrogen run is ready for Phase 2 save integration; save storage/export is not part of M-01.
+- [x] **F-41** Record a repeatable baseline frame/heap measurement for the first slice and a late-game target fixture design. Evidence: [performance spec](../../../tests/e2e/performance/hydrogen-baseline.spec.ts) and [fixture design](../../../tests/fixtures/README.md).
+- [x] **F-42** Update the parity ledger with evidence for implemented portions; leave every unfinished area open. Evidence: [Hydrogen-only parity evidence](../feature-parity-checklist.md#hydrogen-vertical-slice-evidence-m-01).
 
-**Exit gate:** a fresh run plays from the name screen through the Hydrogen slice; engine tests prove its rules; browser tests drive real controls; no CDN, cloud-save call or production debug access is needed for play. The save flow is completed in [phase 2](02-local-saves.md).
+**Exit gate passed (2 October 2026):** a fresh named run plays from the name screen through the Hydrogen slice; focused engine and browser tests prove its rules; no external request is made; production output contains no debug chunk or gateway identifier. The save flow remains in [phase 2](02-local-saves.md).

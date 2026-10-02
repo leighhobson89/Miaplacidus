@@ -3,6 +3,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 interface GameErrorBoundaryProps {
   readonly children: ReactNode;
   readonly onRecover: () => void;
+  readonly messages: { readonly title: string; readonly detail: string; readonly continue: string };
 }
 
 interface GameErrorBoundaryState {
@@ -30,10 +31,10 @@ export class GameErrorBoundary extends Component<GameErrorBoundaryProps, GameErr
       return (
         <main className="application-shell" role="alert">
           <section className="error-recovery" aria-labelledby="error-recovery-title">
-            <h1 id="error-recovery-title">This screen could not be displayed</h1>
-            <p>Your game state is safe. Restore the last valid state and continue.</p>
+            <h1 id="error-recovery-title">{this.props.messages.title}</h1>
+            <p>{this.props.messages.detail}</p>
             <button type="button" onClick={this.recover}>
-              Continue
+              {this.props.messages.continue}
             </button>
           </section>
         </main>

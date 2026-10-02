@@ -1,8 +1,8 @@
 # MIAPLACIDUS
 
-Planning workspace and browser-app foundation for **MIAPLACIDUS**, a from-scratch remake of Cosmic Forge. Preserve its gameplay breadth, nine tabs and six languages while making the browser game smoother on desktop and responsive mobile. All visual/audio assets will be remade. Multiple local save slots and LZString text/file export replace cloud saving; only MIAPLACIDUS saves will be migrated across future versions. There is no Electron app or analytics. Full gameplay is the default; a demo is optional behind an explicit build flag. F-01–F-18 establish the source contract and local toolchain; gameplay implementation and test specs have not started.
+**MIAPLACIDUS** is a from-scratch browser remake of Cosmic Forge, with nine tabs and six languages. The M-01 Hydrogen-only vertical slice is playable and covered by click-driven end-to-end browser tests; the next phase adds local saves. The full game is the default, with an optional demo build. Multiple local save slots and LZString text/file export replace cloud saving. There is no Electron app or analytics.
 
-Start with [the master build checklist](docs/plans/master-checklist.md). The [documentation index](docs/README.md) links the [source audit](docs/audit/README.md), [detailed work packages](docs/plans/build-checklist/README.md), [parity ledger](docs/plans/feature-parity-checklist.md), [local save contract](docs/plans/local-save-contract.md) and [test harness plan](docs/plans/test-harness.md).
+Start with the [Vite run and deployment guide](docs/run-and-deploy.md) to launch the game locally or build the static site. The [master build checklist](docs/plans/master-checklist.md) tracks implementation. The [documentation index](docs/README.md) links the [source audit](docs/audit/README.md), [detailed work packages](docs/plans/build-checklist/README.md), [parity ledger](docs/plans/feature-parity-checklist.md), [local save contract](docs/plans/local-save-contract.md) and [test harness plan](docs/plans/test-harness.md).
 
 The reference project is read-only for this remake: `../cosmicForge/cosmicForge/`.
 

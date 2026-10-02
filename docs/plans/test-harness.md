@@ -1,45 +1,50 @@
-# Test harness plan and prepared folders
+# Test harness plan
 
-The new `tests/e2e/` tree has 50 functional-area folders based on Cosmic Forge: `save-slots` replaces the removed `save-load-cloud` area. Every area directory contains only a `.gitkeep` marker. `tests/e2e/_harness/`, `tests/unit/`, `tests/fixtures/`, and `tests/docs/` are also placeholders. **There are no game test specs, Playwright config, fixtures or local browser test server yet.** The [package manifest](../../package.json) wires the Vitest and Playwright commands; no-spec test runs are set to exit successfully and say when they ran no tests. The lockfile pins TypeScript, Vite/React, Vitest, Playwright, Oxlint, Oxfmt and LZString. Browser binaries are deferred until browser specs exist.
+The F-35/F-36 harness is implemented for the M-01 Hydrogen slice. Playwright runs against the local Vite test server with deterministic seed/locale, fresh per-test browser state, page/console errors, external-request capture, failure screenshots/traces, and checked-in visual baselines around the real player click flows. Vitest covers pure engine rules. The HTML entry includes a dark startup fallback with Vite instructions when a static server cannot compile the TypeScript app. The focused run and area evidence are recorded in the populated [E2E area READMEs](../../tests/e2e/README.md) and [M-01 completion record](../archive/plans/2026-10-02-hydrogen-vertical-slice.md).
 
-The F-01–F-10 [source-derived acceptance matrix](../audit/foundation-test-plan.md) is complete as planning documentation only. It does not add coverage or change any area from not started; focused specs begin with F-35–F-40 when the vertical slice exists.
+The wider F-01–F-10 [source-derived acceptance matrix](../audit/foundation-test-plan.md) remains planning input for later phases. Current Hydrogen evidence does not close the full `resources`, `autobuyers`, `precision`, `localization`, or `ui-navigation` areas. Save behavior starts in M-02.
 
 ## Current package commands
 
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Start the local full-game Vite development server. |
-| `npm run dev:test` | Start the explicit Vite test mode; deterministic scenario controls are added later through the engine boundary. |
-| `npm run build` | Typecheck and build the complete browser game. |
+| `npm run dev:test` | Start Vite test mode with deterministic test controls. |
+| `npm run build` | Typecheck and build the production browser game. |
 | `npm run build:demo` | Opt in to a separate demo build; the normal build stays full. |
 | `npm run typecheck` | Check strict TypeScript source without emitting files. |
 | `npm run lint` | Run Oxlint with the checked-in lint rules. |
 | `npm run format` / `npm run format:check` | Apply or check Oxfmt formatting. |
-| `npm run check:boundaries` | Enforce the engine import restrictions. Temporary prohibited-import checks and their results are recorded in the [F-11–F-18 completion record](../archive/plans/2026-10-02-toolchain-project-structure.md). |
-| `npm run test:unit` | Run unit specs under `tests/unit/`; currently reports that no specs ran. |
+| `npm run check:boundaries` | Enforce engine import restrictions. |
+| `npm run test:unit` | Run pure Vitest specs in `tests/unit/`. |
 | `npm run test:unit:focused -- <file-or-pattern>` | Select focused Vitest specs. |
-| `npm run test:e2e` | Run E2E specs under `tests/e2e/`; browser config arrives with F-35. |
-| `npm run test:e2e:focused -- <area-or-spec>` | Select a focused Playwright area/spec once F-35 config and specs exist. |
+| `npm run test:e2e` | Run the Playwright specs under `tests/e2e/`. |
+| `npm run test:e2e:focused -- <area-or-spec>` | Select focused specs. `MIAPLACIDUS_TEST_AREA=<area>` filters to a functional-area tag. |
 
-The focused command patterns are prepared now. The engine-backed test fixtures and local browser server are F-35/F-36 work, and no result from an empty suite counts as feature coverage.
+The default browser project is Playwright Chromium. Set `MIAPLACIDUS_BROWSER_CHANNEL=chrome` to use an installed Chrome channel. Set `MIAPLACIDUS_DISABLE_VIDEO=1` only when the local machine lacks Playwright's video/ffmpeg support; screenshots and traces remain enabled on failure.
 
-## Future harness contract
+For the recorded Windows run, Vite was started in a separate terminal with `npm run dev:test -- --host 127.0.0.1 --port 4173 --strictPort`; Playwright reused `http://127.0.0.1:4173` and exited cleanly after the focused run. When port 4173 is free, the checked-in Playwright config starts the same local server automatically.
 
-Source-derived scenarios and planned acceptance coverage for the F-01–F-10 catalogue are in the [foundation test plan](../audit/foundation-test-plan.md). These are plans only; the matching green Cosmic Forge areas are not MIAPLACIDUS passes.
+## Implemented M-01 fixture and scenario controls
 
-1. Add `playwright.config.ts` when the first playable slice exists: Vite dev/preview `webServer`, base URL, Chromium first, area-filtered HTML/JSON reports, failure trace/screenshot/video, CI retry policy, and sensible timeouts.
-2. Add a TypeScript fixture in `_harness` that creates a clean game per test, sets locale and seeded random before boot, captures page/console errors, and exposes stable scenario commands through a test-only gateway. Use role/label locators to drive normal controls.
-3. Add a runner to discover folders containing `.spec.ts`, run one or selected areas, and aggregate current results. It should support `--list`, headed, slow, Playwright arguments and MIAPLACIDUS schema-version fixtures. Empty folders must be skipped.
-4. Add unit tests for pure economy, precision, clock, migration, unlock, event and rebirth rules. Keep them fast and independent of DOM and browser storage.
-5. Add sanitised fixtures representing start, mid, interstellar, rebirth and endgame, plus every shipped MIAPLACIDUS save version. Original Cosmic Forge save import is out of scope. Use an in-memory `Storage` fake for slot/quota/corruption tests; never reach Cosmic Forge production services.
-6. Give every populated area a README with its rule matrix, deterministic setup, normal/failure tests, debug commands, and observed result. Generate aggregate coverage from actual runs, including commit and browser.
+`tests/e2e/_harness/fixtures.ts` starts a new browser context, clears local/session storage before navigation, fixes seed `314159` and locale `en`, starts a named run through the form, waits for the Hydrogen pane and captures page, console and external-request errors. The `window.miaplacidusTest` gateway exists only in development/test builds.
 
-## Debug-tool plan
+The Test Lab can prepare stock for the 50-Hydrogen compressor and 149-Hydrogen storage purchase by dispatching normal `resource.collect` commands through the engine store. Its clock button dispatches normal `clock.advance` commands and drains bounded foreground catch-up. It reports seed, clock and replayable command log. The variable inspector is searchable and read-only.
 
-Recreate Cosmic Forge's scenario-menu strengths: grant resources/currency/tech, build infrastructure, choose star/event/weather, advance time, set casino outcome, and prepare a late-game run. Route commands through the engine's normal mutation boundary and validate state. Include a searchable variable inspector only in development/test builds; keep it read-only by default and require an explicit edit action. Use a test build flag, not `Test1981` in a player name. Log the seed, clock time and command sequence so failures replay. Assert production builds omit the gateway.
+Initial focused M-01 results on 2 October 2026:
 
-## Coverage order
+- 11/11 unit tests passed across the Hydrogen and foundation-engine specs.
+- 8/8 browser tests passed across `app-boot`, `resources`, `autobuyers`, and `performance`.
+- Production build output contained one app JS bundle and no `DebugTools` chunk, `miaplacidusTest` identifier or scenario installer.
 
-Start with `app-boot`, `resources`, `precision`, `save-load-local`, `save-slots`, `localization`, `ui-navigation`, and `performance` during the first vertical slice. Fill each subsequent feature's area at the time the feature ships. Run the focused area during development. A full run is a release gate and follows the project's approval rule in [AGENTS.md](../../AGENTS.md).
+The visual-test follow-up passed all 8 selected UI tests across `app-boot` (5), `resources` (2), and `autobuyers` (1). Eleven screenshot states are stored beside their specs and compared on each run; the screenshots are also attached to Playwright reports. The separate performance baseline remains the earlier focused result.
 
-The target taxonomy and acceptance details are in the [parity ledger](feature-parity-checklist.md). The [master checklist](master-checklist.md) controls implementation. The old fixture, navigation helper, reporter and area runner are documented in [the audit](../audit/testing-and-debug.md).
+See the individual area READMEs for rule matrices, test commands, and the performance record. The full test suite was not run.
+
+## Later harness work
+
+As additional areas ship, add an area README with its rule matrix, deterministic setup, normal/failure tests, debug commands, and observed result. Add sanitized typed start, mid-game, interstellar, rebirth, and endgame fixtures as their state models exist. Use an in-memory `Storage` fake for save-slot/quota/corruption tests; original Cosmic Forge save import and production-service calls stay excluded. The M-01 late-game target fixture design is in [`tests/fixtures/README.md`](../../tests/fixtures/README.md).
+
+Expand the debug menu only as feature contracts require it. Route scenario setup through normal engine commands, preserve replay logs, and keep edit/cheat access out of production. A full run remains a release gate and follows the approval rule in [AGENTS.md](../../AGENTS.md).
+
+The [parity ledger](feature-parity-checklist.md) controls area evidence; the [master checklist](master-checklist.md) controls implementation order. The old Cosmic Forge fixture, navigation helper, reporter and area runner are documented in [the audit](../audit/testing-and-debug.md).

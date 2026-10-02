@@ -8,10 +8,19 @@ import {
   type EventId,
   type MaterialId,
   type UpgradeId,
+  autobuyerUpgradeId,
+  storageUpgradeId,
 } from "../content/ids";
 import { advanceClock, pauseClock, resumeClock, type ClockInput } from "./clock";
-import { canAfford, settleSpend } from "./precision";
+import { canAfford, displayQuantity, settleSpend } from "./precision";
 import { nextRandom } from "./random";
+import {
+  HYDROGEN_MANUAL_GAIN,
+  HYDROGEN_STORAGE_MULTIPLIER,
+  HYDROGEN_STORAGE_PRICE_OFFSET,
+  hydrogenAutobuyerCount,
+  hydrogenAutobuyerPrice,
+} from "../content/hydrogen";
 import {
   createInitialGameState,
   isValidGameState,
@@ -36,6 +45,15 @@ export interface PurchaseCommand {
 
 export type GameCommand =
   | PurchaseCommand
+  | { readonly type: "resource.collect"; readonly goodId: "hydrogen" }
+  | {
+      readonly type: "resource.sell";
+      readonly goodId: "hydrogen";
+      readonly amount: number | "all";
+    }
+  | { readonly type: "storage.purchase"; readonly goodId: "hydrogen" }
+  | { readonly type: "hydrogen.autobuyer.purchase" }
+  | { readonly type: "hydrogen.autobuyer.toggle"; readonly enabled: boolean }
   | {
       readonly type: "clock.advance";
       readonly input: ClockInput;
@@ -86,6 +104,9 @@ export type CommandFailure =
       readonly timerId: TimerId;
     }
   | { readonly code: "invalid-settings"; readonly messageKey: "engine.settings.invalid" }
+  | { readonly code: "inventory-full"; readonly messageKey: "ui.hydrogen.inventory-full" }
+  | { readonly code: "no-stock"; readonly messageKey: "ui.hydrogen.no-stock" }
+  | { readonly code: "autobuyer-unavailable"; readonly messageKey: "ui.hydrogen.autobuyer-locked" }
   | { readonly code: "transition-failed"; readonly messageKey: "engine.error.recovered" };
 
 export type PreconditionResult =
@@ -94,6 +115,9 @@ export type PreconditionResult =
 
 export type EngineEvent =
   | { readonly type: "purchase.completed"; readonly upgradeId: UpgradeId; readonly count: number }
+  | { readonly type: "resource.collected"; readonly goodId: "hydrogen"; readonly amount: number }
+  | { readonly type: "storage.increased"; readonly goodId: "hydrogen"; readonly capacity: number }
+  | { readonly type: "hydrogen.autobuyer.changed"; readonly enabled: boolean }
   | { readonly type: "clock.paused" }
   | { readonly type: "clock.resumed" }
   | { readonly type: "timer.paused"; readonly timerId: TimerId }
@@ -293,6 +317,98 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
   switch (command.type) {
     case "upgrade.purchase":
       return checkPurchase(state, command);
+    case "resource.collect": {
+      const hydrogen = state.run.goods.hydrogen;
+      return command.goodId === "hydrogen" &&
+        state.run.unlockedResources.includes("hydrogen") &&
+        hydrogen.quantity + HYDROGEN_MANUAL_GAIN <= hydrogen.storageCapacity
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: {
+              code: "inventory-full",
+              messageKey: "ui.hydrogen.inventory-full",
+            },
+          };
+    }
+    case "resource.sell": {
+      if (
+        command.goodId !== "hydrogen" ||
+        (command.amount !== "all" && (!Number.isSafeInteger(command.amount) || command.amount <= 0))
+      ) {
+        return {
+          ok: false,
+          failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+        };
+      }
+      return displayQuantity(state.run.goods.hydrogen.quantity) > 0
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "no-stock", messageKey: "ui.hydrogen.no-stock" },
+          };
+    }
+    case "storage.purchase": {
+      if (command.goodId !== "hydrogen") {
+        return {
+          ok: false,
+          failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+        };
+      }
+      const hydrogen = state.run.goods.hydrogen;
+      const cost = Math.max(0, hydrogen.storageCapacity - HYDROGEN_STORAGE_PRICE_OFFSET);
+      if (
+        !Number.isFinite(hydrogen.storageCapacity * HYDROGEN_STORAGE_MULTIPLIER) ||
+        !Number.isSafeInteger((state.run.upgrades[storageUpgradeId("hydrogen")] ?? 0) + 1)
+      ) {
+        return {
+          ok: false,
+          failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+        };
+      }
+      return canAfford(hydrogen.quantity, cost)
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: {
+              code: "insufficient-material",
+              messageKey: "engine.purchase.insufficient-material",
+              goodId: "hydrogen",
+              required: cost,
+            },
+          };
+    }
+    case "hydrogen.autobuyer.purchase": {
+      const owned = hydrogenAutobuyerCount(state.run.upgrades);
+      const cost = hydrogenAutobuyerPrice(owned);
+      if (!Number.isSafeInteger(owned + 1) || !Number.isFinite(cost)) {
+        return {
+          ok: false,
+          failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+        };
+      }
+      return canAfford(state.run.goods.hydrogen.quantity, cost)
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: {
+              code: "insufficient-material",
+              messageKey: "engine.purchase.insufficient-material",
+              goodId: "hydrogen",
+              required: cost,
+            },
+          };
+    }
+    case "hydrogen.autobuyer.toggle":
+      return typeof command.enabled === "boolean" && hydrogenAutobuyerCount(state.run.upgrades) > 0
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: {
+              code: "autobuyer-unavailable",
+              messageKey: "ui.hydrogen.autobuyer-locked",
+            },
+          };
     case "timer.add":
       if (
         !command.timerId.startsWith(`${command.domain}:`) ||
@@ -416,6 +532,97 @@ export function transition(state: GameState, command: GameCommand): EngineResult
     }
 
     switch (command.type) {
+      case "resource.collect": {
+        const hydrogen = state.run.goods.hydrogen;
+        const goods = {
+          ...state.run.goods,
+          hydrogen: { ...hydrogen, quantity: hydrogen.quantity + HYDROGEN_MANUAL_GAIN },
+        };
+        return success(
+          incrementAccepted({
+            ...state,
+            run: { ...state.run, goods },
+            statistics: {
+              ...state.statistics,
+              lifetimeGoodsProduced: state.statistics.lifetimeGoodsProduced + HYDROGEN_MANUAL_GAIN,
+            },
+          }),
+          [{ type: "resource.collected", goodId: "hydrogen", amount: HYDROGEN_MANUAL_GAIN }],
+          state,
+        );
+      }
+      case "resource.sell": {
+        const hydrogen = state.run.goods.hydrogen;
+        const available = displayQuantity(hydrogen.quantity);
+        const amount = command.amount === "all" ? available : Math.min(command.amount, available);
+        const remaining = hydrogen.quantity - amount;
+        const quantity = remaining < 1 ? 0 : remaining;
+        const cashEarned = amount * hydrogen.saleValue;
+        const goods = { ...state.run.goods, hydrogen: { ...hydrogen, quantity } };
+        return success(
+          incrementAccepted({
+            ...state,
+            run: { ...state.run, goods, cash: state.run.cash + cashEarned },
+            statistics: {
+              ...state.statistics,
+              lifetimeCashEarned: state.statistics.lifetimeCashEarned + cashEarned,
+            },
+          }),
+          [{ type: "resource.sold", goodId: "hydrogen", amount, cash: cashEarned }],
+          state,
+        );
+      }
+      case "storage.purchase": {
+        const hydrogen = state.run.goods.hydrogen;
+        const cost = Math.max(0, hydrogen.storageCapacity - HYDROGEN_STORAGE_PRICE_OFFSET);
+        const capacity = hydrogen.storageCapacity * HYDROGEN_STORAGE_MULTIPLIER;
+        const upgradeId = storageUpgradeId("hydrogen");
+        const goods = {
+          ...state.run.goods,
+          hydrogen: {
+            ...hydrogen,
+            quantity: settleSpend(hydrogen.quantity, cost),
+            storageCapacity: capacity,
+          },
+        };
+        const upgrades = {
+          ...state.run.upgrades,
+          [upgradeId]: (state.run.upgrades[upgradeId] ?? 0) + 1,
+        };
+        return success(
+          incrementAccepted({ ...state, run: { ...state.run, goods, upgrades } }),
+          [
+            { type: "purchase.completed", upgradeId, count: 1 },
+            { type: "storage.increased", goodId: "hydrogen", capacity },
+          ],
+          state,
+        );
+      }
+      case "hydrogen.autobuyer.purchase": {
+        const owned = hydrogenAutobuyerCount(state.run.upgrades);
+        const cost = hydrogenAutobuyerPrice(owned);
+        const upgradeId = autobuyerUpgradeId("hydrogen", 1);
+        const hydrogen = state.run.goods.hydrogen;
+        const goods = {
+          ...state.run.goods,
+          hydrogen: { ...hydrogen, quantity: settleSpend(hydrogen.quantity, cost) },
+        };
+        const upgrades = { ...state.run.upgrades, [upgradeId]: owned + 1 };
+        return success(
+          incrementAccepted({ ...state, run: { ...state.run, goods, upgrades } }),
+          [{ type: "purchase.completed", upgradeId, count: 1 }],
+          state,
+        );
+      }
+      case "hydrogen.autobuyer.toggle":
+        return success(
+          incrementAccepted({
+            ...state,
+            run: { ...state.run, hydrogenAutobuyerEnabled: command.enabled },
+          }),
+          [{ type: "hydrogen.autobuyer.changed", enabled: command.enabled }],
+          state,
+        );
       case "upgrade.purchase": {
         const count = command.count ?? 1;
         const cash = settleSpend(state.run.cash, command.cost.cash ?? 0);

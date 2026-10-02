@@ -14,7 +14,9 @@ export interface GameStore {
   getSnapshot(): GameSnapshot;
   subscribe(listener: () => void): () => void;
   dispatch(command: GameCommand): EngineResult;
+  dispatchBatch(commands: readonly GameCommand[]): readonly EngineResult[];
   publishIfDue(): boolean;
+  publishNow(): void;
   recover(): void;
 }
 
@@ -77,11 +79,27 @@ export function createGameStore(initialState: GameState, options: GameStoreOptio
       }
       return result;
     },
+    dispatchBatch(commands) {
+      const results: EngineResult[] = [];
+      for (const command of commands) {
+        const result = transition(state, command);
+        results.push(result);
+        if (!result.accepted) continue;
+        state = result.state;
+        lastGoodState = state;
+        dirty = true;
+      }
+      if (dirty) publish(readClock(options.clock, lastPublishedAt));
+      return results;
+    },
     publishIfDue() {
       const nowMs = readClock(options.clock, lastPublishedAt);
       if (!dirty || nowMs - lastPublishedAt < publishIntervalMs) return false;
       publish(nowMs);
       return true;
+    },
+    publishNow() {
+      publish(readClock(options.clock, lastPublishedAt));
     },
     recover() {
       state = isValidGameState(lastGoodState) ? lastGoodState : createInitialGameState();
