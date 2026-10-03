@@ -23,6 +23,9 @@ import { GameErrorBoundary } from "../ui/GameErrorBoundary";
 import { useGameSnapshot } from "../ui/useGameSnapshot";
 import { BUILD_INFO } from "./buildInfo";
 import { EconomyPanes, economyGoodName, economyRatePerSecond } from "./EconomyPanes";
+import { SpaceMiningPane } from "./SpaceMiningPane";
+import { StarMapPane } from "./StarMapPane";
+import { StarshipPane } from "./StarshipPane";
 import { SaveStartScreen } from "./SaveStartScreen";
 import { SaveManager } from "./SaveManager";
 import {
@@ -290,7 +293,7 @@ export function App() {
           seed: initial.seed,
           locale,
         });
-        if (BUILD_INFO.isTest) {
+        if (MIAPLACIDUS_BUILD_MODE === "test") {
           const fixture = new URLSearchParams(window.location.search).get("economyFixture");
           if (
             [
@@ -314,6 +317,21 @@ export function App() {
               "buyer-tiers",
               "compound-automation",
               "multipliers",
+              "space-telescope",
+              "space-starship",
+              "space-starship-ready",
+              "space-starship-scanning",
+              "space-diplomacy",
+              "space-battle-victory",
+              "space-battle-defeat",
+              "space-diplomacy-power",
+              "space-diplomacy-power-fail",
+              "space-diplomacy-aggressive",
+              "space-bully-scared",
+              "space-bully-surrender",
+              "space-unoccupied",
+              "space-late-game",
+              "space-manuscript-hidden",
             ].includes(fixture ?? "")
           ) {
             const { createEconomyFixture } = await import("./testing/economyFixtures");
@@ -567,6 +585,7 @@ function GameSession({
   const [autoSaveInterval, setAutoSaveInterval] = useState<10 | 30 | 60>(
     repository?.readPreferences().autoSaveIntervalSeconds ?? 10,
   );
+  const [debugLabOpen, setDebugLabOpen] = useState(false);
   const currentLocaleRef = useRef(snapshot.locale);
   useEffect(() => {
     currentLocaleRef.current = snapshot.locale;
@@ -577,6 +596,8 @@ function GameSession({
   const [DebugTools, setDebugTools] = useState<ComponentType<{
     store: GameStore;
     seed: number;
+    open: boolean;
+    onClose: () => void;
     advanceBy: (milliseconds: number) => void;
     readFrameMetrics: () => {
       readonly frames: number;
@@ -831,6 +852,19 @@ function GameSession({
 
   useEffect(() => {
     if (!import.meta.env.DEV && MIAPLACIDUS_BUILD_MODE !== "test") return;
+    const toggleTestLab = (event: KeyboardEvent) => {
+      if (event.code !== "NumpadSubtract" || event.repeat) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setDebugLabOpen((isOpen) => !isOpen);
+    };
+    window.addEventListener("keydown", toggleTestLab);
     let removeGateway = () => {};
     let cancelled = false;
     void import("./testing/DebugTools").then((module) => {
@@ -856,6 +890,7 @@ function GameSession({
     return () => {
       cancelled = true;
       removeGateway();
+      window.removeEventListener("keydown", toggleTestLab);
     };
   }, [store, seed, frameMetrics, advanceTestClock]);
 
@@ -1034,7 +1069,11 @@ function GameSession({
               (tab.id === "energy" &&
                 currentState.run.economy.researchedTechnologies.includes("basicPowerGeneration")) ||
               (tab.id === "compounds" &&
-                currentState.run.economy.researchedTechnologies.includes("compounds"));
+                currentState.run.economy.researchedTechnologies.includes("compounds")) ||
+              (tab.id === "interstellar" &&
+                currentState.run.economy.researchedTechnologies.includes("stellarCartography")) ||
+              (tab.id === "space-mining" &&
+                currentState.run.economy.researchedTechnologies.includes("atmosphericTelescopes"));
             return (
               <button
                 key={tab.id}
@@ -1490,6 +1529,19 @@ function GameSession({
                   </output>
                   <EconomyPanes tabId="resources" state={store.getState()} store={store} />
                 </>
+              ) : tab.id === "interstellar" &&
+                store
+                  .getState()
+                  .run.economy.researchedTechnologies.includes("stellarCartography") ? (
+                <>
+                  <StarMapPane state={store.getState()} store={store} />
+                  <StarshipPane state={store.getState()} store={store} />
+                </>
+              ) : tab.id === "space-mining" &&
+                store
+                  .getState()
+                  .run.economy.researchedTechnologies.includes("atmosphericTelescopes") ? (
+                <SpaceMiningPane state={store.getState()} store={store} />
               ) : index < 4 ? (
                 <EconomyPanes tabId={tab.id} state={store.getState()} store={store} />
               ) : (
@@ -1537,6 +1589,8 @@ function GameSession({
         <DebugTools
           store={store}
           seed={seed}
+          open={debugLabOpen}
+          onClose={() => setDebugLabOpen(false)}
           advanceBy={advanceTestClock}
           readFrameMetrics={() => {
             const durationMs = Math.max(

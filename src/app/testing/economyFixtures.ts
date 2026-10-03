@@ -5,8 +5,18 @@
   autobuyerUpgradeId,
 } from "../../content/ids";
 import { COMPOUND_CATALOG, MATERIAL_CATALOG } from "../../content/economy";
+import {
+  ROCKET_IDS,
+  ROCKET_PART_REQUIREMENTS,
+  STARSHIP_MODULES,
+  STARSHIP_MODULE_IDS,
+  createInitialStarSystemBattleState,
+} from "../../content/space";
+import { createStarCatalogue } from "../../content/starCatalogue";
 import { TECHNOLOGY_CATALOG } from "../../content/technology";
 import { createInitialGameState, type GameState } from "../../engine/state";
+import { ensureDiscoveredStarSystemProfiles } from "../../engine/starSystemProfiles";
+import { createTimer, createTimerId } from "../../engine/timers";
 
 type EconomyFixtureKind =
   | "full"
@@ -28,13 +38,29 @@ type EconomyFixtureKind =
   | "power-buildings"
   | "buyer-tiers"
   | "compound-automation"
-  | "multipliers";
+  | "multipliers"
+  | "space-telescope"
+  | "space-starship"
+  | "space-starship-ready"
+  | "space-starship-scanning"
+  | "space-diplomacy"
+  | "space-battle-victory"
+  | "space-battle-defeat"
+  | "space-diplomacy-power"
+  | "space-diplomacy-power-fail"
+  | "space-diplomacy-aggressive"
+  | "space-bully-scared"
+  | "space-bully-surrender"
+  | "space-unoccupied"
+  | "space-manuscript-hidden"
+  | "space-late-game";
 
 /** Test-only start states used by click-driven browser tests to reach later economy systems. */
 export function createEconomyFixture(
   kind: EconomyFixtureKind,
   locale: GameState["settings"]["locale"],
 ): GameState {
+  const spaceFixture = kind.startsWith("space-");
   const base = createInitialGameState({
     pioneerName: "Economy Test Pioneer",
     seed: 20261003,
@@ -66,8 +92,9 @@ export function createEconomyFixture(
       id,
       {
         ...base.run.goods[id],
-        quantity:
-          kind === "compound-automation"
+        quantity: spaceFixture
+          ? 1_000_000
+          : kind === "compound-automation"
             ? MATERIAL_IDS.includes(id as (typeof MATERIAL_IDS)[number])
               ? 10_000
               : 0
@@ -106,8 +133,9 @@ export function createEconomyFixture(
                                 : id === "carbon"
                                   ? 2_000
                                   : 1_500,
-        storageCapacity:
-          kind === "save" && id === "iron"
+        storageCapacity: spaceFixture
+          ? 1_000_000
+          : kind === "save" && id === "iron"
             ? 1_501
             : kind === "compound-automation"
               ? 100_000
@@ -231,6 +259,15 @@ export function createEconomyFixture(
       goods,
       unlockedResources,
       upgrades,
+      space: {
+        ...base.run.space,
+        ...(kind === "battery-cycle"
+          ? {
+              currentSystemWeather: "clear" as const,
+              weatherSystemId: base.run.space.currentSystemId,
+            }
+          : {}),
+      },
       economy: {
         ...base.run.economy,
         unlockedCompounds,
@@ -248,9 +285,235 @@ export function createEconomyFixture(
       acquiredPerks:
         kind === "multipliers"
           ? ["nanoBrokers:3", "bulkPurchasing", "smartAutoBuyers:2", "optimizedPowerGrids"]
-          : ["nanoBrokers:3", "bulkPurchasing"],
+          : kind === "space-telescope"
+            ? ["nanoBrokers:3", "bulkPurchasing", "autoSpaceTelescope"]
+            : spaceFixture
+              ? ["nanoBrokers:3", "bulkPurchasing", "spaceElevator:2"]
+              : ["nanoBrokers:3", "bulkPurchasing"],
     },
   };
+  if (
+    kind === "space-starship-ready" ||
+    kind === "space-starship-scanning" ||
+    kind === "space-diplomacy" ||
+    kind === "space-battle-victory" ||
+    kind === "space-battle-defeat" ||
+    kind === "space-diplomacy-power" ||
+    kind === "space-diplomacy-power-fail" ||
+    kind === "space-diplomacy-aggressive" ||
+    kind === "space-bully-scared" ||
+    kind === "space-bully-surrender" ||
+    kind === "space-unoccupied" ||
+    kind === "space-late-game"
+  ) {
+    const scanningFixture = kind !== "space-starship-ready";
+    const battleVictoryFixture = kind === "space-battle-victory";
+    const battleDefeatFixture = kind === "space-battle-defeat";
+    const poweredDiplomacyFixture = [
+      "space-diplomacy-power",
+      "space-diplomacy-power-fail",
+      "space-diplomacy-aggressive",
+      "space-bully-scared",
+      "space-bully-surrender",
+    ].includes(kind);
+    const aggressiveDiplomacyFixture = kind === "space-diplomacy-aggressive";
+    const unoccupiedFixture = kind === "space-unoccupied";
+    const battleFixture = battleVictoryFixture || battleDefeatFixture;
+    const diplomacyEncounter: GameState["run"]["space"]["systemEncounters"][number] = {
+      systemId: createStarCatalogue().find((star) => star.name === "Sirius")!.id,
+      lifeDetected: true,
+      civilizationLevel: unoccupiedFixture ? "unsentient" : "industrial",
+      lifeformTraits: battleFixture
+        ? ["aggressive", "terrans", "armored"]
+        : aggressiveDiplomacyFixture
+          ? ["aggressive", "terrans", "powerSiphon"]
+          : ["diplomatic", "terrans", "powerSiphon"],
+      raceName: unoccupiedFixture ? "Sirius Microbes" : "Sirius Envoys",
+      populationEstimate: unoccupiedFixture ? 500_000 : 2_000_000,
+      threatLevel: unoccupiedFixture ? "none" : "low",
+      defenseRating: battleFixture || poweredDiplomacyFixture ? 0 : 30,
+      enemyFleets:
+        battleVictoryFixture || poweredDiplomacyFixture
+          ? { air: 1, land: 0, sea: 0 }
+          : battleDefeatFixture
+            ? { air: 50, land: 0, sea: 0 }
+            : unoccupiedFixture
+              ? { air: 0, land: 0, sea: 0 }
+              : { air: 2, land: 3, sea: 1 },
+      anomalies: [],
+      initialImpression: poweredDiplomacyFixture ? 95 : 60,
+      currentImpression: poweredDiplomacyFixture ? 95 : 60,
+      latestDifferenceInImpression: 0,
+      attitude: unoccupiedFixture ? "none" : battleFixture ? "belligerent" : "receptive",
+      triedToBully: false,
+      patience: 5,
+      lastDiplomacyMessage: null,
+      warReady: battleFixture,
+      warMode: false,
+      battle: createInitialStarSystemBattleState(),
+    };
+    const starshipModules = Object.fromEntries(
+      STARSHIP_MODULE_IDS.map((moduleId) => [
+        moduleId,
+        {
+          builtParts:
+            STARSHIP_MODULES[moduleId].requiredForTravel ||
+            (scanningFixture && moduleId === "stellarScanner")
+              ? STARSHIP_MODULES[moduleId].parts
+              : 0,
+        },
+      ]),
+    ) as GameState["run"]["space"]["starshipModules"];
+    const scanDestination = createStarCatalogue().find((star) => star.name === "Sirius")!;
+    const fixtureState: GameState = {
+      ...state,
+      run: {
+        ...state.run,
+        random: poweredDiplomacyFixture
+          ? {
+              seed:
+                kind === "space-diplomacy-power-fail" ? 5 : kind === "space-bully-scared" ? 2 : 1,
+              draws: 0,
+            }
+          : state.run.random,
+        space: {
+          ...state.run.space,
+          starStudyRange: 200,
+          systemProfiles: ensureDiscoveredStarSystemProfiles(
+            state.run.space.systemProfiles,
+            state.run.space.currentSystemId,
+            200,
+          ),
+          antimatter: 1_000_000,
+          antimatterUnlocked: true,
+          antimatterMinedThisRun: 1_000_000,
+          starshipModules,
+          fleetEnvoyBuilt: poweredDiplomacyFixture,
+          systemEncounters:
+            kind !== "space-starship-scanning" && scanningFixture
+              ? [diplomacyEncounter]
+              : state.run.space.systemEncounters,
+          playerFleets:
+            battleFixture || poweredDiplomacyFixture || unoccupiedFixture
+              ? {
+                  ...state.run.space.playerFleets,
+                  scout: battleFixture ? 3 : poweredDiplomacyFixture ? 10 : 0,
+                }
+              : state.run.space.playerFleets,
+          playerFleetCombatTotals:
+            battleFixture || poweredDiplomacyFixture
+              ? {
+                  ...state.run.space.playerFleetCombatTotals,
+                  scout: {
+                    attackPower: poweredDiplomacyFixture ? 20 : 6,
+                    defensePower: poweredDiplomacyFixture ? 20 : 6,
+                  },
+                }
+              : state.run.space.playerFleetCombatTotals,
+          starship: scanningFixture
+            ? {
+                destinationSystemId: scanDestination.id,
+                phase: "orbiting",
+                timerId: null,
+                durationMs: 1,
+                antimatterSpent: 1,
+              }
+            : state.run.space.starship,
+        },
+      },
+      statistics: {
+        ...state.statistics,
+        lifetimeAntimatterMined: 1_000_000,
+      },
+    };
+    if (kind !== "space-late-game") return fixtureState;
+
+    const asteroids = ROCKET_IDS.map((rocketId, index) => ({
+      id: `asteroid-${index + 1}`,
+      name: `SPI-LATE-${index + 1}`,
+      systemId: fixtureState.run.space.currentSystemId,
+      distance: 35_000 + index * 5_000,
+      rarity: "common" as const,
+      extractionEase: 1,
+      remainingAntimatter: 1_000_000,
+      totalAntimatter: 1_000_000,
+      reservedBy: rocketId,
+      depleted: false,
+      interacted: true,
+    }));
+    const rockets = Object.fromEntries(
+      ROCKET_IDS.map((rocketId, index) => {
+        const timerId = createTimerId("travel", `late-game-${rocketId}`);
+        return [
+          rocketId,
+          {
+            ...fixtureState.run.space.rockets[rocketId],
+            builtParts: ROCKET_PART_REQUIREMENTS[rocketId],
+            phase: "outbound" as const,
+            targetAsteroidId: asteroids[index]!.id,
+            journeyCount: 1,
+            timerId,
+          },
+        ];
+      }),
+    ) as unknown as GameState["run"]["space"]["rockets"];
+    const travelTimers = Object.fromEntries(
+      ROCKET_IDS.map((rocketId, index) => {
+        const timerId = createTimerId("travel", `late-game-${rocketId}`);
+        return [
+          timerId,
+          {
+            ...createTimer({ id: timerId, domain: "travel", durationMs: 90_000 + index * 5_000 }),
+            elapsedMs: 15_000,
+          },
+        ];
+      }),
+    );
+    return {
+      ...fixtureState,
+      run: {
+        ...fixtureState.run,
+        timers: { ...fixtureState.run.timers, ...travelTimers },
+        space: {
+          ...fixtureState.run.space,
+          launchPadBuilt: true,
+          telescopeBuilt: true,
+          asteroids,
+          selectedAsteroidId: asteroids[0]!.id,
+          nextAsteroidSequence: asteroids.length + 1,
+          rockets,
+        },
+      },
+    };
+  }
+  if (kind === "space-manuscript-hidden") {
+    const catalogue = createStarCatalogue();
+    const manuscriptStar = catalogue.find((star) => star.name === "Sirius")!;
+    const factoryStar = catalogue.find((star) => star.name === "Canopus")!;
+    return {
+      ...state,
+      run: {
+        ...state.run,
+        space: {
+          ...state.run.space,
+          starStudyRange: 200,
+          systemProfiles: ensureDiscoveredStarSystemProfiles(
+            state.run.space.systemProfiles,
+            state.run.space.currentSystemId,
+            200,
+          ),
+          ancientManuscripts: [
+            {
+              position: 1,
+              manuscriptSystemId: manuscriptStar.id,
+              factorySystemId: factoryStar.id,
+              reported: false,
+            },
+          ],
+        },
+      },
+    };
+  }
   if (kind === "water-storage" || kind === "water-storage-short") {
     return {
       ...state,

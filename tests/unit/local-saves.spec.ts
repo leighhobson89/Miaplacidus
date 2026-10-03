@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGameState } from "../../src/engine/state";
+import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
+import { createStarCatalogue, findStarByName } from "../../src/content/starCatalogue";
+import { createInitialStarSystemBattleState } from "../../src/content/space";
 import { compressToEncodedURIComponent } from "lz-string";
-import { createTimerId } from "../../src/engine/timers";
+import { createTimer, createTimerId } from "../../src/engine/timers";
+import { STAR_WEATHER_TIMER_ID } from "../../src/engine/weather";
 import {
   decodeLocal,
   decodePortable,
@@ -15,6 +18,7 @@ import {
   checksumFor,
   isSaveEnvelope,
   makeEnvelope,
+  SAVE_SCHEMA_VERSION,
   SaveError,
   type SaveEnvelopeV1,
 } from "../../src/persistence/schema";
@@ -95,12 +99,19 @@ describe("local save formats and identity", () => {
     expect(() => decodePortable("CF1:old-game-save")).toThrowError(SaveError);
   });
 
-  it("migrates the synthetic version zero rung into a playable version three envelope", () => {
+  it("migrates the synthetic version zero rung into a playable current envelope", () => {
     const current = envelope("Mira");
+    const {
+      economy: _economy,
+      space: _space,
+      philosophyAbilityActive: _philosophyAbilityActive,
+      ...legacyRun
+    } = current.state.run;
+    const { philosophyId: _philosophyId, ...legacyPermanent } = current.state.permanent;
     const oldState = {
       schemaVersion: 0,
-      run: current.state.run,
-      permanent: current.state.permanent,
+      run: legacyRun,
+      permanent: legacyPermanent,
       settings: current.state.settings,
     };
     const oldBody = {
@@ -117,11 +128,12 @@ describe("local save formats and identity", () => {
     const oldCode =
       PORTABLE_PREFIX + compressToEncodedURIComponent(canonicalJson({ ...oldBody, checksum }));
     const migrated = decodePortable(oldCode);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run.pioneerName).toBe("Mira");
     expect(migrated.state.statistics).toEqual({
       lifetimeCashEarned: 0,
       lifetimeGoodsProduced: 0,
+      lifetimeAntimatterMined: 0,
       acceptedCommands: 0,
       completedTimers: 0,
     });
@@ -136,20 +148,28 @@ describe("local save formats and identity", () => {
       checksum: checksumFor(tamperedBody as unknown as Omit<SaveEnvelopeV1, "checksum">),
     };
     expect(isSaveEnvelope(tampered)).toBe(false);
-    const futureBody = { ...source, schemaVersion: 4 };
+    const futureBody = { ...source, schemaVersion: SAVE_SCHEMA_VERSION + 1 };
     const future = PORTABLE_PREFIX + compressToEncodedURIComponent(canonicalJson(futureBody));
     expect(() => decodePortable(future)).toThrowError(/newer version/i);
   });
 
   it("upgrades existing version one local-save state and preserves Hydrogen progress", () => {
     const current = envelope("Aster");
-    const { economy: _economy, ...legacyRun } = current.state.run;
+    const {
+      economy: _economy,
+      space: _space,
+      philosophyAbilityActive: _philosophyAbilityActive,
+      ...legacyRun
+    } = current.state.run;
+    const { philosophyId: _philosophyId, ...legacyPermanent } = current.state.permanent;
+    const { lifetimeAntimatterMined: _lifetimeAntimatterMined, ...legacyStatistics } =
+      current.state.statistics;
     const legacyState = {
       schemaVersion: 1,
       run: legacyRun,
-      permanent: current.state.permanent,
+      permanent: legacyPermanent,
       settings: current.state.settings,
-      statistics: current.state.statistics,
+      statistics: legacyStatistics,
     };
     const { checksum: _checksum, ...currentBody } = current;
     const legacyBody = { ...currentBody, schemaVersion: 1, state: legacyState };
@@ -162,7 +182,7 @@ describe("local save formats and identity", () => {
         }),
       );
     const migrated = decodePortable(oldCode);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run.goods.hydrogen).toEqual(current.state.run.goods.hydrogen);
     expect(migrated.state.run.hydrogenAutobuyerEnabled).toBe(
       current.state.run.hydrogenAutobuyerEnabled,
@@ -178,13 +198,20 @@ describe("local save formats and identity", () => {
       environmentalMultiplier: _environmentalMultiplier,
       ...oldPower
     } = current.state.run.economy.power;
+    const {
+      space: _space,
+      philosophyAbilityActive: _philosophyAbilityActive,
+      ...oldRun
+    } = current.state.run;
+    const { philosophyId: _philosophyId, ...oldPermanent } = current.state.permanent;
+    const { lifetimeAntimatterMined: _lifetimeAntimatterMined, ...oldStatistics } =
+      current.state.statistics;
     const oldState = {
       ...current.state,
       schemaVersion: 2,
-      run: {
-        ...current.state.run,
-        economy: { ...current.state.run.economy, power: oldPower },
-      },
+      run: { ...oldRun, economy: { ...current.state.run.economy, power: oldPower } },
+      permanent: oldPermanent,
+      statistics: oldStatistics,
     };
     const { checksum: _checksum, ...currentBody } = current;
     const oldBody = { ...currentBody, schemaVersion: 2, state: oldState };
@@ -197,10 +224,723 @@ describe("local save formats and identity", () => {
         }),
       );
     const migrated = decodePortable(oldCode);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run.economy.power.infinitePower).toBe(false);
     expect(migrated.state.run.economy.power.environmentalMultiplier).toBe(1);
     expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates version three runs with a fresh space state and preserves economy progress", () => {
+    const current = envelope("Altair");
+    const {
+      space: _space,
+      philosophyAbilityActive: _philosophyAbilityActive,
+      ...oldRun
+    } = current.state.run;
+    const { philosophyId: _philosophyId, ...oldPermanent } = current.state.permanent;
+    const { lifetimeAntimatterMined: _lifetimeAntimatterMined, ...oldStatistics } =
+      current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 3,
+      run: oldRun,
+      permanent: oldPermanent,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 3, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.telescopeBuilt).toBe(false);
+    expect(migrated.state.run.goods.hydrogen).toEqual(current.state.run.goods.hydrogen);
+    expect(migrated.state.run.economy).toEqual(current.state.run.economy);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v4 asteroid records by adding the interacted flag", () => {
+    const current = envelope("Altair");
+    const { philosophyAbilityActive: _philosophyAbilityActive, ...oldRun } = current.state.run;
+    const {
+      antimatterUnlocked: _antimatterUnlocked,
+      antimatterBoostActive: _antimatterBoostActive,
+      currentSystemWeather: _currentSystemWeather,
+      voidPillageCompletions: _voidPillageCompletions,
+      antimatterMinedThisRun: _antimatterMinedThisRun,
+      ...oldSpace
+    } = oldRun.space;
+    const { philosophyId: _philosophyId, ...oldPermanent } = current.state.permanent;
+    const { lifetimeAntimatterMined: _lifetimeAntimatterMined, ...oldStatistics } =
+      current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 4,
+      run: {
+        ...oldRun,
+        space: {
+          ...oldSpace,
+          telescopeBuilt: true,
+          asteroids: [
+            {
+              id: "asteroid-1",
+              name: "SPI-0001A",
+              systemId: "spica",
+              distance: 30_000,
+              rarity: "common",
+              extractionEase: 1,
+              remainingAntimatter: 700,
+              totalAntimatter: 700,
+              reservedBy: null,
+              depleted: false,
+            },
+          ],
+          selectedAsteroidId: "asteroid-1",
+          nextAsteroidSequence: 2,
+        },
+      },
+      permanent: oldPermanent,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 4, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.asteroids[0]).toMatchObject({ interacted: false });
+    expect(migrated.state.run.space.selectedAsteroidId).toBe("asteroid-1");
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v5 space saves with safe weather and inactive boost defaults", () => {
+    const current = envelope("Altair");
+    const {
+      antimatterUnlocked: _antimatterUnlocked,
+      antimatterBoostActive: _antimatterBoostActive,
+      currentSystemWeather: _currentSystemWeather,
+      voidPillageCompletions: _voidPillageCompletions,
+      antimatterMinedThisRun: _antimatterMinedThisRun,
+      ...oldSpace
+    } = current.state.run.space;
+    const { philosophyAbilityActive: _philosophyAbilityActive, ...oldRun } = current.state.run;
+    const { philosophyId: _philosophyId, ...oldPermanent } = current.state.permanent;
+    const { lifetimeAntimatterMined: _lifetimeAntimatterMined, ...oldStatistics } =
+      current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 5,
+      run: { ...oldRun, space: oldSpace },
+      permanent: oldPermanent,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 5, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space).toMatchObject({
+      antimatterBoostActive: false,
+      currentSystemWeather: "clear",
+      antimatterMinedThisRun: 0,
+    });
+    expect(migrated.state.statistics.lifetimeAntimatterMined).toBe(0);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v6 saves by initializing antimatter totals from held stock", () => {
+    const current = envelope("Altair");
+    const {
+      antimatterUnlocked: _antimatterUnlocked,
+      voidPillageCompletions: _voidPillageCompletions,
+      antimatterMinedThisRun: _antimatterMinedThisRun,
+      ...oldSpace
+    } = current.state.run.space;
+    const { philosophyAbilityActive: _philosophyAbilityActive, ...oldRun } = current.state.run;
+    const { philosophyId: _philosophyId, ...oldPermanent } = current.state.permanent;
+    const { lifetimeAntimatterMined: _lifetimeAntimatterMined, ...oldStatistics } =
+      current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 6,
+      run: {
+        ...oldRun,
+        space: { ...oldSpace, antimatter: 42 },
+      },
+      permanent: oldPermanent,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 6, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.antimatterMinedThisRun).toBe(42);
+    expect(migrated.state.statistics.lifetimeAntimatterMined).toBe(42);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v7 saves with inactive philosophy ability defaults", () => {
+    const current = envelope("Altair");
+    const { philosophyAbilityActive: _philosophyAbilityActive, ...oldRun } = current.state.run;
+    const {
+      antimatterUnlocked: _antimatterUnlocked,
+      voidPillageCompletions: _voidPillageCompletions,
+      ...oldSpace
+    } = current.state.run.space;
+    const { philosophyId: _philosophyId, ...oldPermanent } = current.state.permanent;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 7,
+      run: { ...oldRun, space: oldSpace },
+      permanent: oldPermanent,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 7, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.philosophyAbilityActive).toBe(false);
+    expect(migrated.state.permanent.philosophyId).toBeNull();
+    expect(migrated.state.run.space.voidPillageCompletions).toBe(0);
+    expect(migrated.state.statistics.lifetimeAntimatterMined).toBe(
+      current.state.statistics.lifetimeAntimatterMined,
+    );
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v8 antimatter totals into the saved unlock state", () => {
+    const current = envelope("Nova");
+    const { antimatterUnlocked: _antimatterUnlocked, ...oldSpace } = current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 8,
+      run: {
+        ...current.state.run,
+        space: { ...oldSpace, antimatter: 3, antimatterMinedThisRun: 3 },
+      },
+      statistics: { ...current.state.statistics, lifetimeAntimatterMined: 3 },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 8, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.antimatterUnlocked).toBe(true);
+    expect(migrated.state.run.space.antimatterMinedThisRun).toBe(3);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v9 saves by materializing persistent star profiles", () => {
+    const current = envelope("Nova");
+    const { systemProfiles: _systemProfiles, ...oldSpace } = current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 9,
+      run: { ...current.state.run, space: oldSpace },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 9, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.systemProfiles).toHaveLength(1);
+    expect(migrated.state.run.space.ancientManuscripts).toEqual([]);
+    expect(migrated.state.run.space.systemProfiles[0]).toMatchObject({
+      precipitationGoodId: "water",
+      weatherChances: { sunny: 30, cloudy: 47, rain: 20, volcano: 3 },
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v12 starship saves with empty manuscript and encounter records", () => {
+    const current = envelope("Nova");
+    const {
+      ancientManuscripts: _ancientManuscripts,
+      systemEncounters: _systemEncounters,
+      fleetEnvoyBuilt: _fleetEnvoyBuilt,
+      playerFleets: _playerFleets,
+      playerFleetCombatTotals: _playerFleetCombatTotals,
+      ...oldSpace
+    } = current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 12,
+      run: { ...current.state.run, space: oldSpace },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 12, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.ancientManuscripts).toEqual([]);
+    expect(migrated.state.run.space.systemEncounters).toEqual([]);
+    expect(migrated.state.run.space.fleetEnvoyBuilt).toBe(false);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v13 diplomacy saves without an Envoy state", () => {
+    const current = envelope("Orion");
+    const {
+      fleetEnvoyBuilt: _fleetEnvoyBuilt,
+      playerFleets: _playerFleets,
+      playerFleetCombatTotals: _playerFleetCombatTotals,
+      ...oldSpace
+    } = current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 13,
+      run: { ...current.state.run, space: oldSpace },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 13, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.fleetEnvoyBuilt).toBe(false);
+    expect(migrated.state.run.space.playerFleets).toEqual({
+      scout: 0,
+      marauder: 0,
+      landStalker: 0,
+      navalStrafer: 0,
+    });
+    expect(migrated.state.run.space.systemEncounters).toEqual([]);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v14 diplomacy saves with an empty player fleet", () => {
+    const current = envelope("Sirius");
+    const {
+      playerFleets: _playerFleets,
+      playerFleetCombatTotals: _playerFleetCombatTotals,
+      ...oldSpace
+    } = current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 14,
+      run: { ...current.state.run, space: oldSpace },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 14, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.playerFleets).toEqual({
+      scout: 0,
+      marauder: 0,
+      landStalker: 0,
+      navalStrafer: 0,
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v15 fleets with power totals derived from their saved quantities", () => {
+    const current = envelope("Vega");
+    const { playerFleetCombatTotals: _playerFleetCombatTotals, ...oldSpace } =
+      current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 15,
+      run: {
+        ...current.state.run,
+        space: {
+          ...oldSpace,
+          playerFleets: { ...oldSpace.playerFleets, scout: 3 },
+        },
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 15, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.state.run.space.playerFleets.scout).toBe(3);
+    expect(migrated.state.run.space.playerFleetCombatTotals.scout).toEqual({
+      attackPower: 6,
+      defensePower: 6,
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v16 diplomacy encounters with inactive war state", () => {
+    const current = envelope("Altair");
+    const encounter = {
+      systemId: findStarByName(createStarCatalogue(), "Sirius")!.id,
+      lifeDetected: true,
+      civilizationLevel: "industrial",
+      lifeformTraits: ["diplomatic", "terrans", "powerSiphon"],
+      raceName: "Sirians",
+      populationEstimate: 2_000_000,
+      threatLevel: "low",
+      defenseRating: 20,
+      enemyFleets: { air: 2, land: 3, sea: 1 },
+      anomalies: [],
+      initialImpression: 50,
+      currentImpression: 50,
+      latestDifferenceInImpression: 0,
+      attitude: "neutral",
+      triedToBully: false,
+      patience: 4,
+      lastDiplomacyMessage: null,
+    };
+    const oldState = {
+      ...current.state,
+      schemaVersion: 16,
+      run: {
+        ...current.state.run,
+        space: { ...current.state.run.space, systemEncounters: [encounter] },
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 16, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.state.run.space.systemEncounters[0]).toMatchObject({
+      warReady: false,
+      warMode: false,
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v17 war saves to compact battles and default system ownership", () => {
+    const current = envelope("Vega");
+    const startingSystemId = current.state.permanent.settledSystemIds[0];
+    const encounter = {
+      systemId: findStarByName(createStarCatalogue(), "Sirius")!.id,
+      lifeDetected: true,
+      civilizationLevel: "industrial",
+      lifeformTraits: ["aggressive", "terrans", "armored"],
+      raceName: "Sirius Wardens",
+      populationEstimate: 2_000_000,
+      threatLevel: "low",
+      defenseRating: 20,
+      enemyFleets: { air: 2, land: 3, sea: 1 },
+      anomalies: [],
+      initialImpression: 20,
+      currentImpression: 20,
+      latestDifferenceInImpression: 0,
+      attitude: "belligerent",
+      triedToBully: false,
+      patience: 4,
+      lastDiplomacyMessage: null,
+      warReady: true,
+      warMode: false,
+    };
+    const {
+      settledSystemIds: _settledSystemIds,
+      oTypePowerPlantAssignments: _oTypePowerPlantAssignments,
+      ...oldPermanent
+    } = current.state.permanent;
+    const { ascendencyAwardedThisRun: _ascendencyAwardedThisRun, ...oldSpace } =
+      current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 17,
+      permanent: oldPermanent,
+      run: {
+        ...current.state.run,
+        space: { ...oldSpace, systemEncounters: [encounter] },
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 17, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.permanent.settledSystemIds).toEqual([startingSystemId]);
+    expect(migrated.state.run.space.ascendencyAwardedThisRun).toBe(false);
+    expect(migrated.state.run.space.systemEncounters[0]).toMatchObject({
+      warReady: true,
+      warMode: false,
+      battle: {
+        phase: "idle",
+        round: 0,
+        playerHealthPool: { scout: 0 },
+        enemyHealthPool: { air: 0 },
+      },
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v18 saves and restores O-type plant ownership from settled systems", () => {
+    const current = envelope("Vega");
+    const initial = current.state;
+    const oTypeSystemId = createStarCatalogue().find((star) => star.starType === "O")!.id;
+    const { oTypePowerPlantAssignments: _assignments, ...oldPermanent } = initial.permanent;
+    const oldState = {
+      ...initial,
+      schemaVersion: 18,
+      permanent: {
+        ...oldPermanent,
+        settledSystemIds: [...oldPermanent.settledSystemIds, oTypeSystemId],
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 18, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(Object.values(migrated.state.permanent.oTypePowerPlantAssignments)).toContain(
+      oTypeSystemId,
+    );
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v19 saves with a durable system weather timer", () => {
+    const current = envelope("Weather Pioneer");
+    const initial = current.state;
+    const {
+      weatherSystemId: _weatherSystemId,
+      weatherCycleCount: _weatherCycleCount,
+      severeWeatherPeriodCount: _severeWeatherPeriodCount,
+      currentPrecipitationRate: _currentPrecipitationRate,
+      precipitationCollectedThisRun: _precipitationCollectedThisRun,
+      ...oldSpace
+    } = initial.run.space;
+    const { [STAR_WEATHER_TIMER_ID]: _weatherTimer, ...oldTimers } = initial.run.timers;
+    const oldState = {
+      ...initial,
+      schemaVersion: 19,
+      run: {
+        ...initial.run,
+        timers: oldTimers,
+        space: { ...oldSpace, currentSystemWeather: "rain" },
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 19, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.timers[STAR_WEATHER_TIMER_ID]).toMatchObject({
+      domain: "weather",
+      status: "running",
+      elapsedMs: 0,
+    });
+    expect(migrated.state.run.space.weatherSystemId).toBe(migrated.state.run.space.currentSystemId);
+    expect(migrated.state.run.space.precipitationCollectedThisRun).toBe(0);
+    expect(migrated.state.run.space.currentPrecipitationRate).toBe(1);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("round-trips every interstellar timer with settled-system state after rebirth", () => {
+    const initial = createInitialGameState({ pioneerName: "Interstellar Save", seed: 1902 });
+    const spaceTimerIds = [
+      createTimerId("survey", "asteroid-scan"),
+      createTimerId("survey", "star-study"),
+      createTimerId("survey", "void-pillage"),
+      ...[1, 2, 3, 4].map((index) => createTimerId("travel", `rocket-${index}-journey`)),
+      createTimerId("travel", "starship-voyage"),
+      createTimerId("battle", "starship-combat"),
+    ];
+    const timers = {
+      ...initial.run.timers,
+      ...Object.fromEntries(
+        spaceTimerIds.map((id) => [
+          id,
+          createTimer({
+            id,
+            domain: id.split(":")[0] as "survey" | "travel" | "battle",
+            durationMs: 90_000,
+          }),
+        ]),
+      ),
+    };
+    const destinationSystemId = findStarByName(createStarCatalogue(), "Sirius")!.id;
+    const encounter = {
+      systemId: destinationSystemId,
+      lifeDetected: true,
+      civilizationLevel: "industrial" as const,
+      lifeformTraits: ["aggressive", "terrans", "armored"] as const,
+      raceName: "Save Testers",
+      populationEstimate: 2_000_000,
+      threatLevel: "low" as const,
+      defenseRating: 0,
+      enemyFleets: { air: 1, land: 0, sea: 0 },
+      anomalies: [],
+      initialImpression: 20,
+      currentImpression: 20,
+      latestDifferenceInImpression: 0,
+      attitude: "belligerent" as const,
+      triedToBully: false,
+      patience: 0,
+      lastDiplomacyMessage: null,
+      warReady: false,
+      warMode: true,
+      battle: {
+        ...createInitialStarSystemBattleState(),
+        phase: "inProgress" as const,
+        playerHealthPool: { scout: 100, marauder: 0, landStalker: 0, navalStrafer: 0 },
+        enemyHealthPool: { air: 100, land: 0, sea: 0 },
+      },
+    };
+    const state: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        timers,
+        space: {
+          ...initial.run.space,
+          weatherCycleCount: 9,
+          severeWeatherPeriodCount: 2,
+          currentPrecipitationRate: 3,
+          precipitationCollectedThisRun: 42,
+          systemEncounters: [encounter],
+        },
+      },
+      permanent: {
+        ...initial.permanent,
+        rebirthCount: 2,
+        ascendencyPoints: 21,
+        gloryPoints: 8,
+      },
+    };
+    expect(isValidGameState(state)).toBe(true);
+    const saved = makeEnvelope({
+      slotId: "00000000-0000-4000-8000-000000000902",
+      pioneerName: "Interstellar Save",
+      createdAt: 10,
+      savedAt: 20,
+      revision: 1,
+      state,
+    });
+
+    const restored = decodePortable(encodePortable(saved));
+
+    expect(restored.state.run.timers[STAR_WEATHER_TIMER_ID]).toEqual(
+      state.run.timers[STAR_WEATHER_TIMER_ID],
+    );
+    for (const timerId of spaceTimerIds)
+      expect(restored.state.run.timers[timerId]).toEqual(state.run.timers[timerId]);
+    expect(restored.state.run.space).toMatchObject({
+      weatherCycleCount: 9,
+      severeWeatherPeriodCount: 2,
+      currentPrecipitationRate: 3,
+      precipitationCollectedThisRun: 42,
+      systemEncounters: [encounter],
+    });
+    expect(restored.state.permanent).toMatchObject({
+      rebirthCount: 2,
+      ascendencyPoints: 21,
+      gloryPoints: 8,
+      settledSystemIds: state.permanent.settledSystemIds,
+    });
   });
 
   it("measures early, middle, and late profile payloads with room for two generations", () => {
@@ -223,15 +963,15 @@ describe("local save formats and identity", () => {
           },
         ];
       }),
-    );
-    const midState = {
+    ) as GameState["run"]["timers"];
+    const midState: GameState = {
       ...base,
       run: {
         ...base.run,
         cash: 1250,
         researchPoints: 870,
         goods: { ...base.run.goods, hydrogen: { ...base.run.goods.hydrogen, quantity: 95 } },
-        timers: midTimers,
+        timers: { ...base.run.timers, ...midTimers },
       },
     };
     const lateState = {
@@ -240,11 +980,15 @@ describe("local save formats and identity", () => {
         rebirthCount: 8,
         ascendencyPoints: 120,
         gloryPoints: 35,
+        oTypePowerPlantAssignments: base.permanent.oTypePowerPlantAssignments,
         acquiredPerks: Array.from({ length: 500 }, (_, index) => "perk-" + index),
+        philosophyId: null,
+        settledSystemIds: base.permanent.settledSystemIds,
       },
       statistics: {
         lifetimeCashEarned: 9_000_000,
         lifetimeGoodsProduced: 25_000_000,
+        lifetimeAntimatterMined: 100,
         acceptedCommands: 900_000,
         completedTimers: 42_000,
       },

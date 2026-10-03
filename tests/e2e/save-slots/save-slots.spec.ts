@@ -2,7 +2,12 @@ import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { createRequire } from "node:module";
 import { createInitialGameState } from "../../../src/engine/state";
-import { canonicalJson, checksumFor, makeEnvelope } from "../../../src/persistence/schema";
+import {
+  canonicalJson,
+  checksumFor,
+  makeEnvelope,
+  SAVE_SCHEMA_VERSION,
+} from "../../../src/persistence/schema";
 
 const { compressToEncodedURIComponent, decompressFromEncodedURIComponent, decompressFromUTF16 } =
   createRequire(import.meta.url)("lz-string") as typeof import("lz-string");
@@ -311,7 +316,9 @@ test("a synthetic MIAPLACIDUS v0 save migrates and starts as a playable slot @sa
   const manager = freshGame.getByRole("dialog", { name: "Hydrogen Pioneer" });
   await manager.getByLabel("Paste a MIAPLACIDUS save code").fill(syntheticV0Code("Legacy Pioneer"));
   await manager.getByRole("button", { name: "Preview import" }).click();
-  await expect(manager.getByTestId("import-preview")).toContainText("Save version: 3");
+  await expect(manager.getByTestId("import-preview")).toContainText(
+    `Save version: ${SAVE_SCHEMA_VERSION}`,
+  );
   await expect(manager.getByTestId("import-preview")).toContainText("Hydrogen");
   await manager.getByLabel("New pioneer name").last().fill("Migrated Pioneer");
   await manager.getByRole("button", { name: "Import as a new pioneer" }).click();

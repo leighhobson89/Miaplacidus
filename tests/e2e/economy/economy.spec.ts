@@ -1,5 +1,6 @@
 ﻿import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { runTestLabAction } from "../_harness/test-lab";
 import type { Locator, Page } from "@playwright/test";
 import { economyGoodName } from "../../../src/app/EconomyPanes";
 import { autobuyerUpgradeId, COMPOUND_IDS, MATERIAL_IDS } from "../../../src/content/ids";
@@ -10,8 +11,9 @@ import { TECHNOLOGY_NAMES } from "../../../src/content/technologyNames";
 import { economyLabel } from "../../../src/i18n/economyMessages";
 
 async function expandAllDetails(container: Locator): Promise<void> {
-  const closedDetails = container.locator("details:not([open]) > summary");
-  while ((await closedDetails.count()) > 0) await closedDetails.first().click();
+  const closedSummaries = container.locator("details:not([open]) > summary:visible");
+  while ((await closedSummaries.count()) > 0) await closedSummaries.first().click();
+  await expect(container.locator("details:not([open])")).toHaveCount(0);
 }
 
 async function collapseAllDetails(container: Locator): Promise<void> {
@@ -636,10 +638,7 @@ test("player-set allocations sell only new Hydrogen and Carbon production @autos
     .first()
     .getByRole("button", { name: /^Buy ·/ })
     .click();
-  const debugTools = page.locator(".debug-tools");
-  if (!(await debugTools.evaluate((element) => (element as HTMLDetailsElement).open)))
-    await debugTools.locator("summary").first().click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
   await expect
     .poll(() =>
       page.evaluate(
@@ -647,7 +646,7 @@ test("player-set allocations sell only new Hydrogen and Carbon production @autos
         initialCash,
       ),
     )
-    .toBeCloseTo(2.4, 5);
+    .toBeCloseTo(4.8, 5);
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.goods.hydrogen.quantity))
     .toBeCloseTo(1_950, 5);
@@ -690,10 +689,7 @@ test("player automation creates Diesel from newly produced resource allocations 
     .first()
     .getByRole("button", { name: /^Buy ·/ })
     .click();
-  const debugTools = page.locator(".debug-tools");
-  if (!(await debugTools.evaluate((element) => (element as HTMLDetailsElement).open)))
-    await debugTools.locator("summary").first().click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.goods.diesel.quantity))
     .toBeGreaterThan(1_500);
@@ -736,10 +732,7 @@ test("all six compounds auto-create from player-allocated fresh material output 
     await allocation.locator("summary").click();
   }
 
-  const debugTools = page.locator(".debug-tools");
-  if (!(await debugTools.evaluate((element) => (element as HTMLDetailsElement).open)))
-    await debugTools.locator("summary").first().click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
   for (const id of compoundIds)
     await expect
       .poll(() =>
@@ -763,8 +756,8 @@ test("permanent production bonuses are reflected in the visible rates @energy @a
 }, testInfo) => {
   await startEconomyFixture(page, "multipliers");
   const hydrogen = page.locator('[data-resource-id="hydrogen"]');
-  await expect(hydrogen.locator(".economy-rate")).toContainText("3.38");
-  await expect(page.getByTestId("hydrogen-rate")).toContainText("3.38");
+  await expect(hydrogen.locator(".economy-rate")).toContainText("4.88");
+  await expect(page.getByTestId("hydrogen-rate")).toContainText("4.88");
   await expect(page.locator(".autobuyer-card")).toContainText("Adds 4.5 Hydrogen per second");
   await page.getByRole("tab", { name: /Energy/ }).click();
   await expect(page.locator('[data-building-id="powerPlant2"]')).toContainText("+13.5 kJ/s");
@@ -808,10 +801,7 @@ test("research automation purchases an available technology from player controls
   });
   await expect(automation).toBeEnabled();
   await automation.check();
-  const debugTools = page.locator(".debug-tools");
-  if (!(await debugTools.evaluate((element) => (element as HTMLDetailsElement).open)))
-    await debugTools.locator("summary").first().click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
   const knowledgeSharing = page.locator('[data-technology-id="knowledgeSharing"]');
   await expect(knowledgeSharing.locator(".status-pill")).toBeVisible();
   await expect(page.getByTestId("research-feedback")).toHaveText("Knowledge Sharing researched.");
@@ -1034,11 +1024,8 @@ test("energy deficit trips after grace period and grid toggle recovers the syste
   await startEconomyFixture(page, "power-deficit");
   await page.getByRole("tab", { name: /Energy/ }).click();
   await expect(page.getByTestId("power-unavailable")).toHaveText("3");
-  const debugTools = page.locator(".debug-tools");
-  if (!(await debugTools.evaluate((element) => (element as HTMLDetailsElement).open)))
-    await debugTools.locator("summary").first().click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
+  await runTestLabAction(page, "Advance 10 seconds");
   await expect(page.getByRole("alert").filter({ hasText: "Power trip" })).toBeVisible();
   await page.getByLabel("Power grid").uncheck();
   await expect(page.getByRole("alert").filter({ hasText: "Power trip" })).toHaveCount(0);
@@ -1060,24 +1047,21 @@ test("battery storage charges, drains under load, and recharges after load stops
   await lab.getByRole("button", { name: "Pause", exact: true }).click();
   await expect(lab.getByRole("button", { name: "Resume", exact: true })).toBeVisible();
 
-  const debugTools = page.locator(".debug-tools");
-  if (!(await debugTools.evaluate((element) => (element as HTMLDetailsElement).open)))
-    await debugTools.locator("summary").first().click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
   await page.getByRole("tab", { name: /Energy/ }).click();
   await expect(page.getByTestId("power-quantity")).toHaveText("300");
   await captureVisualCheckpoint(page, testInfo, "economy-battery-charged");
 
   await page.getByRole("tab", { name: /Research/ }).click();
   await lab.getByRole("button", { name: "Resume", exact: true }).click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
   await page.getByRole("tab", { name: /Energy/ }).click();
   await expect(page.getByTestId("power-quantity")).toHaveText("150");
   await captureVisualCheckpoint(page, testInfo, "economy-battery-discharged");
 
   await page.getByRole("tab", { name: /Research/ }).click();
   await lab.getByRole("button", { name: "Pause", exact: true }).click();
-  await page.getByRole("button", { name: "Advance 10 seconds" }).click();
+  await runTestLabAction(page, "Advance 10 seconds");
   await page.getByRole("tab", { name: /Energy/ }).click();
   await expect(page.getByTestId("power-quantity")).toHaveText("350");
   await captureVisualCheckpoint(page, testInfo, "economy-battery-recharged");

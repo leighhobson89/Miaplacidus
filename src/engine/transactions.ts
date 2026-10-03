@@ -16,10 +16,16 @@ export interface CraftingDemand {
   readonly priority?: number;
 }
 
+export interface PrecipitationDemand {
+  readonly goodId: EconomicGoodId;
+  readonly unitsPerSecond: number;
+}
+
 export interface TickPlan {
   readonly productionPerSecond?: Partial<Record<EconomicGoodId, number>>;
   readonly fuel?: readonly FuelDemand[];
   readonly crafting?: readonly CraftingDemand[];
+  readonly precipitation?: PrecipitationDemand;
   readonly salesPerSecond?: Partial<Record<EconomicGoodId, number>>;
   readonly productionAllocation?: Partial<
     Record<
@@ -40,6 +46,11 @@ export type ResourceTransactionEvent =
     }
   | { readonly type: "compound.created"; readonly goodId: EconomicGoodId; readonly amount: number }
   | {
+      readonly type: "precipitation.collected";
+      readonly goodId: EconomicGoodId;
+      readonly amount: number;
+    }
+  | {
       readonly type: "resource.sold";
       readonly goodId: EconomicGoodId;
       readonly amount: number;
@@ -52,6 +63,7 @@ export interface ResourceTransactionResult {
   readonly cash: number;
   readonly cashRaised: number;
   readonly goodsProduced: number;
+  readonly precipitationCollected: number;
   readonly fueledGenerationPerSecond: number;
   readonly events: readonly ResourceTransactionEvent[];
 }
@@ -89,6 +101,7 @@ export function transactResources(
       cash,
       cashRaised: 0,
       goodsProduced: 0,
+      precipitationCollected: 0,
       fueledGenerationPerSecond: 0,
       events: [],
     };
@@ -100,6 +113,7 @@ export function transactResources(
   const cashBudgets = new Map<MaterialId, number>();
   const newlyProduced = new Map<MaterialId, number>();
   let goodsProduced = 0;
+  let precipitationCollected = 0;
   let fueledGeneration = 0;
 
   // 1. Land each producer's output. Keep excess available to consumers until the final clamp.
@@ -227,6 +241,19 @@ export function transactResources(
     events.push({ type: "compound.created", goodId: demand.outputId, amount });
   }
 
+  const precipitation = plan.precipitation;
+  if (precipitation) {
+    const requested = checkedRate(precipitation.unitsPerSecond, "Precipitation rate") * seconds;
+    const good = next[precipitation.goodId];
+    const amount = Math.min(requested, Math.max(0, good.storageCapacity - good.quantity));
+    if (amount > 0) {
+      next[precipitation.goodId] = { ...good, quantity: good.quantity + amount };
+      goodsProduced += amount;
+      precipitationCollected = amount;
+      events.push({ type: "precipitation.collected", goodId: precipitation.goodId, amount });
+    }
+  }
+
   // 6. Clamp every inventory once, after all consumers had the same ordered pass.
   for (const goodId of ECONOMIC_GOOD_IDS) {
     const good = next[goodId];
@@ -248,6 +275,7 @@ export function transactResources(
     cash: cash + cashRaised,
     cashRaised,
     goodsProduced,
+    precipitationCollected,
     fueledGenerationPerSecond: fueledGeneration,
     events,
   };

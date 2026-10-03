@@ -62,6 +62,20 @@ test("keyboard controls collect Hydrogen and navigate the nine semantic tabs @ap
   await captureVisualCheckpoint(freshGame, testInfo, "locked-energy-pane");
 });
 
+test("the Test Lab opens and closes only through the keypad minus toggle @app-boot @test-lab", async ({
+  page,
+  freshGame,
+}) => {
+  const lab = page.locator("dialog.debug-tools");
+  await expect(freshGame.locator("dialog.debug-tools")).toHaveCount(1);
+  await expect(lab).not.toBeVisible();
+  await page.keyboard.press("NumpadSubtract");
+  await expect(lab).toBeVisible();
+  await expect(lab.getByRole("button", { name: "Close", exact: true })).toBeVisible();
+  await page.keyboard.press("NumpadSubtract");
+  await expect(lab).not.toBeVisible();
+});
+
 test("a server that cannot compile the app shows startup guidance instead of a blank page @app-boot @startup", async ({
   page,
 }, testInfo) => {

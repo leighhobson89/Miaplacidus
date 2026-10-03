@@ -1,12 +1,6 @@
 import { expect, test } from "../_harness/fixtures";
+import { runTestLabAction } from "../_harness/test-lab";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
-
-async function openTestLab(page: import("@playwright/test").Page): Promise<void> {
-  const panel = page.locator(".debug-tools");
-  if (!(await panel.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await panel.locator("summary").first().click();
-  }
-}
 
 test("manual collection sells Hydrogen and credits its catalogue value @resources @precision", async ({
   freshGame,
@@ -30,8 +24,7 @@ test("manual collection sells Hydrogen and credits its catalogue value @resource
 test("the storage purchase charges 149 Hydrogen and doubles capacity @resources", async ({
   freshGame,
 }, testInfo) => {
-  await openTestLab(freshGame);
-  await freshGame.getByRole("button", { name: "Hydrogen storage ready" }).click();
+  await runTestLabAction(freshGame, "Hydrogen storage ready");
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("149");
   await freshGame.getByRole("button", { name: "Increase storage" }).click();
   await expect(freshGame.getByTestId("hydrogen-capacity")).toHaveText("300");

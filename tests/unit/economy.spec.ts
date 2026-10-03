@@ -323,6 +323,7 @@ describe("M-03 economy catalogue and shared rules", () => {
         ...initial.run,
         clock: { ...initial.run.clock, wallNowMs: 0 },
         upgrades: { [hydrogenBuyer]: 1, scienceKit: 1, powerPlant1: 1 },
+        space: { ...initial.run.space, currentSystemId: "Sirius" },
         goods: {
           ...initial.run.goods,
           hydrogen: { ...initial.run.goods.hydrogen, quantity: 0 },
@@ -448,6 +449,11 @@ describe("M-03 economy catalogue and shared rules", () => {
       ...initial,
       run: {
         ...initial.run,
+        space: {
+          ...initial.run.space,
+          currentSystemWeather: "clear",
+          weatherSystemId: initial.run.space.currentSystemId,
+        },
         upgrades: { ...initial.run.upgrades, scienceLab: 1, powerPlant2: 1 },
         clock: { ...initial.run.clock, wallNowMs: 0 },
         economy: {
@@ -486,6 +492,7 @@ describe("M-03 economy catalogue and shared rules", () => {
       ...initial,
       run: {
         ...initial.run,
+        space: { ...initial.run.space, currentSystemId: "Sirius" },
         upgrades: { ...initial.run.upgrades, [autobuyerUpgradeId("hydrogen", 1)]: 1 },
         economy: {
           ...initial.run.economy,
@@ -503,6 +510,11 @@ describe("M-03 economy catalogue and shared rules", () => {
       ...initial,
       run: {
         ...initial.run,
+        space: {
+          ...initial.run.space,
+          currentSystemWeather: "clear",
+          weatherSystemId: initial.run.space.currentSystemId,
+        },
         upgrades: { ...initial.run.upgrades, powerPlant2: 1 },
         economy: {
           ...initial.run.economy,

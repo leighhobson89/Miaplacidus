@@ -12,6 +12,7 @@ export const TIMER_DOMAINS = [
   "travel",
   "survey",
   "battle",
+  "weather",
   "casino",
   "black-hole",
   "cosmic-rip",

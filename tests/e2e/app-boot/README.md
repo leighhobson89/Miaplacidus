@@ -12,7 +12,7 @@
 
 ## Deterministic setup and debug commands
 
-The shared fixture clears local/session storage, uses seed `314159` and English, enters `Hydrogen Pioneer`, starts through the real form and completes the briefing. The explicit Spanish first-run test uses seed `90210` and screenshots the briefing before completing it. The Test Lab is not needed for boot/navigation checks; its scenario controls are documented in the [autobuyer](../autobuyers/README.md) and [resource](../resources/README.md) READMEs.
+The shared fixture clears local/session storage, uses seed `314159` and English, enters `Hydrogen Pioneer`, starts through the real form and completes the briefing. The explicit Spanish first-run test uses seed `90210` and screenshots the briefing before completing it. Test Lab commands require the NumpadSubtract (`-`) shortcut to open the dedicated dialog; scenario controls are documented in the [autobuyer](../autobuyers/README.md) and [resource](../resources/README.md) READMEs.
 
 Run with `npm run test:e2e:focused -- tests/e2e/app-boot/hydrogen-boot.spec.ts`. Add `MIAPLACIDUS_BROWSER_CHANNEL=chrome` when using an installed Chrome instead of Playwright's bundled browser.
 

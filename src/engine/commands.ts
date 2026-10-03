@@ -32,6 +32,7 @@ import {
   type MaterialDefinition,
 } from "../content/economy";
 import { TECHNOLOGY_BY_ID, TECHNOLOGY_CATALOG } from "../content/technology";
+import { ROCKET_IDS } from "../content/space";
 import {
   affordablePurchaseCount,
   permanentPerkPurchaseCount,
@@ -56,6 +57,23 @@ import {
   type TickPlan,
 } from "./transactions";
 import type { TimerDomain, TimerId } from "./runtimeTypes";
+import {
+  isSpaceCommand,
+  type SpaceCommand,
+  type SpaceCommandFailure,
+  type SpaceEvent,
+} from "./spaceCommands";
+import {
+  applySpaceCommand,
+  advanceSpaceMining,
+  advanceRocketFuel,
+  checkSpacePreconditions,
+  completeSpaceJourneys,
+  completeSpaceWeatherCycle,
+  completeSpaceBattles,
+  completeSpaceSurveys,
+  prepareSpaceSurveyPower,
+} from "./spaceMechanics";
 
 export interface PurchaseCommand {
   readonly type: "upgrade.purchase";
@@ -147,7 +165,8 @@ export type GameCommand =
   | { readonly type: "timer.resume"; readonly timerId: TimerId }
   | { readonly type: "timer.complete"; readonly timerId: TimerId }
   | { readonly type: "settings.update"; readonly patch: Partial<SettingsState> }
-  | { readonly type: "random.draw"; readonly purpose: string };
+  | { readonly type: "random.draw"; readonly purpose: string }
+  | SpaceCommand;
 
 export type CommandFailure =
   | { readonly code: "invalid-state"; readonly messageKey: "engine.error.invalid-state" }
@@ -165,6 +184,11 @@ export type CommandFailure =
       readonly required: number;
     }
   | {
+      readonly code: "insufficient-antimatter";
+      readonly messageKey: "engine.purchase.insufficient-antimatter";
+      readonly required: number;
+    }
+  | {
       readonly code: "timer-exists";
       readonly messageKey: "engine.timer.already-exists";
       readonly timerId: TimerId;
@@ -178,7 +202,8 @@ export type CommandFailure =
   | { readonly code: "inventory-full"; readonly messageKey: "ui.hydrogen.inventory-full" }
   | { readonly code: "no-stock"; readonly messageKey: "ui.hydrogen.no-stock" }
   | { readonly code: "autobuyer-unavailable"; readonly messageKey: "ui.hydrogen.autobuyer-locked" }
-  | { readonly code: "transition-failed"; readonly messageKey: "engine.error.recovered" };
+  | { readonly code: "transition-failed"; readonly messageKey: "engine.error.recovered" }
+  | SpaceCommandFailure;
 
 export type PreconditionResult =
   | { readonly ok: true }
@@ -199,6 +224,7 @@ export type EngineEvent =
   | { readonly type: "timer.resumed"; readonly timerId: TimerId }
   | { readonly type: "settings.changed"; readonly settings: SettingsState }
   | { readonly type: "random.drawn"; readonly purpose: string; readonly value: number }
+  | SpaceEvent
   | TimerEvent
   | ResourceTransactionEvent;
 
@@ -484,6 +510,13 @@ function isValidTickPlan(plan: TickPlan | undefined): boolean {
         plan.power.generationPerSecond < 0 ||
         !Number.isFinite(plan.power.demandPerSecond) ||
         plan.power.demandPerSecond < 0)) ||
+    (plan.precipitation !== undefined &&
+      (!plan.precipitation ||
+        typeof plan.precipitation !== "object" ||
+        Array.isArray(plan.precipitation) ||
+        !isEconomicGoodId(plan.precipitation.goodId) ||
+        !Number.isFinite(plan.precipitation.unitsPerSecond) ||
+        plan.precipitation.unitsPerSecond < 0)) ||
     (plan.researchPerSecond !== undefined &&
       (!Number.isFinite(plan.researchPerSecond) || plan.researchPerSecond < 0))
   )
@@ -560,6 +593,7 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
       failure: { code: "invalid-state", messageKey: "engine.error.invalid-state" },
     };
   }
+  if (isSpaceCommand(command)) return checkSpacePreconditions(state, command);
   switch (command.type) {
     case "upgrade.purchase":
       return checkPurchase(state, command);
@@ -1086,6 +1120,10 @@ export function transition(state: GameState, command: GameCommand): EngineResult
     if (!precondition.ok) {
       return reject(state, precondition.failure);
     }
+    if (isSpaceCommand(command)) {
+      const applied = applySpaceCommand(state, command);
+      return success(incrementAccepted(applied.state), applied.events, state);
+    }
 
     switch (command.type) {
       case "resource.collect": {
@@ -1602,14 +1640,15 @@ export function transition(state: GameState, command: GameCommand): EngineResult
       }
       case "clock.advance": {
         const advanced = advanceClock(state.run.clock, command.input);
-        const timerResult = advanceTimers(state.run.timers, advanced.steps);
+        const powerPrepared = prepareSpaceSurveyPower(state, command.tickPlan, advanced.steps);
         let nextState: GameState = {
-          ...state,
-          run: { ...state.run, clock: advanced.state, timers: timerResult.timers },
+          ...powerPrepared,
+          run: { ...powerPrepared.run, clock: advanced.state },
         };
-        const events: EngineEvent[] = [...timerResult.events];
+        const events: EngineEvent[] = [];
         let cashEarned = 0;
         let goodsProduced = 0;
+        let precipitationCollected = 0;
         for (const step of advanced.steps) {
           const elapsedMs =
             step.phase === "foreground"
@@ -1617,7 +1656,46 @@ export function transition(state: GameState, command: GameCommand): EngineResult
               : step.phase === "offline"
                 ? step.elapsedMs
                 : 0;
+          const rocketsBeforeStep = nextState.run.space.rockets;
+          const timersBeforeStep = nextState.run.timers;
+          const timerStep = advanceTimers(nextState.run.timers, [step]);
+          nextState = { ...nextState, run: { ...nextState.run, timers: timerStep.timers } };
+          events.push(...timerStep.events);
+          const surveyCompletion = completeSpaceSurveys(nextState, timerStep.events);
+          nextState = surveyCompletion.state;
+          events.push(...surveyCompletion.events);
+          const journeyCompletion = completeSpaceJourneys(nextState, timerStep.events);
+          nextState = journeyCompletion.state;
+          events.push(...journeyCompletion.events);
+          const weatherCompletion = completeSpaceWeatherCycle(nextState, timerStep.events);
+          nextState = weatherCompletion.state;
+          events.push(...weatherCompletion.events);
+          const battleCompletion = completeSpaceBattles(nextState, timerStep.events);
+          nextState = battleCompletion.state;
+          events.push(...battleCompletion.events);
           if (elapsedMs <= 0) continue;
+          const miningElapsedByRocket: Partial<Record<(typeof ROCKET_IDS)[number], number>> = {};
+          for (const rocketId of ROCKET_IDS) {
+            const rocketBeforeStep = rocketsBeforeStep[rocketId];
+            if (rocketBeforeStep.phase === "mining") {
+              miningElapsedByRocket[rocketId] = elapsedMs;
+              continue;
+            }
+            if (rocketBeforeStep.phase !== "outbound" || !rocketBeforeStep.timerId) continue;
+            const timerBeforeStep = timersBeforeStep[rocketBeforeStep.timerId];
+            if (
+              timerBeforeStep &&
+              timerStep.events.some(
+                (event) => event.type === "timer.completed" && event.timerId === timerBeforeStep.id,
+              )
+            ) {
+              const outboundRemainingMs = timerBeforeStep.durationMs - timerBeforeStep.elapsedMs;
+              miningElapsedByRocket[rocketId] = Math.max(0, elapsedMs - outboundRemainingMs);
+            }
+          }
+          const mining = advanceSpaceMining(nextState, miningElapsedByRocket, elapsedMs);
+          nextState = mining.state;
+          events.push(...mining.events);
           const tickPlan =
             step.phase === "offline"
               ? (command.offlineTickPlan ?? command.tickPlan ?? {})
@@ -1701,6 +1779,11 @@ export function transition(state: GameState, command: GameCommand): EngineResult
               cash: transaction.cash,
               researchPoints,
               unlockedResources,
+              space: advanceRocketFuel(
+                nextState,
+                elapsedMs,
+                gridRunning || previousPower.infinitePower,
+              ).run.space,
               economy: {
                 ...nextState.run.economy,
                 power,
@@ -1712,10 +1795,19 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           };
           cashEarned += transaction.cashRaised;
           goodsProduced += transaction.goodsProduced;
+          precipitationCollected += transaction.precipitationCollected;
           events.push(...transaction.events);
         }
         nextState = {
           ...nextState,
+          run: {
+            ...nextState.run,
+            space: {
+              ...nextState.run.space,
+              precipitationCollectedThisRun:
+                nextState.run.space.precipitationCollectedThisRun + precipitationCollected,
+            },
+          },
           statistics: {
             ...nextState.statistics,
             lifetimeCashEarned: nextState.statistics.lifetimeCashEarned + cashEarned,
@@ -1723,7 +1815,7 @@ export function transition(state: GameState, command: GameCommand): EngineResult
             completedTimers: Math.min(
               Number.MAX_SAFE_INTEGER,
               nextState.statistics.completedTimers +
-                timerResult.events.reduce(
+                events.reduce(
                   (total, event) =>
                     total + (event.type === "timer.completed" ? event.completions : 0),
                   0,
@@ -1807,9 +1899,19 @@ export function transition(state: GameState, command: GameCommand): EngineResult
       }
       case "timer.complete": {
         const completed = completeTimer(state.run.timers, command.timerId);
-        const nextState = incrementAccepted({
+        const timeAdvanced: GameState = {
           ...state,
           run: { ...state.run, timers: completed.timers },
+        };
+        const surveyCompletion = completeSpaceSurveys(timeAdvanced, completed.events);
+        const journeyCompletion = completeSpaceJourneys(surveyCompletion.state, completed.events);
+        const weatherCompletion = completeSpaceWeatherCycle(
+          journeyCompletion.state,
+          completed.events,
+        );
+        const battleCompletion = completeSpaceBattles(weatherCompletion.state, completed.events);
+        const nextState = incrementAccepted({
+          ...battleCompletion.state,
           statistics: {
             ...state.statistics,
             completedTimers: Math.min(
@@ -1818,7 +1920,17 @@ export function transition(state: GameState, command: GameCommand): EngineResult
             ),
           },
         });
-        return success(nextState, completed.events, state);
+        return success(
+          nextState,
+          [
+            ...completed.events,
+            ...surveyCompletion.events,
+            ...journeyCompletion.events,
+            ...weatherCompletion.events,
+            ...battleCompletion.events,
+          ],
+          state,
+        );
       }
       case "settings.update": {
         const settings = { ...state.settings, ...command.patch };

@@ -11,7 +11,16 @@ import {
   type EconomicGoodId,
   type MaterialId,
 } from "../content/ids";
+import { starTypeForSystem } from "../content/starCatalogue";
+import { bTypeAutoBuyerBonusPerSecond, oTypePowerPlantMultiplier } from "../content/starTypeRules";
+import {
+  ROCKET_FUEL_CAPACITY,
+  ROCKET_FUEL_PUMP_POWER,
+  ROCKET_IDS,
+  VOID_PILLAGE_POWER_PER_SECOND,
+} from "../content/space";
 import { repeatedPerkMultiplier } from "../content/economyRules";
+import { precipitationForCurrentWeather, weatherGenerationMultiplier } from "./weather";
 import type { GameState } from "./state";
 import {
   transactResources,
@@ -71,6 +80,18 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     "optimizedPowerGrids",
     1.35,
   );
+  const currentSystemType = starTypeForSystem(state.run.space.currentSystemId);
+  const currentSystemIsBType = currentSystemType === "B";
+  const powerPlantMultiplierFor = (plantId: "powerPlant1" | "powerPlant2" | "powerPlant3") => {
+    const assignedSystemId = state.permanent.oTypePowerPlantAssignments[plantId];
+    return (
+      powerPlantMultiplier *
+      oTypePowerPlantMultiplier(
+        assignedSystemId === null ? currentSystemType : starTypeForSystem(assignedSystemId),
+        assignedSystemId !== null && state.permanent.settledSystemIds.includes(assignedSystemId),
+      )
+    );
+  };
 
   for (const goodId of ECONOMIC_GOOD_IDS) {
     const isMaterial = MATERIAL_IDS.includes(goodId as MaterialId);
@@ -84,7 +105,9 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
       const count = owned(state, upgradeId);
       if (count <= 0 || !state.run.economy.autobuyerEnabled[upgradeId]) continue;
       const definition = tiers[tier - 1]!;
-      const rate = definition.ratePerSecond * count * autoBuyerMultiplier;
+      const typeBonus =
+        isMaterial && currentSystemIsBType ? bTypeAutoBuyerBonusPerSecond(tier) * count : 0;
+      const rate = definition.ratePerSecond * count * autoBuyerMultiplier + typeBonus;
       if (definition.energyPerSecond > 0) {
         poweredRate += rate;
         if (gridRunning) demandPerSecond += definition.energyPerSecond * count;
@@ -104,7 +127,7 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     const count = owned(state, "powerPlant1");
     if (count > 0) {
       const definition = ENERGY_BUILDINGS.powerPlant1;
-      const rate = definition.ratePerSecond * count * powerPlantMultiplier;
+      const rate = definition.ratePerSecond * count * powerPlantMultiplierFor("powerPlant1");
       generationPerSecond += rate;
       fuel.push({
         goodId: definition.fuel!.goodId,
@@ -118,13 +141,14 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
       ENERGY_BUILDINGS.powerPlant2.ratePerSecond *
       owned(state, "powerPlant2") *
       state.run.economy.power.environmentalMultiplier *
-      powerPlantMultiplier;
+      weatherGenerationMultiplier(state.run.space) *
+      powerPlantMultiplierFor("powerPlant2");
   }
   if (gridRunning && state.run.economy.buildingEnabled.powerPlant3) {
     const count = owned(state, "powerPlant3");
     if (count > 0) {
       const definition = ENERGY_BUILDINGS.powerPlant3;
-      const rate = definition.ratePerSecond * count * powerPlantMultiplier;
+      const rate = definition.ratePerSecond * count * powerPlantMultiplierFor("powerPlant3");
       generationPerSecond += rate;
       fuel.push({
         goodId: definition.fuel!.goodId,
@@ -141,6 +165,32 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
   const labCount = scienceCount("scienceLab");
   const labDemand = gridRunning ? SCIENCE_BUILDINGS.scienceLab.energyPerSecond * labCount : 0;
   demandPerSecond += labDemand;
+  const surveyTimerId =
+    state.run.space.activeSurvey === "asteroids"
+      ? "survey:asteroid-scan"
+      : state.run.space.activeSurvey === "stars"
+        ? "survey:star-study"
+        : state.run.space.activeSurvey === "pillageVoid"
+          ? "survey:void-pillage"
+          : null;
+  const surveyTimerRunning =
+    surveyTimerId !== null && state.run.timers[surveyTimerId]?.status === "running";
+  if (gridRunning && !state.run.space.surveyPowerBlocked && surveyTimerRunning) {
+    demandPerSecond +=
+      state.run.space.activeSurvey === "asteroids"
+        ? 0.4
+        : state.run.space.activeSurvey === "stars"
+          ? 0.7
+          : VOID_PILLAGE_POWER_PER_SECOND;
+  }
+  if (gridRunning && state.run.economy.researchedTechnologies.includes("advancedFuels")) {
+    for (const rocketId of ROCKET_IDS) {
+      const rocket = state.run.space.rockets[rocketId];
+      if (rocket.fuelPumpEnabled && rocket.fuelQuantity < ROCKET_FUEL_CAPACITY[rocketId]) {
+        demandPerSecond += ROCKET_FUEL_PUMP_POWER[rocketId];
+      }
+    }
+  }
 
   if (gridRunning) {
     for (const entry of poweredProduction) {
@@ -177,8 +227,15 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     }
   }
 
+  const precipitationCandidate = precipitationForCurrentWeather(state.run.space);
+  const precipitation =
+    precipitationCandidate &&
+    state.run.economy.unlockedCompounds.includes(precipitationCandidate.goodId)
+      ? precipitationCandidate
+      : undefined;
   const tickPlan: TickPlan = {
     productionPerSecond,
+    ...(precipitation ? { precipitation } : {}),
     fuel,
     crafting,
     salesPerSecond,

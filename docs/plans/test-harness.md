@@ -6,20 +6,20 @@ The wider F-01–F-10 [source-derived acceptance matrix](../audit/foundation-tes
 
 ## Current package commands
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Start the local full-game Vite development server. |
-| `npm run dev:test` | Start Vite test mode with deterministic test controls. |
-| `npm run build` | Typecheck and build the production browser game. |
-| `npm run build:demo` | Opt in to a separate demo build; the normal build stays full. |
-| `npm run typecheck` | Check strict TypeScript source without emitting files. |
-| `npm run lint` | Run Oxlint with the checked-in lint rules. |
-| `npm run format` / `npm run format:check` | Apply or check Oxfmt formatting. |
-| `npm run check:boundaries` | Enforce engine import restrictions. |
-| `npm run test:unit` | Run pure Vitest specs in `tests/unit/`. |
-| `npm run test:unit:focused -- <file-or-pattern>` | Select focused Vitest specs. |
-| `npm run test:e2e` | Run the Playwright specs under `tests/e2e/`. |
-| `npm run test:e2e:focused -- <area-or-spec>` | Select focused specs. `MIAPLACIDUS_TEST_AREA=<area>` filters to a functional-area tag. |
+| Command                                          | Purpose                                                                                |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `npm run dev`                                    | Start the local full-game Vite development server.                                     |
+| `npm run dev:test`                               | Start Vite test mode with deterministic test controls.                                 |
+| `npm run build`                                  | Typecheck and build the production browser game.                                       |
+| `npm run build:demo`                             | Opt in to a separate demo build; the normal build stays full.                          |
+| `npm run typecheck`                              | Check strict TypeScript source without emitting files.                                 |
+| `npm run lint`                                   | Run Oxlint with the checked-in lint rules.                                             |
+| `npm run format` / `npm run format:check`        | Apply or check Oxfmt formatting.                                                       |
+| `npm run check:boundaries`                       | Enforce engine import restrictions.                                                    |
+| `npm run test:unit`                              | Run pure Vitest specs in `tests/unit/`.                                                |
+| `npm run test:unit:focused -- <file-or-pattern>` | Select focused Vitest specs.                                                           |
+| `npm run test:e2e`                               | Run the Playwright specs under `tests/e2e/`.                                           |
+| `npm run test:e2e:focused -- <area-or-spec>`     | Select focused specs. `MIAPLACIDUS_TEST_AREA=<area>` filters to a functional-area tag. |
 
 The default browser project is Playwright Chromium. Set `MIAPLACIDUS_BROWSER_CHANNEL=chrome` to use an installed Chrome channel. Set `MIAPLACIDUS_DISABLE_VIDEO=1` only when the local machine lacks Playwright's video/ffmpeg support; screenshots and traces remain enabled on failure.
 
@@ -29,7 +29,7 @@ For the recorded Windows run, Vite was started in a separate terminal with `npm 
 
 `tests/e2e/_harness/fixtures.ts` starts a new browser context, clears local/session storage before navigation, fixes seed `314159` and locale `en`, starts a named run through the form, waits for the Hydrogen pane and captures page, console and external-request errors. The `window.miaplacidusTest` gateway exists only in development/test builds.
 
-The Test Lab can prepare stock for the 50-Hydrogen compressor and 149-Hydrogen storage purchase by dispatching normal `resource.collect` commands through the engine store. Its clock button dispatches normal `clock.advance` commands and drains bounded foreground catch-up. It reports seed, clock and replayable command log. The variable inspector is searchable and read-only.
+The Test Lab prepares deterministic fixtures through the engine store, advances the injected clock with normal `clock.advance` commands, and reports seed, clock and replayable command log. Its variable inspector is searchable and read-only. It is a dedicated closable dialog, outside page flow and normal navigation, opened or closed by NumpadSubtract (`-`) only in development/test builds; production builds exclude the module.
 
 Initial focused M-01 results on 2 October 2026:
 

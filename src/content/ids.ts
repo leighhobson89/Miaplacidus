@@ -18,6 +18,9 @@ export type CompoundId = (typeof COMPOUND_IDS)[number];
 export const ECONOMIC_GOOD_IDS = [...MATERIAL_IDS, ...COMPOUND_IDS] as const;
 export type EconomicGoodId = (typeof ECONOMIC_GOOD_IDS)[number];
 
+export const PHILOSOPHY_IDS = ["constructor", "supremacist", "voidborn", "expansionist"] as const;
+export type PhilosophyId = (typeof PHILOSOPHY_IDS)[number];
+
 export const LOCALE_IDS = ["en", "es", "pt", "de", "it", "fr"] as const;
 export type LocaleId = (typeof LOCALE_IDS)[number];
 

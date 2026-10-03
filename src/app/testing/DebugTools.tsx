@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GameCommand } from "../../engine/commands";
 import type { GameStore } from "../../engine/store";
 import type { GameState } from "../../engine/state";
@@ -20,6 +20,11 @@ interface DebugToolsProps {
   readonly seed: number;
   advanceBy(milliseconds: number): void;
   readonly readFrameMetrics: () => DebugMetrics;
+}
+
+interface DebugToolsComponentProps extends DebugToolsProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
 }
 
 interface DebugGateway extends DebugToolsProps {
@@ -105,8 +110,9 @@ function flatten(
   return entries;
 }
 
-export function DebugTools(props: DebugToolsProps) {
-  const { store, seed, readFrameMetrics } = props;
+export function DebugTools(props: DebugToolsComponentProps) {
+  const { store, seed, open, onClose, readFrameMetrics } = props;
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const snapshot = useGameSnapshot(store);
   const [search, setSearch] = useState("");
   const [commandCount, setCommandCount] = useState(0);
@@ -114,6 +120,12 @@ export function DebugTools(props: DebugToolsProps) {
   const values = flatten(store.getState()).filter(([path]) =>
     path.toLowerCase().includes(search.toLowerCase()),
   );
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    else if (!open && dialog.open) dialog.close();
+  }, [open]);
 
   function runScenario(scenario: ScenarioId): void {
     window.miaplacidusTest?.runScenario(scenario);
@@ -126,8 +138,22 @@ export function DebugTools(props: DebugToolsProps) {
   }
 
   return (
-    <details className="debug-tools">
-      <summary>{t("test.title")}</summary>
+    <dialog
+      ref={dialogRef}
+      className="debug-tools"
+      aria-label={t("test.title")}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClose={onClose}
+    >
+      <div className="debug-titlebar">
+        <strong>{t("test.title")}</strong>
+        <button type="button" className="debug-close" onClick={onClose}>
+          {t("test.close")}
+        </button>
+      </div>
       <div className="debug-content">
         <dl className="debug-meta">
           <div>
@@ -186,6 +212,6 @@ export function DebugTools(props: DebugToolsProps) {
           </ol>
         </details>
       </div>
-    </details>
+    </dialog>
   );
 }

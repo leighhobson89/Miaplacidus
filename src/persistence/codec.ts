@@ -11,10 +11,32 @@ import {
   MAX_LOCAL_PAYLOAD_CHARS,
   MAX_PORTABLE_CODE_CHARS,
   MAX_SAVE_JSON_CHARS,
+  makeEnvelope,
   SaveError,
   type SaveEnvelopeV1,
 } from "./schema";
-import { migrateSaveV0, migrateSaveV1, migrateSaveV2 } from "./migrations";
+import {
+  migrateSaveV0,
+  migrateSaveV1,
+  migrateSaveV2,
+  migrateSaveV3,
+  migrateSaveV4,
+  migrateSaveV5,
+  migrateSaveV6,
+  migrateSaveV7,
+  migrateSaveV8,
+  migrateSaveV9,
+  migrateSaveV10,
+  migrateSaveV11,
+  migrateSaveV12,
+  migrateSaveV13,
+  migrateSaveV14,
+  migrateSaveV15,
+  migrateSaveV16,
+  migrateSaveV17,
+  migrateSaveV18,
+  migrateSaveV19,
+} from "./migrations";
 
 export const PORTABLE_PREFIX = "MIA1:";
 
@@ -63,8 +85,144 @@ function parseEnvelope(json: string): SaveEnvelopeV1 {
     parsed &&
     typeof parsed === "object" &&
     "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 3
+  ) {
+    return migrateSaveV3(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 4
+  ) {
+    return migrateSaveV4(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 5
+  ) {
+    return migrateSaveV5(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 6
+  ) {
+    return migrateSaveV6(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 7
+  ) {
+    return migrateSaveV7(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 8
+  ) {
+    return migrateSaveV8(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 9
+  ) {
+    return migrateSaveV9(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 10
+  ) {
+    return migrateSaveV10(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 11
+  ) {
+    return migrateSaveV11(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 12
+  ) {
+    return migrateSaveV12(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 13
+  ) {
+    return migrateSaveV13(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 14
+  ) {
+    return migrateSaveV14(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 15
+  ) {
+    return migrateSaveV15(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 16
+  ) {
+    return migrateSaveV16(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 17
+  ) {
+    return migrateSaveV17(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 18
+  ) {
+    return migrateSaveV18(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 19
+  ) {
+    return migrateSaveV19(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
     typeof (parsed as { schemaVersion?: unknown }).schemaVersion === "number" &&
-    (parsed as { schemaVersion: number }).schemaVersion > 3
+    (parsed as { schemaVersion: number }).schemaVersion > 20
   ) {
     throw new SaveError("future-version", "This save was made by a newer version of MIAPLACIDUS.");
   }
@@ -78,7 +236,15 @@ function parseEnvelope(json: string): SaveEnvelopeV1 {
       throw new SaveError("unknown-format", "This is not a MIAPLACIDUS save code.");
     throw new SaveError("checksum", "The save is incomplete or failed its integrity check.");
   }
-  return parsed;
+  if (!parsed.state.run.space.antimatterBoostActive) return parsed;
+  return makeEnvelope({
+    slotId: parsed.slotId,
+    pioneerName: parsed.pioneerName,
+    createdAt: parsed.createdAt,
+    savedAt: parsed.savedAt,
+    revision: parsed.revision,
+    state: parsed.state,
+  });
 }
 
 export function encodeLocal(envelope: SaveEnvelopeV1): string {

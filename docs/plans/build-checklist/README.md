@@ -14,4 +14,6 @@ The [single master checklist](../master-checklist.md) is the project control doc
 
 MIAPLACIDUS retains Cosmic Forge gameplay breadth. Cloud saves, Electron, original-game save compatibility and analytics are excluded by the [decision record](../open-decisions.md). All visual and audio assets are remade. The [parity ledger](../feature-parity-checklist.md) records coverage by functional area without creating a second work queue.
 
+Phase 4 source and state contracts: [telescope, asteroids and rockets](../space-mining-contract.md) and [stable star catalogue](../star-catalogue-contract.md). Settings and Test Lab placement are recorded in the [Phase 6 checklist](06-presentation.md) for implementation with the presentation phase.
+
 **Phase 1 status (2 October 2026):** M-01 and F-01–F-42 are complete. The source contract and domain catalogues are linked from [the audit index](../../audit/README.md); the architecture and build checks are in the archived [toolchain plan](../../archive/plans/2026-10-02-toolchain-project-structure.md), the engine design is in the [F-19–F-30 completion plan](../../archive/plans/2026-10-02-engine-and-simulation-core.md), and the first player-facing slice is in the [Hydrogen completion record](../../archive/plans/2026-10-02-hydrogen-vertical-slice.md). Phase 2 is next.

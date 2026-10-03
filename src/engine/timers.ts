@@ -15,6 +15,7 @@ const DOMAIN_POLICIES: Readonly<Record<TimerDomain, TimerPolicy>> = {
   travel: { phase: "simulation", offlineEligible: true, warpable: true },
   survey: { phase: "simulation", offlineEligible: true, warpable: true },
   battle: { phase: "simulation", offlineEligible: false, warpable: true },
+  weather: { phase: "wall", offlineEligible: false, warpable: false },
   casino: { phase: "simulation", offlineEligible: false, warpable: false },
   "black-hole": { phase: "simulation", offlineEligible: true, warpable: true },
   "cosmic-rip": { phase: "simulation", offlineEligible: true, warpable: true },

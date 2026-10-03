@@ -3,7 +3,7 @@ import { isValidGameState } from "../engine/state";
 import { hasControlCharacters, normalizePioneerName } from "./validation";
 
 export const SAVE_FORMAT = "miaplacidus.save" as const;
-export const SAVE_SCHEMA_VERSION = 3 as const;
+export const SAVE_SCHEMA_VERSION = 20 as const;
 export const MAX_SAVE_JSON_CHARS = 1_000_000;
 export const MAX_LOCAL_PAYLOAD_CHARS = 750_000;
 export const MAX_PORTABLE_CODE_CHARS = 900_005;
@@ -135,7 +135,21 @@ export function isSaveEnvelope(value: unknown): value is SaveEnvelopeV1 {
 export function makeEnvelope(
   input: Omit<SaveEnvelopeV1, "format" | "schemaVersion" | "checksum">,
 ): SaveEnvelopeV1 {
-  const body = { format: SAVE_FORMAT, schemaVersion: SAVE_SCHEMA_VERSION, ...input } as const;
+  const state = input.state.run.space.antimatterBoostActive
+    ? {
+        ...input.state,
+        run: {
+          ...input.state.run,
+          space: { ...input.state.run.space, antimatterBoostActive: false },
+        },
+      }
+    : input.state;
+  const body = {
+    format: SAVE_FORMAT,
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    ...input,
+    state,
+  } as const;
   const envelope = { ...body, checksum: checksumFor(body) };
   if (!isSaveEnvelope(envelope))
     throw new SaveError("invalid-envelope", "The game state cannot be saved in this format.");

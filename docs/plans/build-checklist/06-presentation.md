@@ -12,7 +12,7 @@
 - [ ] **P-06** Show costs, rate effects, requirements, result previews and disabled reasons from engine selectors.
 - [ ] **P-07** Keep long-running tasks and timers visible, including progress, pause/block and completion feedback.
 - [ ] **P-08** Define modal, notification and toast layering that does not hide a critical game decision.
-- [ ] **P-09** Provide an easily discoverable save manager, export/import controls and unsaved-state indicator.
+- [ ] **P-09** Put Save Now and Save Manager in Settings alongside save status, autosave controls, export/import and recovery; remove the duplicate always-visible save toolbar actions after the Settings pane is ready.
 - [ ] **P-10** Browser-test a representative user path through all nine tabs and their locked/unlocked states.
 
 ## Responsive interaction and accessibility
@@ -52,7 +52,9 @@
 - [ ] **P-37** Rebuild Cosmicopedia/help and story entries with current shipped feature explanations.
 - [ ] **P-38** Show current objectives and next unlocks without revealing content earlier than source progression.
 - [ ] **P-39** Rebuild statistics views for run, lifetime, production, space and meta counters.
-- [ ] **P-40** Rebuild settings for language, theme, audio, notation, autosave and accessibility choices.
+- [ ] **P-40** Rebuild Settings as the home for language, currency symbol and number format/notation, theme, notifications, weather/news options, fullscreen, audio, autosave, pointer and accessibility choices, plus Save Now and Save Manager. Keep Test Lab out of normal navigation: in development/test builds, toggle its own closable window with the NumpadSubtract (`-`) key.
+
+Source inventory from `cosmicForge/drawTab9Content.js`: group the current controls as Visual (theme, currency symbol, notation, notifications, custom pointer, pointer trail, weather effects), Game Options (fullscreen, language, news ticker, background audio and effects), and Saving/Loading (autosave frequency/on-off, import/export, cloud transfer and hard reset). The remake Settings view also owns Save Now and Save Manager; P-09 tracks moving those out of the persistent toolbar.
 - [ ] **P-41** Port number notation modes consistently across holdings, costs, rates, timers and statistics.
 - [ ] **P-42** Add audio mute/volume, autoplay-safe initiation and silent fallback when audio is unavailable.
 - [ ] **P-43** Verify settings scope: global pre-boot preferences versus per-slot and per-run choices.
