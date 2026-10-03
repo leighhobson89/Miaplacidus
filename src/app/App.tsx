@@ -5,8 +5,9 @@ import {
   HYDROGEN_STORAGE_MULTIPLIER,
   HYDROGEN_STORAGE_PRICE_OFFSET,
   hydrogenAutobuyerPrice,
-  hydrogenTickPlan,
 } from "../content/hydrogen";
+import { createEconomyTickPlan } from "../engine/economySimulation";
+import { checkPreconditions } from "../engine/commands";
 import { createGameStore, type GameStore } from "../engine/store";
 import { createInitialGameState, type GameState } from "../engine/state";
 import {
@@ -17,9 +18,11 @@ import {
 } from "../engine/selectors";
 import { displayCurrency, displayQuantity } from "../engine/precision";
 import { translate, type MessageKey } from "../i18n/messages";
+import { economyLabel } from "../i18n/economyMessages";
 import { GameErrorBoundary } from "../ui/GameErrorBoundary";
 import { useGameSnapshot } from "../ui/useGameSnapshot";
 import { BUILD_INFO } from "./buildInfo";
+import { EconomyPanes, economyGoodName, economyRatePerSecond } from "./EconomyPanes";
 import { SaveStartScreen } from "./SaveStartScreen";
 import { SaveManager } from "./SaveManager";
 import {
@@ -102,8 +105,18 @@ function bootOptions(): BootOptions {
   };
 }
 
-function formatNumber(locale: LocaleId, value: number, maximumFractionDigits = 0): string {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits }).format(value);
+function formatNumber(
+  locale: LocaleId,
+  value: number,
+  maximumFractionDigits = 0,
+  notation: GameState["settings"]["notation"] = "standard",
+): string {
+  return new Intl.NumberFormat(
+    locale,
+    notation === "scientific"
+      ? { notation: "scientific", maximumSignificantDigits: Math.max(1, maximumFractionDigits + 1) }
+      : { maximumFractionDigits },
+  ).format(value);
 }
 
 function formatMoney(locale: LocaleId, value: number): string {
@@ -114,10 +127,6 @@ function formatMoney(locale: LocaleId, value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(numericValue);
-}
-
-function snapshotBuyerCount(state: GameState): number {
-  return state.run.upgrades[autobuyerUpgradeId("hydrogen", 1)] ?? 0;
 }
 
 function localizedReason(locale: LocaleId, key: string | undefined, required?: number): string {
@@ -276,11 +285,45 @@ export function App() {
           unsavedWarning = saveErrorText(locale, "storage-unavailable");
         }
       } else {
-        const fresh = createInitialGameState({
+        let fresh = createInitialGameState({
           pioneerName: name.display,
           seed: initial.seed,
           locale,
         });
+        if (BUILD_INFO.isTest) {
+          const fixture = new URLSearchParams(window.location.search).get("economyFixture");
+          if (
+            [
+              "full",
+              "research",
+              "infinite-power",
+              "power-deficit",
+              "battery-cycle",
+              "storage",
+              "storage-efficient",
+              "storage-each",
+              "storage-compounds",
+              "storage-all",
+              "water-storage",
+              "water-storage-short",
+              "save",
+              "bulk-hydrogen",
+              "bulk-science",
+              "bulk-energy",
+              "power-buildings",
+              "buyer-tiers",
+              "compound-automation",
+              "multipliers",
+            ].includes(fixture ?? "")
+          ) {
+            const { createEconomyFixture } = await import("./testing/economyFixtures");
+            fresh = createEconomyFixture(
+              fixture as Parameters<typeof createEconomyFixture>[0],
+              locale,
+            );
+            fresh = { ...fresh, run: { ...fresh.run, pioneerName: name.display } };
+          }
+        }
         nextState = {
           ...fresh,
           run: { ...fresh.run, clock: { ...fresh.run.clock, wallNowMs: now, foreground: true } },
@@ -721,10 +764,7 @@ function GameSession({
         : Math.max(Date.now(), previous + milliseconds);
       if (BUILD_INFO.isDevelopment && !BUILD_INFO.isTest) testClock.set(next);
       const state = store.getState();
-      const tickPlan = hydrogenTickPlan(
-        snapshotBuyerCount(state),
-        state.run.hydrogenAutobuyerEnabled,
-      );
+      const tickPlan = createEconomyTickPlan(state).tickPlan;
       const input = { wallNowMs: next, foreground: true };
       const advanceCommand = {
         type: "clock.advance",
@@ -752,10 +792,7 @@ function GameSession({
       BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now();
     const onVisibilityChange = () => {
       const current = store.getState();
-      const tickPlan = hydrogenTickPlan(
-        snapshotBuyerCount(current),
-        current.run.hydrogenAutobuyerEnabled,
-      );
+      const tickPlan = createEconomyTickPlan(current).tickPlan;
       store.dispatch({
         type: "clock.advance",
         input: { wallNowMs: wallNow(), foreground: document.visibilityState === "visible" },
@@ -772,10 +809,7 @@ function GameSession({
       frameMetrics.firstFrameAt ??= timestamp;
       frameMetrics.lastFrameAt = timestamp;
       const state = store.getState();
-      const tickPlan = hydrogenTickPlan(
-        snapshotBuyerCount(state),
-        state.run.hydrogenAutobuyerEnabled,
-      );
+      const tickPlan = createEconomyTickPlan(state).tickPlan;
       store.dispatch({
         type: "clock.advance",
         input: {
@@ -860,11 +894,15 @@ function GameSession({
         <div className="header-balances">
           <div>
             <span className="balance-label">{t("header.cash")}</span>
-            <strong>{formatMoney(snapshot.locale, snapshot.cash)}</strong>
+            <strong data-testid="cash-balance">
+              {formatMoney(snapshot.locale, snapshot.cash)}
+            </strong>
           </div>
           <div>
             <span className="balance-label">{t("header.research")}</span>
-            <strong>{formatNumber(snapshot.locale, snapshot.researchPoints)}</strong>
+            <strong>
+              {formatNumber(snapshot.locale, snapshot.researchPoints, 0, snapshot.notation)}
+            </strong>
           </div>
         </div>
       </header>
@@ -989,16 +1027,24 @@ function GameSession({
         <div className="game-nav" aria-label={t("nav.label")} role="tablist">
           {GAME_TABS.map((tab, index) => {
             const selected = activeTab === tab.id;
+            const currentState = store.getState();
+            const available =
+              tab.id === "hydrogen" ||
+              tab.id === "research" ||
+              (tab.id === "energy" &&
+                currentState.run.economy.researchedTechnologies.includes("basicPowerGeneration")) ||
+              (tab.id === "compounds" &&
+                currentState.run.economy.researchedTechnologies.includes("compounds"));
             return (
               <button
                 key={tab.id}
                 id={`tab-${tab.id}`}
-                className={`nav-tab${selected ? " is-selected" : ""}${index > 0 ? " is-locked" : ""}`}
+                className={`nav-tab${selected ? " is-selected" : ""}${!available ? " is-locked" : ""}`}
                 type="button"
                 role="tab"
                 aria-selected={selected}
                 aria-controls={`pane-${tab.id}`}
-                aria-disabled={index > 0}
+                aria-disabled={!available}
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 onKeyDown={(event) => {
@@ -1014,7 +1060,7 @@ function GameSession({
               >
                 <span className="nav-index">0{index + 1}</span>
                 <span>{t(tab.key)}</span>
-                {index > 0 && (
+                {!available && (
                   <span className="lock-glyph" aria-hidden="true">
                     {"\u00b7"}
                   </span>
@@ -1045,25 +1091,50 @@ function GameSession({
       <div className="main-layout">
         <aside className="resource-rail" aria-label={t("tab.hydrogen")}>
           <div className="rail-heading">{t("tab.hydrogen")}</div>
-          <button
-            className="resource-item is-current"
-            type="button"
-            onClick={() => setActiveTab("hydrogen")}
-          >
-            <span className="element-tile" aria-hidden="true">
-              <small>1</small>H
-            </span>
-            <span className="resource-item-copy">
-              <strong>{t("hydrogen.title")}</strong>
-              <small>
-                {formatNumber(snapshot.locale, displayQuantity(hydrogen.quantity))} /{" "}
-                {formatNumber(snapshot.locale, hydrogen.storageCapacity)}
-              </small>
-            </span>
-            <span className="resource-rate">
-              +{formatNumber(snapshot.locale, snapshot.hydrogenProductionPerSecond, 2)}/s
-            </span>
-          </button>
+          {store.getState().run.unlockedResources.map((goodId, index) => {
+            const good = store.getState().run.goods[goodId];
+            const rate = economyRatePerSecond(store.getState(), goodId);
+            return (
+              <button
+                key={goodId}
+                className={`resource-item${goodId === "hydrogen" ? " is-current" : ""}`}
+                type="button"
+                onClick={() => {
+                  setActiveTab("hydrogen");
+                  document
+                    .querySelector(`[data-resource-id="${goodId}"]`)
+                    ?.scrollIntoView({ block: "nearest" });
+                }}
+              >
+                <span className="element-tile" aria-hidden="true">
+                  <small>{index + 1}</small>
+                  {goodId.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="resource-item-copy">
+                  <strong>
+                    {goodId === "hydrogen"
+                      ? t("hydrogen.title")
+                      : economyGoodName(snapshot.locale, goodId)}
+                  </strong>
+                  <small>
+                    {formatNumber(
+                      snapshot.locale,
+                      snapshot.notation === "scientific"
+                        ? good.quantity
+                        : displayQuantity(good.quantity),
+                      0,
+                      snapshot.notation,
+                    )}{" "}
+                    / {formatNumber(snapshot.locale, good.storageCapacity, 0, snapshot.notation)}
+                  </small>
+                </span>
+                <span className="resource-rate">
+                  {rate >= 0 ? "+" : "−"}
+                  {formatNumber(snapshot.locale, Math.abs(rate), 2, snapshot.notation)}/s
+                </span>
+              </button>
+            );
+          })}
           <div className="rail-note">
             <span>01</span>
             <span>{t("pane.locked")}</span>
@@ -1089,22 +1160,48 @@ function GameSession({
                       <h2>{t("hydrogen.title")}</h2>
                       <p className="pane-intro">{t("hydrogen.description")}</p>
                     </div>
-                    <label className="locale-switch" htmlFor="hydrogen-locale">
-                      <span>{t("app.locale")}</span>
-                      <select
-                        id="hydrogen-locale"
-                        aria-label={t("app.locale")}
-                        value={snapshot.locale}
-                        onChange={(event) =>
-                          store.dispatch({
-                            type: "settings.update",
-                            patch: { locale: event.currentTarget.value as LocaleId },
-                          })
-                        }
-                      >
-                        {localeOptions}
-                      </select>
-                    </label>
+                    <div className="header-display-settings">
+                      <label className="locale-switch" htmlFor="hydrogen-locale">
+                        <span>{t("app.locale")}</span>
+                        <select
+                          id="hydrogen-locale"
+                          aria-label={t("app.locale")}
+                          value={snapshot.locale}
+                          onChange={(event) =>
+                            store.dispatch({
+                              type: "settings.update",
+                              patch: { locale: event.currentTarget.value as LocaleId },
+                            })
+                          }
+                        >
+                          {localeOptions}
+                        </select>
+                      </label>
+                      <label className="locale-switch" htmlFor="number-notation">
+                        <span>{economyLabel(snapshot.locale, "notation")}</span>
+                        <select
+                          id="number-notation"
+                          aria-label={economyLabel(snapshot.locale, "notation")}
+                          value={snapshot.notation}
+                          onChange={(event) =>
+                            store.dispatch({
+                              type: "settings.update",
+                              patch: {
+                                notation: event.currentTarget
+                                  .value as GameState["settings"]["notation"],
+                              },
+                            })
+                          }
+                        >
+                          <option value="standard">
+                            {economyLabel(snapshot.locale, "standardNotation")}
+                          </option>
+                          <option value="scientific">
+                            {economyLabel(snapshot.locale, "scientificNotation")}
+                          </option>
+                        </select>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="hydrogen-hero">
@@ -1117,13 +1214,18 @@ function GameSession({
                     <div className="stock-readout">
                       <span className="eyebrow">{t("hydrogen.quantity")}</span>
                       <strong data-testid="hydrogen-quantity">
-                        {formatNumber(snapshot.locale, hydrogen.quantity, 2)}{" "}
+                        {formatNumber(snapshot.locale, hydrogen.quantity, 2, snapshot.notation)}{" "}
                         <small>{"H\u2082"}</small>
                       </strong>
                       <span className="capacity-line">
                         {t("hydrogen.capacity")}{" "}
                         <b data-testid="hydrogen-capacity">
-                          {formatNumber(snapshot.locale, hydrogen.storageCapacity)}
+                          {formatNumber(
+                            snapshot.locale,
+                            hydrogen.storageCapacity,
+                            0,
+                            snapshot.notation,
+                          )}
                         </b>
                       </span>
                       <meter
@@ -1133,14 +1235,25 @@ function GameSession({
                         max={hydrogen.storageCapacity}
                         value={Math.min(hydrogen.quantity, hydrogen.storageCapacity)}
                       >
-                        {formatNumber(snapshot.locale, hydrogen.quantity)} /{" "}
-                        {formatNumber(snapshot.locale, hydrogen.storageCapacity)}
+                        {formatNumber(snapshot.locale, hydrogen.quantity, 0, snapshot.notation)} /{" "}
+                        {formatNumber(
+                          snapshot.locale,
+                          hydrogen.storageCapacity,
+                          0,
+                          snapshot.notation,
+                        )}
                       </meter>
                     </div>
                     <div className="rate-readout">
                       <span className="eyebrow">{t("hydrogen.production")}</span>
                       <strong data-testid="hydrogen-rate">
-                        +{formatNumber(snapshot.locale, snapshot.hydrogenProductionPerSecond, 2)}
+                        +
+                        {formatNumber(
+                          snapshot.locale,
+                          snapshot.hydrogenProductionPerSecond,
+                          2,
+                          snapshot.notation,
+                        )}
                         <small>{"H\u2082/s"}</small>
                       </strong>
                     </div>
@@ -1226,14 +1339,28 @@ function GameSession({
                         <span className="cost-line">
                           {t("hydrogen.storage.price")}:{" "}
                           <strong>
-                            {formatNumber(snapshot.locale, storagePurchase.cost)} {"H\u2082"}
+                            {formatNumber(
+                              snapshot.locale,
+                              storagePurchase.cost,
+                              0,
+                              snapshot.notation,
+                            )}{" "}
+                            {"H\u2082"}
                           </strong>{" "}
                           <span aria-hidden="true">{"\u00b7"}</span>{" "}
-                          {formatNumber(snapshot.locale, hydrogen.storageCapacity)} {"\u2192"}{" "}
+                          {formatNumber(
+                            snapshot.locale,
+                            hydrogen.storageCapacity,
+                            0,
+                            snapshot.notation,
+                          )}{" "}
+                          {"\u2192"}{" "}
                           {formatNumber(
                             snapshot.locale,
                             storagePurchase.capacityAfterPurchase ??
                               hydrogen.storageCapacity * HYDROGEN_STORAGE_MULTIPLIER,
+                            0,
+                            snapshot.notation,
                           )}
                         </span>
                       </div>
@@ -1271,16 +1398,27 @@ function GameSession({
                       </div>
                       <div className="card-copy">
                         <h3>{t("hydrogen.autobuyer.title")}</h3>
-                        <p>{t("hydrogen.autobuyer.description")}</p>
+                        <p>
+                          {t("hydrogen.autobuyer.description").replace(
+                            "{rate}",
+                            formatNumber(
+                              snapshot.locale,
+                              snapshot.hydrogenAutobuyerRatePerSecond,
+                              2,
+                              snapshot.notation,
+                            ),
+                          )}
+                        </p>
                         <span className="cost-line">
                           {t("hydrogen.autobuyer.owned")}:{" "}
                           <strong data-testid="hydrogen-autobuyer-count">
-                            {formatNumber(snapshot.locale, buyerCount)}
+                            {formatNumber(snapshot.locale, buyerCount, 0, snapshot.notation)}
                           </strong>
                           <span aria-hidden="true">{" \u00b7 "}</span>
                           {t("hydrogen.autobuyer.price")}:{" "}
                           <strong>
-                            {formatNumber(snapshot.locale, buyerPrice)} {"H\u2082"}
+                            {formatNumber(snapshot.locale, buyerPrice, 0, snapshot.notation)}{" "}
+                            {"H\u2082"}
                           </strong>
                         </span>
                       </div>
@@ -1296,6 +1434,28 @@ function GameSession({
                         >
                           {t("hydrogen.autobuyer.purchase")}
                         </button>
+                        {store.getState().permanent.acquiredPerks.includes("bulkPurchasing") && (
+                          <button
+                            type="button"
+                            className="text-button"
+                            disabled={
+                              !checkPreconditions(store.getState(), {
+                                type: "economy.autobuyer.buyMax",
+                                goodId: "hydrogen",
+                                tier: 1,
+                              }).ok
+                            }
+                            onClick={() =>
+                              store.dispatch({
+                                type: "economy.autobuyer.buyMax",
+                                goodId: "hydrogen",
+                                tier: 1,
+                              })
+                            }
+                          >
+                            {economyLabel(snapshot.locale, "buyMax")}
+                          </button>
+                        )}
                         <span className="control-reason" id="autobuyer-reason">
                           {autobuyerPurchase.enabled
                             ? ""
@@ -1328,7 +1488,10 @@ function GameSession({
                   <output className="live-feedback" aria-live="polite">
                     {feedback}
                   </output>
+                  <EconomyPanes tabId="resources" state={store.getState()} store={store} />
                 </>
+              ) : index < 4 ? (
+                <EconomyPanes tabId={tab.id} state={store.getState()} store={store} />
               ) : (
                 <div className="locked-panel">
                   <span className="locked-mark" aria-hidden="true">

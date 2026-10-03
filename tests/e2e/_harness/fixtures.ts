@@ -41,7 +41,9 @@ export const test = base.extend<HydrogenFixtures>({
     await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
     await page.getByRole("button", { name: "Begin exploring" }).click();
     await expect(page.getByTestId("hydrogen-onboarding")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "Hydrogen", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Hydrogen", exact: true, level: 2 }),
+    ).toBeVisible();
     await expect
       .poll(async () => page.evaluate(() => window.miaplacidusTest?.getState().run.clock.wallNowMs))
       .not.toBeNull();

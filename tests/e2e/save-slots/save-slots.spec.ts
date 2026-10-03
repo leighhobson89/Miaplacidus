@@ -311,7 +311,7 @@ test("a synthetic MIAPLACIDUS v0 save migrates and starts as a playable slot @sa
   const manager = freshGame.getByRole("dialog", { name: "Hydrogen Pioneer" });
   await manager.getByLabel("Paste a MIAPLACIDUS save code").fill(syntheticV0Code("Legacy Pioneer"));
   await manager.getByRole("button", { name: "Preview import" }).click();
-  await expect(manager.getByTestId("import-preview")).toContainText("Save version: 1");
+  await expect(manager.getByTestId("import-preview")).toContainText("Save version: 3");
   await expect(manager.getByTestId("import-preview")).toContainText("Hydrogen");
   await manager.getByLabel("New pioneer name").last().fill("Migrated Pioneer");
   await manager.getByRole("button", { name: "Import as a new pioneer" }).click();

@@ -813,6 +813,11 @@ summary:focus-visible {
   color: var(--muted);
   font-size: 0.68rem;
 }
+.header-display-settings {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
 .locale-switch select {
   min-height: 2.3rem;
   padding: 0.4rem 0.55rem;
@@ -1454,6 +1459,192 @@ summary:focus-visible {
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+  }
+}
+
+.economy-section {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line, rgba(150, 180, 210, 0.15));
+}
+.economy-section-heading {
+  margin-bottom: 1rem;
+}
+.economy-section-heading h2 {
+  margin: 0.2rem 0 0.45rem;
+}
+.economy-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 0.8rem;
+}
+.economy-building-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.economy-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line, rgba(150, 180, 210, 0.18));
+  border-radius: 0.85rem;
+  background: rgba(7, 19, 34, 0.56);
+}
+.economy-card.is-locked {
+  opacity: 0.78;
+}
+.economy-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.economy-card-heading > div {
+  flex: 1;
+}
+.economy-card-heading h3,
+.economy-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.economy-card-heading p,
+.economy-card > p {
+  margin: 0.25rem 0;
+  color: var(--muted, #9caec1);
+  font-size: 0.83rem;
+}
+.economy-card-heading > strong {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.economy-card meter {
+  width: 100%;
+  height: 0.55rem;
+}
+.economy-rate {
+  margin: 0.45rem 0 0.7rem;
+  color: var(--accent, #81e6d9);
+  font-size: 0.82rem;
+}
+.economy-controls {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.65rem 0;
+}
+.economy-controls label,
+.economy-card label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--muted, #9caec1);
+  font-size: 0.78rem;
+}
+.economy-controls select,
+.economy-card input,
+.economy-card select {
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.6rem;
+  color: var(--text, #e6f1fa);
+  border: 1px solid var(--line, rgba(150, 180, 210, 0.24));
+  border-radius: 0.5rem;
+  background: #0b1a2b;
+}
+.economy-controls button,
+.economy-card > button {
+  width: 100%;
+}
+.economy-details {
+  margin-top: 0.65rem;
+  border-top: 1px solid var(--line, rgba(150, 180, 210, 0.15));
+  padding-top: 0.55rem;
+}
+.economy-details summary {
+  cursor: pointer;
+  color: var(--accent, #81e6d9);
+  font-size: 0.83rem;
+}
+.economy-tier {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(150, 180, 210, 0.1);
+  font-size: 0.75rem;
+}
+.economy-tier .text-button {
+  padding: 0.3rem;
+  white-space: nowrap;
+}
+.economy-toggle {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem !important;
+  margin-top: 0.65rem;
+}
+.economy-toggle input {
+  width: 1rem !important;
+  min-height: 1rem !important;
+}
+.tech-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.technology-path {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line, rgba(150, 180, 210, 0.15));
+  border-radius: 0.8rem;
+  background: rgba(5, 16, 28, 0.35);
+}
+.technology-path > h3 {
+  margin: 0 0 0.75rem;
+  color: var(--accent, #81e6d9);
+  font-size: 0.9rem;
+}
+.tech-card p {
+  margin: 0.35rem 0;
+  color: var(--muted, #9caec1);
+  font-size: 0.78rem;
+}
+.tech-card .tech-effect {
+  color: var(--text, #e6f1fa);
+  line-height: 1.45;
+}
+.tech-card button {
+  margin-top: auto;
+}
+.status-pill {
+  margin-top: auto;
+  padding: 0.3rem 0.55rem;
+  border-radius: 99px;
+  color: var(--accent, #81e6d9);
+  background: rgba(60, 200, 180, 0.12);
+  font-size: 0.73rem;
+}
+.economy-locked {
+  margin: 0.8rem 0 1rem;
+}
+
+@media (max-width: 700px) {
+  .economy-card-grid {
+    grid-template-columns: 1fr;
+  }
+  .economy-building-actions {
+    grid-template-columns: 1fr;
+  }
+  .economy-tier {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .economy-card-heading {
+    flex-wrap: wrap;
+  }
+  .header-display-settings {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }
 

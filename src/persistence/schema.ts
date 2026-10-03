@@ -3,7 +3,7 @@ import { isValidGameState } from "../engine/state";
 import { hasControlCharacters, normalizePioneerName } from "./validation";
 
 export const SAVE_FORMAT = "miaplacidus.save" as const;
-export const SAVE_SCHEMA_VERSION = 1 as const;
+export const SAVE_SCHEMA_VERSION = 3 as const;
 export const MAX_SAVE_JSON_CHARS = 1_000_000;
 export const MAX_LOCAL_PAYLOAD_CHARS = 750_000;
 export const MAX_PORTABLE_CODE_CHARS = 900_005;
@@ -18,6 +18,11 @@ export interface SaveEnvelopeV1 {
   readonly revision: number;
   readonly state: GameState;
   readonly checksum: string;
+}
+
+export interface LegacySaveEnvelopeV1 extends Omit<SaveEnvelopeV1, "schemaVersion" | "state"> {
+  readonly schemaVersion: 1;
+  readonly state: unknown;
 }
 
 export type SaveErrorCode =
@@ -61,7 +66,7 @@ export function canonicalJson(value: unknown): string {
 }
 
 /** A corruption check, not an authentication mechanism. */
-export function checksumFor(value: Omit<SaveEnvelopeV1, "checksum">): string {
+export function checksumFor(value: object): string {
   const input = canonicalJson(value);
   let first = 0x811c9dc5;
   let second = 0x9e3779b9;

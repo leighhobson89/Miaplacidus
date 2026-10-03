@@ -14,7 +14,7 @@ import {
   SaveError,
   type SaveEnvelopeV1,
 } from "./schema";
-import { migrateSaveV0 } from "./migrations";
+import { migrateSaveV0, migrateSaveV1, migrateSaveV2 } from "./migrations";
 
 export const PORTABLE_PREFIX = "MIA1:";
 
@@ -47,8 +47,24 @@ function parseEnvelope(json: string): SaveEnvelopeV1 {
     parsed &&
     typeof parsed === "object" &&
     "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 1
+  ) {
+    return migrateSaveV1(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 2
+  ) {
+    return migrateSaveV2(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
     typeof (parsed as { schemaVersion?: unknown }).schemaVersion === "number" &&
-    (parsed as { schemaVersion: number }).schemaVersion > 1
+    (parsed as { schemaVersion: number }).schemaVersion > 3
   ) {
     throw new SaveError("future-version", "This save was made by a newer version of MIAPLACIDUS.");
   }

@@ -1,16 +1,24 @@
 import {
+  COMPOUND_IDS,
   ECONOMIC_GOOD_IDS,
+  FIXED_UPGRADE_IDS,
   GALAXY_SEED_DEFAULT,
   LOCALE_IDS,
   MATERIAL_IDS,
+  autobuyerUpgradeId,
   isEconomicGoodId,
   isEventId,
   isUpgradeId,
   type EconomicGoodId,
+  type AutobuyerUpgradeId,
+  type CompoundId,
+  type FixedUpgradeId,
   type LocaleId,
   type MaterialId,
+  type TechId,
   type UpgradeId,
 } from "../content/ids";
+import { TECHNOLOGY_CATALOG } from "../content/technology";
 import { INITIAL_GOODS } from "../content/economy";
 import { createClockState } from "./clock";
 import { createRandomState } from "./random";
@@ -34,6 +42,35 @@ export interface RunState {
   readonly timers: TimerMap;
   readonly clock: ClockState;
   readonly random: ReturnType<typeof createRandomState>;
+  readonly economy: EconomyState;
+}
+
+export interface ResourceAllocationState {
+  readonly enabled: boolean;
+  readonly cashShare: number;
+  readonly compoundShare: number;
+}
+
+export interface PowerState {
+  readonly quantity: number;
+  readonly capacity: number;
+  readonly gridEnabled: boolean;
+  readonly deficitMs: number;
+  readonly tripped: boolean;
+  readonly infinitePower: boolean;
+  readonly environmentalMultiplier: number;
+}
+
+export interface EconomyState {
+  readonly unlockedCompounds: readonly CompoundId[];
+  readonly researchedTechnologies: readonly TechId[];
+  readonly revealedTechnologies: readonly TechId[];
+  readonly autobuyerEnabled: Readonly<Record<AutobuyerUpgradeId, boolean>>;
+  readonly buildingEnabled: Readonly<Record<FixedUpgradeId, boolean>>;
+  readonly resourceAllocation: Readonly<Record<MaterialId, ResourceAllocationState>>;
+  readonly autoCreateEnabled: Readonly<Record<CompoundId, boolean>>;
+  readonly researchAutobuyerEnabled: boolean;
+  readonly power: PowerState;
 }
 
 export interface PermanentState {
@@ -59,11 +96,73 @@ export interface StatisticsState {
 }
 
 export interface GameState {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 3;
   readonly run: RunState;
   readonly permanent: PermanentState;
   readonly settings: SettingsState;
   readonly statistics: StatisticsState;
+}
+
+export type LegacyRunStateV1 = Omit<RunState, "economy">;
+export interface LegacyGameStateV1 {
+  readonly schemaVersion: 1;
+  readonly run: LegacyRunStateV1;
+  readonly permanent: PermanentState;
+  readonly settings: SettingsState;
+  readonly statistics: StatisticsState;
+}
+
+export type LegacyPowerStateV2 = Omit<PowerState, "infinitePower" | "environmentalMultiplier">;
+export type LegacyEconomyStateV2 = Omit<EconomyState, "power"> & {
+  readonly power: LegacyPowerStateV2;
+};
+export type LegacyRunStateV2 = Omit<RunState, "economy"> & {
+  readonly economy: LegacyEconomyStateV2;
+};
+export interface LegacyGameStateV2 {
+  readonly schemaVersion: 2;
+  readonly run: LegacyRunStateV2;
+  readonly permanent: PermanentState;
+  readonly settings: SettingsState;
+  readonly statistics: StatisticsState;
+}
+
+export function createInitialEconomyState(hydrogenAutobuyerEnabled = true): EconomyState {
+  const autobuyerEnabled = Object.fromEntries(
+    ECONOMIC_GOOD_IDS.flatMap((goodId) =>
+      ([1, 2, 3, 4] as const).map((tier) => [autobuyerUpgradeId(goodId, tier), true]),
+    ),
+  ) as Record<AutobuyerUpgradeId, boolean>;
+  autobuyerEnabled[autobuyerUpgradeId("hydrogen", 1)] = hydrogenAutobuyerEnabled;
+  const buildingEnabled = Object.fromEntries(
+    FIXED_UPGRADE_IDS.map((id) => [id, !id.startsWith("powerPlant")]),
+  ) as Record<FixedUpgradeId, boolean>;
+  const resourceAllocation = Object.fromEntries(
+    MATERIAL_IDS.map((id) => [id, { enabled: false, cashShare: 0, compoundShare: 100 }]),
+  ) as Record<MaterialId, ResourceAllocationState>;
+  const autoCreateEnabled = Object.fromEntries(COMPOUND_IDS.map((id) => [id, false])) as Record<
+    CompoundId,
+    boolean
+  >;
+  return {
+    unlockedCompounds: [],
+    researchedTechnologies: [],
+    revealedTechnologies: ["knowledgeSharing"],
+    autobuyerEnabled,
+    buildingEnabled,
+    resourceAllocation,
+    autoCreateEnabled,
+    researchAutobuyerEnabled: false,
+    power: {
+      quantity: 0,
+      capacity: 0,
+      gridEnabled: true,
+      deficitMs: 0,
+      tripped: false,
+      infinitePower: false,
+      environmentalMultiplier: 1,
+    },
+  };
 }
 
 export interface InitialStateOptions {
@@ -85,7 +184,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
   ) as Record<EconomicGoodId, GoodState>;
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 3,
     run: {
       pioneerName: options.pioneerName?.trim() || "Pioneer",
       hydrogenAutobuyerEnabled: true,
@@ -97,6 +196,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       timers: {},
       clock: createClockState(),
       random: createRandomState(options.seed ?? GALAXY_SEED_DEFAULT),
+      economy: createInitialEconomyState(),
     },
     permanent: {
       rebirthCount: 0,
@@ -125,6 +225,7 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   }
   const exactKeys = (record: object, expected: readonly string[]) => {
+    if (!record || typeof record !== "object" || Array.isArray(record)) return false;
     const actual = Object.keys(record).sort();
     const keys = [...expected].sort();
     return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
@@ -133,7 +234,7 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   const state = value as Partial<GameState>;
   if (
-    state.schemaVersion !== 1 ||
+    state.schemaVersion !== 3 ||
     !state.run ||
     !state.permanent ||
     !state.settings ||
@@ -154,6 +255,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "timers",
       "clock",
       "random",
+      "economy",
     ]) ||
     !exactKeys(permanent, ["rebirthCount", "ascendencyPoints", "gloryPoints", "acquiredPerks"]) ||
     !exactKeys(settings, ["locale", "themeId", "notation", "soundEnabled", "reducedMotion"]) ||
@@ -172,6 +274,39 @@ export function isValidGameState(value: unknown): value is GameState {
       "pendingForegroundMs",
     ]) ||
     !exactKeys(run.random, ["seed", "draws"]) ||
+    !exactKeys(run.economy, [
+      "unlockedCompounds",
+      "researchedTechnologies",
+      "revealedTechnologies",
+      "autobuyerEnabled",
+      "buildingEnabled",
+      "resourceAllocation",
+      "autoCreateEnabled",
+      "researchAutobuyerEnabled",
+      "power",
+    ]) ||
+    !exactKeys(run.economy.power, [
+      "quantity",
+      "capacity",
+      "gridEnabled",
+      "deficitMs",
+      "tripped",
+      "infinitePower",
+      "environmentalMultiplier",
+    ]) ||
+    !exactKeys(run.economy.autobuyerEnabled, [
+      ...ECONOMIC_GOOD_IDS.flatMap((id) =>
+        [1, 2, 3, 4].map((tier) => `autobuyer:${id}:tier:${tier}`),
+      ),
+    ]) ||
+    !exactKeys(run.economy.buildingEnabled, FIXED_UPGRADE_IDS) ||
+    !exactKeys(run.economy.resourceAllocation, MATERIAL_IDS) ||
+    !exactKeys(run.economy.autoCreateEnabled, COMPOUND_IDS) ||
+    MATERIAL_IDS.some(
+      (id) =>
+        !run.economy.resourceAllocation[id] ||
+        !exactKeys(run.economy.resourceAllocation[id], ["enabled", "cashShare", "compoundShare"]),
+    ) ||
     !exactKeys(run.goods, ECONOMIC_GOOD_IDS)
   )
     return false;
@@ -185,6 +320,22 @@ export function isValidGameState(value: unknown): value is GameState {
     typeof run.goods !== "object" ||
     run.goods === null ||
     !Array.isArray(run.unlockedResources) ||
+    !Array.isArray(run.economy.unlockedCompounds) ||
+    !Array.isArray(run.economy.researchedTechnologies) ||
+    !Array.isArray(run.economy.revealedTechnologies) ||
+    typeof run.economy.researchAutobuyerEnabled !== "boolean" ||
+    typeof run.economy.power.gridEnabled !== "boolean" ||
+    typeof run.economy.power.tripped !== "boolean" ||
+    typeof run.economy.power.infinitePower !== "boolean" ||
+    !Number.isFinite(run.economy.power.quantity) ||
+    !Number.isFinite(run.economy.power.capacity) ||
+    !Number.isFinite(run.economy.power.deficitMs) ||
+    !Number.isFinite(run.economy.power.environmentalMultiplier) ||
+    run.economy.power.quantity < 0 ||
+    run.economy.power.capacity < 0 ||
+    run.economy.power.quantity > run.economy.power.capacity ||
+    run.economy.power.deficitMs < 0 ||
+    run.economy.power.environmentalMultiplier < 0 ||
     typeof run.upgrades !== "object" ||
     run.upgrades === null ||
     typeof run.timers !== "object" ||
@@ -211,6 +362,38 @@ export function isValidGameState(value: unknown): value is GameState {
     }
   }
   if (run.unlockedResources.some((id) => !MATERIAL_IDS.includes(id))) {
+    return false;
+  }
+  const validTechIds = new Set(TECHNOLOGY_CATALOG.map((technology) => technology.id));
+  if (
+    run.economy.unlockedCompounds.some((id) => !COMPOUND_IDS.includes(id)) ||
+    run.economy.researchedTechnologies.some((id) => !validTechIds.has(id)) ||
+    run.economy.revealedTechnologies.some((id) => !validTechIds.has(id)) ||
+    new Set(run.economy.researchedTechnologies).size !==
+      run.economy.researchedTechnologies.length ||
+    new Set(run.economy.revealedTechnologies).size !== run.economy.revealedTechnologies.length ||
+    run.economy.researchedTechnologies.some(
+      (id) => !run.economy.revealedTechnologies.includes(id),
+    ) ||
+    run.economy.autobuyerEnabled === null ||
+    Object.values(run.economy.autobuyerEnabled).some((enabled) => typeof enabled !== "boolean") ||
+    run.economy.autobuyerEnabled[autobuyerUpgradeId("hydrogen", 1)] !==
+      run.hydrogenAutobuyerEnabled ||
+    Object.values(run.economy.buildingEnabled).some((enabled) => typeof enabled !== "boolean") ||
+    Object.values(run.economy.autoCreateEnabled).some((enabled) => typeof enabled !== "boolean") ||
+    MATERIAL_IDS.some((id) => {
+      const allocation = run.economy.resourceAllocation[id];
+      return (
+        typeof allocation.enabled !== "boolean" ||
+        !Number.isFinite(allocation.cashShare) ||
+        allocation.cashShare < 0 ||
+        allocation.cashShare > 100 ||
+        !Number.isFinite(allocation.compoundShare) ||
+        allocation.compoundShare < 0 ||
+        allocation.compoundShare > 100
+      );
+    })
+  ) {
     return false;
   }
   if (
@@ -302,4 +485,65 @@ export function isValidGameState(value: unknown): value is GameState {
     Number.isSafeInteger(statistics.completedTimers) &&
     statistics.completedTimers >= 0
   );
+}
+
+/** Validates a v1 state by applying economy defaults and validating the full v3 shape. */
+export function upgradeGameStateV1(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (!legacy["run"] || typeof legacy["run"] !== "object" || Array.isArray(legacy["run"]))
+    return null;
+  const legacyRun = legacy["run"] as Record<string, unknown>;
+  if (typeof legacyRun["hydrogenAutobuyerEnabled"] !== "boolean") return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 3,
+    run: {
+      ...legacyRun,
+      economy: createInitialEconomyState(legacyRun["hydrogenAutobuyerEnabled"]),
+    },
+  };
+  return isValidGameState(candidate) ? candidate : null;
+}
+
+/** Adds the energy fields introduced after v2 saves were written. */
+export function upgradeGameStateV2(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (
+    legacy["schemaVersion"] !== 2 ||
+    !legacy["run"] ||
+    typeof legacy["run"] !== "object" ||
+    Array.isArray(legacy["run"])
+  )
+    return null;
+  const legacyRun = legacy["run"] as Record<string, unknown>;
+  if (
+    !legacyRun["economy"] ||
+    typeof legacyRun["economy"] !== "object" ||
+    Array.isArray(legacyRun["economy"])
+  )
+    return null;
+  const legacyEconomy = legacyRun["economy"] as Record<string, unknown>;
+  if (
+    !legacyEconomy["power"] ||
+    typeof legacyEconomy["power"] !== "object" ||
+    Array.isArray(legacyEconomy["power"])
+  )
+    return null;
+  const legacyPower = legacyEconomy["power"] as Record<string, unknown>;
+  const oldPowerKeys = ["quantity", "capacity", "gridEnabled", "deficitMs", "tripped"];
+  if (Object.keys(legacyPower).sort().join("|") !== [...oldPowerKeys].sort().join("|")) return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 3,
+    run: {
+      ...legacyRun,
+      economy: {
+        ...legacyEconomy,
+        power: { ...legacyPower, infinitePower: false, environmentalMultiplier: 1 },
+      },
+    },
+  };
+  return isValidGameState(candidate) ? candidate : null;
 }

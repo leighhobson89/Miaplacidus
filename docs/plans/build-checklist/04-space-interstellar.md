@@ -25,14 +25,14 @@
 - [ ] **I-16** Port antimatter unlock, quantities, rates, extraction caps and boost settings.
 - [ ] **I-17** Port asteroid depletion and antimatter accounting to run/lifetime statistics.
 - [ ] **I-18** Port antimatter purchase/spend gates for starship and later endgame systems.
-- [ ] **I-19** Port any star/philosophy/megastructure effects on scans, mining and travel.
+- [ ] **I-19** Port relevant technology, star, philosophy and megastructure effects on scans, mining and travel; apply each once.
 - [ ] **I-20** Test full/empty asteroid, insufficient power, exhausted fuel and exact-cost launch paths.
 
 ## Stars, map and travel
 
 - [ ] **I-21** Extract seeded/generated star catalogue, nominal map geometry and deterministic generation inputs.
 - [ ] **I-22** Port Spica start, Miaplacidus home and all special destinations/system flags.
-- [ ] **I-23** Port star type distribution and the B/F/O effects plus neutral types.
+- [ ] **I-23** Port star type distribution and B/F/O production and space effects plus neutral types; apply star modifiers once.
 - [ ] **I-24** Port star discovery, study, search, selection, labels and distance calculations.
 - [ ] **I-25** Draw the map with stable coordinates and responsive zoom/pan behavior without changing travel distances.
 - [ ] **I-26** Port star-data tables, sort/filter/direct targeting and reveal rules.
@@ -67,7 +67,7 @@
 ## Weather and system-wide verification
 
 - [ ] **I-48** Port per-system weather chances, timing, severe-streak relief and current-condition display.
-- [ ] **I-49** Port weather effects on plant output, precipitation, telescope/mining and rocket launch.
+- [ ] **I-49** Port weather effects on plant output, precipitation, telescope/mining and rocket launch; define stacking with star modifiers.
 - [ ] **I-50** Credit precipitation only when material actually enters a store, once per event/tick.
 - [ ] **I-51** Test clear/rain/volcano transitions, full storage, power-off and system change.
 - [ ] **I-52** Save/reload every space and travel timer, then verify system state after rebirth.

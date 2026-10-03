@@ -18,15 +18,15 @@ The scoped state tree, deterministic command boundary, precision helpers, inject
 
 This evidence covers the first playable slice and does not close any broad feature area below.
 
-| Area | Current evidence | Still open in the broad area |
-|---|---|---|
-| `app-boot` | Fresh named run reaches Hydrogen with $10, 50 RP, 0/150 Hydrogen, nine semantic tabs, a stable active pane, and only Hydrogen unlocked. Spanish boot locale and local-only requests are checked. | Empty/missing storage, offline startup, demo/build gates, save-slot selection and all other progression starts. |
-| `resources` | Manual +1 collection, $0.02/unit sale, whole-unit sale behavior, 149-Hydrogen storage purchase and 150-to-300 capacity are checked through controls and selectors. | The other seven resources, full sale/storage cases, fusion and all downstream economy paths. |
-| `autobuyers` | One Hydrogen compressor costs 50, produces 2/s, advances through the injected clock and pauses without further production. The 50/57/65 price recurrence is unit-tested. | Other Hydrogen tiers, all other resource/compound buyers, energy, allocations and cap/recovery interactions. |
-| `precision` / `rounding` | Hydrogen fractional sale settlement, two-cent value arithmetic, repeated price ceiling and atomic affordability checks have focused unit evidence. | Cross-system currency/quantity behavior, all resource scales, notation and compound rounding. |
-| `localization` | All six first-slice catalogues pass key/placeholder parity; the browser switches live through all six languages and keeps a stable `lang` value. | Full-game catalogue parity, translation review and long-text/layout review across all screens. |
-| `ui-navigation` | Nine stable tab/pane IDs, locked placeholders and arrow-key tab movement are checked; the Hydrogen control and long German labels stay usable at 390px width without document overflow. | All game panes, focus paths, themes, touch flows and full responsive layouts. |
-| `performance` | Seed `314159`, 1280×720 Chrome run records first-slice frame/heap/DOM/listener metrics; the target late-game fixture design is documented. | Long-run and late-game measurements, cross-browser matrix and release thresholds. |
+| Area                     | Current evidence                                                                                                                                                                                 | Still open in the broad area                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `app-boot`               | Fresh named run reaches Hydrogen with $10, 50 RP, 0/150 Hydrogen, nine semantic tabs, a stable active pane, and only Hydrogen unlocked. Spanish boot locale and local-only requests are checked. | Empty/missing storage, offline startup, demo/build gates, save-slot selection and all other progression starts. |
+| `resources`              | Manual +1 collection, $0.02/unit sale, whole-unit sale behavior, 149-Hydrogen storage purchase and 150-to-300 capacity are checked through controls and selectors.                               | The other seven resources, full sale/storage cases, fusion and all downstream economy paths.                    |
+| `autobuyers`             | One Hydrogen compressor costs 50, produces 2/s, advances through the injected clock and pauses without further production. The 50/57/65 price recurrence is unit-tested.                         | Other Hydrogen tiers, all other resource/compound buyers, energy, allocations and cap/recovery interactions.    |
+| `precision` / `rounding` | Hydrogen fractional sale settlement, two-cent value arithmetic, repeated price ceiling and atomic affordability checks have focused unit evidence.                                               | Cross-system currency/quantity behavior, all resource scales, notation and compound rounding.                   |
+| `localization`           | All six first-slice catalogues pass key/placeholder parity; the browser switches live through all six languages and keeps a stable `lang` value.                                                 | Full-game catalogue parity, translation review and long-text/layout review across all screens.                  |
+| `ui-navigation`          | Nine stable tab/pane IDs, locked placeholders and arrow-key tab movement are checked; the Hydrogen control and long German labels stay usable at 390px width without document overflow.          | All game panes, focus paths, themes, touch flows and full responsive layouts.                                   |
+| `performance`            | Seed `314159`, 1280×720 Chrome run records first-slice frame/heap/DOM/listener metrics; the target late-game fixture design is documented.                                                       | Long-run and late-game measurements, cross-browser matrix and release thresholds.                               |
 
 The reproducible spec commands, outcomes, and measured baseline are in each populated [browser area README](../../tests/e2e/README.md) and the [M-01 completion record](../archive/plans/2026-10-02-hydrogen-vertical-slice.md). M-01 provides partial evidence for the listed areas; full-area status stays open until normal and failure paths across the full game are implemented and checked.
 
@@ -34,14 +34,20 @@ The reproducible spec commands, outcomes, and measured baseline are in each popu
 
 The Hydrogen slice has complete save-system gate evidence, while the four broad feature areas remain partial because their full game breadth is still open. See the [M-02 completion record](../archive/plans/2026-10-02-local-saves.md) and [local save contract](local-save-contract.md).
 
-| Area | Current evidence | Still open in the broad area |
-|---|---|---|
-| `save-load-local` | Hydrogen state survives autosave/reload; live state exports through clipboard, text and `.txt`; fresh-profile restore and quota/blocked-storage paths are browser-tested. | Full-game state coverage, offline gains and all later gameplay domains. |
-| `save-slots` | Two pioneers retain independent Hydrogen progress; Confirm/Start, prefill, switching, rename, save-as-new, delete, conflict and damaged-save recovery are browser-tested. | Full-game progression and all cross-system state boundaries. |
-| `save-migration` | Strict v1 validation rejects malformed, future and Cosmic Forge payloads; synthetic v0 migrates to a playable v1 slot; failed writes preserve the prior generation. | Fixtures for each future shipped MIAPLACIDUS schema and full-game migration coverage. |
-| `migration` | A synthetic earlier schema runs through the migration registry and reaches playable Hydrogen state. | One fixture and playable-state check per future shipped MIAPLACIDUS release. |
+| Area              | Current evidence                                                                                                                                                          | Still open in the broad area                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `save-load-local` | Hydrogen state survives autosave/reload; live state exports through clipboard, text and `.txt`; fresh-profile restore and quota/blocked-storage paths are browser-tested. | Full-game state coverage, offline gains and all later gameplay domains.               |
+| `save-slots`      | Two pioneers retain independent Hydrogen progress; Confirm/Start, prefill, switching, rename, save-as-new, delete, conflict and damaged-save recovery are browser-tested. | Full-game progression and all cross-system state boundaries.                          |
+| `save-migration`  | Strict v1 validation rejects malformed, future and Cosmic Forge payloads; synthetic v0 migrates to a playable v1 slot; failed writes preserve the prior generation.       | Fixtures for each future shipped MIAPLACIDUS schema and full-game migration coverage. |
+| `migration`       | A synthetic earlier schema runs through the migration registry and reaches playable Hydrogen state.                                                                       | One fixture and playable-state check per future shipped MIAPLACIDUS release.          |
 
 The focused browser evidence uses player clicks and screenshot baseline comparison. It checks that the app surface is present and not white, and reports page errors, console errors and unexpected external requests. The Hydrogen briefing is shown once for new slots and its completion survives reload; the full tutorial remains in M-06. Rebirth persistence uses imported fixtures because the rebirth mechanic belongs to M-05.
+
+## Economy evidence (M-03 partial, 3 October 2026)
+
+The [economy browser README](../../tests/e2e/economy/README.md) records source comparisons, screenshot checkpoints, test instructions and the remaining evidence boundary. The slice covers a fresh Hydrogen route through the first Research purchase, Energy unlock and Diesel compound unlock; click paths for all eight materials and six compounds; every autobuyer and storage tier; energy and research buildings; manual and automated research completion announcements; manual completion feedback in all six locales; all six automatic compound recipes; save/reload; and screenshots for Hydrogen, Research, Energy and Compounds in all six locales. Unit rules and ten-second source comparisons are in [`tests/unit/economy.spec.ts`](../../tests/unit/economy.spec.ts), with source values in the [economy audit](../audit/foundation-economy.md) and deterministic tick policy in the [economy contract](economy-contract.md).
+
+The M-03 economy and research phase gate is complete. The full-game functional areas remain partial: the detailed checklist assigns rebirth carryover and repeatable-price restoration (**E-06/E-13/E-36/E-56**) to M-05, later space/weather/power/technology integrations (**E-09/E-25/E-26/E-35**) to M-04/M-05, and the exhaustive six-language UI review (**E-57**) to M-06. Those tasks remain open in their owning checklists; broader economy-related area status stays partial until the full game systems are implemented.
 
 ## Foundation
 
@@ -55,15 +61,15 @@ The focused browser evidence uses player clicks and screenshot baseline comparis
 
 ## Core economy
 
-- **Not started** — `resources` — eight materials, gain, storage, sale and visible rates.
-- **Not started** — `autobuyers` — tiers, costs, energy use, pause/restart and storage cap.
-- **Not started** — `autosell` — allocation and sale paths, competing consumers, retained stock.
-- **Not started** — `energy` — plants, batteries, fuel, trip and recovery.
-- **Not started** — `research` — generation and upgrade affordability.
-- **Not started** — `technology` — prerequisites, unlocks, tree and repeatable technologies.
-- **Not started** — `compounds` — six recipes, manual/automatic creation, costs and caps.
-- **Not started** — `precision` — tolerance, affordability, spend and displayed quantity.
-- **Not started** — `rounding` — cross-system sale/price/rate/notation edges.
+- **Partial (M-03 evidence)** — `resources` — eight materials, gain, storage, sale and visible rates.
+- **Partial (M-03 evidence)** — `autobuyers` — tiers, costs, energy use, pause/restart and storage cap.
+- **Partial (M-03 evidence)** — `autosell` — allocation and sale paths, competing consumers, retained stock.
+- **Partial (M-03 evidence)** — `energy` — plants, batteries, fuel, trip and recovery.
+- **Partial (M-03 evidence)** — `research` — generation and upgrade affordability.
+- **Partial (M-03 evidence)** — `technology` — prerequisites, unlocks, tree and repeatable technologies.
+- **Partial (M-03 evidence)** — `compounds` — six recipes, manual/automatic creation, costs and caps.
+- **Partial (M-03 evidence)** — `precision` — tolerance, affordability, spend and displayed quantity.
+- **Partial (M-03 evidence)** — `rounding` — cross-system sale/price/rate/notation edges.
 
 ## Space operations
 

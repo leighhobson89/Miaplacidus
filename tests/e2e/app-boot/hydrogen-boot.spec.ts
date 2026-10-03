@@ -12,7 +12,7 @@ test("first run starts with the pioneer name screen and reaches a ready Hydrogen
   await page.getByRole("button", { name: "Confirmar", exact: true }).click();
   await captureVisualCheckpoint(page, testInfo, "confirmed-start");
   await page.getByRole("button", { name: "Comenzar", exact: true }).click();
-  await expect(page.getByRole("heading", { level: 2 })).toBeVisible();
+  await expect(page.locator("#pane-hydrogen .pane-heading h2")).toBeVisible();
   await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
   await captureVisualCheckpoint(page, testInfo, "hydrogen-first-run-briefing-es");
   await page.getByRole("button", { name: "Empezar a explorar" }).click();
@@ -81,7 +81,7 @@ test("locale changes update the live Hydrogen pane @app-boot @localization", asy
   const headings = new Set<string>();
   for (const locale of ["en", "es", "pt", "de", "it", "fr"]) {
     await freshGame.locator("#hydrogen-locale").selectOption(locale);
-    const heading = freshGame.getByRole("heading", { level: 2 });
+    const heading = freshGame.locator("#pane-hydrogen .pane-heading h2");
     await expect(heading).toBeVisible();
     headings.add((await heading.innerText()).trim());
     expect(await freshGame.evaluate(() => document.documentElement.lang)).toBe(locale);

@@ -8,10 +8,10 @@
 - [ ] **G-02** Assign every state field a run, permanent, settings or lifetime-statistics owner; document the complete reset/carryover matrix.
 - [ ] **G-03** Implement rebirth as one validated command with an atomic state transition and no partial reset.
 - [ ] **G-04** Port starting-system selection and generation after rebirth, including source identity and discovery behavior.
-- [ ] **G-05** Port the old rules for retained resources, storage, technologies, automation and settings, including exceptions.
+- [ ] **G-05** Port the old rules for retained resources, storage, technologies, automation, philosophy repeatable levels/prices and settings, including exceptions. Closes the rebirth carryover follow-ups from **E-06/E-13/E-36**.
 - [ ] **G-06** Keep spent/earned AP, GP and perk effects consistent across rebirth and reload.
 - [ ] **G-07** Prevent rebirth while a blocking battle, travel or other source-defined condition is active; explain why in UI.
-- [ ] **G-08** Test first and second rebirth from deterministic fixtures, including exact reset, carryover and new-system effects.
+- [ ] **G-08** Test first and second rebirth from deterministic fixtures, including exact reset, economy save/reload and carryover, and new-system effects. Closes the rebirth verification follow-up from **E-56**.
 
 ## Currencies, market and ascendency
 
@@ -20,7 +20,7 @@
 - [ ] **G-11** Port Galactic Market unlocks, trade pairs, exchange rates, fees, histories and lockdown states.
 - [ ] **G-12** Make market preview, affordability, spend and receipt agree at precision boundaries.
 - [ ] **G-13** Port every ascendency perk ID, cost, prerequisites, level cap, repeatability and effect.
-- [ ] **G-14** Apply permanent perk modifiers exactly once to each affected system, including after reload and rebirth.
+- [ ] **G-14** Apply permanent perk modifiers exactly once to each affected system, including after reload and rebirth; include the cross-system multiplier follow-up from **E-09**.
 - [ ] **G-15** Test exact-cost, insufficient-currency, max-level, disabled-market and rapid repeated purchase paths.
 - [ ] **G-16** Test AP/GP source and sink totals over a two-run journey with no duplicate awards.
 
@@ -39,8 +39,8 @@
 
 - [ ] **G-25** Extract all Constructor, Supremacist, VoidBorn and Expansionist unlock gates and initial choice rules.
 - [ ] **G-26** Port each path's active ability, duration/cooldown, cost and interaction with the simulation clock.
-- [ ] **G-27** Port each path's passive modifiers to economy, space, diplomacy, fleet and endgame rules.
-- [ ] **G-28** Port repeatable philosophy upgrades, scaling costs, caps and persistence scope.
+- [ ] **G-27** Port each path's passive modifiers to economy, space, diplomacy, fleet and endgame rules; include the later-system technology effects from **E-35**.
+- [ ] **G-28** Port repeatable philosophy upgrades, scaling costs, caps and persistence scope; include **E-36** cost scaling and current-price restoration after rebirth.
 - [ ] **G-29** Prevent incompatible path selection or double grant according to source rules; display choice consequences.
 - [ ] **G-30** Test each path in an otherwise identical seeded scenario, including rebirth and save/reload.
 
@@ -54,7 +54,7 @@
 - [ ] **G-36** Extract all manuscript/clue locations, rewards, duplicate guards and narrative order.
 - [ ] **G-37** Port megastructure discovery, star eligibility, construction stages, resource/currency costs and timers.
 - [ ] **G-38** Port guardian/defense encounters, failure/retry and affected fleet/starship state.
-- [ ] **G-39** Port megastructure technology unlocks, bonuses and save/rebirth ownership.
+- [ ] **G-39** Port megastructure technology unlocks, bonuses and save/rebirth ownership; apply the megastructure modifier follow-ups from **E-09/E-35** once.
 - [ ] **G-40** Port the Miaplacidus force-field requirements, breach, Master AI sequence and ending state.
 - [ ] **G-41** Test missing clue/part, exact cost, time-warp completion, lost guardian fight and repeat ending attempt.
 - [ ] **G-42** Record the shipped end route separately from outdated GDD assumptions and verify it in a full browser journey.

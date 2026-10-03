@@ -10,11 +10,16 @@ import {
 import {
   HYDROGEN_AUTOBUYER_RATE,
   HYDROGEN_STORAGE_PRICE_OFFSET,
-  HYDROGEN_STORAGE_MULTIPLIER,
   hydrogenAutobuyerCount,
   hydrogenAutobuyerPrice,
 } from "../content/hydrogen";
 import { displayQuantity } from "./precision";
+import {
+  permanentPerkPurchaseCount,
+  repeatedPerkMultiplier,
+  storageCapacityAfterPurchase,
+} from "../content/economyRules";
+import { createEconomyTickPlan } from "./economySimulation";
 
 export interface GameSnapshot {
   readonly pioneerName: string;
@@ -31,6 +36,7 @@ export interface GameSnapshot {
   readonly soundEnabled: boolean;
   readonly hydrogenAutobuyerCount: number;
   readonly hydrogenAutobuyerEnabled: boolean;
+  readonly hydrogenAutobuyerRatePerSecond: number;
   readonly hydrogenProductionPerSecond: number;
   readonly revision: number;
 }
@@ -51,9 +57,10 @@ export function selectGameSnapshot(state: GameState): GameSnapshot {
     soundEnabled: state.settings.soundEnabled,
     hydrogenAutobuyerCount: hydrogenAutobuyerCount(state.run.upgrades),
     hydrogenAutobuyerEnabled: state.run.hydrogenAutobuyerEnabled,
-    hydrogenProductionPerSecond: state.run.hydrogenAutobuyerEnabled
-      ? hydrogenAutobuyerCount(state.run.upgrades) * HYDROGEN_AUTOBUYER_RATE
-      : 0,
+    hydrogenAutobuyerRatePerSecond:
+      HYDROGEN_AUTOBUYER_RATE *
+      repeatedPerkMultiplier(state.permanent.acquiredPerks, "smartAutoBuyers", 1.5),
+    hydrogenProductionPerSecond: createEconomyTickPlan(state).netRatesPerSecond.hydrogen ?? 0,
     revision: state.statistics.acceptedCommands,
   };
 }
@@ -110,7 +117,10 @@ export function selectHydrogenStoragePurchase(state: GameState): HydrogenPurchas
     state,
     { type: "storage.purchase", goodId: "hydrogen" },
     Math.max(0, capacity - HYDROGEN_STORAGE_PRICE_OFFSET),
-    capacity * HYDROGEN_STORAGE_MULTIPLIER,
+    storageCapacityAfterPurchase(
+      capacity,
+      permanentPerkPurchaseCount(state.permanent.acquiredPerks, "efficientStorage"),
+    ),
   );
 }
 

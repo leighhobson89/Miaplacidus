@@ -66,15 +66,15 @@
 - [ ] **P-48** Validate key equality, required placeholders, rich-text safety and untranslated/fallback strings in CI.
 - [ ] **P-49** Make locale switching live without changing stable IDs, save keys, prices or active task state.
 - [ ] **P-50** Use locale-aware number/date formatting while preserving numeric rule precision and notation policy.
-- [ ] **P-51** Review all menus, long labels, dialogs, tables, tooltips and phone layouts for expansion/clipping.
+- [ ] **P-51** Review all menus, long labels, dialogs, tables, tooltips and phone layouts for expansion/clipping, including the economy row/tooltip/modal/dynamic-cost audit from **E-57**.
 - [ ] **P-52** Create a concise six-language review sample covering startup, core loop, save failure, travel and ending text.
 - [ ] **P-53** Record the project owner's quick OK on translation quality before final release.
 
 ## Presentation verification
 
-- [ ] **P-54** Run focused `ui-navigation`, `onboarding`, `cosmicopedia`, `statistics`, `settings`, `notifications`, `notation`, `audio` and `localization` browser areas.
+- [ ] **P-54** Run focused `ui-navigation`, `onboarding`, `cosmicopedia`, `statistics`, `settings`, `notifications`, `notation`, `audio` and `localization` browser areas, including the six-language economy review from **E-57**.
 - [ ] **P-55** Compare source screen coverage and confirm all player-facing information and feedback remains available.
-- [ ] **P-56** Capture a current screenshot matrix for major tabs, themes, locales and narrow/wide viewports; resolve layout failures.
+- [ ] **P-56** Capture a current screenshot matrix for major tabs, themes, locales and narrow/wide viewports; resolve layout failures, including economy views in all six languages (**E-57**).
 - [ ] **P-57** Record deliberate UX changes and their reason without silently removing a Cosmic Forge mechanic or story beat.
 
 **Exit gate:** every shipped mechanic is reachable and understandable on desktop and mobile browsers; all visual/audio assets are new; nine themes and six languages have current evidence; the owner has given a quick translation OK.

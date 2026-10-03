@@ -95,7 +95,7 @@ describe("local save formats and identity", () => {
     expect(() => decodePortable("CF1:old-game-save")).toThrowError(SaveError);
   });
 
-  it("migrates the synthetic version zero rung into a playable version one envelope", () => {
+  it("migrates the synthetic version zero rung into a playable version three envelope", () => {
     const current = envelope("Mira");
     const oldState = {
       schemaVersion: 0,
@@ -117,7 +117,7 @@ describe("local save formats and identity", () => {
     const oldCode =
       PORTABLE_PREFIX + compressToEncodedURIComponent(canonicalJson({ ...oldBody, checksum }));
     const migrated = decodePortable(oldCode);
-    expect(migrated.schemaVersion).toBe(1);
+    expect(migrated.schemaVersion).toBe(3);
     expect(migrated.state.run.pioneerName).toBe("Mira");
     expect(migrated.state.statistics).toEqual({
       lifetimeCashEarned: 0,
@@ -136,9 +136,71 @@ describe("local save formats and identity", () => {
       checksum: checksumFor(tamperedBody as unknown as Omit<SaveEnvelopeV1, "checksum">),
     };
     expect(isSaveEnvelope(tampered)).toBe(false);
-    const futureBody = { ...source, schemaVersion: 2 };
+    const futureBody = { ...source, schemaVersion: 4 };
     const future = PORTABLE_PREFIX + compressToEncodedURIComponent(canonicalJson(futureBody));
     expect(() => decodePortable(future)).toThrowError(/newer version/i);
+  });
+
+  it("upgrades existing version one local-save state and preserves Hydrogen progress", () => {
+    const current = envelope("Aster");
+    const { economy: _economy, ...legacyRun } = current.state.run;
+    const legacyState = {
+      schemaVersion: 1,
+      run: legacyRun,
+      permanent: current.state.permanent,
+      settings: current.state.settings,
+      statistics: current.state.statistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const legacyBody = { ...currentBody, schemaVersion: 1, state: legacyState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...legacyBody,
+          checksum: checksumFor(legacyBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.state.run.goods.hydrogen).toEqual(current.state.run.goods.hydrogen);
+    expect(migrated.state.run.hydrogenAutobuyerEnabled).toBe(
+      current.state.run.hydrogenAutobuyerEnabled,
+    );
+    expect(migrated.state.run.economy.autobuyerEnabled["autobuyer:hydrogen:tier:1"]).toBe(true);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v2 power state with neutral weather and no infinite-power effect", () => {
+    const current = envelope("Vega");
+    const {
+      infinitePower: _infinitePower,
+      environmentalMultiplier: _environmentalMultiplier,
+      ...oldPower
+    } = current.state.run.economy.power;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 2,
+      run: {
+        ...current.state.run,
+        economy: { ...current.state.run.economy, power: oldPower },
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 2, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.state.run.economy.power.infinitePower).toBe(false);
+    expect(migrated.state.run.economy.power.environmentalMultiplier).toBe(1);
+    expect(isSaveEnvelope(migrated)).toBe(true);
   });
 
   it("measures early, middle, and late profile payloads with room for two generations", () => {
