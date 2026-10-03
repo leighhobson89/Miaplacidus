@@ -1,5 +1,7 @@
 # Test workspace
 
-`e2e/` contains 50 empty functional-area folders mirroring Cosmic Forge's current Playwright taxonomy. `_harness/` is reserved for shared fixtures, server/report helpers and debug gateway code. `unit/` is reserved for pure simulation and migration tests. `fixtures/` is reserved for sanitized saves and deterministic scenarios. `docs/` will hold current run and coverage guidance.
+`e2e/` holds player-click browser tests grouped by functional area. `e2e/_harness/` contains shared fixtures, screenshot checks and the development/test-only debug gateway. `unit/` contains pure engine and persistence tests. `fixtures/` documents deterministic sanitized state families; the save migration fixtures are generated in test code and contain no player data.
 
-No tests or executable harness scripts are present yet. The design and rollout order are in [the test harness plan](../docs/plans/test-harness.md). Runtime and test dependencies are declared in [package.json](../package.json). Source-derived scenarios for the first future remake tests are in the [foundation test plan](../docs/audit/foundation-test-plan.md); none are reported as passed.
+The Hydrogen slice and M-02 save flows have focused passing evidence. The full game areas remain open; see the [parity ledger](../docs/plans/feature-parity-checklist.md), the [test harness plan](../docs/plans/test-harness.md), and the populated [browser area READMEs](e2e/README.md).
+
+Use `npm run test:unit:focused -- <spec>` and `npm run test:e2e:focused -- <spec-or-grep>` while developing. The full-suite and release run remain separate phase gates.

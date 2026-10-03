@@ -26,12 +26,21 @@ export const test = base.extend<HydrogenFixtures>({
   ],
   freshGame: async ({ page }, use) => {
     await page.addInitScript(() => {
-      localStorage.clear();
-      sessionStorage.clear();
+      const appPrefix = "miaplacidus:v1:";
+      for (const storage of [localStorage, sessionStorage]) {
+        const appKeys = Array.from({ length: storage.length }, (_, index) =>
+          storage.key(index),
+        ).filter((key): key is string => key?.startsWith(appPrefix) ?? false);
+        for (const key of appKeys) storage.removeItem(key);
+      }
     });
     await page.goto("/?testSeed=314159&testLocale=en");
     await page.getByLabel("Pioneer name").fill("Hydrogen Pioneer");
-    await page.getByRole("button", { name: "Begin exploration" }).click();
+    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
+    await page.getByRole("button", { name: "Begin exploring" }).click();
+    await expect(page.getByTestId("hydrogen-onboarding")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Hydrogen", exact: true })).toBeVisible();
     await expect
       .poll(async () => page.evaluate(() => window.miaplacidusTest?.getState().run.clock.wallNowMs))

@@ -1,4 +1,4 @@
-import { expect, test } from "../_harness/fixtures";
+﻿import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 
 test("first run starts with the pioneer name screen and reaches a ready Hydrogen state @app-boot", async ({
@@ -9,8 +9,14 @@ test("first run starts with the pioneer name screen and reaches a ready Hydrogen
   await expect(page.getByRole("heading", { name: "MIAPLACIDUS" })).toBeVisible();
   await captureVisualCheckpoint(page, testInfo, "welcome-screen");
   await page.getByLabel("Nombre del pionero").fill("Ada Lovelace");
-  await page.getByRole("button", { name: "Comenzar exploración" }).click();
-  await expect(page.getByRole("heading", { name: "Hidrógeno", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await captureVisualCheckpoint(page, testInfo, "confirmed-start");
+  await page.getByRole("button", { name: "Comenzar", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 2 })).toBeVisible();
+  await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
+  await captureVisualCheckpoint(page, testInfo, "hydrogen-first-run-briefing-es");
+  await page.getByRole("button", { name: "Empezar a explorar" }).click();
+  await expect(page.getByTestId("hydrogen-onboarding")).toHaveCount(0);
   await expect(page.locator(".run-name")).toHaveText("Ada Lovelace");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("0");
   await expect(page.getByTestId("hydrogen-capacity")).toHaveText("150");

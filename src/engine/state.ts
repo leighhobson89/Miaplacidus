@@ -124,6 +124,13 @@ export function isValidGameState(value: unknown): value is GameState {
   if (!value || typeof value !== "object") {
     return false;
   }
+  const exactKeys = (record: object, expected: readonly string[]) => {
+    const actual = Object.keys(record).sort();
+    const keys = [...expected].sort();
+    return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
+  };
+  if (!exactKeys(value, ["schemaVersion", "run", "permanent", "settings", "statistics"]))
+    return false;
   const state = value as Partial<GameState>;
   if (
     state.schemaVersion !== 1 ||
@@ -135,6 +142,39 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   }
   const { run, permanent, settings, statistics } = state;
+  if (
+    !exactKeys(run, [
+      "pioneerName",
+      "hydrogenAutobuyerEnabled",
+      "cash",
+      "researchPoints",
+      "goods",
+      "unlockedResources",
+      "upgrades",
+      "timers",
+      "clock",
+      "random",
+    ]) ||
+    !exactKeys(permanent, ["rebirthCount", "ascendencyPoints", "gloryPoints", "acquiredPerks"]) ||
+    !exactKeys(settings, ["locale", "themeId", "notation", "soundEnabled", "reducedMotion"]) ||
+    !exactKeys(statistics, [
+      "lifetimeCashEarned",
+      "lifetimeGoodsProduced",
+      "acceptedCommands",
+      "completedTimers",
+    ]) ||
+    !exactKeys(run.clock, [
+      "wallNowMs",
+      "simulationMs",
+      "paused",
+      "foreground",
+      "hiddenElapsedMs",
+      "pendingForegroundMs",
+    ]) ||
+    !exactKeys(run.random, ["seed", "draws"]) ||
+    !exactKeys(run.goods, ECONOMIC_GOOD_IDS)
+  )
+    return false;
   if (
     typeof run.pioneerName !== "string" ||
     typeof run.hydrogenAutobuyerEnabled !== "boolean" ||
@@ -158,6 +198,7 @@ export function isValidGameState(value: unknown): value is GameState {
     const good = run.goods[id];
     if (
       !good ||
+      !exactKeys(good, ["quantity", "storageCapacity", "saleValue"]) ||
       !Number.isFinite(good.quantity) ||
       !Number.isFinite(good.storageCapacity) ||
       !Number.isFinite(good.saleValue) ||
@@ -192,8 +233,22 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   }
   for (const [id, timer] of Object.entries(run.timers)) {
+    const timerKeys = [
+      "id",
+      "domain",
+      "durationMs",
+      "elapsedMs",
+      "repeat",
+      "completionCount",
+      "status",
+      "policy",
+    ];
+    if (timer && timer.eventId !== undefined) timerKeys.push("eventId");
+    if (timer && timer.goodId !== undefined) timerKeys.push("goodId");
     if (
       !timer ||
+      !exactKeys(timer, timerKeys) ||
+      !exactKeys(timer.policy, ["phase", "offlineEligible", "warpable"]) ||
       typeof timer.id !== "string" ||
       timer.id !== id ||
       typeof timer.domain !== "string" ||
@@ -232,6 +287,7 @@ export function isValidGameState(value: unknown): value is GameState {
     Number.isFinite(permanent.gloryPoints) &&
     permanent.gloryPoints >= 0 &&
     Array.isArray(permanent.acquiredPerks) &&
+    permanent.acquiredPerks.every((perk) => typeof perk === "string") &&
     LOCALE_IDS.includes(settings.locale) &&
     typeof settings.themeId === "string" &&
     (settings.notation === "standard" || settings.notation === "scientific") &&

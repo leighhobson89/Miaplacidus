@@ -1,6 +1,6 @@
 # Local save contract for the remake
 
-**Status:** approved product direction; implementation has not started. **Scope:** multiple local saves, autosave, LZString text and file export/import, and versioning for saves created in MIAPLACIDUS. No Cosmic Forge save import, cloud save feature, account, network request or cloud migration is part of the new game. This document is the authority for the save tasks and tests.
+**Status:** implemented for the Hydrogen vertical slice on 2 October 2026. **Scope:** multiple local saves, autosave, LZString text and file export/import, and versioning for saves created in MIAPLACIDUS. No Cosmic Forge save import, cloud save feature, account, network request or cloud migration is part of the new game. This document is the authority for the save tasks and tests.
 
 ## Relationship to Cosmic Forge
 
@@ -11,7 +11,7 @@ Cosmic Forge currently stores the last pioneer name under `saveName` in `localSt
 1. On boot, read the slot index and last successfully started slot. Prefill that slot's **display name**. If it is missing, use the last confirmed name if valid; otherwise offer a generated Pioneer name. Show the available local saves in a selectable list with last-played/updated information.
 2. The player may keep the prefill, type another name, or select a saved slot. A name is trimmed and validated. A selected slot fills the name field but does not start or load it.
 3. Pressing **Confirm** commits the entered name and language to a *pending startup selection* and shows the existing intro/Start step. It does **not** load a save, create a slot, overwrite another slot, or change the last-started pointer. If the name is edited again, reconfirm it.
-4. Pressing **Start** resolves the **confirmed pending name** against the slot index. If one slot matches, validate/decompress/migrate it and enter that game. If none matches, create a fresh run under that name, then enter onboarding. Do not fall back to the prefilled name or an arbitrary slot when the chosen name is missing or corrupt.
+4. Pressing **Start** resolves the **confirmed pending name** against the slot index. If one slot matches, validate/decompress/migrate it and enter that game. If none matches, create a fresh run under that name and show the one-screen Hydrogen briefing. Its pending/completed marker is scoped to that slot; an incomplete first run resumes the briefing, while completed, imported and save-as-new slots skip it. Do not fall back to the prefilled name or an arbitrary slot when the chosen name is missing or corrupt.
 5. Only after a successful load or new-game creation, set the active slot ID and last-started pointer. Autosaves always target that active slot. The same slot reappears on later boots; the player can choose a different name and load that slot instead.
 
 Use a stable opaque slot ID for storage keys. A player's display name is the lookup label, never a storage key. Compare names using one documented, locale-independent normalization rule (trim, Unicode normalize, case-insensitive key); preserve original spelling for display. Reject an attempted duplicate normalized name or route explicitly to the existing slot. Never silently overwrite it. A rename changes the label of one slot without changing its ID or history.
@@ -25,6 +25,7 @@ Use a stable opaque slot ID for storage keys. A player's display name is the loo
 | `miaplacidus:v1:slot:<id>:<commitId>` | LZString `compressToUTF16` of a versioned save envelope | Immutable payload generation, authoritative only when its head points to it. |
 | `miaplacidus:v1:lastStartedSlot` | ID of the last slot that successfully reached play | Prefill only; never selects without confirmation. |
 | `miaplacidus:v1:preferences` | Global presentation preferences that should work before a slot loads | Locale/theme/accessibility boot settings, with per-save overrides specified separately. |
+| `miaplacidus:v1:hydrogenBriefing:<id>` | Pending first-run Hydrogen briefing marker for a newly created slot | Removed when the pioneer completes the briefing; absent markers keep resumed/imported runs from restarting onboarding. |
 
 The save envelope includes `format`, `schemaVersion`, `slotId`, `pioneerName`, `savedAt`, `revision`, game state split into `run`, `permanent`, `settings`, `statistics`, and an integrity check over the canonical payload. The storage namespace version describes the key layout; `schemaVersion` describes the game-state format and has its own migration ladder. The index is a cache; committed slot heads and validated envelopes are authoritative. Do not use `localStorage.clear()`, since the origin can contain unrelated application data. Keep all keys namespaced and versioned.
 
@@ -42,17 +43,29 @@ On import: inspect the MIAPLACIDUS marker; decompress; parse; validate size and 
 
 Use a revision per slot. Another tab may change a slot while this tab is open; listen for [the `storage` event](https://developer.mozilla.org/en-US/docs/Web/API/Window/storage_event) and recheck the revision before autosave. The storage event is notification, not a cross-tab transaction lock: define a **single-writer policy** for an active slot and make a second writer read-only or pause saves until ownership is resolved. On conflict, offer reload the other revision, export this session, or save it as a new named slot. Do not silently choose a winner. On startup, scan and reconcile slots missing from the index, stale index rows, broken last-started pointers and interrupted imports. Only remove an orphan after user confirmation or a documented safe recovery policy.
 
-Keep Cosmic Forge's user-facing save controls and sensible autosave settings. Specify the old rules around onboarding, battle and temporary time warp; define demo-specific behavior only if an optional flagged demo is produced. Saving must not double-award offline gains or change progression. A newly created slot should be persisted at the first safe checkpoint and clearly show whether it has been written; merely entering a name should not produce a phantom slot.
+Keep Cosmic Forge's user-facing save controls and sensible autosave settings. Automatic and lifecycle saves pause while the first-run briefing, battle or temporary time warp is active; explicit save remains available. The Hydrogen slice implements the briefing pause. Battle and time warp are not modeled yet, so later gameplay phases must connect their states to this policy; current travel timers also pause automatic saves. The demo build uses the same save behavior. Saving must not double-award offline gains or change progression. A newly created slot is persisted at Start's first safe checkpoint and visibly reports its save status; merely entering a name creates no slot.
 
 ## Required acceptance scenarios
 
 - Two distinct pioneers can progress and autosave independently. The last played name prefills next boot, but changing and confirming it loads the changed name on Start.
 - Selecting a slot, then editing its name before Confirm, does not load the selected slot accidentally.
-- A fresh confirmed name creates a new run and onboarding only when Start is pressed; cancelling before Start creates nothing.
+- A fresh confirmed name creates a new run only when Start is pressed and shows the Hydrogen briefing. Its completion survives reload; cancelling before Start creates nothing. Resuming an incomplete briefing continues it, while a completed run does not show it again.
 - A duplicate normalized name cannot silently create or overwrite a second slot. Rename, delete and import conflicts are explicit.
 - Export code, downloaded file and clipboard content decode to the same state; a round trip into an empty browser profile retains the pioneer name and progression.
 - A code from an earlier shipped MIAPLACIDUS schema migrates into a playable current save; a Cosmic Forge code is rejected without changing data.
 - Quota/security/corrupt/index mismatch failures preserve prior saves and leave export available. Two tabs do not silently overwrite each other.
-- Each slot survives reload, offline return and multiple rebirths; switching slots does not carry state across players.
+- Each currently modeled slot state survives reload and switching without carrying state across players. Offline gains and rebirth gameplay must receive their own save/reload scenarios when those systems are implemented; this slice imports rebirth-count fixtures to check persistence only.
 
 Implementation tasks are in [02-local-saves.md](build-checklist/02-local-saves.md). The `save-load-local`, `save-slots`, `save-migration` and `migration` test areas cover the contract.
+
+## M-02 implementation record
+
+The runtime uses strict v1 envelopes over the engine-owned `run`, `permanent`, `settings` and `statistics` state. Local payloads use LZString UTF-16 strings; portable payloads use the `MIA1:` marker and encoded-URI compression. Slot payloads are immutable generations. The repository reads each generation back, validates it and then changes one head key; a failed write leaves the preceding head playable. The index is rebuildable and recovery screens expose damaged heads and retained/orphan generations.
+
+The start screen treats a name or selected slot as a prefill only. Confirm stores the pending name/locale, and Start alone resolves or creates its slot. The manager can select another slot by returning to that prefill flow, rename, save as new, export, import, recover, or delete with a confirmation. Portable export represents the live in-memory run, so it remains useful after quota failure or when browser storage is unavailable.
+
+Autosave is enabled by default at 10 seconds and can be changed to 10, 30 or 60 seconds. Automatic writes pause while battle/travel timers run. The flagged `demo` build uses the same local-save and timer rules; it has no separate wipe/reset policy. An active slot is writable only while its Web Lock is held. In a browser without Web Locks, the run remains playable as a temporary unsaved session and can be exported.
+
+The Hydrogen slice includes a one-screen briefing for new slots; its pending marker is namespaced per slot and its completion survives reload. The broader tutorial flow remains in M-06. A fresh slot is created only on Start and an existing slot resumes its complete stored state. Rebirth gameplay is not implemented yet. Browser save tests import deterministic states with one and two permanent rebirth counts and verify save/reload preservation; they do not claim to execute the future M-05 rebirth gameplay.
+
+Focused evidence is in [save-slots](../../tests/e2e/save-slots/README.md), [save-load-local](../../tests/e2e/save-load-local/README.md), [save-migration](../../tests/e2e/save-migration/README.md), and [migration](../../tests/e2e/migration/README.md). The focused unit run measured 489, 1,340 and 2,059 UTF-16 characters for early, mid and stress-sized late envelopes. With a conservative two-generation UTF-16 estimate, the largest is about 8.1 KiB against the app's 5 MiB warning estimate. That late profile is a serialization stress fixture, not a gameplay-complete endgame save.

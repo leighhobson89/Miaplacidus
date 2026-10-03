@@ -28,15 +28,28 @@ This evidence covers the first playable slice and does not close any broad featu
 | `ui-navigation` | Nine stable tab/pane IDs, locked placeholders and arrow-key tab movement are checked; the Hydrogen control and long German labels stay usable at 390px width without document overflow. | All game panes, focus paths, themes, touch flows and full responsive layouts. |
 | `performance` | Seed `314159`, 1280×720 Chrome run records first-slice frame/heap/DOM/listener metrics; the target late-game fixture design is documented. | Long-run and late-game measurements, cross-browser matrix and release thresholds. |
 
-The reproducible spec commands, outcomes, and measured baseline are in each populated [browser area README](../../tests/e2e/README.md) and the [M-01 completion record](../archive/plans/2026-10-02-hydrogen-vertical-slice.md). Every broad feature row below remains **Not started** until its full normal and failure paths are implemented and checked.
+The reproducible spec commands, outcomes, and measured baseline are in each populated [browser area README](../../tests/e2e/README.md) and the [M-01 completion record](../archive/plans/2026-10-02-hydrogen-vertical-slice.md). M-01 provides partial evidence for the listed areas; full-area status stays open until normal and failure paths across the full game are implemented and checked.
+
+## Local saves evidence (M-02)
+
+The Hydrogen slice has complete save-system gate evidence, while the four broad feature areas remain partial because their full game breadth is still open. See the [M-02 completion record](../archive/plans/2026-10-02-local-saves.md) and [local save contract](local-save-contract.md).
+
+| Area | Current evidence | Still open in the broad area |
+|---|---|---|
+| `save-load-local` | Hydrogen state survives autosave/reload; live state exports through clipboard, text and `.txt`; fresh-profile restore and quota/blocked-storage paths are browser-tested. | Full-game state coverage, offline gains and all later gameplay domains. |
+| `save-slots` | Two pioneers retain independent Hydrogen progress; Confirm/Start, prefill, switching, rename, save-as-new, delete, conflict and damaged-save recovery are browser-tested. | Full-game progression and all cross-system state boundaries. |
+| `save-migration` | Strict v1 validation rejects malformed, future and Cosmic Forge payloads; synthetic v0 migrates to a playable v1 slot; failed writes preserve the prior generation. | Fixtures for each future shipped MIAPLACIDUS schema and full-game migration coverage. |
+| `migration` | A synthetic earlier schema runs through the migration registry and reaches playable Hydrogen state. | One fixture and playable-state check per future shipped MIAPLACIDUS release. |
+
+The focused browser evidence uses player clicks and screenshot baseline comparison. It checks that the app surface is present and not white, and reports page errors, console errors and unexpected external requests. The Hydrogen briefing is shown once for new slots and its completion survives reload; the full tutorial remains in M-06. Rebirth persistence uses imported fixtures because the rebirth mechanic belongs to M-05.
 
 ## Foundation
 
 - **Not started** — `app-boot` — clean start, missing storage/network, build gates and first playable screen.
-- **Not started** — `save-load-local` — autosave, LZString text/file export/import, clipboard paths, failure recovery.
-- **Not started** — `save-slots` — multiple local saves, prefilled last pioneer, confirmed-name selection on Start, rename/delete/conflicts.
-- **Not started** — `save-migration` — malformed, missing and future MIAPLACIDUS fields; atomic failure.
-- **Not started** — `migration` — each shipped MIAPLACIDUS version rung with a representative playable save.
+- **Partial (M-02 Hydrogen evidence)** — `save-load-local` — remaining: full-game state coverage, offline gains and later gameplay domains.
+- **Partial (M-02 Hydrogen evidence)** — `save-slots` — remaining: full-game progression and cross-system state boundaries.
+- **Partial (M-02 Hydrogen evidence)** — `save-migration` — remaining: fixtures for future shipped schema versions and full-game migration coverage.
+- **Partial (M-02 Hydrogen evidence)** — `migration` — remaining: a migration fixture and playable-state check for each future shipped release.
 - **Not started** — `settings` — preference persistence, sound, language, theme, notation.
 - **Not started** — `offline-gains` — elapsed time cap/rate and all affected simulation domains.
 
@@ -94,7 +107,7 @@ The reproducible spec commands, outcomes, and measured baseline are in each popu
 
 ## Presentation and shell
 
-- **Not started** — `onboarding` — prompts, tutorial, resume/skip and language.
+- **Partial (M-02 Hydrogen evidence)** — `onboarding` — new slots receive a localized first-run Hydrogen briefing that stays dismissed after reload; the full tutorial, skip/resume flow and all-feature coverage remain open.
 - **Not started** — `cosmicopedia` — help, story and current feature explanations.
 - **Not started** — `statistics` — run/lifetime counters and resets.
 - **Not started** — `ui-navigation` — nine tabs, option rows, unlock/attention indicators.

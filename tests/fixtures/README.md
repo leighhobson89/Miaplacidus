@@ -14,6 +14,12 @@ The fixture builder should:
 
 The source acceptance details are in [`foundation-meta.md`](../../docs/audit/foundation-meta.md) and [`foundation-test-plan.md`](../../docs/audit/foundation-test-plan.md); the current minimum Cosmic Rip costs and closure gates are the authoritative figures. The target must be refreshed against typed MIAPLACIDUS rules when the endgame is implemented.
 
+## M-02 local save and migration fixtures
+
+The M-02 fixtures are generated deterministically in [`local-saves.spec.ts`](../unit/local-saves.spec.ts) and [`save-slots.spec.ts`](../e2e/save-slots/save-slots.spec.ts). They cover a synthetic v0-to-v1 migration rung, one/two rebirth-count envelopes, timed run state, and early/mid/stress-sized late-profile envelopes used for compressed-size measurements. They contain no player data or Cosmic Forge payloads.
+
+No MIAPLACIDUS version has shipped before v1, so v0 is explicitly a synthetic migration fixture rather than a claimed historical save. Add sanitized versioned fixture files for every actual released MIAPLACIDUS schema before changing the schema version.
+
 ## Later fixture families
 
-As their schemas exist, add sanitized and versioned start, mid-game, interstellar, rebirth and endgame fixtures. Phase 2 adds local save migration/slot fixtures and an in-memory `Storage` fake. Never add Cosmic Forge save payloads, production-service requests or unvalidated ad hoc game-state mutation.
+As their schemas exist, add sanitized and versioned start, mid-game, interstellar, rebirth and endgame fixtures. Keep using the in-memory `Storage` fake for save-slot/quota/corruption tests. Never add Cosmic Forge save payloads, production-service requests or unvalidated ad hoc game-state mutation.

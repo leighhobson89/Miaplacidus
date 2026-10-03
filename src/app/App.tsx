@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-  type FormEvent,
-} from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import type { LocaleId } from "../content/ids";
 import { LOCALE_IDS, autobuyerUpgradeId } from "../content/ids";
 import {
@@ -27,6 +20,19 @@ import { translate, type MessageKey } from "../i18n/messages";
 import { GameErrorBoundary } from "../ui/GameErrorBoundary";
 import { useGameSnapshot } from "../ui/useGameSnapshot";
 import { BUILD_INFO } from "./buildInfo";
+import { SaveStartScreen } from "./SaveStartScreen";
+import { SaveManager } from "./SaveManager";
+import {
+  acquireSlotLock,
+  browserStorage,
+  createSaveRepository,
+  createSlotId,
+  SaveError,
+  validatePioneerName,
+  type SaveEnvelopeV1,
+  type SaveRepository,
+} from "../persistence";
+import { saveErrorText, saveText } from "../i18n/saveMessages";
 
 const GAME_TABS = [
   { id: "hydrogen", key: "tab.hydrogen" },
@@ -56,10 +62,20 @@ interface GameSessionProps {
   readonly testClock: TestClock;
   readonly seed: number;
   readonly frameMetrics: FrameMetrics;
+  readonly repository: SaveRepository | null;
+  readonly slotId: string;
+  readonly revision: number;
+  readonly persistent: boolean;
+  readonly initialHydrogenBriefingPending: boolean;
+  readonly initialWarning?: string | undefined;
+  readonly onExit: (prefillName?: string) => void;
+  readonly onDeleteActive: () => void;
+  readonly onReplaceActive: (envelope: SaveEnvelopeV1) => void;
+  readonly onSaveAsNew: (envelope: SaveEnvelopeV1, releaseLock: () => void) => void;
 }
 
 class TestClock {
-  private current = 0;
+  private current = Date.now();
 
   now(): number {
     return this.current;
@@ -109,16 +125,62 @@ function localizedReason(locale: LocaleId, key: string | undefined, required?: n
   if (key === "ui.hydrogen.no-stock") return translate(locale, "reason.no-stock");
   if (key === "ui.hydrogen.autobuyer-locked") return translate(locale, "reason.autobuyer-locked");
   if (key === "engine.purchase.insufficient-material") {
-    return `${translate(locale, "reason.insufficient")} ${formatNumber(locale, required ?? 0)} H₂.`;
+    return `${translate(locale, "reason.insufficient")} ${formatNumber(locale, required ?? 0)} H\u2082.`;
   }
   return key ?? "";
 }
 
 export function App() {
   const initial = useState(bootOptions)[0];
-  const [locale, setLocale] = useState<LocaleId>(initial.locale);
-  const [pioneerName, setPioneerName] = useState("Pioneer");
+  const repository = useState<SaveRepository | null>(() => {
+    if (
+      BUILD_INFO.isTest &&
+      new URLSearchParams(window.location.search).get("testStorage") === "blocked"
+    )
+      return null;
+    try {
+      return createSaveRepository(browserStorage());
+    } catch {
+      return null;
+    }
+  })[0];
+  const [locale, setLocale] = useState<LocaleId>(() => {
+    const preference = repository?.readPreferences().locale;
+    return LOCALE_IDS.includes(preference as LocaleId) && !BUILD_INFO.isTest
+      ? (preference as LocaleId)
+      : initial.locale;
+  });
+  const [pioneerName, setPioneerName] = useState(() => {
+    const lastStarted = repository?.lastStartedSlot();
+    if (lastStarted) {
+      try {
+        const lastSlot = repository?.readSlot(lastStarted);
+        if (lastSlot) return lastSlot.pioneerName;
+      } catch {
+        /* A bad pointer never selects a different slot. */
+      }
+    }
+    try {
+      const remembered = repository?.readPreferences().lastConfirmedName;
+      return remembered ? validatePioneerName(remembered).display : "Pioneer";
+    } catch {
+      return "Pioneer";
+    }
+  });
   const [store, setStore] = useState<GameStore | null>(null);
+  const [session, setSession] = useState<{
+    slotId: string;
+    revision: number;
+    persistent: boolean;
+    hydrogenBriefingPending: boolean;
+    releaseLock: () => void;
+    warning?: string;
+  } | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [selectionError, setSelectionError] = useState("");
+  const [selectionNotice, setSelectionNotice] = useState("");
+  const [starting, setStarting] = useState(false);
+  const [slotRefresh, setSlotRefresh] = useState(0);
   const testClock = useMemo(() => new TestClock(), []);
   const frameMetrics = useMemo<FrameMetrics>(
     () => ({ frames: 0, firstFrameAt: null, lastFrameAt: null }),
@@ -127,21 +189,246 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = store?.getState().settings.locale ?? locale;
   }, [locale, store]);
+  function setDraftName(name: string) {
+    setPioneerName(name);
+    setConfirmed(false);
+    setSelectionError("");
+    setSelectionNotice("");
+  }
+  function setDraftLocale(nextLocale: LocaleId) {
+    setLocale(nextLocale);
+    setConfirmed(false);
+    setSelectionError("");
+    setSelectionNotice("");
+  }
+  function confirmSelection() {
+    try {
+      const name = validatePioneerName(pioneerName);
+      const matches = repository?.findByName(name.display) ?? [];
+      if (matches.length > 1)
+        throw new SaveError("duplicate-name", "Duplicate local save names need recovery.");
+      setPioneerName(name.display);
+      repository?.writePreferences({ locale, lastConfirmedName: name.display });
+      setConfirmed(true);
+      setSelectionError("");
+      setSelectionNotice("");
+    } catch (error) {
+      setSelectionError(
+        saveErrorText(locale, error instanceof SaveError ? error.code : "invalid-envelope"),
+      );
+    }
+  }
 
-  const startRun = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const name = pioneerName.trim();
-    if (!name) return;
+  async function startConfirmedRun() {
+    if (!confirmed || starting) return;
+    setStarting(true);
+    setSelectionError("");
+    setSelectionNotice("");
+    let releaseLock = () => {};
+    let unsavedWarning = "";
+    try {
+      const name = validatePioneerName(pioneerName);
+      const matches = repository?.findByName(name.display) ?? [];
+      if (matches.length > 1)
+        throw new SaveError("duplicate-name", "Duplicate local save names need recovery.");
+      const existing = matches[0];
+      if (existing && existing.status !== "ready")
+        throw new SaveError("corrupt-slot", "This save is damaged.");
+      const slotId = existing?.slotId ?? createSlotId();
+      const hydrogenBriefingPending = existing
+        ? (repository?.needsHydrogenBriefing(slotId) ?? false)
+        : true;
+      let persistent = repository !== null;
+      if (!repository) unsavedWarning = saveErrorText(locale, "storage-unavailable");
+      if (repository) {
+        const acquired = await acquireSlotLock(slotId);
+        if (acquired) releaseLock = acquired;
+        else {
+          persistent = false;
+          unsavedWarning = saveErrorText(locale, "conflict");
+        }
+      }
+      const now = Date.now();
+      let nextState: GameState;
+      let revision = 0;
+      if (existing && repository) {
+        const envelope = repository.readSlot(slotId);
+        if (!envelope) throw new SaveError("not-found", "This save could not be found.");
+        nextState = {
+          ...envelope.state,
+          run: {
+            ...envelope.state.run,
+            pioneerName: envelope.pioneerName,
+            clock: {
+              ...envelope.state.run.clock,
+              foreground: false,
+              hiddenElapsedMs: 0,
+              pendingForegroundMs: 0,
+            },
+          },
+          settings: { ...envelope.state.settings, locale },
+        };
+        revision = envelope.revision;
+        try {
+          repository.activate(slotId);
+        } catch {
+          persistent = false;
+          unsavedWarning = saveErrorText(locale, "storage-unavailable");
+        }
+      } else {
+        const fresh = createInitialGameState({
+          pioneerName: name.display,
+          seed: initial.seed,
+          locale,
+        });
+        nextState = {
+          ...fresh,
+          run: { ...fresh.run, clock: { ...fresh.run.clock, wallNowMs: now, foreground: true } },
+        };
+        if (repository && persistent) {
+          try {
+            const created = repository.createFresh(slotId, nextState, name.display, now);
+            revision = created.revision;
+            try {
+              repository.activate(slotId);
+            } catch {
+              persistent = false;
+            }
+          } catch (error) {
+            if (
+              error instanceof SaveError &&
+              ["duplicate-name", "corrupt-slot"].includes(error.code)
+            )
+              throw error;
+            persistent = false;
+            unsavedWarning = saveErrorText(
+              locale,
+              error instanceof SaveError ? error.code : "storage-unavailable",
+            );
+          }
+        }
+      }
+      if (BUILD_INFO.isTest || BUILD_INFO.isDevelopment) testClock.set(now);
+      const nextStore = createGameStore(nextState, {
+        clock: {
+          now: () => (BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now()),
+        },
+      });
+      setStore(nextStore);
+      setSession({
+        slotId,
+        revision,
+        persistent,
+        hydrogenBriefingPending,
+        releaseLock,
+        warning: unsavedWarning,
+      });
+      setConfirmed(false);
+    } catch (error) {
+      releaseLock();
+      setSelectionError(
+        saveErrorText(locale, error instanceof SaveError ? error.code : "storage-unavailable"),
+      );
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function recoverAtBoot(reference: string) {
+    if (!repository) return;
+    const match = reference.match(/^orphan:([a-f0-9-]{16,64}):([a-f0-9-]{16,64})$/i);
+    if (!match?.[1]) return;
+    const release = await acquireSlotLock(match[1]);
+    if (!release) {
+      setSelectionError(saveErrorText(locale, "conflict"));
+      return;
+    }
+    try {
+      const recovered = repository.restoreGeneration(reference, Date.now());
+      setPioneerName(recovered.pioneerName);
+      setSelectionError("");
+      setSelectionNotice(saveText(locale, "recovered"));
+      setConfirmed(false);
+      setSlotRefresh((value) => value + 1);
+    } catch (error) {
+      setSelectionError(
+        saveErrorText(locale, error instanceof SaveError ? error.code : "corrupt-slot"),
+      );
+    } finally {
+      release();
+    }
+  }
+
+  function exitRun(prefillName?: string) {
+    session?.releaseLock();
+    if (prefillName) setPioneerName(prefillName);
+    else if (store) setPioneerName(store.getState().run.pioneerName);
+    setStore(null);
+    setSession(null);
+    setConfirmed(false);
+  }
+  function afterDeleteActive() {
+    const fallbackName = repository?.readPreferences().lastConfirmedName ?? "Pioneer";
+    setPioneerName(fallbackName);
+    session?.releaseLock();
+    setStore(null);
+    setSession(null);
+    setConfirmed(false);
+  }
+  function replaceActiveSave(envelope: SaveEnvelopeV1) {
+    if (!session) return;
+    try {
+      repository?.completeHydrogenBriefing(envelope.slotId);
+    } catch {
+      /* The imported state remains valid and playable. */
+    }
+    const nextState = {
+      ...envelope.state,
+      run: { ...envelope.state.run, clock: { ...envelope.state.run.clock, foreground: false } },
+    };
     setStore(
-      createGameStore(createInitialGameState({ pioneerName: name, locale, seed: initial.seed }), {
-        clock: { now: () => (BUILD_INFO.isTest ? testClock.now() : performance.now()) },
+      createGameStore(nextState, {
+        clock: {
+          now: () => (BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now()),
+        },
       }),
     );
-  };
+    setSession({ ...session, revision: envelope.revision });
+    setLocale(envelope.state.settings.locale);
+  }
+  function switchToNewSaved(envelope: SaveEnvelopeV1, newLockRelease: () => void) {
+    session?.releaseLock();
+    const nextState = {
+      ...envelope.state,
+      run: {
+        ...envelope.state.run,
+        clock: {
+          ...envelope.state.run.clock,
+          foreground: true,
+          hiddenElapsedMs: 0,
+          pendingForegroundMs: 0,
+        },
+      },
+    };
+    setStore(
+      createGameStore(nextState, {
+        clock: {
+          now: () => (BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now()),
+        },
+      }),
+    );
+    setSession({
+      slotId: envelope.slotId,
+      revision: envelope.revision,
+      persistent: true,
+      hydrogenBriefingPending: false,
+      releaseLock: newLockRelease,
+    });
+    setLocale(envelope.state.settings.locale);
+  }
 
   const activeLocale = store?.getState().settings.locale ?? locale;
   const t = (key: MessageKey) => translate(activeLocale, key);
-
   return (
     <GameErrorBoundary
       onRecover={() => store?.recover()}
@@ -157,57 +444,93 @@ export function App() {
         data-build-mode={BUILD_INFO.mode}
         data-build-variant={BUILD_INFO.isDemo ? "demo" : "full"}
       >
-        {store ? (
+        {store && session ? (
           <GameSession
+            key={session.slotId}
             store={store}
             testClock={testClock}
             seed={initial.seed}
             frameMetrics={frameMetrics}
+            repository={repository}
+            slotId={session.slotId}
+            revision={session.revision}
+            persistent={session.persistent}
+            initialHydrogenBriefingPending={session.hydrogenBriefingPending}
+            initialWarning={session.warning}
+            onExit={exitRun}
+            onDeleteActive={afterDeleteActive}
+            onReplaceActive={replaceActiveSave}
+            onSaveAsNew={switchToNewSaved}
           />
         ) : (
-          <section className="welcome-panel" aria-labelledby="welcome-title">
-            <div className="wordmark" aria-hidden="true">
-              ✦
-            </div>
-            <p className="eyebrow">{t("app.tagline")}</p>
-            <h1 id="welcome-title">{t("app.brand")}</h1>
-            <form className="welcome-form" onSubmit={startRun}>
-              <label htmlFor="pioneer-name">{t("app.pioneer")}</label>
-              <input
-                id="pioneer-name"
-                maxLength={32}
-                required
-                value={pioneerName}
-                onChange={(event) => setPioneerName(event.currentTarget.value)}
-              />
-              <label htmlFor="start-locale">{t("app.locale")}</label>
-              <select
-                id="start-locale"
-                value={locale}
-                onChange={(event) => setLocale(event.currentTarget.value as LocaleId)}
-              >
-                {LOCALE_IDS.map((id) => (
-                  <option key={id} value={id}>
-                    {id.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-              <button className="primary-button start-button" type="submit">
-                {t("app.start")}
-              </button>
-            </form>
-          </section>
+          <SaveStartScreen
+            key={slotRefresh}
+            locale={locale}
+            setLocale={setDraftLocale}
+            name={pioneerName}
+            setName={setDraftName}
+            slots={repository?.list() ?? []}
+            confirmed={confirmed}
+            error={selectionError}
+            notice={selectionNotice}
+            storageAvailable={repository !== null}
+            onConfirm={confirmSelection}
+            onStart={() => void startConfirmedRun()}
+            onEdit={() => setConfirmed(false)}
+            onRecover={(reference) => void recoverAtBoot(reference)}
+          />
         )}
       </main>
     </GameErrorBoundary>
   );
 }
 
-function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps) {
+function GameSession({
+  store,
+  testClock,
+  seed,
+  frameMetrics,
+  repository,
+  slotId,
+  revision: initialRevision,
+  persistent: initialPersistent,
+  initialHydrogenBriefingPending,
+  initialWarning,
+  onExit,
+  onDeleteActive,
+  onReplaceActive,
+  onSaveAsNew,
+}: GameSessionProps) {
   const snapshot = useGameSnapshot(store);
   const [activeTab, setActiveTab] = useState("hydrogen");
   const [sellAmount, setSellAmount] = useState<number | "all">("all");
   const [feedback, setFeedback] = useState("");
+  const [saveManagerOpen, setSaveManagerOpen] = useState(false);
+  const [saveRevision, setSaveRevision] = useState(initialRevision);
+  const saveRevisionRef = useRef(initialRevision);
+  const [savePersistent, setSavePersistent] = useState(initialPersistent);
+  const [hydrogenBriefingPending, setHydrogenBriefingPending] = useState(
+    initialHydrogenBriefingPending,
+  );
+  const [saveWritesPaused, setSaveWritesPaused] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [saveFailure, setSaveFailure] = useState(initialWarning ?? "");
+  const [exitConfirmation, setExitConfirmation] = useState(false);
+  const [pendingPioneerName, setPendingPioneerName] = useState<string | null>(null);
+  const exitDialogRef = useRef<HTMLDialogElement>(null);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(
+    repository?.readPreferences().autoSaveEnabled ?? true,
+  );
+  const [autoSaveInterval, setAutoSaveInterval] = useState<10 | 30 | 60>(
+    repository?.readPreferences().autoSaveIntervalSeconds ?? 10,
+  );
+  const currentLocaleRef = useRef(snapshot.locale);
+  useEffect(() => {
+    currentLocaleRef.current = snapshot.locale;
+  }, [snapshot.locale]);
+  useEffect(() => {
+    if (exitConfirmation && !exitDialogRef.current?.open) exitDialogRef.current?.showModal();
+  }, [exitConfirmation]);
   const [DebugTools, setDebugTools] = useState<ComponentType<{
     store: GameStore;
     seed: number;
@@ -226,13 +549,176 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
   const sale = selectHydrogenSale(store.getState(), sellAmount);
   const buyerCount = snapshot.upgrades[autobuyerUpgradeId("hydrogen", 1)] ?? 0;
   const buyerPrice = hydrogenAutobuyerPrice(buyerCount);
+  const saveLabel = useCallback(
+    (key: Parameters<typeof saveText>[1]) => saveText(snapshot.locale, key),
+    [snapshot.locale],
+  );
+
+  const persistCurrent = useCallback(
+    (automatic = false) => {
+      const current = store.getState();
+      const autoSavePaused =
+        automatic &&
+        (hydrogenBriefingPending ||
+          Object.values(current.run.timers).some(
+            (timer) =>
+              timer.status === "running" &&
+              (timer.domain === "battle" || timer.domain === "travel"),
+          ));
+      if (autoSavePaused) return null;
+      if (!repository || !savePersistent) {
+        setSaveStatus(saveLabel("unsaved"));
+        return null;
+      }
+      if (saveWritesPaused) return null;
+      const durableState: GameState = {
+        ...current,
+        run: {
+          ...current.run,
+          clock: {
+            ...current.run.clock,
+            foreground: false,
+            hiddenElapsedMs: 0,
+            pendingForegroundMs: 0,
+          },
+        },
+      };
+      try {
+        const saved = repository.commit(
+          slotId,
+          durableState,
+          current.run.pioneerName,
+          Date.now(),
+          saveRevisionRef.current,
+        );
+        saveRevisionRef.current = saved.revision;
+        setSaveRevision(saved.revision);
+        setSaveStatus(saveLabel("saved"));
+        setSaveFailure("");
+        return saved;
+      } catch (error) {
+        const errorCode = error instanceof SaveError ? error.code : "storage-unavailable";
+        setSaveFailure(saveErrorText(currentLocaleRef.current, errorCode));
+        setSaveStatus("");
+        if (errorCode === "conflict" || errorCode === "corrupt-slot") setSaveWritesPaused(true);
+        if (errorCode === "storage-unavailable") setSavePersistent(false);
+        return null;
+      }
+    },
+    [
+      repository,
+      savePersistent,
+      saveWritesPaused,
+      store,
+      slotId,
+      saveLabel,
+      hydrogenBriefingPending,
+    ],
+  );
+
+  function finishHydrogenBriefing() {
+    if (repository && savePersistent && !saveWritesPaused) {
+      try {
+        repository.completeHydrogenBriefing(slotId);
+      } catch (error) {
+        setSaveFailure(
+          saveErrorText(
+            currentLocaleRef.current,
+            error instanceof SaveError ? error.code : "storage-unavailable",
+          ),
+        );
+      }
+    }
+    setHydrogenBriefingPending(false);
+  }
+
+  useEffect(() => {
+    let timeout: number | null = null;
+    const schedule = () => {
+      if (!autoSaveEnabled || !savePersistent || saveWritesPaused || timeout !== null) return;
+      timeout = window.setTimeout(() => {
+        timeout = null;
+        persistCurrent(true);
+      }, autoSaveInterval * 1000);
+    };
+    const unsubscribe = store.subscribe(schedule);
+    const onPageHide = () => {
+      persistCurrent(true);
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      if (timeout !== null) window.clearTimeout(timeout);
+      unsubscribe();
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [store, autoSaveEnabled, autoSaveInterval, savePersistent, saveWritesPaused, persistCurrent]);
+
+  useEffect(() => {
+    if (!repository) return;
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "miaplacidus:v1:head:" + slotId) {
+        setSaveWritesPaused(true);
+        setSaveFailure(saveErrorText(currentLocaleRef.current, "conflict"));
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [repository, slotId]);
+
+  function persistRename(name: string) {
+    if (!repository || !savePersistent || saveWritesPaused)
+      throw new SaveError("storage-unavailable", "The active slot is read-only.");
+    const renamed = repository.rename(slotId, name, Date.now(), saveRevisionRef.current);
+    saveRevisionRef.current = renamed.revision;
+    setSaveRevision(renamed.revision);
+    onReplaceActive(renamed);
+    setSaveStatus(saveLabel("saved"));
+  }
+
+  function switchToPioneerSelection(name: string) {
+    if (savePersistent && !saveWritesPaused && persistCurrent()) {
+      onExit(name);
+      return;
+    }
+    setPendingPioneerName(name);
+    setSaveManagerOpen(false);
+    setExitConfirmation(true);
+  }
+
+  async function saveRunAsNew(name: string) {
+    if (!repository) throw new SaveError("storage-unavailable", "Browser storage is unavailable.");
+    const newSlotId = createSlotId();
+    const newLockRelease = await acquireSlotLock(newSlotId);
+    if (!newLockRelease) throw new SaveError("conflict", "A single-writer lock is not available.");
+    const current = store.getState();
+    const durableState: GameState = {
+      ...current,
+      run: {
+        ...current.run,
+        clock: {
+          ...current.run.clock,
+          foreground: false,
+          hiddenElapsedMs: 0,
+          pendingForegroundMs: 0,
+        },
+      },
+    };
+    try {
+      const created = repository.create(newSlotId, durableState, name, Date.now());
+      repository.activate(newSlotId);
+      onSaveAsNew(created, newLockRelease);
+    } catch (error) {
+      newLockRelease();
+      throw error;
+    }
+  }
   const advanceTestClock = useCallback(
     (milliseconds: number) => {
       if (!Number.isFinite(milliseconds) || milliseconds <= 0) return;
       const previous = store.getState().run.clock.wallNowMs ?? 0;
       const next = BUILD_INFO.isTest
         ? testClock.advance(milliseconds)
-        : Math.max(performance.now(), previous + milliseconds);
+        : Math.max(Date.now(), previous + milliseconds);
       if (BUILD_INFO.isDevelopment && !BUILD_INFO.isTest) testClock.set(next);
       const state = store.getState();
       const tickPlan = hydrogenTickPlan(
@@ -262,6 +748,24 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
   }, [snapshot.locale]);
 
   useEffect(() => {
+    const wallNow = () =>
+      BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now();
+    const onVisibilityChange = () => {
+      const current = store.getState();
+      const tickPlan = hydrogenTickPlan(
+        snapshotBuyerCount(current),
+        current.run.hydrogenAutobuyerEnabled,
+      );
+      store.dispatch({
+        type: "clock.advance",
+        input: { wallNowMs: wallNow(), foreground: document.visibilityState === "visible" },
+        tickPlan,
+        offlineTickPlan: tickPlan,
+      });
+      store.publishNow();
+      if (document.visibilityState === "hidden") persistCurrent(true);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     let frame = 0;
     const tick = (timestamp: number) => {
       frameMetrics.frames += 1;
@@ -275,7 +779,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
       store.dispatch({
         type: "clock.advance",
         input: {
-          wallNowMs: BUILD_INFO.isTest ? testClock.now() : performance.now(),
+          wallNowMs: wallNow(),
           foreground: document.visibilityState === "visible",
         },
         tickPlan,
@@ -285,8 +789,11 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [store, testClock, frameMetrics]);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [store, testClock, frameMetrics, persistCurrent]);
 
   useEffect(() => {
     if (!import.meta.env.DEV && MIAPLACIDUS_BUILD_MODE !== "test") return;
@@ -361,6 +868,122 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
           </div>
         </div>
       </header>
+      <section className="save-toolbar" aria-label={saveLabel("manage")}>
+        <output
+          className={savePersistent ? "save-state saved-state" : "save-state unsaved-state"}
+          data-testid="save-status"
+        >
+          {saveFailure ||
+            saveStatus ||
+            (savePersistent ? saveLabel("saved") : saveLabel("unsaved"))}
+        </output>
+        <label className="autosave-toggle">
+          <input
+            type="checkbox"
+            checked={autoSaveEnabled}
+            onChange={(event) => {
+              const enabled = event.currentTarget.checked;
+              setAutoSaveEnabled(enabled);
+              repository?.writePreferences({ autoSaveEnabled: enabled });
+            }}
+          />
+          {saveLabel("autoSave")}
+        </label>
+        <label className="autosave-interval">
+          <span>{saveLabel("saveFrequency")}</span>
+          <select
+            aria-label={saveLabel("saveFrequency")}
+            value={autoSaveInterval}
+            onChange={(event) => {
+              const interval = Number(event.currentTarget.value) as 10 | 30 | 60;
+              setAutoSaveInterval(interval);
+              repository?.writePreferences({ autoSaveIntervalSeconds: interval });
+            }}
+          >
+            <option value={10}>{saveLabel("every10")}</option>
+            <option value={30}>{saveLabel("every30")}</option>
+            <option value={60}>{saveLabel("every60")}</option>
+          </select>
+        </label>
+        <button className="secondary-button" type="button" onClick={() => persistCurrent()}>
+          {saveLabel("saveNow")}
+        </button>
+        <button className="secondary-button" type="button" onClick={() => setSaveManagerOpen(true)}>
+          {saveLabel("manage")}
+        </button>
+        <button
+          className="text-button"
+          type="button"
+          onClick={() => {
+            if (!savePersistent || saveWritesPaused) {
+              setExitConfirmation(true);
+              return;
+            }
+            if (persistCurrent()) onExit();
+            else setExitConfirmation(true);
+          }}
+        >
+          {saveLabel("back")}
+        </button>
+      </section>
+      {exitConfirmation && (
+        <dialog
+          ref={exitDialogRef}
+          className="save-manager exit-save-dialog"
+          aria-label={saveLabel("unsaved")}
+          data-testid="unsaved-exit-dialog"
+        >
+          <p className="save-warning">{saveFailure || saveLabel("leaveWarning")}</p>
+          <div className="save-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setExitConfirmation(false);
+                setSaveManagerOpen(true);
+              }}
+            >
+              {saveLabel("manage")}
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setExitConfirmation(false);
+                setPendingPioneerName(null);
+              }}
+            >
+              {saveLabel("stay")}
+            </button>
+            <button
+              className="danger-button"
+              type="button"
+              onClick={() => onExit(pendingPioneerName ?? undefined)}
+            >
+              {saveLabel("discardRun")}
+            </button>
+          </div>
+        </dialog>
+      )}
+      {saveWritesPaused && (
+        <div className="save-conflict-banner" role="alert">
+          <span>{saveFailure}</span>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            {saveLabel("reload")}
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => setSaveManagerOpen(true)}
+          >
+            {saveLabel("export")}
+          </button>
+        </div>
+      )}
 
       <nav aria-label={t("nav.label")}>
         <div className="game-nav" aria-label={t("nav.label")} role="tablist">
@@ -393,7 +1016,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
                 <span>{t(tab.key)}</span>
                 {index > 0 && (
                   <span className="lock-glyph" aria-hidden="true">
-                    ·
+                    {"\u00b7"}
                   </span>
                 )}
               </button>
@@ -401,6 +1024,23 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
           })}
         </div>
       </nav>
+
+      {hydrogenBriefingPending && (
+        <aside
+          className="hydrogen-briefing"
+          aria-labelledby="hydrogen-briefing-title"
+          data-testid="hydrogen-onboarding"
+        >
+          <div>
+            <p className="eyebrow">{saveLabel("hydrogenBriefingEyebrow")}</p>
+            <h2 id="hydrogen-briefing-title">{saveLabel("hydrogenBriefingTitle")}</h2>
+            <p>{saveLabel("hydrogenBriefingBody")}</p>
+          </div>
+          <button className="primary-button" type="button" onClick={finishHydrogenBriefing}>
+            {saveLabel("hydrogenBriefingContinue")}
+          </button>
+        </aside>
+      )}
 
       <div className="main-layout">
         <aside className="resource-rail" aria-label={t("tab.hydrogen")}>
@@ -427,7 +1067,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
           <div className="rail-note">
             <span>01</span>
             <span>{t("pane.locked")}</span>
-            <span aria-hidden="true">···</span>
+            <span aria-hidden="true">{"\u00b7\u00b7\u00b7"}</span>
           </div>
         </aside>
 
@@ -472,12 +1112,13 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
                       <span className="orbit orbit-one" />
                       <span className="orbit orbit-two" />
                       <span className="atom-core">H</span>
-                      <span className="atom-spark">✦</span>
+                      <span className="atom-spark">{"\u2726"}</span>
                     </div>
                     <div className="stock-readout">
                       <span className="eyebrow">{t("hydrogen.quantity")}</span>
                       <strong data-testid="hydrogen-quantity">
-                        {formatNumber(snapshot.locale, hydrogen.quantity, 2)} <small>H₂</small>
+                        {formatNumber(snapshot.locale, hydrogen.quantity, 2)}{" "}
+                        <small>{"H\u2082"}</small>
                       </strong>
                       <span className="capacity-line">
                         {t("hydrogen.capacity")}{" "}
@@ -500,7 +1141,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
                       <span className="eyebrow">{t("hydrogen.production")}</span>
                       <strong data-testid="hydrogen-rate">
                         +{formatNumber(snapshot.locale, snapshot.hydrogenProductionPerSecond, 2)}
-                        <small>H₂/s</small>
+                        <small>{"H\u2082/s"}</small>
                       </strong>
                     </div>
                   </div>
@@ -514,7 +1155,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
                       send({ type: "resource.collect", goodId: "hydrogen" }, "status.collect")
                     }
                   >
-                    <span aria-hidden="true">＋</span>
+                    <span aria-hidden="true">+</span>
                     {t("hydrogen.collect")}
                   </button>
                   {!collection.enabled && (
@@ -526,7 +1167,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
                   <div className="action-grid">
                     <article className="upgrade-card sale-card">
                       <div className="card-icon" aria-hidden="true">
-                        ↗
+                        {"\u2197"}
                       </div>
                       <div className="card-copy">
                         <h3>{t("hydrogen.sell")}</h3>
@@ -577,16 +1218,18 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
 
                     <article className="upgrade-card">
                       <div className="card-icon storage-icon" aria-hidden="true">
-                        ▤
+                        {"\u25c8"}
                       </div>
                       <div className="card-copy">
                         <h3>{t("hydrogen.storage.title")}</h3>
                         <p>{t("hydrogen.storage.description")}</p>
                         <span className="cost-line">
                           {t("hydrogen.storage.price")}:{" "}
-                          <strong>{formatNumber(snapshot.locale, storagePurchase.cost)} H₂</strong>{" "}
-                          <span aria-hidden="true">·</span>{" "}
-                          {formatNumber(snapshot.locale, hydrogen.storageCapacity)} →{" "}
+                          <strong>
+                            {formatNumber(snapshot.locale, storagePurchase.cost)} {"H\u2082"}
+                          </strong>{" "}
+                          <span aria-hidden="true">{"\u00b7"}</span>{" "}
+                          {formatNumber(snapshot.locale, hydrogen.storageCapacity)} {"\u2192"}{" "}
                           {formatNumber(
                             snapshot.locale,
                             storagePurchase.capacityAfterPurchase ??
@@ -624,7 +1267,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
 
                     <article className="upgrade-card autobuyer-card">
                       <div className="card-icon compressor-icon" aria-hidden="true">
-                        ⌁
+                        {"\u2699"}
                       </div>
                       <div className="card-copy">
                         <h3>{t("hydrogen.autobuyer.title")}</h3>
@@ -634,9 +1277,11 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
                           <strong data-testid="hydrogen-autobuyer-count">
                             {formatNumber(snapshot.locale, buyerCount)}
                           </strong>
-                          <span aria-hidden="true"> · </span>
+                          <span aria-hidden="true">{" \u00b7 "}</span>
                           {t("hydrogen.autobuyer.price")}:{" "}
-                          <strong>{formatNumber(snapshot.locale, buyerPrice)} H₂</strong>
+                          <strong>
+                            {formatNumber(snapshot.locale, buyerPrice)} {"H\u2082"}
+                          </strong>
                         </span>
                       </div>
                       <div className="card-controls">
@@ -687,7 +1332,7 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
               ) : (
                 <div className="locked-panel">
                   <span className="locked-mark" aria-hidden="true">
-                    ⌑
+                    {"\u25a0"}
                   </span>
                   <p className="eyebrow">{t("pane.locked")}</p>
                   <h2>{t(tab.key)}</h2>
@@ -698,6 +1343,33 @@ function GameSession({ store, testClock, seed, frameMetrics }: GameSessionProps)
           ))}
         </div>
       </div>
+      {saveManagerOpen && (
+        <SaveManager
+          locale={snapshot.locale}
+          repository={repository}
+          slots={repository?.list() ?? []}
+          activeSlotId={slotId}
+          revision={saveRevision}
+          state={store.getState()}
+          lockHeld={(id) => id === slotId && savePersistent && !saveWritesPaused}
+          acquireLock={acquireSlotLock}
+          onSave={() => {
+            persistCurrent();
+          }}
+          onRename={persistRename}
+          onSaveAsNew={saveRunAsNew}
+          onSwitchTo={switchToPioneerSelection}
+          onReplaceActive={(envelope) => {
+            saveRevisionRef.current = envelope.revision;
+            setSaveRevision(envelope.revision);
+            setSaveWritesPaused(false);
+            setHydrogenBriefingPending(false);
+            onReplaceActive(envelope);
+          }}
+          onDeleted={onDeleteActive}
+          onClose={() => setSaveManagerOpen(false)}
+        />
+      )}
       {DebugTools && (
         <DebugTools
           store={store}
