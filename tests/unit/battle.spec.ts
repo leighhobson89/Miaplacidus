@@ -113,6 +113,14 @@ describe("space battle and settlement flow", () => {
     expect(encounter.enemyFleets).toEqual({ air: 0, land: 0, sea: 0 });
     expect(victory.run.space.starship.destinationSystemId).toBe(destinationId);
     expect(victory.run.timers[battleTimerId]).toBeUndefined();
+    expect(victory.permanent.ascendencyPoints).toBe(6);
+    expect(victory.permanent.achievements.unlockedIds).toEqual(
+      expect.arrayContaining([
+        "conquerEnemy",
+        "conquerBelligerentEnemy",
+        "conquerEnemyWithoutScanning",
+      ]),
+    );
     expect(isValidGameState(victory)).toBe(true);
 
     const settled = transition(victory, { type: "space.system.settle" });
@@ -121,11 +129,11 @@ describe("space battle and settlement flow", () => {
       type: "space.system.settled",
       systemId: destinationId,
       ascendencyPoints: 6,
-      gloryPoints: 1,
     });
     expect(settled.state.permanent.settledSystemIds).toContain(destinationId);
-    expect(settled.state.permanent.ascendencyPoints).toBe(6);
-    expect(settled.state.permanent.gloryPoints).toBe(1);
+    // The settlement's 6 AP and the victory achievements' 6 AP are distinct awards.
+    expect(settled.state.permanent.ascendencyPoints).toBe(12);
+    expect(settled.state.permanent.gloryPoints).toBe(0);
     expect(settled.state.run.space.ascendencyAwardedThisRun).toBe(true);
     expect(transition(settled.state, { type: "space.system.settle" }).accepted).toBe(false);
   });
@@ -194,7 +202,7 @@ describe("space battle and settlement flow", () => {
 
     expect(settled.accepted).toBe(true);
     expect(settled.state.permanent.ascendencyPoints).toBe(3);
-    expect(settled.state.permanent.gloryPoints).toBe(1);
+    expect(settled.state.permanent.gloryPoints).toBe(0);
     expect(settled.state.permanent.settledSystemIds).toContain(destinationId);
 
     const anotherDestination = findStarByName(catalogue, "Canopus")!.id;
@@ -231,7 +239,7 @@ describe("space battle and settlement flow", () => {
     const secondSettlement = transition(nextState, { type: "space.system.settle" });
     expect(secondSettlement.accepted).toBe(true);
     expect(secondSettlement.state.permanent.ascendencyPoints).toBe(3);
-    expect(secondSettlement.state.permanent.gloryPoints).toBe(2);
+    expect(secondSettlement.state.permanent.gloryPoints).toBe(0);
   });
 
   it("assigns one persistent power-plant bonus when an O-type system is settled", () => {

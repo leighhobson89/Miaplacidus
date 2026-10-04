@@ -37,21 +37,29 @@ export function hasControlCharacter(value: string): boolean {
 export function asteroidSearchDuration(
   baseDurationMs: number,
   random: RandomState,
+  asteroidDwellersPurchases = 0,
 ): { readonly durationMs: number; readonly random: RandomState } {
+  if (!Number.isSafeInteger(asteroidDwellersPurchases) || asteroidDwellersPurchases < 0)
+    throw new RangeError("Asteroid-search efficiency ranks must be a non-negative integer.");
   const next = nextRandom(random);
   return {
-    durationMs: baseDurationMs * (0.8 + next.value * 0.4),
+    durationMs: baseDurationMs * 0.99 ** asteroidDwellersPurchases * (0.8 + next.value * 0.4),
     random: next.state,
   };
 }
 
-export function starStudyDuration(random: RandomState): {
+export function starStudyDuration(
+  random: RandomState,
+  stellarInsightPurchases = 0,
+): {
   readonly durationMs: number;
   readonly random: RandomState;
 } {
+  if (!Number.isSafeInteger(stellarInsightPurchases) || stellarInsightPurchases < 0)
+    throw new RangeError("Star-study efficiency ranks must be a non-negative integer.");
   const next = nextRandom(random);
   return {
-    durationMs: STAR_STUDY_DURATION_MS * (0.8 + next.value * 0.4),
+    durationMs: STAR_STUDY_DURATION_MS * 0.99 ** stellarInsightPurchases * (0.8 + next.value * 0.4),
     random: next.state,
   };
 }

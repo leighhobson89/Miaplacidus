@@ -99,7 +99,8 @@ describe("starship antimatter spending", () => {
       moduleId: "structural",
     });
     expect(built.accepted).toBe(true);
-    expect(built.state.run.cash).toBe(0);
+    // ResearchTechnology is earned from this researched fixture and refunds $30.
+    expect(built.state.run.cash).toBe(30);
     for (const material of cost.materials) {
       expect(built.state.run.goods[material.goodId].quantity).toBeCloseTo(0);
     }
@@ -174,6 +175,14 @@ describe("starship antimatter spending", () => {
     };
     const fasterQuote = starshipTravelPlan(quantumEnginesState, destination.id);
     expect(fasterQuote).toMatchObject({
+      durationMs: Math.floor(quote!.durationMs / 4),
+      antimatter: quote!.antimatter,
+    });
+    const duplicatedQuantumRanks: GameState = {
+      ...ready,
+      permanent: { ...ready.permanent, acquiredPerks: ["quantumEngines", "quantumEngines"] },
+    };
+    expect(starshipTravelPlan(duplicatedQuantumRanks, destination.id)).toMatchObject({
       durationMs: Math.floor(quote!.durationMs / 4),
       antimatter: quote!.antimatter,
     });

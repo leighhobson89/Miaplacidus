@@ -1,6 +1,6 @@
 # Feature parity ledger
 
-Source taxonomy: Cosmic Forge `tests/docs/functional-areas.json` at the audit snapshot. The folders under `tests/e2e/` adapt its 50 areas: `save-load-cloud` is replaced by `save-slots`. This is an **evidence ledger, not a second work checklist**. All feature rows begin **not started**. The [one master checklist](master-checklist.md) controls work; its seven linked packages contain task IDs. For each area, record source rules/data, normal and failure paths, persistence/rebirth effect, six-language UI, focused tests and a current browser result in its future area README or feature plan. Original-game save import, Electron and analytics are excluded by the [decision record](open-decisions.md); other shipped gameplay remains in scope.
+Source taxonomy: Cosmic Forge `tests/docs/functional-areas.json` at the audit snapshot. The folders under `tests/e2e/` adapt its 50 areas: `save-load-cloud` is replaced by `save-slots`. This is an **evidence ledger, not a second work checklist**. Each feature row below records its current evidence status. The [one master checklist](master-checklist.md) controls work; its seven linked packages contain task IDs. For each area, record source rules/data, normal and failure paths, persistence/rebirth effect, six-language UI, focused tests and a current browser result in its area README or feature plan. Original-game save import, Electron and analytics are excluded by the [decision record](open-decisions.md); other shipped gameplay remains in scope.
 
 ## Source extraction baseline — 2 October 2026
 
@@ -47,7 +47,7 @@ The focused browser evidence uses player clicks and screenshot baseline comparis
 
 The [economy browser README](../../tests/e2e/economy/README.md) records source comparisons, screenshot checkpoints, test instructions and the remaining evidence boundary. The slice covers a fresh Hydrogen route through the first Research purchase, Energy unlock and Diesel compound unlock; click paths for all eight materials and six compounds; every autobuyer and storage tier; energy and research buildings; manual and automated research completion announcements; manual completion feedback in all six locales; all six automatic compound recipes; save/reload; and screenshots for Hydrogen, Research, Energy and Compounds in all six locales. Unit rules and ten-second source comparisons are in [`tests/unit/economy.spec.ts`](../../tests/unit/economy.spec.ts), with source values in the [economy audit](../audit/foundation-economy.md) and deterministic tick policy in the [economy contract](economy-contract.md).
 
-The M-03 economy and research phase gate is complete. The full-game functional areas remain partial: the detailed checklist assigns rebirth carryover and repeatable-price restoration (**E-06/E-13/E-36/E-56**) to M-05, later space/weather/power/technology integrations (**E-09/E-25/E-26/E-35**) to M-04/M-05, and the exhaustive six-language UI review (**E-57**) to M-06. Those tasks remain open in their owning checklists; broader economy-related area status stays partial until the full game systems are implemented.
+The M-03 economy and research phase gate is complete. M-04 and M-05 have closed the rebirth carryover, repeatable-price restoration (**E-06/E-13/E-36/E-56**) and later space/weather/power/technology integration (**E-09/E-25/E-26/E-35**) follow-ups. The exhaustive six-language UI review (**E-57**) remains assigned to M-06; broader economy-related area status stays partial until that presentation review is complete.
 
 ## Foundation
 
@@ -56,7 +56,7 @@ The M-03 economy and research phase gate is complete. The full-game functional a
 - **Partial (M-02 Hydrogen evidence)** — `save-slots` — remaining: full-game progression and cross-system state boundaries.
 - **Partial (M-02 Hydrogen evidence)** — `save-migration` — remaining: fixtures for future shipped schema versions and full-game migration coverage.
 - **Partial (M-02 Hydrogen evidence)** — `migration` — remaining: a migration fixture and playable-state check for each future shipped release.
-- **Not started** — `settings` — preference persistence, sound, language, theme, notation.
+- **Partial (M-05 evidence)** — `settings` — locale, nine themes, notation, sound preference and reduced motion persist; settings now exposes achievements and the meta journal. Audio playback and full M-06 visual/accessibility review remain.
 - **Not started** — `offline-gains` — elapsed time cap/rate and all affected simulation domains.
 
 ## Core economy
@@ -90,25 +90,25 @@ The M-03 economy and research phase gate is complete. The full-game functional a
 
 ## Meta progression
 
-- **Not started** — `rebirth` — preconditions, reset, carryover and second run.
-- **Not started** — `automation` — automation settings survive/reconfigure at the right scope.
-- **Not started** — `ascendency` — AP earning/spending and perk effects.
-- **Not started** — `galactic-market` — rates, transactions, history/lockdowns.
-- **Not started** — `galactic-casino` — CP purchase, all games, prizes and timer convergence.
-- **Not started** — `philosophies` — four paths, abilities, repeatables and permanence.
-- **Not started** — `achievements` — full catalogue, rewards, images, persistence and rebirth.
+- **Complete (G-01–G-08)** — `rebirth` — two rebirths, full source carryover, starter perks, saved automation choices, destination profile/weather and Expansionist bonus systems are unit-tested.
+- **Complete (G-05)** — `automation` — the source-listed resource allocations, compound creation, research auto-buyer and owned auto-telescope settings persist at the correct scope across rebirth.
+- **Complete (G-09–G-16)** — `ascendency` — all sixteen IDs/costs, cross-system modifiers after portable reload/rebirth, exact AP/GP sources and sinks, duplicate guards and the Chrome purchase path are evidenced.
+- **Complete (G-11–G-16)** — `galactic-market` — prices, quotes, settlement rounding, AP sales, liquidation, history, cycles and lockdown rules have focused unit and Chrome browser coverage.
+- **Complete (G-17–G-24)** — `galactic-casino` — source rules, all games, saved hand reload, normal timer completion and localized player controls have unit and Chrome browser coverage.
+- **Complete (G-25–G-30)** — `philosophies` — four paths, abilities, repeatables, six-language choice copy, rebirth and save/reload are evidenced in the [philosophy report](../../tests/e2e/philosophies/README.md) and archived source contract.
+- **Complete (G-51–G-53, G-58, G-60)** — `achievements` — all 70 stable IDs, localized names/rewards, new badges, exactly-once rewards, theme history, save/reload and six-locale UI are tested.
 
 ## Endgame
 
-- **Not started** — `black-hole` — discovery, charge, activation, time warp and affected timers.
-- **Not started** — `megastructures` — manuscripts/clues, guardians, tech, force field, end route.
-- **Not started** — `cosmic-rip` — GP, scanner, sectors, telemetry, research and closure.
+- **Complete (G-31–G-35, G-54–G-55, G-60)** — `black-hole` — discovery, research, charge/upgrades, named timer policies, instability multipliers, save migration and recovery are unit/browser verified.
+- **Complete (G-36–G-42, G-60)** — `megastructures` — manuscript clues, duplicate rewards, research tracks, permanent modifiers, guardian loss/retry, force field and source-supported homecoming route are unit/browser verified.
+- **Complete (G-43–G-50, G-60)** — `cosmic-rip` — unlock, scanner, sectors, telemetry, research, GP sinks, closure, reload and six translated locales are unit/browser verified.
 
 ## Simulation and ambience
 
 - **Not started** — `weather` — transitions, system identity, production, precipitation, launch gates.
-- **Not started** — `random-events` — trigger weights, instant/timed effects, history and recovery.
-- **Not started** — `news-ticker` — lore, clues, prizes, category selection and timing.
+- **Complete (G-54–G-55, G-57–G-60)** — `random-events` — eligibility, probabilities, effects, minute shifts, history, timer ends, reload, forced test commands and source comparisons are evidenced.
+- **Complete (G-56–G-60)** — `news-ticker` — all categories, clue eligibility, prizes, timing, claim-once guards, saved journal and six-locale copy are unit/browser verified.
 - **Not started** — `audio` — effects, ambience, preferences and unavailable audio.
 
 ## Presentation and shell
@@ -116,7 +116,7 @@ The M-03 economy and research phase gate is complete. The full-game functional a
 - **Partial (M-02 Hydrogen evidence)** — `onboarding` — new slots receive a localized first-run Hydrogen briefing that stays dismissed after reload; the full tutorial, skip/resume flow and all-feature coverage remain open.
 - **Not started** — `cosmicopedia` — help, story and current feature explanations.
 - **Not started** — `statistics` — run/lifetime counters and resets.
-- **Not started** — `ui-navigation` — nine tabs, option rows, unlock/attention indicators.
+- **Partial (M-01/M-05 evidence)** — `ui-navigation` — nine stable tabs, keyboard movement and always-available Settings with achievement/journal sections are checked; full responsive/touch/focus review stays with M-06.
 - **Not started** — `notifications` — queues, classification, placement and clear-all.
 - **Not started** — `notation` — number modes across every relevant pane.
 - **Not started** — `localization` — all six catalogues, dynamic text, live switch and layout.

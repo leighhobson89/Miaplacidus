@@ -17,4 +17,4 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 npx.cmd playwright test tests/e2e/save-slots/save-slots.spec.ts --workers=1
 ```
 
-For the related evidence ledgers, see [`save-load-local`](../save-load-local/README.md), [`save-migration`](../save-migration/README.md), and [`migration`](../migration/README.md). Rebirth counts are imported as deterministic save fixtures because the rebirth mechanic itself belongs to the later meta-progression phase.
+For the related evidence ledgers, see [`save-load-local`](../save-load-local/README.md), [`save-migration`](../save-migration/README.md), and [`migration`](../migration/README.md). Live rebirth persistence is exercised through the player controls in the [`rebirth` area](../rebirth/README.md); imported rebirth-count fixtures remain for slot-independence coverage.

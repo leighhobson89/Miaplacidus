@@ -79,7 +79,9 @@ export function storagePurchaseCost(capacity: number): number {
 
 export function permanentPerkPurchaseCount(perks: readonly string[], perkId: string): number {
   return perks.reduce((count, perk) => {
-    if (perk === perkId) return Math.max(count, 1);
+    // Current saves record ordinary repeatable purchases as duplicate IDs;
+    // rank-suffixed records remain supported for explicit/migrated ranks.
+    if (perk === perkId) return count + 1;
     if (!perk.startsWith(`${perkId}:`)) return count;
     const value = Number(perk.slice(perkId.length + 1));
     return Number.isSafeInteger(value) && value > 0 ? Math.max(count, value) : count;
@@ -100,17 +102,20 @@ export function repeatedPerkMultiplier(
 export function storageCapacityAfterPurchase(
   capacity: number,
   efficientStoragePurchases = 0,
+  baseStorageMultiplier = 2,
 ): number {
   if (
     !Number.isFinite(capacity) ||
     capacity < 0 ||
     !Number.isSafeInteger(efficientStoragePurchases) ||
-    efficientStoragePurchases < 0
+    efficientStoragePurchases < 0 ||
+    !Number.isFinite(baseStorageMultiplier) ||
+    baseStorageMultiplier <= 0
   ) {
     return Number.POSITIVE_INFINITY;
   }
   // The source scales its base ×2 storage factor by (purchases + 1).
-  return capacity * 2 * (1 + Math.min(3, efficientStoragePurchases));
+  return capacity * baseStorageMultiplier * (1 + Math.min(3, efficientStoragePurchases));
 }
 
 /**

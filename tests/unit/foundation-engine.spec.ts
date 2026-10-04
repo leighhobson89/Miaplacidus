@@ -112,4 +112,22 @@ describe("foundation engine contracts used by the Hydrogen slice", () => {
     expect(state.run.goods.hydrogen.quantity).toBe(6);
     expect(state.run.clock.pendingForegroundMs).toBe(0);
   });
+
+  it("counts foreground active time across catch-up batches but excludes hidden time", () => {
+    let state = createInitialGameState();
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 0, foreground: true },
+    }).state;
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 3000, foreground: true },
+    }).state;
+    expect(state.statistics.lifetimeActiveMs).toBe(1000);
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 60_000, foreground: false },
+    }).state;
+    expect(state.statistics.lifetimeActiveMs).toBe(1000);
+  });
 });

@@ -26,6 +26,7 @@ import { spaceText, type SpaceMessageKey } from "../i18n/spaceMessages";
 import { economyLabel } from "../i18n/economyMessages";
 import { rocketText, type RocketMessageKey } from "../i18n/rocketMessages";
 import { rocketPartCost } from "../engine/spaceRules";
+import { philosophyDiscountedSpaceCost, philosophyRepeatableRank } from "../engine/philosophy";
 import { permanentPerkPurchaseCount } from "../content/economyRules";
 import { currentWeatherForSystem, STAR_WEATHER_TIMER_ID } from "../engine/weather";
 
@@ -102,7 +103,11 @@ function RocketAssemblyCard({
   const [feedback, setFeedback] = useState("");
   const requiredParts = ROCKET_PART_REQUIREMENTS[rocketId];
   const fuelCapacity = ROCKET_FUEL_CAPACITY[rocketId];
-  const partCost = rocketPartCost(rocket.builtParts);
+  const partCost = rocketPartCost(
+    rocket.builtParts,
+    permanentPerkPurchaseCount(state.permanent.acquiredPerks, "launchPadMassProduction") +
+      philosophyRepeatableRank(state, "launchPadMassProduction"),
+  );
   const partCommand = { type: "space.rocket.part.build" as const, rocketId };
   const pumpCommand = { type: "space.rocket.pump.purchase" as const, rocketId };
   const pumpStartCommand = {
@@ -537,7 +542,10 @@ export function SpaceMiningPane({ state, store }: SpaceMiningPaneProps) {
     }
   }
 
-  const buildLines = costLines(state, TELESCOPE_COST);
+  const buildLines = costLines(
+    state,
+    philosophyDiscountedSpaceCost(state, TELESCOPE_COST, "efficientAssembly", 0.01, true),
+  );
   const launchPadBuildCheck = checkPreconditions(state, { type: "space.launch-pad.build" });
   const surveyState = space.surveyPowerBlocked
     ? spaceText(locale, "surveyPowerBlocked")
@@ -847,7 +855,16 @@ export function SpaceMiningPane({ state, store }: SpaceMiningPaneProps) {
           <>
             <h4>{rocketText(locale, "launchPadTitle")}</h4>
             <ul className="space-cost-list" aria-label={rocketText(locale, "launchPadCost")}>
-              {costLines(state, LAUNCH_PAD_COST).map((line) => (
+              {costLines(
+                state,
+                philosophyDiscountedSpaceCost(
+                  state,
+                  LAUNCH_PAD_COST,
+                  "efficientAssembly",
+                  0.01,
+                  true,
+                ),
+              ).map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>

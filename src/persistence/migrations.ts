@@ -19,6 +19,17 @@ import {
   upgradeGameStateV17,
   upgradeGameStateV18,
   upgradeGameStateV19,
+  upgradeGameStateV20,
+  upgradeGameStateV21,
+  upgradeGameStateV22,
+  upgradeGameStateV23,
+  upgradeGameStateV24,
+  upgradeGameStateV25,
+  upgradeGameStateV26,
+  upgradeGameStateV27,
+  upgradeGameStateV28,
+  upgradeGameStateV29,
+  upgradeGameStateV30,
   type LegacyPermanentState,
 } from "../engine/state";
 import { makeEnvelope, SaveError, type SaveEnvelopeV1 } from "./schema";
@@ -46,7 +57,18 @@ interface LegacyEnvelopeBase {
     | 16
     | 17
     | 18
-    | 19;
+    | 19
+    | 20
+    | 21
+    | 22
+    | 23
+    | 24
+    | 25
+    | 26
+    | 27
+    | 28
+    | 29
+    | 30;
   readonly slotId: string;
   readonly pioneerName: string;
   readonly createdAt: number;
@@ -68,7 +90,38 @@ export interface SaveEnvelopeV0 extends LegacyEnvelopeBase {
 
 function validateLegacyEnvelope(
   value: unknown,
-  version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19,
+  version:
+    | 0
+    | 1
+    | 2
+    | 3
+    | 4
+    | 5
+    | 6
+    | 7
+    | 8
+    | 9
+    | 10
+    | 11
+    | 12
+    | 13
+    | 14
+    | 15
+    | 16
+    | 17
+    | 18
+    | 19
+    | 20
+    | 21
+    | 22
+    | 23
+    | 24
+    | 25
+    | 26
+    | 27
+    | 28
+    | 29
+    | 30,
 ): LegacyEnvelopeBase {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new SaveError("invalid-envelope", "The earlier save is not a valid object.");
@@ -586,6 +639,204 @@ export function migrateSaveV19(
   verifyChecksum(envelope, checksumFor);
   const state = upgradeGameStateV19(envelope.state);
   if (!state) throw new SaveError("invalid-envelope", "The version 19 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV20(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 20);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV20(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 20 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV21(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 21);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV21(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 21 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV22(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 22);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV22(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 22 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV23(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 23);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV23(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 23 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV24(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 24);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV24(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 24 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV25(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 25);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV25(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 25 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV26(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 26);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV26(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 26 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV27(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 27);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV27(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 27 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV28(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 28);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV28(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 28 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV29(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 29);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV29(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 29 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV30(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 30);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV30(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 30 save state is invalid.");
   return makeEnvelope({
     slotId: envelope.slotId,
     pioneerName: envelope.pioneerName,

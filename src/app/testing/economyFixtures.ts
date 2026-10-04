@@ -11,12 +11,14 @@ import {
   STARSHIP_MODULES,
   STARSHIP_MODULE_IDS,
   createInitialStarSystemBattleState,
+  PLAYER_FLEET_IDS,
 } from "../../content/space";
 import { createStarCatalogue } from "../../content/starCatalogue";
-import { TECHNOLOGY_CATALOG } from "../../content/technology";
+import { MEGASTRUCTURE_TRACKS, TECHNOLOGY_CATALOG } from "../../content/technology";
 import { createInitialGameState, type GameState } from "../../engine/state";
 import { ensureDiscoveredStarSystemProfiles } from "../../engine/starSystemProfiles";
 import { createTimer, createTimerId } from "../../engine/timers";
+import { nextRandomInteger } from "../../engine/random";
 
 type EconomyFixtureKind =
   | "full"
@@ -53,6 +55,12 @@ type EconomyFixtureKind =
   | "space-bully-surrender"
   | "space-unoccupied"
   | "space-manuscript-hidden"
+  | "meta-rebirth-ready"
+  | "meta-market-ready"
+  | "meta-casino-ready"
+  | "meta-black-hole-discovered"
+  | "meta-megastructure-route"
+  | "meta-cosmic-rip-route"
   | "space-late-game";
 
 /** Test-only start states used by click-driven browser tests to reach later economy systems. */
@@ -66,6 +74,249 @@ export function createEconomyFixture(
     seed: 20261003,
     locale,
   });
+  if (kind === "meta-rebirth-ready") {
+    const destination = createStarCatalogue().find((star) => !star.initiallySettled)!;
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        ascendencyPoints: 100,
+        gloryPoints: 1,
+        settledSystemIds: [...base.permanent.settledSystemIds, destination.id],
+        galacticCasino: { ...base.permanent.galacticCasino, casinoPoints: 12 },
+      },
+    };
+  }
+  if (kind === "meta-market-ready") {
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        cash: 10_000_000,
+        unlockedResources: ["hydrogen", "helium"],
+        goods: {
+          ...base.run.goods,
+          hydrogen: { ...base.run.goods.hydrogen, quantity: 100 },
+        },
+        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        ascendencyPoints: 100,
+        gloryPoints: 1,
+      },
+    };
+  }
+  if (kind === "meta-casino-ready") {
+    let casinoSeed = 0;
+    while (nextRandomInteger({ seed: casinoSeed, draws: 0 }, 0, 15).value !== 0) casinoSeed += 1;
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        cash: 10_000_000,
+        researchPoints: 1_000_000,
+        random: { seed: casinoSeed, draws: 0 },
+        goods: Object.fromEntries(
+          ECONOMIC_GOOD_IDS.map((goodId) => [
+            goodId,
+            { ...base.run.goods[goodId], quantity: 1_000_000, storageCapacity: 2_000_000 },
+          ]),
+        ) as typeof base.run.goods,
+        unlockedResources: MATERIAL_IDS,
+        economy: { ...base.run.economy, unlockedCompounds: COMPOUND_IDS },
+        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        galacticCasino: { ...base.permanent.galacticCasino, casinoPoints: 0 },
+      },
+    };
+  }
+  if (kind === "meta-black-hole-discovered") {
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        researchPoints: 3_000_000,
+        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        blackHole: {
+          ...base.permanent.blackHole,
+          discovered: true,
+          discoveryProbability: 3,
+        },
+      },
+    };
+  }
+  if (kind === "meta-megastructure-route") {
+    const star = (name: string) => createStarCatalogue().find((entry) => entry.name === name)!;
+    const manuscriptNames = ["Sirius", "Procyon", "Betelgeuse", "Altair"] as const;
+    const factoryNames = ["Canopus", "Vega", "Rigel", "Deneb"] as const;
+    const structures = [
+      "celestialProcessingCore",
+      "plasmaForge",
+      "galacticMemoryArchive",
+      "dysonSphere",
+    ] as const;
+    const manuscripts = structures.map((megastructureId, index) => ({
+      position: (index + 1) as 1 | 2 | 3 | 4,
+      manuscriptSystemId: star(manuscriptNames[index]!).id,
+      factorySystemId: star(factoryNames[index]!).id,
+      megastructureId,
+      reported: true,
+    }));
+    const currentFactoryId = star("Rigel").id;
+    const carriedStages = [
+      MEGASTRUCTURE_TRACKS.celestialProcessingCore[2]!,
+      MEGASTRUCTURE_TRACKS.plasmaForge[2]!,
+      MEGASTRUCTURE_TRACKS.dysonSphere[2]!,
+      MEGASTRUCTURE_TRACKS.galacticMemoryArchive[0]!,
+      MEGASTRUCTURE_TRACKS.galacticMemoryArchive[1]!,
+    ];
+    const settledSystemIds = [
+      ...base.permanent.settledSystemIds,
+      ...factoryNames.map((name) => star(name).id),
+    ];
+    const starshipModules = Object.fromEntries(
+      STARSHIP_MODULE_IDS.map((moduleId) => [
+        moduleId,
+        { builtParts: STARSHIP_MODULES[moduleId].parts },
+      ]),
+    ) as GameState["run"]["space"]["starshipModules"];
+    const playerFleets = Object.fromEntries(
+      PLAYER_FLEET_IDS.map((id) => [id, 1_000]),
+    ) as GameState["run"]["space"]["playerFleets"];
+    const playerFleetCombatTotals: GameState["run"]["space"]["playerFleetCombatTotals"] = {
+      scout: { attackPower: 2_000, defensePower: 2_000 },
+      marauder: { attackPower: 4_000, defensePower: 3_000 },
+      landStalker: { attackPower: 4_000, defensePower: 0 },
+      navalStrafer: { attackPower: 6_000, defensePower: 0 },
+    };
+    const requiredTechnologies = [
+      "advancedPowerGeneration",
+      "quantumComputing",
+      "neutronCapture",
+      "orbitalConstruction",
+      "stellarCartography",
+      "stellarScanners",
+      "FTLTravelTheory",
+    ] as const;
+    const researchedTechnologies = [...requiredTechnologies, ...carriedStages];
+    const goods = Object.fromEntries(
+      ECONOMIC_GOOD_IDS.map((goodId) => [
+        goodId,
+        {
+          ...base.run.goods[goodId],
+          storageCapacity: Math.max(1_000_000, base.run.goods[goodId].storageCapacity),
+        },
+      ]),
+    ) as GameState["run"]["goods"];
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        cash: 1_000_000_000,
+        researchPoints: 300_000,
+        goods,
+        unlockedResources: MATERIAL_IDS,
+        space: {
+          ...base.run.space,
+          currentSystemId: currentFactoryId,
+          weatherSystemId: currentFactoryId,
+          starStudyRange: 200,
+          systemProfiles: ensureDiscoveredStarSystemProfiles(
+            base.run.space.systemProfiles,
+            currentFactoryId,
+            200,
+          ),
+          antimatter: 1_000_000,
+          antimatterUnlocked: true,
+          antimatterMinedThisRun: 1_000_000,
+          ascendencyAwardedThisRun: true,
+          starshipModules,
+          playerFleets,
+          playerFleetCombatTotals,
+        },
+        economy: {
+          ...base.run.economy,
+          unlockedCompounds: COMPOUND_IDS,
+          researchedTechnologies,
+          revealedTechnologies: TECHNOLOGY_CATALOG.map((technology) => technology.id),
+          power: {
+            ...base.run.economy.power,
+            gridEnabled: true,
+            infinitePower: true,
+          },
+        },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        // The homecoming route is a full browser journey; use the source's
+        // six Quantum Engine ranks so the real travel timer fits the test clock.
+        acquiredPerks: [
+          ...base.permanent.acquiredPerks,
+          ...Array.from({ length: 6 }, () => "quantumEngines"),
+        ],
+        settledSystemIds,
+        megastructures: {
+          ...base.permanent.megastructures,
+          ancientManuscripts: manuscripts,
+          researchedTechnologyIds: carriedStages,
+          manuscriptRewardClaimed: true,
+          conquestRewardClaimed: true,
+        },
+      },
+      statistics: { ...base.statistics, lifetimeAntimatterMined: 1_000_000 },
+    };
+  }
+  if (kind === "meta-cosmic-rip-route") {
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        cash: 10_000_000,
+        goods: Object.fromEntries(
+          ECONOMIC_GOOD_IDS.map((goodId) => [
+            goodId,
+            { ...base.run.goods[goodId], quantity: 5_000_000, storageCapacity: 10_000_000 },
+          ]),
+        ) as GameState["run"]["goods"],
+        unlockedResources: MATERIAL_IDS,
+        economy: { ...base.run.economy, unlockedCompounds: COMPOUND_IDS },
+        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 2,
+        gloryPoints: 20,
+        settledSystemIds: [
+          ...base.permanent.settledSystemIds,
+          createStarCatalogue().find((star) => star.name === "Miaplacidus")!.id,
+        ],
+        cosmicRip: {
+          ...base.permanent.cosmicRip,
+          unlocked: true,
+          scannerRestored: true,
+          ripLocationSectorIndex: 4,
+          scannedSectorIndexes: [4],
+          ripFound: true,
+          telemetryData: 200_000,
+        },
+      },
+    };
+  }
   if (kind === "storage") {
     return {
       ...base,
@@ -502,11 +753,18 @@ export function createEconomyFixture(
             state.run.space.currentSystemId,
             200,
           ),
+        },
+      },
+      permanent: {
+        ...state.permanent,
+        megastructures: {
+          ...state.permanent.megastructures,
           ancientManuscripts: [
             {
               position: 1,
               manuscriptSystemId: manuscriptStar.id,
               factorySystemId: factoryStar.id,
+              megastructureId: "dysonSphere",
               reported: false,
             },
           ],

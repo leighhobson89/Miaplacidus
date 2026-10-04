@@ -32,6 +32,7 @@ export interface GameSnapshot {
   readonly paused: boolean;
   readonly simulationMs: number;
   readonly locale: GameState["settings"]["locale"];
+  readonly themeId: GameState["settings"]["themeId"];
   readonly notation: GameState["settings"]["notation"];
   readonly soundEnabled: boolean;
   readonly hydrogenAutobuyerCount: number;
@@ -53,6 +54,7 @@ export function selectGameSnapshot(state: GameState): GameSnapshot {
     paused: state.run.clock.paused,
     simulationMs: state.run.clock.simulationMs,
     locale: state.settings.locale,
+    themeId: state.settings.themeId,
     notation: state.settings.notation,
     soundEnabled: state.settings.soundEnabled,
     hydrogenAutobuyerCount: hydrogenAutobuyerCount(state.run.upgrades),
@@ -120,6 +122,7 @@ export function selectHydrogenStoragePurchase(state: GameState): HydrogenPurchas
     storageCapacityAfterPurchase(
       capacity,
       permanentPerkPurchaseCount(state.permanent.acquiredPerks, "efficientStorage"),
+      state.permanent.philosophyId === "constructor" && state.run.philosophyAbilityActive ? 5 : 2,
     ),
   );
 }

@@ -77,7 +77,7 @@ test("keeps undisclosed factory systems out of search and direct targeting @star
   await startStarMapFixture(page, "space-manuscript-hidden");
   await page.getByRole("tab", { name: "Interstellar" }).click();
   const state = await page.evaluate(() => window.miaplacidusTest!.getState());
-  const factorySystemId = state.run.space.ancientManuscripts[0]!.factorySystemId;
+  const factorySystemId = state.permanent.megastructures.ancientManuscripts[0]!.factorySystemId;
   const map = page.getByTestId("star-map-pane");
 
   const search = map.getByRole("searchbox", { name: "Search stars" });

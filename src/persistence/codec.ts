@@ -36,6 +36,17 @@ import {
   migrateSaveV17,
   migrateSaveV18,
   migrateSaveV19,
+  migrateSaveV20,
+  migrateSaveV21,
+  migrateSaveV22,
+  migrateSaveV23,
+  migrateSaveV24,
+  migrateSaveV25,
+  migrateSaveV26,
+  migrateSaveV27,
+  migrateSaveV28,
+  migrateSaveV29,
+  migrateSaveV30,
 } from "./migrations";
 
 export const PORTABLE_PREFIX = "MIA1:";
@@ -221,8 +232,96 @@ function parseEnvelope(json: string): SaveEnvelopeV1 {
     parsed &&
     typeof parsed === "object" &&
     "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 20
+  ) {
+    return migrateSaveV20(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 21
+  ) {
+    return migrateSaveV21(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 22
+  ) {
+    return migrateSaveV22(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 23
+  ) {
+    return migrateSaveV23(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 24
+  ) {
+    return migrateSaveV24(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 25
+  ) {
+    return migrateSaveV25(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 26
+  ) {
+    return migrateSaveV26(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 27
+  ) {
+    return migrateSaveV27(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 28
+  ) {
+    return migrateSaveV28(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 29
+  ) {
+    return migrateSaveV29(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 30
+  ) {
+    return migrateSaveV30(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
     typeof (parsed as { schemaVersion?: unknown }).schemaVersion === "number" &&
-    (parsed as { schemaVersion: number }).schemaVersion > 20
+    (parsed as { schemaVersion: number }).schemaVersion > 31
   ) {
     throw new SaveError("future-version", "This save was made by a newer version of MIAPLACIDUS.");
   }

@@ -31,7 +31,11 @@ import {
   type CompoundDefinition,
   type MaterialDefinition,
 } from "../content/economy";
-import { TECHNOLOGY_BY_ID, TECHNOLOGY_CATALOG } from "../content/technology";
+import {
+  MEGASTRUCTURE_TECHNOLOGY_IDS,
+  TECHNOLOGY_BY_ID,
+  TECHNOLOGY_CATALOG,
+} from "../content/technology";
 import { ROCKET_IDS } from "../content/space";
 import {
   affordablePurchaseCount,
@@ -74,6 +78,79 @@ import {
   completeSpaceSurveys,
   prepareSpaceSurveyPower,
 } from "./spaceMechanics";
+import {
+  applyMetaProgressionCommand,
+  checkMetaProgressionCommand,
+  isMetaProgressionCommand,
+  type MetaProgressionCommand,
+  type MetaProgressionEvent,
+  type MetaProgressionFailure,
+} from "./metaProgression";
+import { advanceGalacticMarket } from "./galacticMarket";
+import { applyAchievementBoundary, type AchievementUnlockedEvent } from "./achievements";
+import { isThemeId } from "../content/themes";
+import {
+  RANDOM_EVENT_IDS,
+  NEWS_CATEGORIES,
+  type NewsCategory,
+  type RandomEventId,
+} from "../content/metaSignals";
+import {
+  advanceRandomEvents,
+  forceRandomEvent,
+  randomEventEligible,
+  type RandomEventEngineEvent,
+} from "./randomEvents";
+import {
+  advanceNewsTicker,
+  checkNewsPrizeClaim,
+  claimNewsPrize,
+  forceNewsTicker,
+  type NewsTickerEvent,
+} from "./newsTicker";
+import {
+  applyPhilosophyCommand,
+  checkPhilosophyCommand,
+  isPhilosophyCommand,
+  philosophyCompoundRecipe,
+  philosophyRepeatableRank,
+  type PhilosophyCommand,
+  type PhilosophyEvent,
+  type PhilosophyFailure,
+} from "./philosophy";
+import {
+  applyCasinoCommand,
+  checkCasinoCommand,
+  isCasinoCommand,
+  type CasinoCommand,
+  type CasinoEvent,
+  type CasinoFailure,
+} from "./galacticCasino";
+import {
+  applyBlackHoleCommand,
+  checkBlackHoleCommand,
+  completeBlackHoleTimers,
+  finishBlackHoleWarp,
+  isBlackHoleCommand,
+  type BlackHoleCommand,
+  type BlackHoleEvent,
+  type BlackHoleFailure,
+} from "./blackHole";
+import {
+  applyMegastructureTechnology,
+  megastructureBatteryCapacityMultiplier,
+  megastructureResearchAvailable,
+  miaplacidusForceFieldLevel,
+} from "./megastructures";
+import {
+  advanceCosmicRip,
+  applyCosmicRipCommand,
+  checkCosmicRipCommand,
+  isCosmicRipCommand,
+  type CosmicRipCommand,
+  type CosmicRipEvent,
+  type CosmicRipFailure,
+} from "./cosmicRip";
 
 export interface PurchaseCommand {
   readonly type: "upgrade.purchase";
@@ -166,6 +243,15 @@ export type GameCommand =
   | { readonly type: "timer.complete"; readonly timerId: TimerId }
   | { readonly type: "settings.update"; readonly patch: Partial<SettingsState> }
   | { readonly type: "random.draw"; readonly purpose: string }
+  | { readonly type: "onboarding.complete" }
+  | { readonly type: "random-event.force"; readonly eventId: RandomEventId }
+  | { readonly type: "news.ticker.force"; readonly category?: NewsCategory; readonly id?: number }
+  | { readonly type: "news.prize.claim"; readonly id: number }
+  | MetaProgressionCommand
+  | PhilosophyCommand
+  | CasinoCommand
+  | BlackHoleCommand
+  | CosmicRipCommand
   | SpaceCommand;
 
 export type CommandFailure =
@@ -203,6 +289,11 @@ export type CommandFailure =
   | { readonly code: "no-stock"; readonly messageKey: "ui.hydrogen.no-stock" }
   | { readonly code: "autobuyer-unavailable"; readonly messageKey: "ui.hydrogen.autobuyer-locked" }
   | { readonly code: "transition-failed"; readonly messageKey: "engine.error.recovered" }
+  | MetaProgressionFailure
+  | PhilosophyFailure
+  | CasinoFailure
+  | BlackHoleFailure
+  | CosmicRipFailure
   | SpaceCommandFailure;
 
 export type PreconditionResult =
@@ -212,6 +303,18 @@ export type PreconditionResult =
 export type EngineEvent =
   | { readonly type: "purchase.completed"; readonly upgradeId: UpgradeId; readonly count: number }
   | { readonly type: "resource.collected"; readonly goodId: MaterialId; readonly amount: number }
+  | {
+      readonly type: "economy.fusion.completed";
+      readonly sourceId: MaterialId;
+      readonly targetId: MaterialId;
+      readonly amount: number;
+    }
+  | {
+      readonly type: "technology.researched";
+      readonly technologyId: import("../content/ids").TechId;
+    }
+  | { readonly type: "megastructure.force-field-breached" }
+  | { readonly type: "onboarding.completed" }
   | {
       readonly type: "storage.increased";
       readonly goodId: EconomicGoodId;
@@ -224,9 +327,17 @@ export type EngineEvent =
   | { readonly type: "timer.resumed"; readonly timerId: TimerId }
   | { readonly type: "settings.changed"; readonly settings: SettingsState }
   | { readonly type: "random.drawn"; readonly purpose: string; readonly value: number }
+  | CasinoEvent
+  | BlackHoleEvent
+  | CosmicRipEvent
+  | PhilosophyEvent
+  | MetaProgressionEvent
   | SpaceEvent
   | TimerEvent
-  | ResourceTransactionEvent;
+  | ResourceTransactionEvent
+  | AchievementUnlockedEvent
+  | RandomEventEngineEvent
+  | NewsTickerEvent;
 
 export interface EngineResult {
   readonly accepted: boolean;
@@ -302,10 +413,11 @@ function buildingCost(
   buildingId: FixedUpgradeId,
   owned = state.run.upgrades[buildingId] ?? 0,
 ) {
+  const energyDroneDiscount = 0.95 ** philosophyRepeatableRank(state, "energyDrones");
   if (buildingId in SCIENCE_BUILDINGS) {
     return {
       cash: scaledPriceAfterPurchases(
-        SCIENCE_BUILDINGS[buildingId as keyof typeof SCIENCE_BUILDINGS].price,
+        SCIENCE_BUILDINGS[buildingId as keyof typeof SCIENCE_BUILDINGS].price * energyDroneDiscount,
         owned,
       ),
       materials: [] as readonly { goodId: EconomicGoodId; amount: number }[],
@@ -313,10 +425,10 @@ function buildingCost(
   }
   const base = ENERGY_BUILDINGS[buildingId as keyof typeof ENERGY_BUILDINGS].price;
   return {
-    cash: scaledPriceAfterPurchases(base.cash, owned),
+    cash: scaledPriceAfterPurchases(base.cash * energyDroneDiscount, owned),
     materials: base.materials.map((entry) => ({
       ...entry,
-      amount: scaledPriceAfterPurchases(entry.amount, owned),
+      amount: scaledPriceAfterPurchases(entry.amount * energyDroneDiscount, owned),
     })),
   };
 }
@@ -397,6 +509,18 @@ function hasPermanentPerk(state: GameState, perkId: string): boolean {
   return state.permanent.acquiredPerks.includes(perkId);
 }
 
+function storageMultiplier(state: GameState, goodId: EconomicGoodId): number {
+  const philosophyMultiplier =
+    state.permanent.philosophyId === "constructor" && state.run.philosophyAbilityActive ? 5 : 2;
+  const isMaterial = MATERIAL_IDS.includes(goodId as MaterialId);
+  return (
+    philosophyMultiplier *
+    (isMaterial
+      ? state.run.newsTicker.resourceStorageMultiplier
+      : state.run.newsTicker.compoundStorageMultiplier)
+  );
+}
+
 function storageCosts(
   state: GameState,
   goodId: EconomicGoodId,
@@ -415,7 +539,9 @@ function canBuyStorage(state: GameState, goodId: EconomicGoodId): boolean {
   const purchases = permanentPerkPurchaseCount(state.permanent.acquiredPerks, "efficientStorage");
   return (
     goodUnlocked(state, goodId) &&
-    Number.isFinite(storageCapacityAfterPurchase(capacity, purchases)) &&
+    Number.isFinite(
+      storageCapacityAfterPurchase(capacity, purchases, storageMultiplier(state, goodId)),
+    ) &&
     storageCosts(state, goodId).every(({ goodId: inputId, amount }) =>
       canAfford(state.run.goods[inputId].quantity, amount),
     )
@@ -580,6 +706,8 @@ function isValidClockInput(input: ClockInput): boolean {
       (Number.isFinite(input.offlineElapsedMs) && input.offlineElapsedMs >= 0)) &&
     (input.timeWarpMultiplier === undefined ||
       (Number.isFinite(input.timeWarpMultiplier) && input.timeWarpMultiplier > 0)) &&
+    (input.timeWarpRemainingMs === undefined ||
+      (Number.isFinite(input.timeWarpRemainingMs) && input.timeWarpRemainingMs >= 0)) &&
     (input.blackHolePower === undefined ||
       (Number.isFinite(input.blackHolePower) && input.blackHolePower > 0)) &&
     (input.blackHoleAlwaysOn === undefined || typeof input.blackHoleAlwaysOn === "boolean")
@@ -594,6 +722,26 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
     };
   }
   if (isSpaceCommand(command)) return checkSpacePreconditions(state, command);
+  if (isBlackHoleCommand(command)) {
+    const failure = checkBlackHoleCommand(state, command);
+    return failure ? { ok: false, failure } : { ok: true };
+  }
+  if (isCosmicRipCommand(command)) {
+    const failure = checkCosmicRipCommand(state, command);
+    return failure ? { ok: false, failure } : { ok: true };
+  }
+  if (isCasinoCommand(command)) {
+    const failure = checkCasinoCommand(state, command);
+    return failure ? { ok: false, failure } : { ok: true };
+  }
+  if (isPhilosophyCommand(command)) {
+    const failure = checkPhilosophyCommand(state, command);
+    return failure ? { ok: false, failure } : { ok: true };
+  }
+  if (isMetaProgressionCommand(command)) {
+    const failure = checkMetaProgressionCommand(state, command);
+    return failure ? { ok: false, failure } : { ok: true };
+  }
   switch (command.type) {
     case "upgrade.purchase":
       return checkPurchase(state, command);
@@ -651,6 +799,7 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
           storageCapacityAfterPurchase(
             target.storageCapacity,
             permanentPerkPurchaseCount(state.permanent.acquiredPerks, "efficientStorage"),
+            storageMultiplier(state, command.goodId),
           ),
         ) ||
         !Number.isSafeInteger((state.run.upgrades[storageUpgradeId(command.goodId)] ?? 0) + 1)
@@ -746,7 +895,14 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
         };
       const upgradeId = autobuyerUpgradeId(command.goodId, command.tier);
       const owned = state.run.upgrades[upgradeId] ?? 0;
-      const price = scaledPriceAfterPurchases(def.price, owned, ECONOMY_PRICE_MULTIPLIER);
+      const discount = MATERIAL_IDS.includes(command.goodId as MaterialId)
+        ? 0.95 ** philosophyRepeatableRank(state, "laserMining")
+        : 1;
+      const price = scaledPriceAfterPurchases(
+        def.price * discount,
+        owned,
+        ECONOMY_PRICE_MULTIPLIER,
+      );
       return Number.isFinite(price) && canAfford(state.run.goods[command.goodId].quantity, price)
         ? { ok: true }
         : {
@@ -785,7 +941,10 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
       const upgradeId = autobuyerUpgradeId(command.goodId, command.tier);
       const owned = state.run.upgrades[upgradeId] ?? 0;
       return affordablePurchaseCount(
-        definition.price,
+        definition.price *
+          (MATERIAL_IDS.includes(command.goodId as MaterialId)
+            ? 0.95 ** philosophyRepeatableRank(state, "laserMining")
+            : 1),
         owned,
         state.run.goods[command.goodId].quantity,
       ).count > 0
@@ -796,7 +955,13 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
               code: "insufficient-material",
               messageKey: "engine.purchase.insufficient-material",
               goodId: command.goodId,
-              required: scaledPriceAfterPurchases(definition.price, owned),
+              required: scaledPriceAfterPurchases(
+                definition.price *
+                  (MATERIAL_IDS.includes(command.goodId as MaterialId)
+                    ? 0.95 ** philosophyRepeatableRank(state, "laserMining")
+                    : 1),
+                owned,
+              ),
             },
           };
     }
@@ -823,7 +988,7 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
           failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
         };
       const output = state.run.goods[command.goodId];
-      const recipe = compoundDefinition(command.goodId).recipe;
+      const recipe = philosophyCompoundRecipe(state, command.goodId);
       const enoughInputs = recipe.every((input) =>
         canAfford(state.run.goods[input.goodId].quantity, input.amount * command.amount),
       );
@@ -878,6 +1043,7 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
         !definition ||
         state.run.economy.researchedTechnologies.includes(command.technologyId) ||
         !state.run.economy.revealedTechnologies.includes(command.technologyId) ||
+        !megastructureResearchAvailable(state, command.technologyId) ||
         !definition.requires.every((id) => state.run.economy.researchedTechnologies.includes(id))
       )
         return {
@@ -937,11 +1103,14 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
           },
         };
       if (command.buildingId.startsWith("battery")) {
-        const baseCapacity = (
-          ENERGY_BUILDINGS[command.buildingId as "battery1" | "battery2" | "battery3"] as {
-            readonly capacity: number;
-          }
-        ).capacity;
+        const baseCapacity =
+          (
+            ENERGY_BUILDINGS[command.buildingId as "battery1" | "battery2" | "battery3"] as {
+              readonly capacity: number;
+            }
+          ).capacity *
+          megastructureBatteryCapacityMultiplier(state) *
+          state.run.newsTicker.powerCapacityMultiplier;
         if (!Number.isFinite(state.run.economy.power.capacity + baseCapacity * plan.count))
           return {
             ok: false,
@@ -1074,6 +1243,31 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
             ok: false,
             failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
           };
+    case "random-event.force":
+      return RANDOM_EVENT_IDS.includes(command.eventId) &&
+        randomEventEligible(state, command.eventId)
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+          };
+    case "news.ticker.force":
+      return (command.category === undefined || NEWS_CATEGORIES.includes(command.category)) &&
+        (command.id === undefined || Number.isSafeInteger(command.id))
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+          };
+    case "news.prize.claim":
+      return Number.isSafeInteger(command.id) && checkNewsPrizeClaim(state, command.id)
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+          };
+    case "onboarding.complete":
+      return { ok: true };
   }
 }
 
@@ -1082,11 +1276,7 @@ function validateSettingsPatch(patch: Partial<SettingsState>): boolean {
   const validKeys = new Set(["locale", "themeId", "notation", "soundEnabled", "reducedMotion"]);
   if (Object.keys(patch).some((key) => !validKeys.has(key))) return false;
   if (patch.locale !== undefined && !LOCALE_IDS.includes(patch.locale)) return false;
-  if (
-    patch.themeId !== undefined &&
-    (typeof patch.themeId !== "string" || patch.themeId.length === 0)
-  )
-    return false;
+  if (patch.themeId !== undefined && !isThemeId(patch.themeId)) return false;
   if (
     patch.notation !== undefined &&
     patch.notation !== "standard" &&
@@ -1108,7 +1298,7 @@ function incrementAccepted(state: GameState): GameState {
   };
 }
 
-export function transition(state: GameState, command: GameCommand): EngineResult {
+function transitionRaw(state: GameState, command: GameCommand): EngineResult {
   try {
     if (!isValidGameState(state)) {
       return reject(createInitialGameState(), {
@@ -1120,8 +1310,50 @@ export function transition(state: GameState, command: GameCommand): EngineResult
     if (!precondition.ok) {
       return reject(state, precondition.failure);
     }
+    if (command.type === "random-event.force") {
+      const applied = forceRandomEvent(state, command.eventId);
+      return applied
+        ? success(incrementAccepted(applied.state), applied.events, state)
+        : reject(state, { code: "invalid-command", messageKey: "engine.error.invalid-command" });
+    }
+    if (command.type === "news.ticker.force") {
+      const applied = forceNewsTicker(state, command.category, command.id);
+      return applied
+        ? success(incrementAccepted(applied.state), applied.events, state)
+        : reject(state, { code: "invalid-command", messageKey: "engine.error.invalid-command" });
+    }
+    if (command.type === "news.prize.claim") {
+      const applied = claimNewsPrize(state, command.id);
+      return applied
+        ? success(incrementAccepted(applied.state), applied.events, state)
+        : reject(state, { code: "invalid-command", messageKey: "engine.error.invalid-command" });
+    }
+    if (isBlackHoleCommand(command)) {
+      const applied = applyBlackHoleCommand(state, command);
+      return success(incrementAccepted(applied.state), applied.events, state);
+    }
+    if (isCosmicRipCommand(command)) {
+      const applied = applyCosmicRipCommand(state, command);
+      return success(incrementAccepted(applied.state), applied.events, state);
+    }
+    if (isCasinoCommand(command)) {
+      const applied = applyCasinoCommand(state, command);
+      return success(
+        incrementAccepted(applied.state),
+        [...applied.events, ...(applied.otherEvents ?? [])],
+        state,
+      );
+    }
+    if (isPhilosophyCommand(command)) {
+      const applied = applyPhilosophyCommand(state, command);
+      return success(incrementAccepted(applied.state), applied.events, state);
+    }
     if (isSpaceCommand(command)) {
       const applied = applySpaceCommand(state, command);
+      return success(incrementAccepted(applied.state), applied.events, state);
+    }
+    if (isMetaProgressionCommand(command)) {
+      const applied = applyMetaProgressionCommand(state, command);
       return success(incrementAccepted(applied.state), applied.events, state);
     }
 
@@ -1173,6 +1405,7 @@ export function transition(state: GameState, command: GameCommand): EngineResult
         const capacity = storageCapacityAfterPurchase(
           good.storageCapacity,
           permanentPerkPurchaseCount(state.permanent.acquiredPerks, "efficientStorage"),
+          storageMultiplier(state, command.goodId),
         );
         const upgradeId = storageUpgradeId(command.goodId);
         const goods: Record<EconomicGoodId, GoodState> = { ...state.run.goods };
@@ -1222,6 +1455,7 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           const capacity = storageCapacityAfterPurchase(
             good.storageCapacity,
             permanentPerkPurchaseCount(candidate.permanent.acquiredPerks, "efficientStorage"),
+            storageMultiplier(candidate, goodId),
           );
           goods[goodId] = { ...goods[goodId], storageCapacity: capacity };
           const upgradeId = storageUpgradeId(goodId);
@@ -1275,7 +1509,14 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           });
         const upgradeId = autobuyerUpgradeId(command.goodId, command.tier);
         const owned = state.run.upgrades[upgradeId] ?? 0;
-        const price = scaledPriceAfterPurchases(definition.price, owned, ECONOMY_PRICE_MULTIPLIER);
+        const discount = MATERIAL_IDS.includes(command.goodId as MaterialId)
+          ? 0.95 ** philosophyRepeatableRank(state, "laserMining")
+          : 1;
+        const price = scaledPriceAfterPurchases(
+          definition.price * discount,
+          owned,
+          ECONOMY_PRICE_MULTIPLIER,
+        );
         const good = state.run.goods[command.goodId];
         const goods: Record<EconomicGoodId, GoodState> = {
           ...state.run.goods,
@@ -1293,7 +1534,14 @@ export function transition(state: GameState, command: GameCommand): EngineResult
         const upgradeId = autobuyerUpgradeId(command.goodId, command.tier);
         const owned = state.run.upgrades[upgradeId] ?? 0;
         const stock = state.run.goods[command.goodId];
-        const purchase = affordablePurchaseCount(definition.price, owned, stock.quantity);
+        const purchase = affordablePurchaseCount(
+          definition.price *
+            (MATERIAL_IDS.includes(command.goodId as MaterialId)
+              ? 0.95 ** philosophyRepeatableRank(state, "laserMining")
+              : 1),
+          owned,
+          stock.quantity,
+        );
         const goods = {
           ...state.run.goods,
           [command.goodId]: { ...stock, quantity: settleSpend(stock.quantity, purchase.totalCost) },
@@ -1330,8 +1578,7 @@ export function transition(state: GameState, command: GameCommand): EngineResult
       }
       case "economy.compound.create": {
         const goods: Record<EconomicGoodId, GoodState> = { ...state.run.goods };
-        const definition = COMPOUND_CATALOG[command.goodId];
-        for (const input of definition.recipe)
+        for (const input of philosophyCompoundRecipe(state, command.goodId))
           goods[input.goodId] = {
             ...goods[input.goodId],
             quantity: settleSpend(goods[input.goodId].quantity, input.amount * command.amount),
@@ -1399,7 +1646,15 @@ export function transition(state: GameState, command: GameCommand): EngineResult
               random: firstDiscovery ? state.run.random : draw.state,
             },
           }),
-          [{ type: "resource.collected", goodId: command.targetId, amount }],
+          [
+            { type: "resource.collected", goodId: command.targetId, amount },
+            {
+              type: "economy.fusion.completed",
+              sourceId: command.sourceId,
+              targetId: command.targetId,
+              amount,
+            },
+          ],
           state,
         );
       }
@@ -1428,24 +1683,28 @@ export function transition(state: GameState, command: GameCommand): EngineResult
                 deficitMs: 0,
               }
             : state.run.economy.power;
-        return success(
-          incrementAccepted({
-            ...state,
-            run: {
-              ...state.run,
-              researchPoints: state.run.researchPoints - technology.price,
-              economy: {
-                ...state.run.economy,
-                power,
-                researchedTechnologies,
-                unlockedCompounds,
-                revealedTechnologies,
-              },
+        const researchedState = incrementAccepted({
+          ...state,
+          run: {
+            ...state.run,
+            researchPoints: state.run.researchPoints - technology.price,
+            economy: {
+              ...state.run.economy,
+              power,
+              researchedTechnologies,
+              unlockedCompounds,
+              revealedTechnologies,
             },
-          }),
-          [],
-          state,
-        );
+          },
+        });
+        const previousForceFieldLevel = miaplacidusForceFieldLevel(state);
+        const nextState = applyMegastructureTechnology(researchedState, command.technologyId);
+        const events: EngineEvent[] = [
+          { type: "technology.researched", technologyId: command.technologyId },
+        ];
+        if (previousForceFieldLevel < 4 && miaplacidusForceFieldLevel(nextState) >= 4)
+          events.push({ type: "megastructure.force-field-breached" });
+        return success(nextState, events, state);
       }
       case "economy.building.purchase": {
         const cost = buildingCost(state, command.buildingId);
@@ -1466,11 +1725,14 @@ export function transition(state: GameState, command: GameCommand): EngineResult
         };
         let power = state.run.economy.power;
         if (command.buildingId.startsWith("battery")) {
-          const capacity = (
-            ENERGY_BUILDINGS[command.buildingId as "battery1" | "battery2" | "battery3"] as {
-              readonly capacity: number;
-            }
-          ).capacity;
+          const capacity =
+            (
+              ENERGY_BUILDINGS[command.buildingId as "battery1" | "battery2" | "battery3"] as {
+                readonly capacity: number;
+              }
+            ).capacity *
+            megastructureBatteryCapacityMultiplier(state) *
+            state.run.newsTicker.powerCapacityMultiplier;
           const totalCapacity = power.capacity + capacity;
           power = {
             ...power,
@@ -1517,7 +1779,10 @@ export function transition(state: GameState, command: GameCommand): EngineResult
               ENERGY_BUILDINGS[command.buildingId as "battery1" | "battery2" | "battery3"] as {
                 readonly capacity: number;
               }
-            ).capacity * plan.count;
+            ).capacity *
+            megastructureBatteryCapacityMultiplier(state) *
+            state.run.newsTicker.powerCapacityMultiplier *
+            plan.count;
           const totalCapacity = power.capacity + capacity;
           power = {
             ...power,
@@ -1639,17 +1904,54 @@ export function transition(state: GameState, command: GameCommand): EngineResult
         );
       }
       case "clock.advance": {
-        const advanced = advanceClock(state.run.clock, command.input);
+        const timedWarpActive = state.run.timeWarp.remainingMs > 0;
+        const alwaysOnBlackHole = state.permanent.blackHole.alwaysOn;
+        const clockInput = timedWarpActive
+          ? {
+              ...command.input,
+              timeWarpMultiplier: state.run.timeWarp.multiplier,
+              ...(alwaysOnBlackHole
+                ? { blackHoleAlwaysOn: true, blackHolePower: state.permanent.blackHole.power }
+                : { timeWarpRemainingMs: state.run.timeWarp.remainingMs }),
+            }
+          : alwaysOnBlackHole
+            ? {
+                ...command.input,
+                blackHoleAlwaysOn: true,
+                blackHolePower: state.permanent.blackHole.power,
+              }
+            : command.input;
+        const advanced = advanceClock(state.run.clock, clockInput);
+        const wallElapsedMs = advanced.steps.reduce(
+          (total, step) => total + (step.phase === "wall" ? step.elapsedMs : 0),
+          0,
+        );
+        const offlineElapsedMs = advanced.steps.reduce(
+          (total, step) => total + (step.phase === "offline" ? step.offlineElapsedMs : 0),
+          0,
+        );
+        const returnedFromHidden = !state.run.clock.foreground;
+        const warpElapsedMs = returnedFromHidden
+          ? Math.max(wallElapsedMs, offlineElapsedMs)
+          : wallElapsedMs + offlineElapsedMs;
+        const warpRemainingBefore = state.run.timeWarp.remainingMs;
+        const timeWarp = timedWarpActive
+          ? state.run.timeWarp.remainingMs > warpElapsedMs
+            ? { ...state.run.timeWarp, remainingMs: state.run.timeWarp.remainingMs - warpElapsedMs }
+            : { multiplier: 1, remainingMs: 0 }
+          : state.run.timeWarp;
         const powerPrepared = prepareSpaceSurveyPower(state, command.tickPlan, advanced.steps);
         let nextState: GameState = {
           ...powerPrepared,
-          run: { ...powerPrepared.run, clock: advanced.state },
+          run: { ...powerPrepared.run, clock: advanced.state, timeWarp },
         };
         const events: EngineEvent[] = [];
         let cashEarned = 0;
         let goodsProduced = 0;
         let precipitationCollected = 0;
+        let foregroundActiveMs = 0;
         for (const step of advanced.steps) {
+          if (step.phase === "foreground") foregroundActiveMs += step.elapsedMs;
           const elapsedMs =
             step.phase === "foreground"
               ? step.warpedElapsedMs
@@ -1661,6 +1963,9 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           const timerStep = advanceTimers(nextState.run.timers, [step]);
           nextState = { ...nextState, run: { ...nextState.run, timers: timerStep.timers } };
           events.push(...timerStep.events);
+          const blackHoleTimerCompletion = completeBlackHoleTimers(nextState, timerStep.events);
+          nextState = blackHoleTimerCompletion.state;
+          events.push(...blackHoleTimerCompletion.events);
           const surveyCompletion = completeSpaceSurveys(nextState, timerStep.events);
           nextState = surveyCompletion.state;
           events.push(...surveyCompletion.events);
@@ -1673,6 +1978,10 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           const battleCompletion = completeSpaceBattles(nextState, timerStep.events);
           nextState = battleCompletion.state;
           events.push(...battleCompletion.events);
+          const cosmicRipStep = advanceCosmicRip(nextState, elapsedMs);
+          nextState = cosmicRipStep.state;
+          events.push(...cosmicRipStep.events);
+          if (step.phase === "wall") nextState = advanceGalacticMarket(nextState, step.elapsedMs);
           if (elapsedMs <= 0) continue;
           const miningElapsedByRocket: Partial<Record<(typeof ROCKET_IDS)[number], number>> = {};
           for (const rocketId of ROCKET_IDS) {
@@ -1754,6 +2063,7 @@ export function transition(state: GameState, command: GameCommand): EngineResult
                 (technology) =>
                   revealedBeforePurchase.includes(technology.id) &&
                   !researchedTechnologies.includes(technology.id) &&
+                  !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(technology.id) &&
                   technology.requires.every((required) =>
                     researchedTechnologies.includes(required),
                   ) &&
@@ -1797,6 +2107,25 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           goodsProduced += transaction.goodsProduced;
           precipitationCollected += transaction.precipitationCollected;
           events.push(...transaction.events);
+          const eventStep = advanceRandomEvents(nextState, elapsedMs);
+          nextState = eventStep.state;
+          events.push(...eventStep.events);
+          const newsStep = advanceNewsTicker(nextState, elapsedMs);
+          nextState = newsStep.state;
+          events.push(...newsStep.events);
+        }
+        if (
+          state.run.blackHoleWarpActive &&
+          warpRemainingBefore > 0 &&
+          timeWarp.remainingMs === 0
+        ) {
+          const elapsedAfterWarpMs = returnedFromHidden
+            ? Math.max(0, offlineElapsedMs - warpRemainingBefore)
+            : Math.max(0, wallElapsedMs - warpRemainingBefore) +
+              Math.max(0, offlineElapsedMs - Math.max(0, warpRemainingBefore - wallElapsedMs));
+          const ended = finishBlackHoleWarp(nextState, elapsedAfterWarpMs);
+          nextState = ended.state;
+          events.push(...ended.events);
         }
         nextState = {
           ...nextState,
@@ -1812,12 +2141,21 @@ export function transition(state: GameState, command: GameCommand): EngineResult
             ...nextState.statistics,
             lifetimeCashEarned: nextState.statistics.lifetimeCashEarned + cashEarned,
             lifetimeGoodsProduced: nextState.statistics.lifetimeGoodsProduced + goodsProduced,
+            lifetimeActiveMs: Math.min(
+              Number.MAX_SAFE_INTEGER,
+              nextState.statistics.lifetimeActiveMs + foregroundActiveMs,
+            ),
             completedTimers: Math.min(
               Number.MAX_SAFE_INTEGER,
               nextState.statistics.completedTimers +
                 events.reduce(
                   (total, event) =>
-                    total + (event.type === "timer.completed" ? event.completions : 0),
+                    total +
+                    (event.type === "timer.completed"
+                      ? event.completions
+                      : event.type === "black-hole.charge-completed"
+                        ? 1
+                        : 0),
                   0,
                 ),
             ),
@@ -1910,8 +2248,12 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           completed.events,
         );
         const battleCompletion = completeSpaceBattles(weatherCompletion.state, completed.events);
+        const blackHoleCompletion = completeBlackHoleTimers(
+          battleCompletion.state,
+          completed.events,
+        );
         const nextState = incrementAccepted({
-          ...battleCompletion.state,
+          ...blackHoleCompletion.state,
           statistics: {
             ...state.statistics,
             completedTimers: Math.min(
@@ -1928,6 +2270,7 @@ export function transition(state: GameState, command: GameCommand): EngineResult
             ...journeyCompletion.events,
             ...weatherCompletion.events,
             ...battleCompletion.events,
+            ...blackHoleCompletion.events,
           ],
           state,
         );
@@ -1952,10 +2295,26 @@ export function transition(state: GameState, command: GameCommand): EngineResult
           state,
         );
       }
+      case "onboarding.complete":
+        return success(incrementAccepted(state), [{ type: "onboarding.completed" }], state);
     }
   } catch {
     return reject(state, { code: "transition-failed", messageKey: "engine.error.recovered" });
   }
+}
+
+/** Apply achievements once, after an accepted command has completed its normal state transition. */
+export function transition(state: GameState, command: GameCommand): EngineResult {
+  const result = transitionRaw(state, command);
+  if (!result.accepted) return result;
+  const achievements = applyAchievementBoundary(state, result.state, result.events);
+  if (!isValidGameState(achievements.state))
+    return reject(state, { code: "transition-failed", messageKey: "engine.error.recovered" });
+  return {
+    ...result,
+    state: achievements.state,
+    events: [...result.events, ...achievements.events],
+  };
 }
 
 export function canAffordPurchaseSelector(

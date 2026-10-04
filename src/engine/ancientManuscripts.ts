@@ -7,6 +7,7 @@ import {
   type StarCatalogueEntry,
 } from "../content/starCatalogue";
 import { createSystemRandom } from "./systemRandom";
+import { MEGASTRUCTURE_IDS } from "../content/technology";
 
 const MANUSCRIPT_THRESHOLDS = [5, 20, 35, 45] as const;
 const FACTORY_DISTANCE_BANDS = [
@@ -129,6 +130,16 @@ export function generateAncientManuscriptAtStudyMilestone(
     createSystemRandom(`${current.id}:factory:${position}`),
   );
   if (!factoryStar) return existing;
+  const assignedStructures = new Set(existing.map((record) => record.megastructureId));
+  const structureCandidates =
+    position === 4
+      ? (["dysonSphere"] as const).filter((id) => !assignedStructures.has(id))
+      : MEGASTRUCTURE_IDS.filter((id) => id !== "dysonSphere" && !assignedStructures.has(id));
+  const megastructureId = choose(
+    structureCandidates,
+    createSystemRandom(`${current.id}:factory-structure:${position}`),
+  );
+  if (!megastructureId) return existing;
 
   return [
     ...existing,
@@ -136,6 +147,7 @@ export function generateAncientManuscriptAtStudyMilestone(
       position: position as 1 | 2 | 3 | 4,
       manuscriptSystemId: manuscriptStar.id,
       factorySystemId: factoryStar.id,
+      megastructureId,
       reported: false,
     },
   ];

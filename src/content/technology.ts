@@ -11,6 +11,47 @@ export interface TechnologyDefinition {
   readonly special?: "megastructure";
 }
 
+export const MEGASTRUCTURE_IDS = [
+  "dysonSphere",
+  "celestialProcessingCore",
+  "plasmaForge",
+  "galacticMemoryArchive",
+] as const;
+export type MegastructureId = (typeof MEGASTRUCTURE_IDS)[number];
+
+/** The original game researches these 20 stages as four independent, ordered tracks. */
+export const MEGASTRUCTURE_TRACKS: Readonly<Record<MegastructureId, readonly TechId[]>> = {
+  dysonSphere: [
+    "dysonSphereUnderstanding",
+    "dysonSphereCapabilities",
+    "dysonSphereDisconnect",
+    "dysonSpherePower",
+    "dysonSphereConnect",
+  ],
+  celestialProcessingCore: [
+    "celestialProcessingCoreUnderstanding",
+    "celestialProcessingCoreCapabilities",
+    "celestialProcessingCoreDisconnect",
+    "celestialProcessingCorePower",
+    "celestialProcessingCoreConnect",
+  ],
+  plasmaForge: [
+    "plasmaForgeUnderstanding",
+    "plasmaForgeCapabilities",
+    "plasmaForgeDisconnect",
+    "plasmaForgePower",
+    "plasmaForgeConnect",
+  ],
+  galacticMemoryArchive: [
+    "galacticMemoryArchiveUnderstanding",
+    "galacticMemoryArchiveCapabilities",
+    "galacticMemoryArchiveDisconnect",
+    "galacticMemoryArchivePower",
+    "galacticMemoryArchiveConnect",
+  ],
+};
+export const MEGASTRUCTURE_TECHNOLOGY_IDS = Object.values(MEGASTRUCTURE_TRACKS).flat();
+
 /** Source-backed catalogue extracted from docs/audit/foundation-economy.md. */
 export const TECHNOLOGY_CATALOG = [
   {

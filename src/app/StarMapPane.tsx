@@ -10,6 +10,7 @@ import {
   type StarDataRow,
 } from "../engine/starData";
 import { createStarMapModel, searchStarCatalogue } from "../engine/starMap";
+import { miaplacidusForceFieldLevel } from "../engine/megastructures";
 import type { GameState } from "../engine/state";
 import { starMapText } from "../i18n/starMapMessages";
 import { starshipText } from "../i18n/starshipMessages";
@@ -211,18 +212,20 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
   const locale = state.settings.locale;
   const catalogue = useMemo(() => createStarCatalogue(GALAXY_SEED_DEFAULT), []);
   const hiddenFactoryIds = new Set(
-    state.run.space.ancientManuscripts
+    state.permanent.megastructures.ancientManuscripts
       .filter((record) => !record.reported)
       .map((record) => record.factorySystemId),
   );
+  const forceFieldLevel = miaplacidusForceFieldLevel(state);
   const model = useMemo(
     () =>
       createStarMapModel(
         catalogue,
         state.run.space.currentSystemId,
         state.run.space.starStudyRange,
+        forceFieldLevel,
       ),
-    [catalogue, state.run.space.currentSystemId, state.run.space.starStudyRange],
+    [catalogue, state.run.space.currentSystemId, state.run.space.starStudyRange, forceFieldLevel],
   );
   const currentNode = model.find((node) => node.current);
   const currentSystemIdentity = state.run.space.currentSystemId;
@@ -255,12 +258,12 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
         catalogue,
         state.run.space.systemProfiles,
         currentSystemIdentity,
-        state.run.space.ancientManuscripts,
+        state.permanent.megastructures.ancientManuscripts,
       ),
     [
       catalogue,
       state.run.space.systemProfiles,
-      state.run.space.ancientManuscripts,
+      state.permanent.megastructures.ancientManuscripts,
       currentSystemIdentity,
     ],
   );

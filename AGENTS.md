@@ -35,6 +35,8 @@ The `tests/e2e/<area>/` taxonomy mirrors Cosmic Forge. New specs should drive re
 
 Run focused tests for the requested area without additional approval. **Ask the user before a full test-suite run** as required by this project's inherited workflow; explain that this rule comes from `IncrementalGame/AGENTS.md`. Audit and planning work do not require a suite run.
 
+When a full suite is run for a requested work section, run it once for that section. If test fixes are needed based on that run, rerun only the affected test areas; do not repeat the full suite solely to verify those fixes. This supplements the focused-check rule above and preserves the user-approval requirement for full-suite runs.
+
 ## Quick mode
 
 If the user writes the exact code word `QMODE`, a clearly minor change may skip the formal handoff and new tests. Document any behavior or data-format change and keep the parity ledger current.

@@ -359,7 +359,8 @@ describe("M-03 economy catalogue and shared rules", () => {
       expect(result.accepted, JSON.stringify(result.failure)).toBe(true);
       tenSeconds = result.state;
     }
-    expect(tenSeconds.run.goods.hydrogen.quantity).toBe(20);
+    // Building Plant 1 unlocks the 1.1x production achievement after its first tick.
+    expect(tenSeconds.run.goods.hydrogen.quantity).toBeCloseTo(21.8, 8);
     expect(tenSeconds.run.goods.carbon.quantity).toBe(70);
     expect(tenSeconds.run.researchPoints).toBe(55);
   });

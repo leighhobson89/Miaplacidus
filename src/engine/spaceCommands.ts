@@ -9,6 +9,7 @@ import type {
   TelescopeSurvey,
   StarshipModuleId,
 } from "../content/space";
+import type { MegastructureId } from "../content/technology";
 
 export type SpaceCommand =
   | { readonly type: "space.telescope.build" }
@@ -225,14 +226,21 @@ export type SpaceEvent =
       readonly type: "space.battle.finished";
       readonly systemId: SystemId;
       readonly result: "victory" | "defeat";
+      readonly scannerBuilt: boolean;
     }
   | {
       readonly type: "space.system.settled";
       readonly systemId: SystemId;
       readonly ascendencyPoints: number;
-      readonly gloryPoints: number;
       readonly oTypePlantId?: "powerPlant1" | "powerPlant2" | "powerPlant3";
     }
+  | {
+      readonly type: "space.manuscript.reported";
+      readonly manuscriptSystemId: SystemId;
+      readonly factorySystemId: SystemId;
+      readonly megastructureId: MegastructureId;
+    }
+  | { readonly type: "space.miaplacidus.story-ready" }
   | {
       readonly type: "space.starship.travel.shortened";
       readonly systemId: SystemId;
@@ -279,6 +287,11 @@ export type SpaceEvent =
       readonly name: string;
     }
   | { readonly type: "space.stars.studied"; readonly range: number }
+  | {
+      readonly type: "black-hole.discovery-checked";
+      readonly probability: number;
+      readonly discovered: boolean;
+    }
   | {
       readonly type: "space.void-pillage.completed";
       readonly gains: Readonly<Partial<Record<EconomicGoodId, number>>>;

@@ -10,6 +10,7 @@ import {
 } from "../content/space";
 import { permanentPerkPurchaseCount, scaledPriceAfterPurchases } from "../content/economyRules";
 import type { GameState } from "./state";
+import { philosophyRepeatableRank } from "./philosophy";
 
 export interface PlayerFleetUnitStats {
   readonly attackPower: number;
@@ -31,9 +32,15 @@ export function playerFleetUnitStats(
 ): PlayerFleetUnitStats {
   const definition = PLAYER_FLEETS[fleetId];
   const perks = state.permanent.acquiredPerks;
-  const attackLevel = permanentPerkPurchaseCount(perks, "laserIntensityResearch");
-  const speedLevel = permanentPerkPurchaseCount(perks, "antimatterEngineMinaturization");
-  const healthLevel = permanentPerkPurchaseCount(perks, "syntheticPlating");
+  const attackLevel =
+    permanentPerkPurchaseCount(perks, "laserIntensityResearch") +
+    philosophyRepeatableRank(state, "laserIntensityResearch");
+  const speedLevel =
+    permanentPerkPurchaseCount(perks, "antimatterEngineMinaturization") +
+    philosophyRepeatableRank(state, "antimatterEngineMinaturization");
+  const healthLevel =
+    permanentPerkPurchaseCount(perks, "syntheticPlating") +
+    philosophyRepeatableRank(state, "syntheticPlating");
   return {
     attackPower: definition.baseAttackStrength * FLEET_COMBAT_REPEATABLE_FACTOR ** attackLevel,
     defensePower: definition.defenseStrength,
@@ -49,10 +56,9 @@ export function playerFleetUnitStats(
 export function playerFleetBuildCost(state: GameState, fleetId: PlayerFleetId): SpacePurchaseCost {
   const definition = PLAYER_FLEETS[fleetId];
   const quantity = state.run.space.playerFleets[fleetId];
-  const discountCount = permanentPerkPurchaseCount(
-    state.permanent.acquiredPerks,
-    "hangarAutomation",
-  );
+  const discountCount =
+    permanentPerkPurchaseCount(state.permanent.acquiredPerks, "hangarAutomation") +
+    philosophyRepeatableRank(state, "hangarAutomation");
   const discount = HANGAR_AUTOMATION_COST_FACTOR ** discountCount;
   const price = (base: number) =>
     scaledPriceAfterPurchases(base * discount, quantity, FLEET_BUILD_COST_GROWTH);

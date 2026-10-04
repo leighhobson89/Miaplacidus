@@ -389,21 +389,21 @@ describe("space content rules", () => {
     const initial = createInitialGameState({ seed: 24 });
     const oneLink: GameState = {
       ...initial,
-      run: {
-        ...initial.run,
-        economy: {
-          ...initial.run.economy,
-          researchedTechnologies: ["dysonSphereDisconnect"],
+      permanent: {
+        ...initial.permanent,
+        megastructures: {
+          ...initial.permanent.megastructures,
+          researchedTechnologyIds: ["dysonSphereDisconnect"],
         },
       },
     };
     const fourLinks: GameState = {
       ...oneLink,
-      run: {
-        ...oneLink.run,
-        economy: {
-          ...oneLink.run.economy,
-          researchedTechnologies: [
+      permanent: {
+        ...oneLink.permanent,
+        megastructures: {
+          ...oneLink.permanent.megastructures,
+          researchedTechnologyIds: [
             "dysonSphereDisconnect",
             "celestialProcessingCoreDisconnect",
             "plasmaForgeDisconnect",
@@ -414,11 +414,11 @@ describe("space content rules", () => {
     };
 
     expect(antimatterMiningRatePerSecond(oneLink)).toBe(0.15);
-    expect(antimatterMiningRatePerSecond(fourLinks)).toBe(0.15);
+    expect(antimatterMiningRatePerSecond(fourLinks)).toBe(0.6);
     const generated = advanceSpaceMining(fourLinks, {}, 10_000).state;
-    expect(generated.run.space.antimatter).toBeCloseTo(1.5);
-    expect(generated.run.space.antimatterMinedThisRun).toBeCloseTo(1.5);
-    expect(generated.statistics.lifetimeAntimatterMined).toBeCloseTo(1.5);
+    expect(generated.run.space.antimatter).toBeCloseTo(6);
+    expect(generated.run.space.antimatterMinedThisRun).toBeCloseTo(6);
+    expect(generated.statistics.lifetimeAntimatterMined).toBeCloseTo(6);
     expect(generated.run.space.antimatterUnlocked).toBe(true);
   });
 
@@ -556,7 +556,8 @@ describe("space content rules", () => {
     };
     const launchPad = transition(state, { type: "space.launch-pad.build" });
     expect(launchPad.accepted).toBe(true);
-    expect(launchPad.state.run.cash).toBe(state.run.cash - 40_000);
+    // Initial stock and research also satisfy achievement thresholds worth $2,015.
+    expect(launchPad.state.run.cash).toBe(state.run.cash - 40_000 + 2_015);
     state = launchPad.state;
     for (let part = 0; part < ROCKET_PART_REQUIREMENTS.rocket1; part += 1) {
       const result = transition(state, { type: "space.rocket.part.build", rocketId: "rocket1" });
@@ -724,7 +725,7 @@ describe("space content rules", () => {
       input: { wallNowMs: 1, foreground: true, offlineElapsedMs: 3_000 },
     });
     expect(returning.accepted).toBe(true);
-    expect(returning.state.run.space.antimatter).toBeCloseTo(0.4, 10);
+    expect(returning.state.run.space.antimatter).toBeCloseTo(150.4, 10);
     expect(returning.state.run.space.antimatterMinedThisRun).toBeCloseTo(0.4, 10);
     expect(returning.state.statistics.lifetimeAntimatterMined).toBeCloseTo(0.4, 10);
     expect(returning.state.run.space.antimatterBoostActive).toBe(false);
@@ -749,7 +750,7 @@ describe("space content rules", () => {
       timerId: returnTimerId,
     });
     expect(returned.accepted).toBe(true);
-    expect(returned.state.run.space.antimatter).toBeCloseTo(0.4, 10);
+    expect(returned.state.run.space.antimatter).toBeCloseTo(150.4, 10);
     expect(returned.state.run.space.rockets.rocket1).toMatchObject({
       phase: "ready",
       fuelQuantity: 0,
@@ -763,7 +764,7 @@ describe("space content rules", () => {
       type: "timer.complete",
       timerId: returnTimerId,
     });
-    expect(repeatedReturn.state.run.space.antimatter).toBeCloseTo(0.4, 10);
+    expect(repeatedReturn.state.run.space.antimatter).toBeCloseTo(150.4, 10);
     expect(repeatedReturn.state.run.space.rockets.rocket1.journeyCount).toBe(1);
     expect(repeatedReturn.state.statistics.completedTimers).toBe(2);
   });
@@ -891,7 +892,7 @@ describe("space content rules", () => {
       type: "clock.advance",
       input: { wallNowMs: 1, foreground: true, offlineElapsedMs: 1_000 },
     });
-    expect(advanced.state.run.space.antimatter).toBeCloseTo(1.0528, 8);
+    expect(advanced.state.run.space.antimatter).toBeCloseTo(151.0528, 8);
     expect(advanced.state.run.space.antimatterMinedThisRun).toBeCloseTo(1.0528, 8);
     expect(advanced.state.statistics.lifetimeAntimatterMined).toBeCloseTo(1.0528, 8);
     expect(

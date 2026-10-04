@@ -22,6 +22,14 @@ import {
 import { repeatedPerkMultiplier } from "../content/economyRules";
 import { precipitationForCurrentWeather, weatherGenerationMultiplier } from "./weather";
 import type { GameState } from "./state";
+import { philosophyCompoundRecipe } from "./philosophy";
+import { achievementResourceRateMultiplier } from "./achievements";
+import { activeRandomEventMultiplierForTarget } from "./randomEvents";
+import {
+  megastructurePowerPlantMultiplier,
+  megastructureResearchRateBonus,
+  megastructureResourceRateMultiplier,
+} from "./megastructures";
 import {
   transactResources,
   type CraftingDemand,
@@ -70,16 +78,16 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
   const productionAllocation: NonNullable<TickPlan["productionAllocation"]> = {};
   let demandPerSecond = 0;
   const gridRunning = state.run.economy.power.gridEnabled && !state.run.economy.power.tripped;
-  const autoBuyerMultiplier = repeatedPerkMultiplier(
-    state.permanent.acquiredPerks,
-    "smartAutoBuyers",
-    1.5,
-  );
+  const autoBuyerMultiplier =
+    repeatedPerkMultiplier(state.permanent.acquiredPerks, "smartAutoBuyers", 1.5) *
+    state.run.newsTicker.autoBuyerRateMultiplier;
   const powerPlantMultiplier = repeatedPerkMultiplier(
     state.permanent.acquiredPerks,
     "optimizedPowerGrids",
     1.35,
   );
+  const resourceRateMultiplier =
+    megastructureResourceRateMultiplier(state) * achievementResourceRateMultiplier(state);
   const currentSystemType = starTypeForSystem(state.run.space.currentSystemId);
   const currentSystemIsBType = currentSystemType === "B";
   const powerPlantMultiplierFor = (plantId: "powerPlant1" | "powerPlant2" | "powerPlant3") => {
@@ -107,7 +115,10 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
       const definition = tiers[tier - 1]!;
       const typeBonus =
         isMaterial && currentSystemIsBType ? bTypeAutoBuyerBonusPerSecond(tier) * count : 0;
-      const rate = definition.ratePerSecond * count * autoBuyerMultiplier + typeBonus;
+      const rate =
+        (definition.ratePerSecond * count * autoBuyerMultiplier * resourceRateMultiplier +
+          typeBonus) *
+        activeRandomEventMultiplierForTarget(state, "supplyChainDisruption", goodId);
       if (definition.energyPerSecond > 0) {
         poweredRate += rate;
         if (gridRunning) demandPerSecond += definition.energyPerSecond * count;
@@ -127,7 +138,12 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     const count = owned(state, "powerPlant1");
     if (count > 0) {
       const definition = ENERGY_BUILDINGS.powerPlant1;
-      const rate = definition.ratePerSecond * count * powerPlantMultiplierFor("powerPlant1");
+      const rate =
+        definition.ratePerSecond *
+        count *
+        powerPlantMultiplierFor("powerPlant1") *
+        state.run.newsTicker.powerPlantRateMultiplier *
+        megastructurePowerPlantMultiplier(state);
       generationPerSecond += rate;
       fuel.push({
         goodId: definition.fuel!.goodId,
@@ -142,13 +158,20 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
       owned(state, "powerPlant2") *
       state.run.economy.power.environmentalMultiplier *
       weatherGenerationMultiplier(state.run.space) *
-      powerPlantMultiplierFor("powerPlant2");
+      powerPlantMultiplierFor("powerPlant2") *
+      state.run.newsTicker.powerPlantRateMultiplier *
+      megastructurePowerPlantMultiplier(state);
   }
   if (gridRunning && state.run.economy.buildingEnabled.powerPlant3) {
     const count = owned(state, "powerPlant3");
     if (count > 0) {
       const definition = ENERGY_BUILDINGS.powerPlant3;
-      const rate = definition.ratePerSecond * count * powerPlantMultiplierFor("powerPlant3");
+      const rate =
+        definition.ratePerSecond *
+        count *
+        powerPlantMultiplierFor("powerPlant3") *
+        state.run.newsTicker.powerPlantRateMultiplier *
+        megastructurePowerPlantMultiplier(state);
       generationPerSecond += rate;
       fuel.push({
         goodId: definition.fuel!.goodId,
@@ -198,6 +221,7 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     }
     researchPerSecond += labCount * SCIENCE_BUILDINGS.scienceLab.ratePerSecond;
   }
+  researchPerSecond += megastructureResearchRateBonus(state);
 
   const crafting: CraftingDemand[] = [];
   if (gridRunning && nanoBrokersLevel(state) >= 2) {
@@ -209,7 +233,7 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
         unitsPerSecond: 0,
         inputBudgeted: true,
         priority,
-        inputs: COMPOUND_CATALOG[goodId].recipe.map((input) => ({
+        inputs: philosophyCompoundRecipe(state, goodId).map((input) => ({
           goodId: input.goodId,
           unitsPerOutput: input.amount,
         })),

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
 import { createStarCatalogue, findStarByName } from "../../src/content/starCatalogue";
 import { createInitialStarSystemBattleState } from "../../src/content/space";
-import { compressToEncodedURIComponent } from "lz-string";
+import { compressToEncodedURIComponent, compressToUTF16 } from "lz-string";
 import { createTimer, createTimerId } from "../../src/engine/timers";
 import { STAR_WEATHER_TIMER_ID } from "../../src/engine/weather";
 import {
@@ -134,6 +134,7 @@ describe("local save formats and identity", () => {
       lifetimeCashEarned: 0,
       lifetimeGoodsProduced: 0,
       lifetimeAntimatterMined: 0,
+      lifetimeActiveMs: 0,
       acceptedCommands: 0,
       completedTimers: 0,
     });
@@ -497,7 +498,7 @@ describe("local save formats and identity", () => {
     expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run.space.systemProfiles).toHaveLength(1);
-    expect(migrated.state.run.space.ancientManuscripts).toEqual([]);
+    expect(migrated.state.permanent.megastructures.ancientManuscripts).toEqual([]);
     expect(migrated.state.run.space.systemProfiles[0]).toMatchObject({
       precipitationGoodId: "water",
       weatherChances: { sunny: 30, cloudy: 47, rain: 20, volcano: 3 },
@@ -508,7 +509,6 @@ describe("local save formats and identity", () => {
   it("migrates v12 starship saves with empty manuscript and encounter records", () => {
     const current = envelope("Nova");
     const {
-      ancientManuscripts: _ancientManuscripts,
       systemEncounters: _systemEncounters,
       fleetEnvoyBuilt: _fleetEnvoyBuilt,
       playerFleets: _playerFleets,
@@ -533,7 +533,7 @@ describe("local save formats and identity", () => {
 
     const migrated = decodePortable(oldCode);
     expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
-    expect(migrated.state.run.space.ancientManuscripts).toEqual([]);
+    expect(migrated.state.permanent.megastructures.ancientManuscripts).toEqual([]);
     expect(migrated.state.run.space.systemEncounters).toEqual([]);
     expect(migrated.state.run.space.fleetEnvoyBuilt).toBe(false);
     expect(isSaveEnvelope(migrated)).toBe(true);
@@ -839,6 +839,51 @@ describe("local save formats and identity", () => {
     expect(isSaveEnvelope(migrated)).toBe(true);
   });
 
+  it("migrates v20 saves with default Galactic Market state", () => {
+    const current = envelope("Market Pioneer");
+    const initial = current.state;
+    const {
+      marketLiquidatedThisRun: _liquidated,
+      marketLockdownRemainingMs: _lockdown,
+      ...oldRun
+    } = initial.run;
+    const { galacticMarket: _market, ...oldPermanent } = initial.permanent;
+    const oldState = {
+      ...initial,
+      schemaVersion: 20,
+      run: {
+        ...oldRun,
+        goods: {
+          ...oldRun.goods,
+          hydrogen: { ...oldRun.goods.hydrogen, quantity: 90 },
+        },
+      },
+      permanent: { ...oldPermanent, ascendencyPoints: 42, acquiredPerks: ["smartAutoBuyers:2"] },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 20, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.marketLiquidatedThisRun).toBe(false);
+    expect(migrated.state.run.marketLockdownRemainingMs).toBe(0);
+    expect(migrated.state.permanent.galacticMarket.commissionPercent).toBe(10);
+    expect(migrated.state.permanent.galacticMarket.goods.hydrogen.tradeVolume).toBe(100_000);
+    expect(migrated.state.permanent.ascendencyPoints).toBe(42);
+    expect(migrated.state.permanent.acquiredPerks).toEqual(["smartAutoBuyers:2"]);
+    expect(migrated.state.run.goods.hydrogen.quantity).toBe(90);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
   it("round-trips every interstellar timer with settled-system state after rebirth", () => {
     const initial = createInitialGameState({ pioneerName: "Interstellar Save", seed: 1902 });
     const spaceTimerIds = [
@@ -980,15 +1025,23 @@ describe("local save formats and identity", () => {
         rebirthCount: 8,
         ascendencyPoints: 120,
         gloryPoints: 35,
+        galacticMarket: base.permanent.galacticMarket,
+        galacticCasino: base.permanent.galacticCasino,
+        blackHole: base.permanent.blackHole,
+        megastructures: base.permanent.megastructures,
+        cosmicRip: base.permanent.cosmicRip,
+        achievements: base.permanent.achievements,
         oTypePowerPlantAssignments: base.permanent.oTypePowerPlantAssignments,
         acquiredPerks: Array.from({ length: 500 }, (_, index) => "perk-" + index),
         philosophyId: null,
+        philosophyRepeatableRanks: base.permanent.philosophyRepeatableRanks,
         settledSystemIds: base.permanent.settledSystemIds,
       },
       statistics: {
         lifetimeCashEarned: 9_000_000,
         lifetimeGoodsProduced: 25_000_000,
         lifetimeAntimatterMined: 100,
+        lifetimeActiveMs: 1_800_000,
         acceptedCommands: 900_000,
         completedTimers: 42_000,
       },
@@ -1203,5 +1256,98 @@ describe("local save repository", () => {
     expect(() => repository.exportSlot("00000000-0000-4000-8000-000000000001")).toThrowError(
       /could not be found/i,
     );
+  });
+});
+
+describe("Black Hole save migration", () => {
+  it("adds empty permanent progression and run-local charge fields to v23 saves", () => {
+    const current = envelope("Black Hole Pioneer");
+    const {
+      blackHoleChargeReady: _chargeReady,
+      blackHoleWarpActive: _warpActive,
+      ...oldRun
+    } = current.state.run;
+    const { blackHole: _blackHole, ...oldPermanent } = current.state.permanent;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 23,
+      run: oldRun,
+      permanent: oldPermanent,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 23, state: oldState };
+    const oldCode =
+      PORTABLE_PREFIX +
+      compressToEncodedURIComponent(
+        canonicalJson({
+          ...oldBody,
+          checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+        }),
+      );
+
+    const migrated = decodePortable(oldCode);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.permanent.blackHole).toMatchObject({
+      discovered: false,
+      researched: false,
+      power: 5,
+      durationMs: 3_000,
+    });
+    expect(migrated.state.run.blackHoleChargeReady).toBe(false);
+    expect(migrated.state.run.blackHoleWarpActive).toBe(false);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+});
+
+describe("foreground active-time save migration", () => {
+  it("upgrades a version 29 envelope through the current save decoder", () => {
+    const current = envelope("Active-Time Pioneer");
+    const { lifetimeActiveMs: _active, ...oldStatistics } = current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 29,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 29, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.statistics.lifetimeActiveMs).toBe(0);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("upgrades a version 30 envelope with the theme-history and active-event state", () => {
+    const current = envelope("Theme Migration Pioneer");
+    const { themeIdsTried: _themeIdsTried, ...oldAchievements } =
+      current.state.permanent.achievements;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 30,
+      settings: { ...current.state.settings, themeId: "midnight" },
+      permanent: {
+        ...current.state.permanent,
+        achievements: oldAchievements,
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 30, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.settings.themeId).toBe("terminal");
+    expect(migrated.state.permanent.achievements.themeIdsTried).toEqual(["terminal"]);
+    expect(isSaveEnvelope(migrated)).toBe(true);
   });
 });

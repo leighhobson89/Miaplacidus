@@ -69,6 +69,9 @@ function elapsedForTimer(timer: GameTimer, step: ClockStep): number {
     return timer.policy.warpable ? step.warpedElapsedMs : step.elapsedMs;
   }
   if (step.phase === "offline" && timer.policy.offlineEligible) {
+    // The source charges the Black Hole against elapsed wall time on return,
+    // while ordinary offline production receives the global offline rate.
+    if (timer.domain === "black-hole") return step.offlineElapsedMs;
     return step.elapsedMs;
   }
   return 0;

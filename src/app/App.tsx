@@ -26,6 +26,13 @@ import { EconomyPanes, economyGoodName, economyRatePerSecond } from "./EconomyPa
 import { SpaceMiningPane } from "./SpaceMiningPane";
 import { StarMapPane } from "./StarMapPane";
 import { StarshipPane } from "./StarshipPane";
+import { AscendencyPane } from "./AscendencyPane";
+import { PhilosophyPane } from "./PhilosophyPane";
+import { BlackHolePane } from "./BlackHolePane";
+import { MegastructurePane } from "./MegastructurePane";
+import { MiaplacidusEndgameStory } from "./MiaplacidusEndgameStory";
+import { CosmicRipPane } from "./CosmicRipPane";
+import { SettingsPane } from "./SettingsPane";
 import { SaveStartScreen } from "./SaveStartScreen";
 import { SaveManager } from "./SaveManager";
 import {
@@ -330,6 +337,12 @@ export function App() {
               "space-bully-scared",
               "space-bully-surrender",
               "space-unoccupied",
+              "meta-rebirth-ready",
+              "meta-market-ready",
+              "meta-casino-ready",
+              "meta-black-hole-discovered",
+              "meta-megastructure-route",
+              "meta-cosmic-rip-route",
               "space-late-game",
               "space-manuscript-hidden",
             ].includes(fixture ?? "")
@@ -681,6 +694,7 @@ function GameSession({
   );
 
   function finishHydrogenBriefing() {
+    store.dispatch({ type: "onboarding.complete" });
     if (repository && savePersistent && !saveWritesPaused) {
       try {
         repository.completeHydrogenBriefing(slotId);
@@ -916,7 +930,11 @@ function GameSession({
   ));
 
   return (
-    <div className="game-frame" data-engine-revision={snapshot.revision}>
+    <div
+      className="game-frame"
+      data-theme={snapshot.themeId}
+      data-engine-revision={snapshot.revision}
+    >
       <h1 className="sr-only">{t("app.brand")}</h1>
       <header className="game-header">
         <a className="game-wordmark" href="#game" aria-label={t("app.brand")}>
@@ -1073,7 +1091,14 @@ function GameSession({
               (tab.id === "interstellar" &&
                 currentState.run.economy.researchedTechnologies.includes("stellarCartography")) ||
               (tab.id === "space-mining" &&
-                currentState.run.economy.researchedTechnologies.includes("atmosphericTelescopes"));
+                currentState.run.economy.researchedTechnologies.includes(
+                  "atmosphericTelescopes",
+                )) ||
+              (tab.id === "galaxy" &&
+                (currentState.run.space.ascendencyAwardedThisRun ||
+                  currentState.permanent.rebirthCount > 0)) ||
+              (tab.id === "cosmic-rip" && currentState.permanent.cosmicRip.unlocked) ||
+              tab.id === "settings";
             return (
               <button
                 key={tab.id}
@@ -1529,6 +1554,14 @@ function GameSession({
                   </output>
                   <EconomyPanes tabId="resources" state={store.getState()} store={store} />
                 </>
+              ) : tab.id === "galaxy" &&
+                (store.getState().run.space.ascendencyAwardedThisRun ||
+                  store.getState().permanent.rebirthCount > 0) ? (
+                <>
+                  <AscendencyPane state={store.getState()} store={store} />
+                  <BlackHolePane state={store.getState()} store={store} />
+                  <MegastructurePane state={store.getState()} store={store} />
+                </>
               ) : tab.id === "interstellar" &&
                 store
                   .getState()
@@ -1542,6 +1575,10 @@ function GameSession({
                   .getState()
                   .run.economy.researchedTechnologies.includes("atmosphericTelescopes") ? (
                 <SpaceMiningPane state={store.getState()} store={store} />
+              ) : tab.id === "cosmic-rip" && store.getState().permanent.cosmicRip.unlocked ? (
+                <CosmicRipPane state={store.getState()} store={store} />
+              ) : tab.id === "settings" ? (
+                <SettingsPane state={store.getState()} store={store} />
               ) : index < 4 ? (
                 <EconomyPanes tabId={tab.id} state={store.getState()} store={store} />
               ) : (
@@ -1585,6 +1622,10 @@ function GameSession({
           onClose={() => setSaveManagerOpen(false)}
         />
       )}
+      {store.getState().run.philosophyChoicePending && (
+        <PhilosophyPane state={store.getState()} store={store} />
+      )}
+      <MiaplacidusEndgameStory state={store.getState()} store={store} />
       {DebugTools && (
         <DebugTools
           store={store}

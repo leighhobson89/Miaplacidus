@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createStarCatalogue, findStartingSystem } from "../../src/content/starCatalogue";
+import {
+  createStarCatalogue,
+  distanceBetweenStars,
+  findStartingSystem,
+} from "../../src/content/starCatalogue";
+import type { SystemId } from "../../src/content/ids";
 import { createInitialGameState, isValidGameState } from "../../src/engine/state";
 import {
   generateAncientManuscriptAtStudyMilestone,
@@ -83,14 +88,71 @@ describe("persistent star-system profiles", () => {
     const reported = reportAncientManuscriptsAtSystem(generated, manuscriptSystemId);
     expect(reported[0]?.reported).toBe(true);
     expect(reportAncientManuscriptsAtSystem(reported, manuscriptSystemId)).toBe(reported);
+    const initial = createInitialGameState();
     expect(
       isValidGameState({
-        ...createInitialGameState(),
-        run: {
-          ...createInitialGameState().run,
-          space: { ...createInitialGameState().run.space, ancientManuscripts: generated },
+        ...initial,
+        permanent: {
+          ...initial.permanent,
+          megastructures: {
+            ...initial.permanent.megastructures,
+            ancientManuscripts: generated,
+          },
         },
       }),
     ).toBe(true);
+  });
+
+  it("assigns manuscript positions in milestone order with their source factory distance bands", () => {
+    const catalogue = createStarCatalogue();
+    const current = catalogue.find((star) => star.name === "Spica")!;
+    const thresholds = [5, 20, 35, 45] as const;
+    const factoryBands = [
+      [5, 15],
+      [16, 25],
+      [26, 40],
+      [41, 60],
+    ] as const;
+    const structures = [
+      "celestialProcessingCore",
+      "plasmaForge",
+      "galacticMemoryArchive",
+      "dysonSphere",
+    ] as const;
+
+    for (let index = 0; index < thresholds.length; index += 1) {
+      const existing = structures.slice(0, index).map((megastructureId, priorIndex) => ({
+        position: (priorIndex + 1) as 1 | 2 | 3 | 4,
+        manuscriptSystemId: `unused:manuscript:${priorIndex}` as SystemId,
+        factorySystemId: `unused:factory:${priorIndex}` as SystemId,
+        megastructureId,
+        reported: false,
+      }));
+      const generated = generateAncientManuscriptAtStudyMilestone(
+        existing,
+        current.id,
+        0,
+        thresholds[index]! + 1,
+      );
+      const record = generated[index];
+      const manuscriptStar = catalogue.find((star) => star.id === record?.manuscriptSystemId);
+      const factoryStar = catalogue.find((star) => star.id === record?.factorySystemId);
+      const [minimumFactoryDistance, maximumFactoryDistance] = factoryBands[index]!;
+
+      expect(generated).toHaveLength(index + 1);
+      expect(record).toMatchObject({
+        position: index + 1,
+        megastructureId: structures[index],
+        reported: false,
+      });
+      expect(manuscriptStar).toBeDefined();
+      expect(factoryStar).toBeDefined();
+      expect(manuscriptStar?.id).not.toBe(factoryStar?.id);
+      expect(manuscriptStar?.starType).not.toBe("O");
+      expect(factoryStar?.starType).not.toBe("O");
+      const factoryDistance = factoryStar ? distanceBetweenStars(current, factoryStar) : 0;
+      expect(factoryDistance).toBeGreaterThanOrEqual(minimumFactoryDistance);
+      expect(factoryDistance).toBeLessThanOrEqual(maximumFactoryDistance);
+    }
   });
 });

@@ -1,0 +1,514 @@
+import type { LocaleId } from "../content/ids";
+import type { CasinoGameId, CasinoSpecialPrize } from "../content/galacticCasino";
+
+type CasinoCopy = {
+  readonly title: string;
+  readonly description: string;
+  readonly balance: string;
+  readonly buyTitle: string;
+  readonly payment: string;
+  readonly amount: string;
+  readonly cost: string;
+  readonly buy: string;
+  readonly gamesTitle: string;
+  readonly doubleOrNothing: string;
+  readonly probability: string;
+  readonly stake: string;
+  readonly play: string;
+  readonly wheel: string;
+  readonly spin: string;
+  readonly choosePrize: string;
+  readonly claim: string;
+  readonly higherLower: string;
+  readonly start: string;
+  readonly higher: string;
+  readonly lower: string;
+  readonly cashOut: string;
+  readonly currentCard: string;
+  readonly currentPrize: string;
+  readonly voidSeer: string;
+  readonly tier: string;
+  readonly chance: string;
+  readonly reveal: string;
+  readonly history: string;
+  readonly noHistory: string;
+  readonly runStats: string;
+  readonly allTimeStats: string;
+  readonly plays: string;
+  readonly wins: string;
+  readonly locked: string;
+  readonly purchaseResult: string;
+  readonly win: string;
+  readonly loss: string;
+  readonly specialReady: string;
+  readonly prizeClaimed: string;
+  readonly cashOutResult: string;
+  readonly cardCorrect: string;
+  readonly cardWrong: string;
+  readonly voidWin: string;
+  readonly voidLoss: string;
+  readonly failure: string;
+  readonly cash: string;
+  readonly available: string;
+  readonly cpIn: string;
+  readonly cpOut: string;
+  readonly doubleGood: string;
+  readonly specialRocketWarp: string;
+  readonly specialStarshipWarp: string;
+  readonly specialAsteroid: string;
+  readonly specialStarStudy: string;
+  readonly specialVoidPillage: string;
+  readonly prizeBoostCash: string;
+  readonly prizeBoostResearch: string;
+  readonly prizeTopUpResources: string;
+  readonly prizeTopUpCompounds: string;
+  readonly prizeResearch: string;
+  readonly prizeCash: string;
+  readonly prizeTimeWarp: string;
+};
+
+const COPY: Record<LocaleId, CasinoCopy> = {
+  en: {
+    title: "Galactic Casino",
+    description: "Trade resources for casino points, then test your luck in four games.",
+    balance: "Casino points",
+    buyTitle: "Buy casino points",
+    payment: "Pay with",
+    amount: "Points to buy",
+    cost: "Cost",
+    buy: "Buy points",
+    gamesTitle: "Casino games",
+    doubleOrNothing: "Double or Nothing",
+    probability: "Win chance",
+    stake: "Stake in CP",
+    play: "Play",
+    wheel: "Wheel of Fortune",
+    spin: "Spin for 1 CP",
+    choosePrize: "Choose special prize",
+    claim: "Claim prize",
+    higherLower: "Higher or Lower",
+    start: "Start for 5 CP",
+    higher: "Higher",
+    lower: "Lower",
+    cashOut: "Cash out",
+    currentCard: "Current card",
+    currentPrize: "Current cash-out prize",
+    voidSeer: "Void Seer",
+    tier: "Prize tier",
+    chance: "Match chance",
+    reveal: "Roll",
+    history: "Recent game history",
+    noHistory: "No casino games played yet.",
+    runStats: "This run",
+    allTimeStats: "All time",
+    plays: "Plays",
+    wins: "Wins",
+    locked: "The Galactic Casino unlocks after you earn your first Ascendency Point.",
+    purchaseResult: "Bought {amount} CP for {cost}.",
+    win: "Win",
+    loss: "Loss",
+    specialReady: "The wheel revealed a special prize. Choose and claim one below.",
+    prizeClaimed: "Special prize claimed: {prize}.",
+    cashOutResult: "Cashed out: {prize}.",
+    cardCorrect: "Correct guess.",
+    cardWrong: "Wrong guess. The round is over.",
+    voidWin: "The rolls matched: {detail}.",
+    voidLoss: "The rolls did not match.",
+    failure: "That casino action is not available.",
+    cash: "Cash",
+    available: "available",
+    cpIn: "CP spent",
+    cpOut: "CP awarded",
+    doubleGood: "Double {good}",
+    specialRocketWarp: "Warp a rocket",
+    specialStarshipWarp: "Warp the starship",
+    specialAsteroid: "Finish asteroid scan",
+    specialStarStudy: "Finish star study",
+    specialVoidPillage: "Finish Void Pillage",
+    prizeBoostCash: "Cash bonus",
+    prizeBoostResearch: "Research bonus",
+    prizeTopUpResources: "Resource top-up",
+    prizeTopUpCompounds: "Compound top-up",
+    prizeResearch: "Research grant",
+    prizeCash: "Cash grant",
+    prizeTimeWarp: "{multiplier}× time warp for {seconds}s",
+  },
+  es: {
+    title: "Casino galáctico",
+    description: "Cambia recursos por puntos de casino y prueba suerte en cuatro juegos.",
+    balance: "Puntos de casino",
+    buyTitle: "Comprar puntos de casino",
+    payment: "Pagar con",
+    amount: "Puntos a comprar",
+    cost: "Coste",
+    buy: "Comprar puntos",
+    gamesTitle: "Juegos de casino",
+    doubleOrNothing: "Todo o nada",
+    probability: "Probabilidad de ganar",
+    stake: "Apuesta en PC",
+    play: "Jugar",
+    wheel: "Ruleta de la fortuna",
+    spin: "Girar por 1 PC",
+    choosePrize: "Elegir premio especial",
+    claim: "Reclamar premio",
+    higherLower: "Mayor o menor",
+    start: "Empezar por 5 PC",
+    higher: "Mayor",
+    lower: "Menor",
+    cashOut: "Retirar premio",
+    currentCard: "Carta actual",
+    currentPrize: "Premio para retirar",
+    voidSeer: "Vidente del vacío",
+    tier: "Nivel de premio",
+    chance: "Probabilidad de coincidencia",
+    reveal: "Lanzar",
+    history: "Historial reciente",
+    noHistory: "Aún no has jugado en el casino.",
+    runStats: "Esta partida",
+    allTimeStats: "Total",
+    plays: "Jugadas",
+    wins: "Victorias",
+    locked: "El Casino galáctico se desbloquea al conseguir tu primer Punto de Ascendencia.",
+    purchaseResult: "Has comprado {amount} PC por {cost}.",
+    win: "Victoria",
+    loss: "Derrota",
+    specialReady: "La ruleta ha revelado un premio especial. Elige uno y reclámalo.",
+    prizeClaimed: "Premio especial reclamado: {prize}.",
+    cashOutResult: "Premio retirado: {prize}.",
+    cardCorrect: "Acierto.",
+    cardWrong: "Fallo. La ronda ha terminado.",
+    voidWin: "Los resultados coinciden: {detail}.",
+    voidLoss: "Los resultados no coinciden.",
+    failure: "Esa acción del casino no está disponible.",
+    cash: "Dinero",
+    available: "disponibles",
+    cpIn: "PC gastados",
+    cpOut: "PC otorgados",
+    doubleGood: "Duplicar {good}",
+    specialRocketWarp: "Acelerar un cohete",
+    specialStarshipWarp: "Acelerar la nave",
+    specialAsteroid: "Terminar el escaneo de asteroides",
+    specialStarStudy: "Terminar el estudio estelar",
+    specialVoidPillage: "Terminar el saqueo del vacío",
+    prizeBoostCash: "Bonificación de dinero",
+    prizeBoostResearch: "Bonificación de investigación",
+    prizeTopUpResources: "Recarga de recursos",
+    prizeTopUpCompounds: "Recarga de compuestos",
+    prizeResearch: "Recompensa de investigación",
+    prizeCash: "Recompensa de dinero",
+    prizeTimeWarp: "Aceleración ×{multiplier} durante {seconds}s",
+  },
+  pt: {
+    title: "Casino galáctico",
+    description: "Troca recursos por pontos de casino e testa a sorte em quatro jogos.",
+    balance: "Pontos de casino",
+    buyTitle: "Comprar pontos de casino",
+    payment: "Pagar com",
+    amount: "Pontos a comprar",
+    cost: "Custo",
+    buy: "Comprar pontos",
+    gamesTitle: "Jogos de casino",
+    doubleOrNothing: "Dobrar ou perder",
+    probability: "Probabilidade de ganhar",
+    stake: "Aposta em PC",
+    play: "Jogar",
+    wheel: "Roda da fortuna",
+    spin: "Rodar por 1 PC",
+    choosePrize: "Escolher prémio especial",
+    claim: "Reclamar prémio",
+    higherLower: "Maior ou menor",
+    start: "Começar por 5 PC",
+    higher: "Maior",
+    lower: "Menor",
+    cashOut: "Levantar prémio",
+    currentCard: "Carta atual",
+    currentPrize: "Prémio para levantar",
+    voidSeer: "Vidente do vazio",
+    tier: "Nível do prémio",
+    chance: "Probabilidade de coincidência",
+    reveal: "Lançar",
+    history: "Histórico recente",
+    noHistory: "Ainda não jogaste no casino.",
+    runStats: "Esta partida",
+    allTimeStats: "Total",
+    plays: "Jogadas",
+    wins: "Vitórias",
+    locked: "O Casino galáctico desbloqueia após ganhares o primeiro Ponto de Ascendência.",
+    purchaseResult: "Compraste {amount} PC por {cost}.",
+    win: "Vitória",
+    loss: "Derrota",
+    specialReady: "A roda revelou um prémio especial. Escolhe e reclama um prémio abaixo.",
+    prizeClaimed: "Prémio especial reclamado: {prize}.",
+    cashOutResult: "Prémio levantado: {prize}.",
+    cardCorrect: "Resposta certa.",
+    cardWrong: "Resposta errada. A ronda terminou.",
+    voidWin: "Os resultados coincidiram: {detail}.",
+    voidLoss: "Os resultados não coincidiram.",
+    failure: "Essa ação do casino não está disponível.",
+    cash: "Dinheiro",
+    available: "disponíveis",
+    cpIn: "PC gastos",
+    cpOut: "PC atribuídos",
+    doubleGood: "Duplicar {good}",
+    specialRocketWarp: "Acelerar um foguetão",
+    specialStarshipWarp: "Acelerar a nave",
+    specialAsteroid: "Terminar a busca de asteroides",
+    specialStarStudy: "Terminar o estudo estelar",
+    specialVoidPillage: "Terminar o saque do vazio",
+    prizeBoostCash: "Bónus de dinheiro",
+    prizeBoostResearch: "Bónus de investigação",
+    prizeTopUpResources: "Reposição de recursos",
+    prizeTopUpCompounds: "Reposição de compostos",
+    prizeResearch: "Prémio de investigação",
+    prizeCash: "Prémio em dinheiro",
+    prizeTimeWarp: "Distorção temporal ×{multiplier} por {seconds}s",
+  },
+  de: {
+    title: "Galaktisches Kasino",
+    description: "Tausche Vorräte gegen Casinopunkte und versuche dein Glück in vier Spielen.",
+    balance: "Casinopunkte",
+    buyTitle: "Casinopunkte kaufen",
+    payment: "Bezahlen mit",
+    amount: "Punkte zum Kaufen",
+    cost: "Kosten",
+    buy: "Punkte kaufen",
+    gamesTitle: "Kasino-Spiele",
+    doubleOrNothing: "Doppelt oder nichts",
+    probability: "Gewinnchance",
+    stake: "Einsatz in CP",
+    play: "Spielen",
+    wheel: "Glücksrad",
+    spin: "Drehen für 1 CP",
+    choosePrize: "Sonderpreis wählen",
+    claim: "Preis abholen",
+    higherLower: "Höher oder niedriger",
+    start: "Start für 5 CP",
+    higher: "Höher",
+    lower: "Niedriger",
+    cashOut: "Auszahlen",
+    currentCard: "Aktuelle Karte",
+    currentPrize: "Aktueller Auszahlungsgewinn",
+    voidSeer: "Leerseher",
+    tier: "Preisstufe",
+    chance: "Trefferchance",
+    reveal: "Würfeln",
+    history: "Letzte Spiele",
+    noHistory: "Noch keine Casinospiele gespielt.",
+    runStats: "Dieser Durchlauf",
+    allTimeStats: "Gesamt",
+    plays: "Spiele",
+    wins: "Siege",
+    locked: "Das galaktische Kasino wird nach dem ersten Aszendenzpunkt freigeschaltet.",
+    purchaseResult: "{amount} CP für {cost} gekauft.",
+    win: "Gewonnen",
+    loss: "Verloren",
+    specialReady: "Das Rad zeigt einen Sonderpreis. Wähle unten einen Preis aus und hole ihn ab.",
+    prizeClaimed: "Sonderpreis abgeholt: {prize}.",
+    cashOutResult: "Ausgezahlt: {prize}.",
+    cardCorrect: "Richtig geraten.",
+    cardWrong: "Falsch geraten. Die Runde ist vorbei.",
+    voidWin: "Die Zahlen stimmen überein: {detail}.",
+    voidLoss: "Die Zahlen stimmen nicht überein.",
+    failure: "Diese Kasinoaktion ist nicht verfügbar.",
+    cash: "Geld",
+    available: "verfügbar",
+    cpIn: "CP eingesetzt",
+    cpOut: "CP erhalten",
+    doubleGood: "{good} verdoppeln",
+    specialRocketWarp: "Eine Rakete beschleunigen",
+    specialStarshipWarp: "Das Raumschiff beschleunigen",
+    specialAsteroid: "Asteroidensuche beenden",
+    specialStarStudy: "Sternenstudie beenden",
+    specialVoidPillage: "Leerenplünderung beenden",
+    prizeBoostCash: "Geldbonus",
+    prizeBoostResearch: "Forschungsbonus",
+    prizeTopUpResources: "Ressourcen auffüllen",
+    prizeTopUpCompounds: "Verbindungen auffüllen",
+    prizeResearch: "Forschungsgewinn",
+    prizeCash: "Geldgewinn",
+    prizeTimeWarp: "Zeitverzerrung ×{multiplier} für {seconds}s",
+  },
+  it: {
+    title: "Casinò galattico",
+    description: "Scambia risorse per punti casinò e tenta la sorte in quattro giochi.",
+    balance: "Punti casinò",
+    buyTitle: "Compra punti casinò",
+    payment: "Paga con",
+    amount: "Punti da comprare",
+    cost: "Costo",
+    buy: "Compra punti",
+    gamesTitle: "Giochi del casinò",
+    doubleOrNothing: "Raddoppia o perdi",
+    probability: "Probabilità di vincita",
+    stake: "Puntata in PC",
+    play: "Gioca",
+    wheel: "Ruota della fortuna",
+    spin: "Gira per 1 PC",
+    choosePrize: "Scegli premio speciale",
+    claim: "Riscatta premio",
+    higherLower: "Più alto o più basso",
+    start: "Inizia per 5 PC",
+    higher: "Più alto",
+    lower: "Più basso",
+    cashOut: "Ritira",
+    currentCard: "Carta attuale",
+    currentPrize: "Premio da ritirare",
+    voidSeer: "Veggenza del vuoto",
+    tier: "Livello del premio",
+    chance: "Probabilità di corrispondenza",
+    reveal: "Lancia",
+    history: "Cronologia recente",
+    noHistory: "Non hai ancora giocato al casinò.",
+    runStats: "Questa partita",
+    allTimeStats: "Totale",
+    plays: "Partite",
+    wins: "Vittorie",
+    locked: "Il Casinò galattico si sblocca dopo il primo Punto di Ascendenza.",
+    purchaseResult: "Hai comprato {amount} PC per {cost}.",
+    win: "Vittoria",
+    loss: "Sconfitta",
+    specialReady: "La ruota ha rivelato un premio speciale. Scegline uno e riscattalo.",
+    prizeClaimed: "Premio speciale riscattato: {prize}.",
+    cashOutResult: "Premio ritirato: {prize}.",
+    cardCorrect: "Risposta corretta.",
+    cardWrong: "Risposta sbagliata. Il turno è finito.",
+    voidWin: "I risultati coincidono: {detail}.",
+    voidLoss: "I risultati non coincidono.",
+    failure: "Questa azione del casinò non è disponibile.",
+    cash: "Denaro",
+    available: "disponibili",
+    cpIn: "PC spesi",
+    cpOut: "PC assegnati",
+    doubleGood: "Raddoppia {good}",
+    specialRocketWarp: "Accelera un razzo",
+    specialStarshipWarp: "Accelera l'astronave",
+    specialAsteroid: "Termina la scansione degli asteroidi",
+    specialStarStudy: "Termina lo studio stellare",
+    specialVoidPillage: "Termina il saccheggio del vuoto",
+    prizeBoostCash: "Bonus denaro",
+    prizeBoostResearch: "Bonus ricerca",
+    prizeTopUpResources: "Ricarica risorse",
+    prizeTopUpCompounds: "Ricarica composti",
+    prizeResearch: "Premio ricerca",
+    prizeCash: "Premio in denaro",
+    prizeTimeWarp: "Distorsione temporale ×{multiplier} per {seconds}s",
+  },
+  fr: {
+    title: "Casino galactique",
+    description:
+      "Échangez des ressources contre des points de casino et tentez votre chance dans quatre jeux.",
+    balance: "Points de casino",
+    buyTitle: "Acheter des points de casino",
+    payment: "Payer avec",
+    amount: "Points à acheter",
+    cost: "Coût",
+    buy: "Acheter des points",
+    gamesTitle: "Jeux du casino",
+    doubleOrNothing: "Le double ou rien",
+    probability: "Chance de gagner",
+    stake: "Mise en PC",
+    play: "Jouer",
+    wheel: "Roue de la fortune",
+    spin: "Tourner pour 1 PC",
+    choosePrize: "Choisir un prix spécial",
+    claim: "Réclamer le prix",
+    higherLower: "Plus haut ou plus bas",
+    start: "Commencer pour 5 PC",
+    higher: "Plus haut",
+    lower: "Plus bas",
+    cashOut: "Encaisser",
+    currentCard: "Carte actuelle",
+    currentPrize: "Prix à encaisser",
+    voidSeer: "Voyant du vide",
+    tier: "Niveau du prix",
+    chance: "Chance de correspondance",
+    reveal: "Lancer",
+    history: "Historique récent",
+    noHistory: "Aucune partie de casino pour le moment.",
+    runStats: "Cette partie",
+    allTimeStats: "Total",
+    plays: "Parties",
+    wins: "Victoires",
+    locked: "Le Casino galactique se débloque après votre premier Point d'Ascendance.",
+    purchaseResult: "{amount} PC achetés pour {cost}.",
+    win: "Victoire",
+    loss: "Défaite",
+    specialReady: "La roue a révélé un prix spécial. Choisissez-en un et réclamez-le.",
+    prizeClaimed: "Prix spécial réclamé : {prize}.",
+    cashOutResult: "Prix encaissé : {prize}.",
+    cardCorrect: "Bonne réponse.",
+    cardWrong: "Mauvaise réponse. La manche est terminée.",
+    voidWin: "Les résultats correspondent : {detail}.",
+    voidLoss: "Les résultats ne correspondent pas.",
+    failure: "Cette action du casino n'est pas disponible.",
+    cash: "Argent",
+    available: "disponibles",
+    cpIn: "PC dépensés",
+    cpOut: "PC attribués",
+    doubleGood: "Doubler {good}",
+    specialRocketWarp: "Accélérer une fusée",
+    specialStarshipWarp: "Accélérer le vaisseau",
+    specialAsteroid: "Terminer le scan d'astéroïdes",
+    specialStarStudy: "Terminer l'étude stellaire",
+    specialVoidPillage: "Terminer le pillage du vide",
+    prizeBoostCash: "Bonus d'argent",
+    prizeBoostResearch: "Bonus de recherche",
+    prizeTopUpResources: "Recharge des ressources",
+    prizeTopUpCompounds: "Recharge des composés",
+    prizeResearch: "Gain de recherche",
+    prizeCash: "Gain d'argent",
+    prizeTimeWarp: "Distorsion temporelle ×{multiplier} pendant {seconds}s",
+  },
+};
+
+export function casinoText(locale: LocaleId, key: keyof CasinoCopy): string {
+  return COPY[locale][key];
+}
+
+export function casinoGameName(locale: LocaleId, game: CasinoGameId): string {
+  const key: Record<CasinoGameId, keyof CasinoCopy> = {
+    doubleOrNothing: "doubleOrNothing",
+    wheel: "wheel",
+    higherLower: "higherLower",
+    voidSeer: "voidSeer",
+  };
+  return casinoText(locale, key[game]);
+}
+
+export function casinoSpecialName(locale: LocaleId, prize: CasinoSpecialPrize): string {
+  if (prize === "special_100cp") return "100 CP";
+  if (prize === "special_100k_research")
+    return `100.000 ${COPY[locale].prizeResearch.toLocaleLowerCase(locale)}`;
+  if (prize === "special_rocket_warp") return COPY[locale].specialRocketWarp;
+  if (prize === "special_starship_warp") return COPY[locale].specialStarshipWarp;
+  if (prize === "special_telescope_finish_asteroid_search") return COPY[locale].specialAsteroid;
+  if (prize === "special_telescope_finish_star_study") return COPY[locale].specialStarStudy;
+  if (prize === "special_telescope_finish_void_pillage") return COPY[locale].specialVoidPillage;
+  return `${COPY[locale].doubleGood.replace("{good}", prize.slice("special_double_".length))}`;
+}
+
+export function casinoFailureText(locale: LocaleId, _code: string): string {
+  return casinoText(locale, "failure");
+}
+
+export function casinoPrizeText(locale: LocaleId, prizeKey: string): string {
+  const cp = /^hilo_cp_(\d+)$/.exec(prizeKey);
+  if (cp) return `${cp[1]} CP`;
+  if (prizeKey.startsWith("special_")) {
+    if (prizeKey === "special_finish_rocket_journey") return COPY[locale].specialRocketWarp;
+    if (prizeKey === "special_finish_starship_journey") return COPY[locale].specialStarshipWarp;
+    return casinoSpecialName(locale, prizeKey as CasinoSpecialPrize);
+  }
+  if (prizeKey.includes("cash_boost")) return COPY[locale].prizeBoostCash;
+  if (prizeKey.includes("research_boost")) return COPY[locale].prizeBoostResearch;
+  if (prizeKey === "hilo_resource_topup") return COPY[locale].prizeTopUpResources;
+  if (prizeKey === "hilo_compound_topup") return COPY[locale].prizeTopUpCompounds;
+  if (prizeKey.includes("research")) return COPY[locale].prizeResearch;
+  if (prizeKey.includes("cash")) return COPY[locale].prizeCash;
+  const timeWarp = /^hilo_timewarp_(\d+)_(\d+)$/.exec(prizeKey);
+  if (timeWarp)
+    return COPY[locale].prizeTimeWarp
+      .replace("{multiplier}", timeWarp[1]!)
+      .replace("{seconds}", String(Number(timeWarp[2]) / 1000));
+  return prizeKey.replaceAll("_", " ");
+}

@@ -408,7 +408,7 @@ function homeSystemEncounter(star: StarCatalogueEntry): StarSystemEncounter {
     triedToBully: false,
     patience: 0,
     lastDiplomacyMessage: null,
-    warReady: false,
+    warReady: true,
     warMode: false,
     battle: createInitialStarSystemBattleState(),
   };
@@ -486,7 +486,7 @@ export function generateStarSystemEncounter(
     triedToBully: false,
     patience: isFactorySystem ? Math.max(0, patience) : patience,
     lastDiplomacyMessage: null,
-    warReady: false,
+    warReady: hardMode,
     warMode: false,
     battle: createInitialStarSystemBattleState(),
   };

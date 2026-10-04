@@ -2,11 +2,13 @@ import { expect, test } from "../_harness/fixtures";
 
 async function startSpaceFixture(page: import("@playwright/test").Page): Promise<void> {
   await page.addInitScript(() => {
+    if (sessionStorage.getItem("miaplacidus:fixture-cleared") === "yes") return;
     const prefix = "miaplacidus:v1:";
     const keys = Array.from({ length: localStorage.length }, (_, index) =>
       localStorage.key(index),
     ).filter((key): key is string => key?.startsWith(prefix) ?? false);
     for (const key of keys) localStorage.removeItem(key);
+    sessionStorage.setItem("miaplacidus:fixture-cleared", "yes");
   });
   await page.goto("/?testSeed=20261003&testLocale=en&economyFixture=space-telescope");
   await page.getByLabel("Pioneer name").fill("Space Telescope Pioneer");

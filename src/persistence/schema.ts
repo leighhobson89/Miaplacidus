@@ -3,7 +3,7 @@ import { isValidGameState } from "../engine/state";
 import { hasControlCharacters, normalizePioneerName } from "./validation";
 
 export const SAVE_FORMAT = "miaplacidus.save" as const;
-export const SAVE_SCHEMA_VERSION = 20 as const;
+export const SAVE_SCHEMA_VERSION = 31 as const;
 export const MAX_SAVE_JSON_CHARS = 1_000_000;
 export const MAX_LOCAL_PAYLOAD_CHARS = 750_000;
 export const MAX_PORTABLE_CODE_CHARS = 900_005;

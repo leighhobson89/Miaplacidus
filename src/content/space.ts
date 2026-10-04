@@ -135,6 +135,11 @@ export interface AncientManuscriptRecord {
   readonly position: 1 | 2 | 3 | 4;
   readonly manuscriptSystemId: SystemId;
   readonly factorySystemId: SystemId;
+  readonly megastructureId:
+    | "dysonSphere"
+    | "celestialProcessingCore"
+    | "plasmaForge"
+    | "galacticMemoryArchive";
   readonly reported: boolean;
 }
 
@@ -539,7 +544,6 @@ export interface SpaceState {
   readonly currentPrecipitationRate: number;
   readonly precipitationCollectedThisRun: number;
   readonly systemProfiles: readonly StarSystemProfile[];
-  readonly ancientManuscripts: readonly AncientManuscriptRecord[];
   readonly systemEncounters: readonly StarSystemEncounter[];
   readonly fleetEnvoyBuilt: boolean;
   readonly playerFleets: Readonly<Record<PlayerFleetId, number>>;
@@ -593,7 +597,6 @@ export function createInitialSpaceState(): SpaceState {
     currentPrecipitationRate: 0,
     precipitationCollectedThisRun: 0,
     systemProfiles: [],
-    ancientManuscripts: [],
     systemEncounters: [],
     fleetEnvoyBuilt: false,
     playerFleets: createInitialPlayerFleets(),

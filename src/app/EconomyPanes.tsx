@@ -23,12 +23,14 @@ import { createEconomyTickPlan } from "../engine/economySimulation";
 import { displayCurrency } from "../engine/precision";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
-import { TECHNOLOGY_CATALOG } from "../content/technology";
+import { MEGASTRUCTURE_TECHNOLOGY_IDS, TECHNOLOGY_CATALOG } from "../content/technology";
 import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import { TECHNOLOGY_DESCRIPTIONS } from "../content/technologyDescriptions";
 import { economyLabel } from "../i18n/economyMessages";
 import { buildingBuyMaxPlan, checkPreconditions } from "../engine/commands";
+import { philosophyCompoundRecipe, philosophyRepeatableRank } from "../engine/philosophy";
+import { PhilosophyPane } from "./PhilosophyPane";
 
 interface EconomyPanesProps {
   readonly tabId: string;
@@ -372,7 +374,10 @@ function ResourceCard({
                 const requiredTech = availableTier(tier);
                 const gateMet =
                   !requiredTech || state.run.economy.researchedTechnologies.includes(requiredTech);
-                const tierPrice = scaledPriceAfterPurchases(buyer.price, owned);
+                const tierPrice = scaledPriceAfterPurchases(
+                  buyer.price * 0.95 ** philosophyRepeatableRank(state, "laserMining"),
+                  owned,
+                );
                 const effectiveRate =
                   buyer.ratePerSecond *
                   repeatedPerkMultiplier(state.permanent.acquiredPerks, "smartAutoBuyers", 1.5);
@@ -632,7 +637,7 @@ function CompoundPanel({ state, store }: Omit<EconomyPanesProps, "tabId">) {
           const saleChoice = saleChoices[id] ?? "all";
           const saleSelection = saleChoice === "all" ? ("all" as const) : Number(saleChoice);
           const saleAmount = selectedSaleAmount(output.quantity, saleSelection);
-          const recipeText = definition.recipe
+          const recipeText = philosophyCompoundRecipe(state, id)
             .map((input) => `${input.amount} ${name(locale, input.goodId)}`)
             .join(" + ");
           const canCreate = checkPreconditions(state, {
@@ -883,9 +888,16 @@ function ResearchPanel({ state, store }: Omit<EconomyPanesProps, "tabId">) {
     if (added.length > 0) setNewlyResearched(added);
   }, [researched]);
   const tick = createEconomyTickPlan(state);
+  const standardTechCount = TECHNOLOGY_CATALOG.filter(
+    (technology) => !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(technology.id),
+  ).length;
+  const standardResearchedCount = researched.filter(
+    (id) => !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(id),
+  ).length;
   const researchBuildings = Object.keys(SCIENCE_BUILDINGS) as (keyof typeof SCIENCE_BUILDINGS)[];
   const revealed = state.run.economy.revealedTechnologies
     .map((id) => TECHNOLOGY_CATALOG.find((entry) => entry.id === id)!)
+    .filter((technology) => !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(technology.id))
     .sort((left, right) => left.path - right.path || left.renderPosition - right.renderPosition);
   const paths = [...new Set(revealed.map((technology) => technology.path))];
   return (
@@ -915,7 +927,10 @@ function ResearchPanel({ state, store }: Omit<EconomyPanesProps, "tabId">) {
         {researchBuildings.map((id) => {
           const def = SCIENCE_BUILDINGS[id];
           const owned = count(state, id);
-          const price = scaledPriceAfterPurchases(def.price, owned);
+          const price = scaledPriceAfterPurchases(
+            def.price * 0.95 ** philosophyRepeatableRank(state, "energyDrones"),
+            owned,
+          );
           const gate = def.techId;
           const gateMet = !gate || researched.includes(gate as TechId);
           const singleCommand = { type: "economy.building.purchase" as const, buildingId: id };
@@ -1000,7 +1015,7 @@ function ResearchPanel({ state, store }: Omit<EconomyPanesProps, "tabId">) {
       <div className="economy-section-heading">
         <h2>{t("technologies")}</h2>
         <p>
-          {researched.length} / {TECHNOLOGY_CATALOG.length} ·{" "}
+          {standardResearchedCount} / {standardTechCount} ·{" "}
           {state.run.economy.revealedTechnologies.length} {t("unlocked")}
         </p>
       </div>
@@ -1063,6 +1078,7 @@ function ResearchPanel({ state, store }: Omit<EconomyPanesProps, "tabId">) {
           </section>
         ))}
       </div>
+      {state.permanent.philosophyId !== null && <PhilosophyPane state={state} store={store} />}
     </section>
   );
 }
@@ -1147,10 +1163,11 @@ function EnergyPanel({ state, store }: Omit<EconomyPanesProps, "tabId">) {
             repeatedPerkMultiplier(state.permanent.acquiredPerks, "optimizedPowerGrids", 1.35) *
             (id === "powerPlant2" ? state.run.economy.power.environmentalMultiplier : 1);
           const owned = count(state, id);
-          const cashPrice = scaledPriceAfterPurchases(def.price.cash, owned);
+          const energyDroneDiscount = 0.95 ** philosophyRepeatableRank(state, "energyDrones");
+          const cashPrice = scaledPriceAfterPurchases(def.price.cash * energyDroneDiscount, owned);
           const materialPrices = def.price.materials.map((item) => ({
             ...item,
-            amount: scaledPriceAfterPurchases(item.amount, owned),
+            amount: scaledPriceAfterPurchases(item.amount * energyDroneDiscount, owned),
           }));
           const gate = def.techId;
           const unlocked = state.run.economy.researchedTechnologies.includes(gate as TechId);
@@ -1231,10 +1248,11 @@ function EnergyPanel({ state, store }: Omit<EconomyPanesProps, "tabId">) {
             techId: string;
           };
           const owned = count(state, id);
-          const cashPrice = scaledPriceAfterPurchases(def.price.cash, owned);
+          const energyDroneDiscount = 0.95 ** philosophyRepeatableRank(state, "energyDrones");
+          const cashPrice = scaledPriceAfterPurchases(def.price.cash * energyDroneDiscount, owned);
           const materialPrices = def.price.materials.map((item) => ({
             ...item,
-            amount: scaledPriceAfterPurchases(item.amount, owned),
+            amount: scaledPriceAfterPurchases(item.amount * energyDroneDiscount, owned),
           }));
           const unlocked = state.run.economy.researchedTechnologies.includes(def.techId as TechId);
           const costs = materialPrices

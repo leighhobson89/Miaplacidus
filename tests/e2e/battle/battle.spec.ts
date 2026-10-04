@@ -71,7 +71,7 @@ test("wins a hostile battle through the starship controls and records settlement
   const settled = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(settled.permanent.settledSystemIds).toContain(destinationId);
   expect(settled.permanent.ascendencyPoints).toBe(destinationProfile!.ascendencyPoints * 2);
-  expect(settled.permanent.gloryPoints).toBe(1);
+  expect(settled.permanent.gloryPoints).toBe(0);
   expect(settled.run.space.ascendencyAwardedThisRun).toBe(true);
   expect(
     await page.evaluate(() => window.miaplacidusTest!.dispatch({ type: "space.system.settle" })),
@@ -207,5 +207,5 @@ test("settles an unoccupied arrival without opening battle @colonise", async ({ 
     stateBefore.run.space.starship.destinationSystemId,
   );
   expect(stateAfter.permanent.ascendencyPoints).toBe(destinationProfile!.ascendencyPoints);
-  expect(stateAfter.permanent.gloryPoints).toBe(1);
+  expect(stateAfter.permanent.gloryPoints).toBe(0);
 });

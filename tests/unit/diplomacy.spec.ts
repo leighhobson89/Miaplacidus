@@ -134,6 +134,50 @@ describe("interstellar diplomacy", () => {
     expect(refusal.encounter.warReady).toBe(true);
   });
 
+  it("requires Supremacist fleet power to exceed three times enemy power", () => {
+    const initial = diplomacyState();
+    const exactThreshold: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        philosophyAbilityActive: true,
+        space: {
+          ...initial.run.space,
+          fleetEnvoyBuilt: true,
+          playerFleetCombatTotals: {
+            ...initial.run.space.playerFleetCombatTotals,
+            scout: { attackPower: 18, defensePower: 18 },
+          },
+        },
+      },
+      permanent: {
+        ...initial.permanent,
+        philosophyId: "supremacist",
+        rebirthCount: 1,
+      },
+    };
+    expect(
+      transition(exactThreshold, { type: "space.diplomacy.choose", choice: "vassalize" }).accepted,
+    ).toBe(false);
+
+    const aboveThreshold: GameState = {
+      ...exactThreshold,
+      run: {
+        ...exactThreshold.run,
+        space: {
+          ...exactThreshold.run.space,
+          playerFleetCombatTotals: {
+            ...exactThreshold.run.space.playerFleetCombatTotals,
+            scout: { attackPower: 18.01, defensePower: 18.01 },
+          },
+        },
+      },
+    };
+    expect(
+      transition(aboveThreshold, { type: "space.diplomacy.choose", choice: "vassalize" }).accepted,
+    ).toBe(true);
+  });
+
   it("enters war only after the saved encounter is war-ready", () => {
     const initial = diplomacyState();
     const blocked = transition(initial, { type: "space.diplomacy.enter-war" });
@@ -167,7 +211,8 @@ describe("interstellar diplomacy", () => {
     const built = transition(initial, { type: "space.envoy.build" });
     expect(built.accepted).toBe(true);
     expect(built.state.run.space.fleetEnvoyBuilt).toBe(true);
-    expect(built.state.run.cash).toBe(initial.run.cash - FLEET_ENVOY_COST.cash);
+    // This fixture also earns the Hydrogen, Carbon and research achievement rewards ($215).
+    expect(built.state.run.cash).toBe(initial.run.cash - FLEET_ENVOY_COST.cash + 215);
     for (const material of FLEET_ENVOY_COST.materials) {
       expect(built.state.run.goods[material.goodId].quantity).toBe(
         initial.run.goods[material.goodId].quantity - material.amount,
@@ -219,7 +264,8 @@ describe("interstellar diplomacy", () => {
     const built = transition(funded, { type: "space.fleet.build", fleetId: "scout" });
     expect(built.accepted).toBe(true);
     expect(built.state.run.space.playerFleets.scout).toBe(1);
-    expect(built.state.run.cash).toBe(0);
+    // The accepted build pays its exact cost, then unlocks $215 of threshold rewards.
+    expect(built.state.run.cash).toBe(215);
     for (const material of PLAYER_FLEETS.scout.baseCost.materials) {
       expect(built.state.run.goods[material.goodId].quantity).toBe(
         funded.run.goods[material.goodId].quantity - material.amount,

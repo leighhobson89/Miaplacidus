@@ -22,8 +22,51 @@ import {
   type TechId,
   type UpgradeId,
 } from "../content/ids";
-import { TECHNOLOGY_CATALOG } from "../content/technology";
+import {
+  INITIAL_PHILOSOPHY_RANKS,
+  PHILOSOPHY_REPEATABLE_IDS,
+  type PhilosophyRepeatableId,
+} from "../content/philosophy";
+import {
+  MEGASTRUCTURE_IDS,
+  MEGASTRUCTURE_TECHNOLOGY_IDS,
+  TECHNOLOGY_CATALOG,
+} from "../content/technology";
 import { INITIAL_GOODS } from "../content/economy";
+import {
+  createInitialGalacticMarketState,
+  type GalacticMarketState,
+} from "../content/galacticMarket";
+import {
+  CASINO_GAME_IDS,
+  createInitialCasinoRunStats,
+  createInitialCasinoState,
+  type CasinoRunStats,
+  type CasinoState,
+} from "../content/galacticCasino";
+import {
+  BLACK_HOLE_BASE_CHARGE_MS,
+  BLACK_HOLE_BASE_POWER,
+  BLACK_HOLE_BASE_WARP_MS,
+  BLACK_HOLE_MINIMUM_CHARGE_MS,
+  BLACK_HOLE_RESEARCH_PRICE,
+  BLACK_HOLE_UPGRADE_BASE_PRICES,
+} from "../content/blackHole";
+import {
+  COSMIC_RIP_SECTOR_COUNT,
+  COSMIC_RIP_TECHNOLOGIES,
+  type CosmicRipTechnologyId,
+} from "../content/cosmicRip";
+import { ACHIEVEMENT_IDS, type AchievementId } from "../content/achievements";
+import { DEFAULT_THEME_ID, THEME_IDS, isThemeId, type ThemeId } from "../content/themes";
+import {
+  NEWS_CATEGORIES,
+  RANDOM_EVENT_IDS,
+  createInitialNewsTickerProgress,
+  createInitialRandomEventProgress,
+  type NewsTickerProgress,
+  type RandomEventProgress,
+} from "../content/metaSignals";
 import {
   ASTEROID_RARITIES,
   ROCKET_FUEL_CAPACITY,
@@ -48,6 +91,7 @@ import {
   STAR_CIVILIZATION_LEVELS,
   STAR_LIFEFORM_TRAITS,
   STAR_THREAT_LEVELS,
+  type AncientManuscriptRecord,
   type RocketId,
   type SpaceState,
   type StarSystemProfile,
@@ -57,6 +101,7 @@ import { O_TYPE_POWER_PLANT_IDS, type OTypePowerPlantId } from "../content/starT
 import { createClockState } from "./clock";
 import { createRandomState } from "./random";
 import { permanentPerkPurchaseCount } from "../content/economyRules";
+import { nextRandomInteger } from "./random";
 import { hasControlCharacter } from "./spaceRules";
 import { timerPolicyFor } from "./timers";
 import { TIMER_DOMAINS, type ClockState, type TimerMap } from "./runtimeTypes";
@@ -90,6 +135,17 @@ export interface RunState {
   readonly economy: EconomyState;
   readonly space: SpaceState;
   readonly philosophyAbilityActive: boolean;
+  readonly philosophyChoicePending: boolean;
+  readonly expansionistExtraSystemIds: readonly SystemId[];
+  readonly marketLiquidatedThisRun: boolean;
+  readonly marketLockdownRemainingMs: number;
+  readonly casinoStats: CasinoRunStats;
+  readonly timeWarp: { readonly multiplier: number; readonly remainingMs: number };
+  readonly blackHoleChargeReady: boolean;
+  readonly blackHoleWarpActive: boolean;
+  readonly achievements: RunAchievementProgress;
+  readonly randomEvents: RandomEventProgress;
+  readonly newsTicker: NewsTickerProgress;
 }
 
 export interface ResourceAllocationState {
@@ -126,13 +182,137 @@ export interface PermanentState {
   readonly gloryPoints: number;
   readonly acquiredPerks: readonly string[];
   readonly philosophyId: PhilosophyId | null;
+  readonly philosophyRepeatableRanks: Readonly<Record<PhilosophyRepeatableId, number>>;
   readonly settledSystemIds: readonly string[];
   readonly oTypePowerPlantAssignments: Readonly<Record<OTypePowerPlantId, SystemId | null>>;
+  readonly galacticMarket: GalacticMarketState;
+  readonly galacticCasino: CasinoState;
+  readonly blackHole: BlackHoleProgress;
+  readonly megastructures: MegastructureProgress;
+  readonly cosmicRip: CosmicRipProgress;
+  readonly achievements: PermanentAchievementProgress;
+}
+
+export interface AchievementBonusState {
+  readonly resourceRateMultiplier: number;
+  readonly resourceRateAdditive: number;
+  readonly compoundRecipeCostMultiplier: number;
+}
+
+export interface RunAchievementProgress {
+  readonly unlockedIds: readonly AchievementId[];
+  readonly bonuses: AchievementBonusState;
+}
+
+export interface PermanentAchievementProgress {
+  readonly unlockedIds: readonly AchievementId[];
+  readonly bonuses: AchievementBonusState;
+  readonly themeIdsTried: readonly ThemeId[];
+}
+
+export function createInitialAchievementBonusState(): AchievementBonusState {
+  return { resourceRateMultiplier: 1, resourceRateAdditive: 0, compoundRecipeCostMultiplier: 1 };
+}
+
+export function createInitialRunAchievementProgress(): RunAchievementProgress {
+  return { unlockedIds: [], bonuses: createInitialAchievementBonusState() };
+}
+
+export function createInitialPermanentAchievementProgress(): PermanentAchievementProgress {
+  return {
+    unlockedIds: [],
+    bonuses: createInitialAchievementBonusState(),
+    themeIdsTried: [DEFAULT_THEME_ID],
+  };
+}
+
+export interface CosmicRipProgress {
+  readonly unlocked: boolean;
+  readonly scannerRestored: boolean;
+  readonly ripLocationSectorIndex: number | null;
+  readonly scannedSectorIndexes: readonly number[];
+  readonly ripFound: boolean;
+  readonly telemetryData: number;
+  readonly sensorBuoyCount: number;
+  readonly ripResearchOrbiterCount: number;
+  readonly researchedTechnologyIds: readonly CosmicRipTechnologyId[];
+  readonly activeResearchTechnologyId: CosmicRipTechnologyId | null;
+  readonly researchElapsedMs: number;
+  readonly closed: boolean;
+}
+
+export function createInitialCosmicRipProgress(): CosmicRipProgress {
+  return {
+    unlocked: false,
+    scannerRestored: false,
+    ripLocationSectorIndex: null,
+    scannedSectorIndexes: [],
+    ripFound: false,
+    telemetryData: 0,
+    sensorBuoyCount: 0,
+    ripResearchOrbiterCount: 0,
+    researchedTechnologyIds: [],
+    activeResearchTechnologyId: null,
+    researchElapsedMs: 0,
+    closed: false,
+  };
+}
+
+export interface MegastructureProgress {
+  readonly ancientManuscripts: readonly AncientManuscriptRecord[];
+  readonly researchedTechnologyIds: readonly TechId[];
+  readonly manuscriptRewardClaimed: boolean;
+  readonly conquestRewardClaimed: boolean;
+  readonly forceFieldRewardClaimed: boolean;
+  readonly miaplacidusStoryPending: boolean;
+  readonly miaplacidusStoryShown: boolean;
+}
+
+export function createInitialMegastructureProgress(): MegastructureProgress {
+  return {
+    ancientManuscripts: [],
+    researchedTechnologyIds: [],
+    manuscriptRewardClaimed: false,
+    conquestRewardClaimed: false,
+    forceFieldRewardClaimed: false,
+    miaplacidusStoryPending: false,
+    miaplacidusStoryShown: false,
+  };
+}
+
+export interface BlackHoleProgress {
+  readonly discovered: boolean;
+  readonly discoveryProbability: number;
+  readonly researched: boolean;
+  readonly researchPrice: number;
+  readonly durationPrice: number;
+  readonly powerPrice: number;
+  readonly rechargePrice: number;
+  readonly durationMs: number;
+  readonly power: number;
+  readonly rechargeMultiplier: number;
+  readonly alwaysOn: boolean;
+}
+
+export function createInitialBlackHoleProgress(): BlackHoleProgress {
+  return {
+    discovered: false,
+    discoveryProbability: 0,
+    researched: false,
+    researchPrice: BLACK_HOLE_RESEARCH_PRICE,
+    durationPrice: BLACK_HOLE_UPGRADE_BASE_PRICES.duration,
+    powerPrice: BLACK_HOLE_UPGRADE_BASE_PRICES.power,
+    rechargePrice: BLACK_HOLE_UPGRADE_BASE_PRICES.recharge,
+    durationMs: BLACK_HOLE_BASE_WARP_MS,
+    power: BLACK_HOLE_BASE_POWER,
+    rechargeMultiplier: 1,
+    alwaysOn: false,
+  };
 }
 
 export interface SettingsState {
   readonly locale: LocaleId;
-  readonly themeId: string;
+  readonly themeId: ThemeId;
   readonly notation: "standard" | "scientific";
   readonly soundEnabled: boolean;
   readonly reducedMotion: boolean;
@@ -142,33 +322,68 @@ export interface StatisticsState {
   readonly lifetimeCashEarned: number;
   readonly lifetimeGoodsProduced: number;
   readonly lifetimeAntimatterMined: number;
+  readonly lifetimeActiveMs: number;
   readonly acceptedCommands: number;
   readonly completedTimers: number;
 }
 
 export interface GameState {
-  readonly schemaVersion: 20;
+  readonly schemaVersion: 31;
   readonly run: RunState;
   readonly permanent: PermanentState;
   readonly settings: SettingsState;
   readonly statistics: StatisticsState;
 }
 
-export type LegacyRunStateV1 = Omit<RunState, "economy" | "space" | "philosophyAbilityActive">;
-export type LegacyPermanentState = Omit<PermanentState, "philosophyId">;
+export type LegacyRunStateV1 = Omit<
+  RunState,
+  | "economy"
+  | "space"
+  | "philosophyAbilityActive"
+  | "philosophyChoicePending"
+  | "expansionistExtraSystemIds"
+  | "casinoStats"
+  | "blackHoleChargeReady"
+  | "blackHoleWarpActive"
+  | "achievements"
+  | "randomEvents"
+  | "newsTicker"
+>;
+export type LegacyPermanentState = Omit<
+  PermanentState,
+  | "philosophyId"
+  | "philosophyRepeatableRanks"
+  | "galacticCasino"
+  | "blackHole"
+  | "megastructures"
+  | "cosmicRip"
+  | "achievements"
+>;
 export interface LegacyGameStateV1 {
   readonly schemaVersion: 1;
   readonly run: LegacyRunStateV1;
   readonly permanent: LegacyPermanentState;
   readonly settings: SettingsState;
-  readonly statistics: Omit<StatisticsState, "lifetimeAntimatterMined">;
+  readonly statistics: Omit<StatisticsState, "lifetimeAntimatterMined" | "lifetimeActiveMs">;
 }
 
 export type LegacyPowerStateV2 = Omit<PowerState, "infinitePower" | "environmentalMultiplier">;
 export type LegacyEconomyStateV2 = Omit<EconomyState, "power"> & {
   readonly power: LegacyPowerStateV2;
 };
-export type LegacyRunStateV2 = Omit<RunState, "economy" | "space" | "philosophyAbilityActive"> & {
+export type LegacyRunStateV2 = Omit<
+  RunState,
+  | "economy"
+  | "space"
+  | "philosophyAbilityActive"
+  | "philosophyChoicePending"
+  | "expansionistExtraSystemIds"
+  | "blackHoleChargeReady"
+  | "blackHoleWarpActive"
+  | "achievements"
+  | "randomEvents"
+  | "newsTicker"
+> & {
   readonly economy: LegacyEconomyStateV2;
 };
 export interface LegacyGameStateV2 {
@@ -176,16 +391,27 @@ export interface LegacyGameStateV2 {
   readonly run: LegacyRunStateV2;
   readonly permanent: LegacyPermanentState;
   readonly settings: SettingsState;
-  readonly statistics: Omit<StatisticsState, "lifetimeAntimatterMined">;
+  readonly statistics: Omit<StatisticsState, "lifetimeAntimatterMined" | "lifetimeActiveMs">;
 }
 
-export type LegacyRunStateV3 = Omit<RunState, "space" | "philosophyAbilityActive">;
+export type LegacyRunStateV3 = Omit<
+  RunState,
+  | "space"
+  | "philosophyAbilityActive"
+  | "philosophyChoicePending"
+  | "expansionistExtraSystemIds"
+  | "blackHoleChargeReady"
+  | "blackHoleWarpActive"
+  | "achievements"
+  | "randomEvents"
+  | "newsTicker"
+>;
 export interface LegacyGameStateV3 {
   readonly schemaVersion: 3;
   readonly run: LegacyRunStateV3;
   readonly permanent: LegacyPermanentState;
   readonly settings: SettingsState;
-  readonly statistics: Omit<StatisticsState, "lifetimeAntimatterMined">;
+  readonly statistics: Omit<StatisticsState, "lifetimeAntimatterMined" | "lifetimeActiveMs">;
 }
 
 export function createInitialEconomyState(hydrogenAutobuyerEnabled = true): EconomyState {
@@ -233,6 +459,12 @@ export interface InitialStateOptions {
 }
 
 export function createInitialGameState(options: InitialStateOptions = {}): GameState {
+  const seed = options.seed ?? GALAXY_SEED_DEFAULT;
+  const tickerIntervalMs = nextRandomInteger(
+    createRandomState((seed ^ 0xa511e9b3) >>> 0),
+    20_000,
+    35_000,
+  ).value;
   const startingSystemId =
     createStarCatalogue(GALAXY_SEED_DEFAULT).find((star) => star.initiallySettled)?.id ??
     "system:0:0";
@@ -248,7 +480,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
   ) as Record<EconomicGoodId, GoodState>;
 
   const initialState: GameState = {
-    schemaVersion: 20,
+    schemaVersion: 31,
     run: {
       pioneerName: options.pioneerName?.trim() || "Pioneer",
       hydrogenAutobuyerEnabled: true,
@@ -259,13 +491,24 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       upgrades: {},
       timers: {},
       clock: createClockState(),
-      random: createRandomState(options.seed ?? GALAXY_SEED_DEFAULT),
+      random: createRandomState(seed),
       economy: createInitialEconomyState(),
       space: {
         ...createInitialSpaceState(),
         systemProfiles: createInitialStarSystemProfiles(),
       },
       philosophyAbilityActive: false,
+      philosophyChoicePending: false,
+      expansionistExtraSystemIds: [],
+      marketLiquidatedThisRun: false,
+      marketLockdownRemainingMs: 0,
+      casinoStats: createInitialCasinoRunStats(),
+      timeWarp: { multiplier: 1, remainingMs: 0 },
+      blackHoleChargeReady: false,
+      blackHoleWarpActive: false,
+      achievements: createInitialRunAchievementProgress(),
+      randomEvents: createInitialRandomEventProgress(),
+      newsTicker: { ...createInitialNewsTickerProgress(), remainingMs: tickerIntervalMs },
     },
     permanent: {
       rebirthCount: 0,
@@ -273,12 +516,19 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       gloryPoints: 0,
       acquiredPerks: [],
       philosophyId: null,
+      philosophyRepeatableRanks: { ...INITIAL_PHILOSOPHY_RANKS },
       settledSystemIds: [startingSystemId],
       oTypePowerPlantAssignments: { powerPlant1: null, powerPlant2: null, powerPlant3: null },
+      galacticMarket: createInitialGalacticMarketState(seed),
+      galacticCasino: createInitialCasinoState(),
+      blackHole: createInitialBlackHoleProgress(),
+      megastructures: createInitialMegastructureProgress(),
+      cosmicRip: createInitialCosmicRipProgress(),
+      achievements: createInitialPermanentAchievementProgress(),
     },
     settings: {
       locale: options.locale ?? "en",
-      themeId: "midnight",
+      themeId: DEFAULT_THEME_ID,
       notation: "standard",
       soundEnabled: true,
       reducedMotion: false,
@@ -287,11 +537,504 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       lifetimeCashEarned: 0,
       lifetimeGoodsProduced: 0,
       lifetimeAntimatterMined: 0,
+      lifetimeActiveMs: 0,
       acceptedCommands: 0,
       completedTimers: 0,
     },
   };
   return initializeStarWeather(initialState);
+}
+
+function validGalacticMarketState(value: unknown): value is GalacticMarketState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const market = value as Partial<GalacticMarketState>;
+  const exactKeys = (record: object, expected: readonly string[]) => {
+    const actual = Object.keys(record).sort();
+    const keys = [...expected].sort();
+    return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
+  };
+  if (
+    !exactKeys(value, [
+      "goods",
+      "commissionPercent",
+      "apBuyPrice",
+      "apSellPrice",
+      "cycleRemainingMs",
+      "biasTickRemainingMs",
+      "nextTradeId",
+      "history",
+    ]) ||
+    !market.goods ||
+    typeof market.goods !== "object" ||
+    Array.isArray(market.goods) ||
+    !exactKeys(market.goods, ECONOMIC_GOOD_IDS) ||
+    !Array.isArray(market.history) ||
+    market.history.length > 30 ||
+    !Number.isFinite(market.commissionPercent) ||
+    market.commissionPercent! < 10 ||
+    market.commissionPercent! > 80 ||
+    !Number.isSafeInteger(market.apBuyPrice) ||
+    market.apBuyPrice! < 1_000_000 ||
+    market.apBuyPrice! > 1_600_000 ||
+    !Number.isSafeInteger(market.apSellPrice) ||
+    market.apSellPrice! < 60_000 ||
+    market.apSellPrice! > 140_000 ||
+    !Number.isFinite(market.cycleRemainingMs) ||
+    market.cycleRemainingMs! < 1 ||
+    market.cycleRemainingMs! > 240_000 ||
+    !Number.isFinite(market.biasTickRemainingMs) ||
+    market.biasTickRemainingMs! < 1 ||
+    market.biasTickRemainingMs! > 10_000 ||
+    !Number.isSafeInteger(market.nextTradeId) ||
+    market.nextTradeId! < 1
+  ) {
+    return false;
+  }
+  for (const goodId of ECONOMIC_GOOD_IDS) {
+    const entry = market.goods[goodId];
+    if (
+      !entry ||
+      !exactKeys(entry, ["marketBias", "tradeVolume", "eventModifier"]) ||
+      !Number.isFinite(entry.marketBias) ||
+      Math.abs(entry.marketBias) > 1_000_000_000_000 ||
+      !Number.isFinite(entry.tradeVolume) ||
+      entry.tradeVolume < -1_000_000 ||
+      entry.tradeVolume > 10_000_000 ||
+      !Number.isFinite(entry.eventModifier) ||
+      Math.abs(entry.eventModifier) > 100
+    ) {
+      return false;
+    }
+  }
+  let previousId = 0;
+  for (const trade of market.history) {
+    if (
+      !trade ||
+      typeof trade !== "object" ||
+      !exactKeys(trade, [
+        "id",
+        "simulationMs",
+        "outgoingGoodId",
+        "outgoingQuantity",
+        "commissionQuantity",
+        "incomingGoodId",
+        "incomingQuantity",
+      ]) ||
+      !Number.isSafeInteger(trade.id) ||
+      trade.id <= previousId ||
+      trade.id >= market.nextTradeId! ||
+      !Number.isFinite(trade.simulationMs) ||
+      trade.simulationMs < 0 ||
+      !isEconomicGoodId(trade.outgoingGoodId) ||
+      !Number.isSafeInteger(trade.outgoingQuantity) ||
+      trade.outgoingQuantity <= 0 ||
+      !Number.isSafeInteger(trade.commissionQuantity) ||
+      trade.commissionQuantity < 0 ||
+      !isEconomicGoodId(trade.incomingGoodId) ||
+      !Number.isSafeInteger(trade.incomingQuantity) ||
+      trade.incomingQuantity <= 0
+    ) {
+      return false;
+    }
+    previousId = trade.id;
+  }
+  return true;
+}
+
+function validBlackHoleProgress(value: unknown): value is BlackHoleProgress {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const hole = value as Partial<BlackHoleProgress>;
+  const keys = [
+    "alwaysOn",
+    "discovered",
+    "discoveryProbability",
+    "durationMs",
+    "durationPrice",
+    "power",
+    "powerPrice",
+    "rechargeMultiplier",
+    "rechargePrice",
+    "researchPrice",
+    "researched",
+  ];
+  return (
+    Object.keys(value).sort().join("|") === keys.sort().join("|") &&
+    typeof hole.discovered === "boolean" &&
+    Number.isFinite(hole.discoveryProbability) &&
+    hole.discoveryProbability! >= 0 &&
+    hole.discoveryProbability! <= 100 &&
+    typeof hole.researched === "boolean" &&
+    Number.isFinite(hole.researchPrice) &&
+    hole.researchPrice! >= 0 &&
+    Number.isFinite(hole.durationPrice) &&
+    hole.durationPrice! >= 0 &&
+    Number.isFinite(hole.powerPrice) &&
+    hole.powerPrice! >= 0 &&
+    Number.isFinite(hole.rechargePrice) &&
+    hole.rechargePrice! >= 0 &&
+    Number.isFinite(hole.durationMs) &&
+    hole.durationMs! >= 0 &&
+    Number.isFinite(hole.power) &&
+    hole.power! > 0 &&
+    Number.isFinite(hole.rechargeMultiplier) &&
+    hole.rechargeMultiplier! >= BLACK_HOLE_MINIMUM_CHARGE_MS / BLACK_HOLE_BASE_CHARGE_MS &&
+    hole.rechargeMultiplier! <= 1 &&
+    typeof hole.alwaysOn === "boolean" &&
+    (!hole.researched || hole.discovered) &&
+    (!hole.alwaysOn || (hole.researched && hole.rechargeMultiplier! <= 0.1))
+  );
+}
+
+function validCosmicRipProgress(value: unknown): value is CosmicRipProgress {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const rip = value as Partial<CosmicRipProgress>;
+  const keys = [
+    "unlocked",
+    "scannerRestored",
+    "ripLocationSectorIndex",
+    "scannedSectorIndexes",
+    "ripFound",
+    "telemetryData",
+    "sensorBuoyCount",
+    "ripResearchOrbiterCount",
+    "researchedTechnologyIds",
+    "activeResearchTechnologyId",
+    "researchElapsedMs",
+    "closed",
+  ];
+  const technologyIds = COSMIC_RIP_TECHNOLOGIES.map((technology) => technology.id);
+  const locationValid =
+    rip.ripLocationSectorIndex === null ||
+    (Number.isSafeInteger(rip.ripLocationSectorIndex) &&
+      rip.ripLocationSectorIndex! >= 0 &&
+      rip.ripLocationSectorIndex! < COSMIC_RIP_SECTOR_COUNT);
+  const scannedValid =
+    Array.isArray(rip.scannedSectorIndexes) &&
+    rip.scannedSectorIndexes.length <= COSMIC_RIP_SECTOR_COUNT &&
+    rip.scannedSectorIndexes.every(
+      (index) => Number.isSafeInteger(index) && index >= 0 && index < COSMIC_RIP_SECTOR_COUNT,
+    ) &&
+    new Set(rip.scannedSectorIndexes).size === rip.scannedSectorIndexes.length;
+  const researchedValid =
+    Array.isArray(rip.researchedTechnologyIds) &&
+    rip.researchedTechnologyIds.every((id) => technologyIds.includes(id)) &&
+    new Set(rip.researchedTechnologyIds).size === rip.researchedTechnologyIds.length;
+  const activeId = rip.activeResearchTechnologyId;
+  const activeValid =
+    activeId === null ||
+    (typeof activeId === "string" && technologyIds.includes(activeId as CosmicRipTechnologyId));
+  const activeTechnology =
+    typeof activeId === "string"
+      ? COSMIC_RIP_TECHNOLOGIES.find((technology) => technology.id === activeId)
+      : undefined;
+  return (
+    Object.keys(value).sort().join("|") === keys.sort().join("|") &&
+    typeof rip.unlocked === "boolean" &&
+    typeof rip.scannerRestored === "boolean" &&
+    locationValid &&
+    scannedValid &&
+    typeof rip.ripFound === "boolean" &&
+    Number.isFinite(rip.telemetryData) &&
+    rip.telemetryData! >= 0 &&
+    Number.isSafeInteger(rip.sensorBuoyCount) &&
+    rip.sensorBuoyCount! >= 0 &&
+    Number.isSafeInteger(rip.ripResearchOrbiterCount) &&
+    rip.ripResearchOrbiterCount! >= 0 &&
+    researchedValid &&
+    activeValid &&
+    Number.isFinite(rip.researchElapsedMs) &&
+    rip.researchElapsedMs! >= 0 &&
+    typeof rip.closed === "boolean" &&
+    (!rip.scannerRestored || (rip.unlocked && rip.ripLocationSectorIndex !== null)) &&
+    (!rip.ripFound || rip.scannerRestored) &&
+    (!rip.ripFound ||
+      (rip.ripLocationSectorIndex !== null &&
+        rip.scannedSectorIndexes?.includes(rip.ripLocationSectorIndex))) &&
+    (!rip.closed ||
+      (researchedValid && rip.researchedTechnologyIds.length === technologyIds.length)) &&
+    (activeId === null ||
+      (activeId !== undefined &&
+        !rip.researchedTechnologyIds?.includes(activeId as CosmicRipTechnologyId) &&
+        rip.researchElapsedMs! < (activeTechnology?.durationMs ?? 0)))
+  );
+}
+
+function validAchievementProgress(
+  value: unknown,
+  permanent = false,
+): value is RunAchievementProgress | PermanentAchievementProgress {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const progress = value as Partial<RunAchievementProgress>;
+  const bonuses = progress.bonuses;
+  return (
+    Object.keys(value).sort().join("|") ===
+      (permanent ? "bonuses|themeIdsTried|unlockedIds" : "bonuses|unlockedIds") &&
+    Array.isArray(progress.unlockedIds) &&
+    progress.unlockedIds.length <= ACHIEVEMENT_IDS.length &&
+    progress.unlockedIds.every((id) => ACHIEVEMENT_IDS.includes(id)) &&
+    new Set(progress.unlockedIds).size === progress.unlockedIds.length &&
+    (!permanent ||
+      (Array.isArray((progress as Partial<PermanentAchievementProgress>).themeIdsTried) &&
+        (progress as Partial<PermanentAchievementProgress>).themeIdsTried!.length <=
+          THEME_IDS.length &&
+        (progress as Partial<PermanentAchievementProgress>).themeIdsTried!.every(isThemeId) &&
+        new Set((progress as Partial<PermanentAchievementProgress>).themeIdsTried).size ===
+          (progress as Partial<PermanentAchievementProgress>).themeIdsTried!.length)) &&
+    !!bonuses &&
+    Object.keys(bonuses).sort().join("|") ===
+      "compoundRecipeCostMultiplier|resourceRateAdditive|resourceRateMultiplier" &&
+    Number.isFinite(bonuses.resourceRateMultiplier) &&
+    bonuses.resourceRateMultiplier > 0 &&
+    bonuses.resourceRateMultiplier <= 1_000_000 &&
+    Number.isFinite(bonuses.resourceRateAdditive) &&
+    bonuses.resourceRateAdditive >= 0 &&
+    bonuses.resourceRateAdditive <= 1_000_000 &&
+    Number.isFinite(bonuses.compoundRecipeCostMultiplier) &&
+    bonuses.compoundRecipeCostMultiplier > 0 &&
+    bonuses.compoundRecipeCostMultiplier <= 1_000_000
+  );
+}
+
+function validRandomEventProgress(value: unknown): value is RandomEventProgress {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const progress = value as Partial<RandomEventProgress>;
+  const exact = (record: object, keys: readonly string[]) =>
+    Object.keys(record).sort().join("|") === [...keys].sort().join("|");
+  return (
+    exact(value, [
+      "elapsedMs",
+      "intervalMs",
+      "halfwayAttempted",
+      "probabilities",
+      "history",
+      "activeEffects",
+    ]) &&
+    Number.isFinite(progress.elapsedMs) &&
+    progress.elapsedMs! >= 0 &&
+    Number.isFinite(progress.intervalMs) &&
+    progress.intervalMs! >= 45 * 60_000 &&
+    progress.intervalMs! <= 75 * 60_000 &&
+    typeof progress.halfwayAttempted === "boolean" &&
+    !!progress.probabilities &&
+    exact(progress.probabilities, RANDOM_EVENT_IDS) &&
+    RANDOM_EVENT_IDS.every(
+      (id) =>
+        Number.isFinite(progress.probabilities![id]) &&
+        progress.probabilities![id] >= 0.01 &&
+        progress.probabilities![id] <= 0.5,
+    ) &&
+    Array.isArray(progress.history) &&
+    progress.history.length <= 100 &&
+    progress.history.every(
+      (entry) =>
+        entry &&
+        exact(entry, ["id", "simulationMs", "negative"]) &&
+        RANDOM_EVENT_IDS.includes(entry.id) &&
+        Number.isFinite(entry.simulationMs) &&
+        entry.simulationMs >= 0 &&
+        typeof entry.negative === "boolean",
+    ) &&
+    Array.isArray(progress.activeEffects) &&
+    progress.activeEffects.length <= RANDOM_EVENT_IDS.length &&
+    progress.activeEffects.every(
+      (entry) =>
+        entry &&
+        exact(entry, [
+          "id",
+          "remainingMs",
+          "multiplier",
+          "targetId",
+          "powerMultiplier",
+          "durationMultiplier",
+          "nextShiftInMs",
+        ]) &&
+        RANDOM_EVENT_IDS.includes(entry.id) &&
+        Number.isFinite(entry.remainingMs) &&
+        entry.remainingMs > 0 &&
+        Number.isFinite(entry.multiplier) &&
+        entry.multiplier >= 0 &&
+        entry.multiplier <= 10 &&
+        (entry.targetId === null || typeof entry.targetId === "string") &&
+        Number.isFinite(entry.powerMultiplier) &&
+        entry.powerMultiplier >= 0 &&
+        entry.powerMultiplier <= 10 &&
+        Number.isFinite(entry.durationMultiplier) &&
+        entry.durationMultiplier >= 0 &&
+        entry.durationMultiplier <= 10 &&
+        Number.isFinite(entry.nextShiftInMs) &&
+        entry.nextShiftInMs >= 0 &&
+        entry.nextShiftInMs <= 60_000 &&
+        (entry.id === "blackHoleInstability" ? entry.nextShiftInMs > 0 : entry.nextShiftInMs === 0),
+    )
+  );
+}
+
+function validNewsTickerProgress(value: unknown): value is NewsTickerProgress {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const progress = value as Partial<NewsTickerProgress>;
+  const exact = (record: object, keys: readonly string[]) =>
+    Object.keys(record).sort().join("|") === [...keys].sort().join("|");
+  return (
+    exact(value, [
+      "remainingMs",
+      "entries",
+      "seenIds",
+      "activatedWackyIds",
+      "claimedPrizeIds",
+      "resourceStorageMultiplier",
+      "compoundStorageMultiplier",
+      "powerCapacityMultiplier",
+      "powerPlantRateMultiplier",
+      "autoBuyerRateMultiplier",
+    ]) &&
+    Number.isFinite(progress.remainingMs) &&
+    progress.remainingMs! >= 0 &&
+    progress.remainingMs! <= 35_000 &&
+    Array.isArray(progress.entries) &&
+    progress.entries.length <= 50 &&
+    progress.entries.every(
+      (entry) =>
+        entry &&
+        exact(entry, ["id", "category", "textKey", "simulationMs", "prizeGoodId", "claimed"]) &&
+        Number.isSafeInteger(entry.id) &&
+        NEWS_CATEGORIES.includes(entry.category) &&
+        typeof entry.textKey === "string" &&
+        Number.isFinite(entry.simulationMs) &&
+        entry.simulationMs >= 0 &&
+        (entry.prizeGoodId === null || typeof entry.prizeGoodId === "string") &&
+        typeof entry.claimed === "boolean",
+    ) &&
+    [progress.seenIds, progress.activatedWackyIds, progress.claimedPrizeIds].every(
+      (ids) =>
+        Array.isArray(ids) &&
+        ids.length <= 500 &&
+        ids.every(Number.isSafeInteger) &&
+        new Set(ids).size === ids.length,
+    ) &&
+    [
+      progress.resourceStorageMultiplier,
+      progress.compoundStorageMultiplier,
+      progress.powerCapacityMultiplier,
+      progress.powerPlantRateMultiplier,
+      progress.autoBuyerRateMultiplier,
+    ].every(
+      (multiplier) =>
+        Number.isFinite(multiplier) && Number(multiplier) >= 1 && Number(multiplier) <= 1_000_000,
+    )
+  );
+}
+
+function validCasinoStats(value: unknown): value is CasinoRunStats {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const expected = [
+    "cpSpent",
+    "doubleOrNothingPlayed",
+    "doubleOrNothingWon",
+    "wheelPlayed",
+    "wheelWon",
+    "wheelSpecialWon",
+    "higherLowerPlayed",
+    "higherLowerWon",
+    "voidSeerPlayed",
+    "voidSeerWon",
+  ];
+  const record = value as Record<string, unknown>;
+  return (
+    Object.keys(record).sort().join("|") === [...expected].sort().join("|") &&
+    expected.every((key) => Number.isSafeInteger(record[key]) && Number(record[key]) >= 0) &&
+    Number(record["doubleOrNothingWon"]) <= Number(record["doubleOrNothingPlayed"]) &&
+    Number(record["wheelWon"]) <= Number(record["wheelPlayed"]) &&
+    Number(record["wheelSpecialWon"]) <= Number(record["wheelWon"]) &&
+    Number(record["higherLowerWon"]) <= Number(record["higherLowerPlayed"]) &&
+    Number(record["voidSeerWon"]) <= Number(record["voidSeerPlayed"])
+  );
+}
+
+function validCasinoState(value: unknown): value is CasinoState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const casino = value as Partial<CasinoState>;
+  const expected = [
+    "casinoPoints",
+    "gamesWon",
+    "baseWinProbability",
+    "wheelSpecialPending",
+    "higherLower",
+    "nextHistoryId",
+    "history",
+    "lifetimeStats",
+  ];
+  if (
+    Object.keys(value).sort().join("|") !== [...expected].sort().join("|") ||
+    !Number.isSafeInteger(casino.casinoPoints) ||
+    casino.casinoPoints! < 0 ||
+    !Array.isArray(casino.gamesWon) ||
+    casino.gamesWon.some((id) => !CASINO_GAME_IDS.includes(id)) ||
+    new Set(casino.gamesWon).size !== casino.gamesWon.length ||
+    !Number.isFinite(casino.baseWinProbability) ||
+    casino.baseWinProbability! < 0 ||
+    casino.baseWinProbability! > 1 ||
+    typeof casino.wheelSpecialPending !== "boolean" ||
+    !Number.isSafeInteger(casino.nextHistoryId) ||
+    casino.nextHistoryId! < 1 ||
+    !Array.isArray(casino.history) ||
+    casino.history.length > 30 ||
+    !validCasinoStats(casino.lifetimeStats)
+  )
+    return false;
+  if (casino.higherLower !== null) {
+    const round = casino.higherLower;
+    if (
+      !round ||
+      typeof round !== "object" ||
+      Object.keys(round).sort().join("|") !== "deck|index|prizeKey" ||
+      !Array.isArray(round.deck) ||
+      round.deck.length !== 9 ||
+      !Number.isSafeInteger(round.index) ||
+      round.index! < 0 ||
+      round.index! > 8 ||
+      (round.prizeKey !== null && typeof round.prizeKey !== "string")
+    )
+      return false;
+    const cards = new Set<string>();
+    for (let index = 0; index < round.deck.length; index += 1) {
+      const card = round.deck[index];
+      if (
+        !card ||
+        typeof card !== "object" ||
+        Object.keys(card).sort().join("|") !== "rank|suit" ||
+        !Number.isInteger(card.rank) ||
+        card.rank < 2 ||
+        card.rank > 14 ||
+        !["clubs", "diamonds", "hearts", "spades"].includes(card.suit)
+      )
+        return false;
+      const key = `${card.rank}:${card.suit}`;
+      if (cards.has(key) || (index > 0 && round.deck[index - 1]?.rank === card.rank)) return false;
+      cards.add(key);
+    }
+    if (round.index! < 2 !== (round.prizeKey === null)) return false;
+  }
+  let previousId = 0;
+  for (const entry of casino.history) {
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      Object.keys(entry).sort().join("|") !== "cpAwarded|cpSpent|gameId|id|result" ||
+      !Number.isSafeInteger(entry.id) ||
+      entry.id <= previousId ||
+      entry.id >= casino.nextHistoryId! ||
+      !CASINO_GAME_IDS.includes(entry.gameId) ||
+      typeof entry.result !== "string" ||
+      entry.result.length > 160 ||
+      !Number.isSafeInteger(entry.cpSpent) ||
+      entry.cpSpent < 0 ||
+      !Number.isSafeInteger(entry.cpAwarded) ||
+      entry.cpAwarded < 0
+    )
+      return false;
+    previousId = entry.id;
+  }
+  return true;
 }
 
 export function isValidGameState(value: unknown): value is GameState {
@@ -308,7 +1051,7 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   const state = value as Partial<GameState>;
   if (
-    state.schemaVersion !== 20 ||
+    state.schemaVersion !== 31 ||
     !state.run ||
     !state.permanent ||
     !state.settings ||
@@ -332,6 +1075,17 @@ export function isValidGameState(value: unknown): value is GameState {
       "economy",
       "space",
       "philosophyAbilityActive",
+      "philosophyChoicePending",
+      "expansionistExtraSystemIds",
+      "marketLiquidatedThisRun",
+      "marketLockdownRemainingMs",
+      "casinoStats",
+      "timeWarp",
+      "blackHoleChargeReady",
+      "blackHoleWarpActive",
+      "achievements",
+      "randomEvents",
+      "newsTicker",
     ]) ||
     !exactKeys(permanent, [
       "rebirthCount",
@@ -339,14 +1093,22 @@ export function isValidGameState(value: unknown): value is GameState {
       "gloryPoints",
       "acquiredPerks",
       "philosophyId",
+      "philosophyRepeatableRanks",
       "settledSystemIds",
       "oTypePowerPlantAssignments",
+      "galacticMarket",
+      "galacticCasino",
+      "blackHole",
+      "megastructures",
+      "cosmicRip",
+      "achievements",
     ]) ||
     !exactKeys(settings, ["locale", "themeId", "notation", "soundEnabled", "reducedMotion"]) ||
     !exactKeys(statistics, [
       "lifetimeCashEarned",
       "lifetimeGoodsProduced",
       "lifetimeAntimatterMined",
+      "lifetimeActiveMs",
       "acceptedCommands",
       "completedTimers",
     ]) ||
@@ -397,7 +1159,6 @@ export function isValidGameState(value: unknown): value is GameState {
       "currentPrecipitationRate",
       "precipitationCollectedThisRun",
       "systemProfiles",
-      "ancientManuscripts",
       "systemEncounters",
       "fleetEnvoyBuilt",
       "playerFleets",
@@ -439,7 +1200,9 @@ export function isValidGameState(value: unknown): value is GameState {
         !run.economy.resourceAllocation[id] ||
         !exactKeys(run.economy.resourceAllocation[id], ["enabled", "cashShare", "compoundShare"]),
     ) ||
-    !exactKeys(run.goods, ECONOMIC_GOOD_IDS)
+    !exactKeys(run.goods, ECONOMIC_GOOD_IDS) ||
+    !validRandomEventProgress(run.randomEvents) ||
+    !validNewsTickerProgress(run.newsTicker)
   )
     return false;
   if (
@@ -457,6 +1220,15 @@ export function isValidGameState(value: unknown): value is GameState {
     !Array.isArray(run.economy.revealedTechnologies) ||
     typeof run.economy.researchAutobuyerEnabled !== "boolean" ||
     typeof run.philosophyAbilityActive !== "boolean" ||
+    typeof run.philosophyChoicePending !== "boolean" ||
+    (run.philosophyChoicePending && permanent.philosophyId !== null) ||
+    (run.philosophyAbilityActive && permanent.philosophyId === null) ||
+    !Array.isArray(run.expansionistExtraSystemIds) ||
+    run.expansionistExtraSystemIds.length > 3 ||
+    !run.expansionistExtraSystemIds.every(isSystemId) ||
+    new Set(run.expansionistExtraSystemIds).size !== run.expansionistExtraSystemIds.length ||
+    !Array.isArray(permanent.settledSystemIds) ||
+    run.expansionistExtraSystemIds.some((id) => permanent.settledSystemIds.includes(id)) ||
     typeof run.space.currentSystemId !== "string" ||
     run.space.currentSystemId.length === 0 ||
     typeof run.space.telescopeBuilt !== "boolean" ||
@@ -474,8 +1246,30 @@ export function isValidGameState(value: unknown): value is GameState {
     !Array.isArray(run.space.asteroids) ||
     !Array.isArray(run.space.systemProfiles) ||
     run.space.systemProfiles.length > 100 ||
-    !Array.isArray(run.space.ancientManuscripts) ||
-    run.space.ancientManuscripts.length > 4 ||
+    !permanent.megastructures ||
+    !exactKeys(permanent.megastructures, [
+      "ancientManuscripts",
+      "researchedTechnologyIds",
+      "manuscriptRewardClaimed",
+      "conquestRewardClaimed",
+      "forceFieldRewardClaimed",
+      "miaplacidusStoryPending",
+      "miaplacidusStoryShown",
+    ]) ||
+    !Array.isArray(permanent.megastructures.ancientManuscripts) ||
+    permanent.megastructures.ancientManuscripts.length > 4 ||
+    !Array.isArray(permanent.megastructures.researchedTechnologyIds) ||
+    permanent.megastructures.researchedTechnologyIds.length > MEGASTRUCTURE_TECHNOLOGY_IDS.length ||
+    permanent.megastructures.researchedTechnologyIds.some(
+      (id) => !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(id),
+    ) ||
+    new Set(permanent.megastructures.researchedTechnologyIds).size !==
+      permanent.megastructures.researchedTechnologyIds.length ||
+    typeof permanent.megastructures.manuscriptRewardClaimed !== "boolean" ||
+    typeof permanent.megastructures.conquestRewardClaimed !== "boolean" ||
+    typeof permanent.megastructures.forceFieldRewardClaimed !== "boolean" ||
+    typeof permanent.megastructures.miaplacidusStoryPending !== "boolean" ||
+    typeof permanent.megastructures.miaplacidusStoryShown !== "boolean" ||
     !Array.isArray(run.space.systemEncounters) ||
     run.space.systemEncounters.length > 100 ||
     (run.space.selectedAsteroidId !== null && typeof run.space.selectedAsteroidId !== "string") ||
@@ -575,10 +1369,16 @@ export function isValidGameState(value: unknown): value is GameState {
   const manuscriptPositions = new Set<number>();
   const manuscriptSites = new Set<string>();
   const factorySites = new Set<string>();
-  for (const record of run.space.ancientManuscripts) {
+  for (const record of permanent.megastructures.ancientManuscripts) {
     if (
       !record ||
-      !exactKeys(record, ["position", "manuscriptSystemId", "factorySystemId", "reported"]) ||
+      !exactKeys(record, [
+        "position",
+        "manuscriptSystemId",
+        "factorySystemId",
+        "megastructureId",
+        "reported",
+      ]) ||
       !Number.isSafeInteger(record.position) ||
       record.position < 1 ||
       record.position > 4 ||
@@ -587,6 +1387,7 @@ export function isValidGameState(value: unknown): value is GameState {
       manuscriptSites.has(record.manuscriptSystemId) ||
       !isSystemId(record.factorySystemId) ||
       factorySites.has(record.factorySystemId) ||
+      !MEGASTRUCTURE_IDS.includes(record.megastructureId) ||
       record.manuscriptSystemId === record.factorySystemId ||
       typeof record.reported !== "boolean"
     ) {
@@ -960,6 +1761,30 @@ export function isValidGameState(value: unknown): value is GameState {
   ) {
     return false;
   }
+  if (
+    typeof run.marketLiquidatedThisRun !== "boolean" ||
+    !Number.isFinite(run.marketLockdownRemainingMs) ||
+    run.marketLockdownRemainingMs < 0 ||
+    !validCasinoStats(run.casinoStats) ||
+    !run.timeWarp ||
+    Object.keys(run.timeWarp).sort().join("|") !== "multiplier|remainingMs" ||
+    !Number.isFinite(run.timeWarp.multiplier) ||
+    run.timeWarp.multiplier <= 0 ||
+    run.timeWarp.multiplier > 1_000_000 ||
+    !Number.isFinite(run.timeWarp.remainingMs) ||
+    run.timeWarp.remainingMs < 0 ||
+    typeof run.blackHoleChargeReady !== "boolean" ||
+    typeof run.blackHoleWarpActive !== "boolean" ||
+    (run.blackHoleWarpActive && run.timeWarp.remainingMs <= 0) ||
+    !validGalacticMarketState(permanent.galacticMarket) ||
+    !validCasinoState(permanent.galacticCasino) ||
+    !validBlackHoleProgress(permanent.blackHole) ||
+    !validCosmicRipProgress(permanent.cosmicRip) ||
+    !validAchievementProgress(run.achievements) ||
+    !validAchievementProgress(permanent.achievements, true)
+  ) {
+    return false;
+  }
   for (const [id, timer] of Object.entries(run.timers)) {
     const timerKeys = [
       "id",
@@ -1044,8 +1869,17 @@ export function isValidGameState(value: unknown): value is GameState {
     new Set(Object.values(permanent.oTypePowerPlantAssignments).filter(Boolean)).size ===
       Object.values(permanent.oTypePowerPlantAssignments).filter(Boolean).length &&
     (permanent.philosophyId === null || PHILOSOPHY_IDS.includes(permanent.philosophyId)) &&
+    permanent.philosophyRepeatableRanks !== null &&
+    typeof permanent.philosophyRepeatableRanks === "object" &&
+    !Array.isArray(permanent.philosophyRepeatableRanks) &&
+    exactKeys(permanent.philosophyRepeatableRanks, PHILOSOPHY_REPEATABLE_IDS) &&
+    PHILOSOPHY_REPEATABLE_IDS.every(
+      (repeatableId) =>
+        Number.isSafeInteger(permanent.philosophyRepeatableRanks[repeatableId]) &&
+        permanent.philosophyRepeatableRanks[repeatableId] >= 0,
+    ) &&
     LOCALE_IDS.includes(settings.locale) &&
-    typeof settings.themeId === "string" &&
+    isThemeId(settings.themeId) &&
     (settings.notation === "standard" || settings.notation === "scientific") &&
     typeof settings.soundEnabled === "boolean" &&
     typeof settings.reducedMotion === "boolean" &&
@@ -1056,6 +1890,8 @@ export function isValidGameState(value: unknown): value is GameState {
     Number.isFinite(statistics.lifetimeAntimatterMined) &&
     statistics.lifetimeAntimatterMined >= 0 &&
     statistics.lifetimeAntimatterMined >= run.space.antimatterMinedThisRun &&
+    Number.isFinite(statistics.lifetimeActiveMs) &&
+    statistics.lifetimeActiveMs >= 0 &&
     Number.isSafeInteger(statistics.acceptedCommands) &&
     statistics.acceptedCommands >= 0 &&
     Number.isSafeInteger(statistics.completedTimers) &&
@@ -1083,6 +1919,7 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
   const space = runState["space"];
   if (!space || typeof space !== "object" || Array.isArray(space)) return null;
   const spaceState = space as Record<string, unknown>;
+  const { ancientManuscripts: legacyManuscripts, ...spaceWithoutManuscripts } = spaceState;
   const currentSystemId =
     typeof spaceState["currentSystemId"] === "string" ? spaceState["currentSystemId"] : "spica";
   const savedWeatherTimers =
@@ -1094,6 +1931,68 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
   const weatherTimers = { ...savedWeatherTimers };
   weatherTimers[STAR_WEATHER_TIMER_ID] ??= createMigratedStarWeatherTimer();
   const permanentState = permanent as Record<string, unknown>;
+  const legacyStructureByPosition = [
+    "celestialProcessingCore",
+    "plasmaForge",
+    "galacticMemoryArchive",
+    "dysonSphere",
+  ] as const;
+  const ancientManuscripts = Array.isArray(legacyManuscripts)
+    ? legacyManuscripts.slice(0, 4).flatMap((rawRecord, index) => {
+        if (!rawRecord || typeof rawRecord !== "object" || Array.isArray(rawRecord)) return [];
+        const record = rawRecord as Record<string, unknown>;
+        const position = record["position"];
+        const manuscriptSystemId = record["manuscriptSystemId"];
+        const factorySystemId = record["factorySystemId"];
+        if (
+          !Number.isSafeInteger(position) ||
+          Number(position) < 1 ||
+          Number(position) > 4 ||
+          !isSystemId(manuscriptSystemId) ||
+          !isSystemId(factorySystemId) ||
+          manuscriptSystemId === factorySystemId
+        ) {
+          return [];
+        }
+        const positionNumber = Number(position) as 1 | 2 | 3 | 4;
+        const megastructureId = MEGASTRUCTURE_IDS.includes(
+          record["megastructureId"] as (typeof MEGASTRUCTURE_IDS)[number],
+        )
+          ? (record["megastructureId"] as (typeof MEGASTRUCTURE_IDS)[number])
+          : (legacyStructureByPosition[positionNumber - 1] ?? legacyStructureByPosition[index]!);
+        return [
+          {
+            position: positionNumber,
+            manuscriptSystemId,
+            factorySystemId,
+            megastructureId,
+            reported: record["reported"] === true,
+          },
+        ];
+      })
+    : [];
+  const legacyResearchedTechs =
+    runState["economy"] && typeof runState["economy"] === "object"
+      ? (runState["economy"] as Record<string, unknown>)["researchedTechnologies"]
+      : undefined;
+  const researchedTechnologyIds = Array.isArray(legacyResearchedTechs)
+    ? [
+        ...new Set(
+          legacyResearchedTechs.filter((id): id is TechId =>
+            MEGASTRUCTURE_TECHNOLOGY_IDS.includes(id as TechId),
+          ),
+        ),
+      ]
+    : [];
+  const megastructures: MegastructureProgress = {
+    ancientManuscripts,
+    researchedTechnologyIds,
+    manuscriptRewardClaimed: false,
+    conquestRewardClaimed: false,
+    forceFieldRewardClaimed: false,
+    miaplacidusStoryPending: false,
+    miaplacidusStoryShown: false,
+  };
   const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
   const initialSettledSystemId =
     catalogue.find((star) => star.initiallySettled)?.id ?? "system:0:0";
@@ -1135,6 +2034,10 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
     ? (spaceState["currentSystemWeather"] as SpaceState["currentSystemWeather"])
     : "clear";
   const statisticsState = statistics as Record<string, unknown>;
+  const settingsState =
+    value["settings"] && typeof value["settings"] === "object" && !Array.isArray(value["settings"])
+      ? (value["settings"] as Record<string, unknown>)
+      : {};
   const legacyPerks = Array.isArray(permanentState["acquiredPerks"])
     ? (permanentState["acquiredPerks"] as string[]).filter((perk) => typeof perk === "string")
     : [];
@@ -1196,15 +2099,30 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
   ) as Record<OTypePowerPlantId, SystemId | null>;
   const upgraded = {
     ...value,
-    schemaVersion: 20,
+    schemaVersion: 31,
     run: {
       ...runState,
       timers: weatherTimers,
       philosophyAbilityActive: runState["philosophyAbilityActive"] ?? false,
+      philosophyChoicePending:
+        typeof runState["philosophyChoicePending"] === "boolean"
+          ? runState["philosophyChoicePending"]
+          : permanentState["philosophyId"] == null && starStudyRange > 0,
+      expansionistExtraSystemIds: Array.isArray(runState["expansionistExtraSystemIds"])
+        ? runState["expansionistExtraSystemIds"].filter(isSystemId).slice(0, 3)
+        : [],
+      marketLiquidatedThisRun: runState["marketLiquidatedThisRun"] ?? false,
+      marketLockdownRemainingMs: runState["marketLockdownRemainingMs"] ?? 0,
+      casinoStats: runState["casinoStats"] ?? createInitialCasinoRunStats(),
+      timeWarp: runState["timeWarp"] ?? { multiplier: 1, remainingMs: 0 },
+      blackHoleChargeReady: runState["blackHoleChargeReady"] ?? false,
+      blackHoleWarpActive: runState["blackHoleWarpActive"] ?? false,
+      achievements: runState["achievements"] ?? createInitialRunAchievementProgress(),
+      randomEvents: runState["randomEvents"] ?? createInitialRandomEventProgress(),
+      newsTicker: runState["newsTicker"] ?? createInitialNewsTickerProgress(),
       space: {
-        ...spaceState,
+        ...spaceWithoutManuscripts,
         systemProfiles,
-        ancientManuscripts: spaceState["ancientManuscripts"] ?? [],
         systemEncounters: Array.isArray(spaceState["systemEncounters"])
           ? spaceState["systemEncounters"].map((encounter) =>
               encounter && typeof encounter === "object" && !Array.isArray(encounter)
@@ -1278,15 +2196,120 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
     permanent: {
       ...permanentState,
       philosophyId: permanentState["philosophyId"] ?? null,
+      philosophyRepeatableRanks: Object.fromEntries(
+        PHILOSOPHY_REPEATABLE_IDS.map((repeatableId) => {
+          const ranks = permanentState["philosophyRepeatableRanks"];
+          const rank =
+            ranks !== null && typeof ranks === "object" && !Array.isArray(ranks)
+              ? (ranks as Record<string, unknown>)[repeatableId]
+              : undefined;
+          return [
+            repeatableId,
+            typeof rank === "number" && Number.isSafeInteger(rank) && rank >= 0 ? rank : 0,
+          ];
+        }),
+      ),
       settledSystemIds,
       oTypePowerPlantAssignments,
+      galacticMarket:
+        (permanentState["galacticMarket"] as GalacticMarketState | undefined) ??
+        createInitialGalacticMarketState(),
+      galacticCasino: permanentState["galacticCasino"] ?? createInitialCasinoState(),
+      blackHole: permanentState["blackHole"] ?? createInitialBlackHoleProgress(),
+      megastructures,
+      cosmicRip: createInitialCosmicRipProgress(),
+      achievements: (() => {
+        const saved = permanentState["achievements"];
+        const themeId = isThemeId(settingsState["themeId"])
+          ? settingsState["themeId"]
+          : DEFAULT_THEME_ID;
+        if (!saved || typeof saved !== "object" || Array.isArray(saved))
+          return createInitialPermanentAchievementProgress();
+        const achievement = saved as Record<string, unknown>;
+        return {
+          ...achievement,
+          themeIdsTried: Array.isArray(achievement["themeIdsTried"])
+            ? achievement["themeIdsTried"]
+            : [themeId],
+        };
+      })(),
+    },
+    settings: {
+      ...settingsState,
+      themeId: isThemeId(settingsState["themeId"]) ? settingsState["themeId"] : DEFAULT_THEME_ID,
     },
     statistics: {
       ...statisticsState,
       lifetimeAntimatterMined: statisticsState["lifetimeAntimatterMined"] ?? antimatter,
+      lifetimeActiveMs: statisticsState["lifetimeActiveMs"] ?? 0,
     },
   } as unknown as GameState;
   return isValidGameState(upgraded) ? upgraded : null;
+}
+
+function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState | null {
+  const run = value["run"];
+  const permanent = value["permanent"];
+  const settings = value["settings"];
+  if (
+    !run ||
+    typeof run !== "object" ||
+    Array.isArray(run) ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent) ||
+    !settings ||
+    typeof settings !== "object" ||
+    Array.isArray(settings)
+  )
+    return null;
+  const runState = run as Record<string, unknown>;
+  const permanentState = permanent as Record<string, unknown>;
+  const settingsState = settings as Record<string, unknown>;
+  const themeId = isThemeId(settingsState["themeId"]) ? settingsState["themeId"] : DEFAULT_THEME_ID;
+  const achievement = permanentState["achievements"];
+  const randomEvents = runState["randomEvents"];
+  const activeEffects =
+    randomEvents &&
+    typeof randomEvents === "object" &&
+    Array.isArray((randomEvents as Record<string, unknown>)["activeEffects"])
+      ? (
+          (randomEvents as Record<string, unknown>)["activeEffects"] as readonly Record<
+            string,
+            unknown
+          >[]
+        ).map((effect) => ({
+          ...effect,
+          nextShiftInMs: effect["id"] === "blackHoleInstability" ? 60_000 : 0,
+        }))
+      : [];
+  const candidate = {
+    ...value,
+    schemaVersion: 31,
+    settings: { ...settingsState, themeId },
+    run: {
+      ...runState,
+      randomEvents:
+        randomEvents && typeof randomEvents === "object"
+          ? { ...(randomEvents as Record<string, unknown>), activeEffects }
+          : createInitialRandomEventProgress(),
+    },
+    permanent: {
+      ...permanentState,
+      achievements:
+        achievement && typeof achievement === "object" && !Array.isArray(achievement)
+          ? {
+              ...(achievement as Record<string, unknown>),
+              themeIdsTried: Array.isArray(
+                (achievement as Record<string, unknown>)["themeIdsTried"],
+              )
+                ? (achievement as Record<string, unknown>)["themeIdsTried"]
+                : [themeId],
+            }
+          : createInitialPermanentAchievementProgress(),
+    },
+  };
+  return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;
 }
 
 /** Validates a v1 state by applying economy defaults and validating the current shape. */
@@ -1503,6 +2526,193 @@ export function upgradeGameStateV19(value: unknown): GameState | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const legacy = value as Record<string, unknown>;
   if (legacy["schemaVersion"] !== 19) return null;
+  const candidate = upgradeToCurrentState(legacy);
+  return candidate && isValidGameState(candidate) ? candidate : null;
+}
+
+/** Adds persistent Galactic Market state and rebirth-local market flags in v21. */
+export function upgradeGameStateV20(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 20) return null;
+  const candidate = upgradeToCurrentState(legacy);
+  return candidate && isValidGameState(candidate) ? candidate : null;
+}
+
+/** Adds the saved Galactic Casino wallet, active round, history and counters in v22. */
+export function upgradeGameStateV21(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 21) return null;
+  const candidate = upgradeToCurrentState(legacy);
+  return candidate && isValidGameState(candidate) ? candidate : null;
+}
+
+/** Adds philosophy choice state and repeatable ranks introduced in v23. */
+export function upgradeGameStateV22(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 22) return null;
+  const candidate = upgradeToCurrentState(legacy);
+  return candidate && isValidGameState(candidate) ? candidate : null;
+}
+
+/** Moves manuscript discoveries to permanent scope and adds durable megastructure ownership. */
+export function upgradeGameStateV24(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 24) return null;
+  const candidate = upgradeToCurrentState(legacy);
+  return candidate && isValidGameState(candidate) ? candidate : null;
+}
+
+/** Adds permanent Cosmic Rip progress to existing v25 saves. */
+export function upgradeGameStateV25(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (
+    legacy["schemaVersion"] !== 25 ||
+    !legacy["permanent"] ||
+    typeof legacy["permanent"] !== "object"
+  )
+    return null;
+  const permanent = legacy["permanent"] as Record<string, unknown>;
+  const run = legacy["run"] as Record<string, unknown>;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 30,
+    statistics: { ...(legacy["statistics"] as Record<string, unknown>), lifetimeActiveMs: 0 },
+    run: {
+      ...run,
+      achievements: createInitialRunAchievementProgress(),
+      randomEvents: createInitialRandomEventProgress(),
+      newsTicker: createInitialNewsTickerProgress(),
+    },
+    permanent: {
+      ...permanent,
+      cosmicRip: createInitialCosmicRipProgress(),
+      achievements: createInitialPermanentAchievementProgress(),
+    },
+  };
+  return upgradeMetaSignalsAndThemes(candidate);
+}
+
+/** Adds run and permanent achievement records to version 26 Cosmic Rip saves. */
+export function upgradeGameStateV26(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (
+    legacy["schemaVersion"] !== 26 ||
+    !legacy["run"] ||
+    typeof legacy["run"] !== "object" ||
+    !legacy["permanent"] ||
+    typeof legacy["permanent"] !== "object"
+  )
+    return null;
+  const run = legacy["run"] as Record<string, unknown>;
+  const permanent = legacy["permanent"] as Record<string, unknown>;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 30,
+    statistics: { ...(legacy["statistics"] as Record<string, unknown>), lifetimeActiveMs: 0 },
+    run: {
+      ...run,
+      achievements: createInitialRunAchievementProgress(),
+      randomEvents: createInitialRandomEventProgress(),
+      newsTicker: createInitialNewsTickerProgress(),
+    },
+    permanent: { ...permanent, achievements: createInitialPermanentAchievementProgress() },
+  };
+  return upgradeMetaSignalsAndThemes(candidate);
+}
+
+/** Adds persistent event and news history to version 27 achievement saves. */
+export function upgradeGameStateV27(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 27 || !legacy["run"] || typeof legacy["run"] !== "object")
+    return null;
+  const run = legacy["run"] as Record<string, unknown>;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 30,
+    statistics: { ...(legacy["statistics"] as Record<string, unknown>), lifetimeActiveMs: 0 },
+    run: {
+      ...run,
+      randomEvents: createInitialRandomEventProgress(),
+      newsTicker: createInitialNewsTickerProgress(),
+    },
+  };
+  return upgradeMetaSignalsAndThemes(candidate);
+}
+
+/** Adds targeted random-event effects to version 28 event/news saves. */
+export function upgradeGameStateV28(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 28 || !legacy["run"] || typeof legacy["run"] !== "object")
+    return null;
+  const run = legacy["run"] as Record<string, unknown>;
+  const existing = run["randomEvents"] as Partial<RandomEventProgress> | undefined;
+  const initial = createInitialRandomEventProgress();
+  const activeEffects = Array.isArray(existing?.activeEffects)
+    ? existing.activeEffects.map((raw) => {
+        const effect = raw as Partial<RandomEventProgress["activeEffects"][number]>;
+        return {
+          ...effect,
+          targetId: effect.targetId ?? null,
+          powerMultiplier:
+            effect.powerMultiplier ??
+            (effect.id === "blackHoleInstability" ? (effect.multiplier ?? 1) : 1),
+          durationMultiplier: effect.durationMultiplier ?? 1,
+        };
+      })
+    : initial.activeEffects;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 30,
+    statistics: { ...(legacy["statistics"] as Record<string, unknown>), lifetimeActiveMs: 0 },
+    run: {
+      ...run,
+      randomEvents: { ...initial, ...existing, activeEffects },
+    },
+  };
+  return upgradeMetaSignalsAndThemes(candidate);
+}
+
+/** Adds permanent theme history and minute-based instability timing to v30 saves. */
+export function upgradeGameStateV30(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 30) return null;
+  return upgradeMetaSignalsAndThemes(legacy);
+}
+
+/** Adds durable foreground active time for the 50-hour achievement in v30. */
+export function upgradeGameStateV29(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (
+    legacy["schemaVersion"] !== 29 ||
+    !legacy["statistics"] ||
+    typeof legacy["statistics"] !== "object" ||
+    Array.isArray(legacy["statistics"])
+  )
+    return null;
+  const statistics = legacy["statistics"] as Record<string, unknown>;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 30,
+    statistics: { ...statistics, lifetimeActiveMs: 0 },
+  };
+  return upgradeMetaSignalsAndThemes(candidate);
+}
+
+/** Adds persistent Black Hole progression and run-local charge state introduced in v24. */
+export function upgradeGameStateV23(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 23) return null;
   const candidate = upgradeToCurrentState(legacy);
   return candidate && isValidGameState(candidate) ? candidate : null;
 }

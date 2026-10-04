@@ -27,24 +27,34 @@ import {
   type SpacePurchaseCost,
   type TelescopeSurvey,
 } from "../content/space";
-import { GALAXY_SEED_DEFAULT, type SystemId, type TechId } from "../content/ids";
+import { COMPOUND_IDS, GALAXY_SEED_DEFAULT, type SystemId } from "../content/ids";
 import {
   createStarCatalogue,
   distanceBetweenStars,
+  HOME_SYSTEM_NAME,
   starTypeForSystem,
 } from "../content/starCatalogue";
 import { antimatterRequiredForDistance } from "./starData";
 import { createStarMapModel } from "./starMap";
 import { ensureDiscoveredStarSystemProfiles } from "./starSystemProfiles";
-import { generateAncientManuscriptAtStudyMilestone } from "./ancientManuscripts";
+import {
+  generateAncientManuscriptAtStudyMilestone,
+  reportAncientManuscriptsAtSystem,
+} from "./ancientManuscripts";
+import { rollBlackHoleDiscovery } from "./blackHole";
 import { generateStarSystemEncounter } from "./starSystemEncounters";
 import { antimatterStarTypeMultiplier } from "../content/starTypeRules";
 import { O_TYPE_POWER_PLANT_IDS, type OTypePowerPlantId } from "../content/starTypeRules";
 import { permanentPerkPurchaseCount } from "../content/economyRules";
+import { philosophyDiscountedSpaceCost, philosophyRepeatableRank } from "./philosophy";
 import { canAfford, settleSpend } from "./precision";
 import { nextRandom } from "./random";
 import { createSystemRandom } from "./systemRandom";
 import { resolveDiplomacyChoice } from "./diplomacy";
+import {
+  megastructureAntimatterRatePerSecond as permanentMegastructureAntimatterRate,
+  miaplacidusForceFieldLevel,
+} from "./megastructures";
 import {
   playerFleetBuildCost,
   playerFleetUnitStats,
@@ -114,19 +124,8 @@ function rocketIsActive(rocket: GameState["run"]["space"]["rockets"][RocketId]):
   return rocket.phase === "outbound" || rocket.phase === "mining" || rocket.phase === "returning";
 }
 
-const MEGASTRUCTURE_ANTIMATTER_TECH_IDS: readonly TechId[] = [
-  "dysonSphereDisconnect",
-  "celestialProcessingCoreDisconnect",
-  "plasmaForgeDisconnect",
-  "galacticMemoryArchiveDisconnect",
-];
-
 function megastructureAntimatterRatePerSecond(state: GameState): number {
-  return state.run.economy.researchedTechnologies.some((technologyId) =>
-    MEGASTRUCTURE_ANTIMATTER_TECH_IDS.includes(technologyId),
-  )
-    ? 0.15
-    : 0;
+  return permanentMegastructureAntimatterRate(state);
 }
 
 function rocketJourneyTimerId(rocketId: RocketId) {
@@ -146,16 +145,21 @@ export function starshipTravelPlan(state: GameState, systemId: string) {
     );
   const destination = catalogue.find((star) => star.id === systemId);
   if (!current || !destination || current.id === destination.id) return null;
-  const selectable = createStarMapModel(catalogue, current.id, state.run.space.starStudyRange).find(
-    (star) => star.id === destination.id && star.selectable,
-  );
+  const selectable = createStarMapModel(
+    catalogue,
+    current.id,
+    state.run.space.starStudyRange,
+    miaplacidusForceFieldLevel(state),
+  ).find((star) => star.id === destination.id && star.selectable);
   if (!selectable) return null;
   const distance = distanceBetweenStars(current, destination);
   const quantumEnginePurchases = permanentPerkPurchaseCount(
     state.permanent.acquiredPerks,
     "quantumEngines",
   );
-  const warpDrivePurchases = permanentPerkPurchaseCount(state.permanent.acquiredPerks, "warpDrive");
+  const warpDrivePurchases =
+    permanentPerkPurchaseCount(state.permanent.acquiredPerks, "warpDrive") +
+    philosophyRepeatableRank(state, "warpDrive");
   return {
     distanceLy: distance,
     durationMs: starshipTravelDurationMs(distance, quantumEnginePurchases, warpDrivePurchases),
@@ -164,7 +168,7 @@ export function starshipTravelPlan(state: GameState, systemId: string) {
 }
 
 function isUndisclosedFactorySystem(state: GameState, systemId: string): boolean {
-  return state.run.space.ancientManuscripts.some(
+  return state.permanent.megastructures.ancientManuscripts.some(
     (record) => record.factorySystemId === systemId && !record.reported,
   );
 }
@@ -182,7 +186,9 @@ function diplomacyIsAvailable(state: GameState): boolean {
     encounter.enemyFleets.air + encounter.enemyFleets.land + encounter.enemyFleets.sea <= 0 ||
     encounter.warReady ||
     encounter.warMode ||
-    state.run.space.ancientManuscripts.some((record) => record.factorySystemId === systemId)
+    state.permanent.megastructures.ancientManuscripts.some(
+      (record) => record.factorySystemId === systemId,
+    )
   )
     return false;
   const star = createStarCatalogue(GALAXY_SEED_DEFAULT).find((entry) => entry.id === systemId);
@@ -240,10 +246,9 @@ function startRocketTravel(
 ): SpaceTransition {
   const asteroid = state.run.space.asteroids.find((entry) => entry.id === asteroidId)!;
   const timerId = rocketJourneyTimerId(rocketId);
-  const asteroidAttractorPurchases = permanentPerkPurchaseCount(
-    state.permanent.acquiredPerks,
-    "asteroidAttractors",
-  );
+  const asteroidAttractorPurchases =
+    permanentPerkPurchaseCount(state.permanent.acquiredPerks, "asteroidAttractors") +
+    philosophyRepeatableRank(state, "asteroidAttractors");
   const timer = createTimer({
     id: timerId,
     domain: "travel",
@@ -369,7 +374,12 @@ export function checkSpacePreconditions(
         code: "space-launch-pad-built",
         messageKey: "space.reason.launch-pad-built",
       });
-    return purchaseFailure(state, LAUNCH_PAD_COST) ?? { ok: true };
+    return (
+      purchaseFailure(
+        state,
+        philosophyDiscountedSpaceCost(state, LAUNCH_PAD_COST, "efficientAssembly", 0.01, true),
+      ) ?? { ok: true }
+    );
   }
   if (command.type === "space.starship.module.build") {
     if (state.run.space.starship.phase !== "unlaunched")
@@ -400,7 +410,8 @@ export function checkSpacePreconditions(
         starshipModulePartCost(
           command.moduleId,
           builtParts,
-          permanentPerkPurchaseCount(state.permanent.acquiredPerks, "spaceElevator"),
+          permanentPerkPurchaseCount(state.permanent.acquiredPerks, "spaceElevator") +
+            philosophyRepeatableRank(state, "spaceElevator"),
         ),
       ) ?? {
         ok: true,
@@ -654,7 +665,8 @@ export function checkSpacePreconditions(
           state,
           rocketPartCost(
             rocket.builtParts,
-            permanentPerkPurchaseCount(state.permanent.acquiredPerks, "launchPadMassProduction"),
+            permanentPerkPurchaseCount(state.permanent.acquiredPerks, "launchPadMassProduction") +
+              philosophyRepeatableRank(state, "launchPadMassProduction"),
           ),
         ) ?? { ok: true }
       );
@@ -754,7 +766,12 @@ export function checkSpacePreconditions(
       });
     if (state.run.space.telescopeBuilt)
       return reject({ code: "space-telescope-built", messageKey: "space.reason.telescope-built" });
-    return purchaseFailure(state, TELESCOPE_COST) ?? { ok: true };
+    return (
+      purchaseFailure(
+        state,
+        philosophyDiscountedSpaceCost(state, TELESCOPE_COST, "efficientAssembly", 0.01, true),
+      ) ?? { ok: true }
+    );
   }
   if (
     command.type === "space.telescope.scan.start" ||
@@ -830,32 +847,26 @@ function beginSurvey(state: GameState, survey: TelescopeSurvey): SpaceTransition
   const isAsteroidSurvey = survey === "asteroids";
   const duration =
     survey === "asteroids"
-      ? asteroidSearchDuration(state.run.space.telescopeBaseSearchDurationMs, state.run.random)
+      ? asteroidSearchDuration(
+          state.run.space.telescopeBaseSearchDurationMs,
+          state.run.random,
+          permanentPerkPurchaseCount(state.permanent.acquiredPerks, "asteroidDwellers") +
+            philosophyRepeatableRank(state, "asteroidDwellers"),
+        )
       : survey === "stars"
-        ? starStudyDuration(state.run.random)
+        ? starStudyDuration(
+            state.run.random,
+            permanentPerkPurchaseCount(state.permanent.acquiredPerks, "stellarInsightManifold") +
+              philosophyRepeatableRank(state, "stellarInsightManifold"),
+          )
         : voidPillageDuration(state.run.random);
   const scanSpeedLevel = permanentPerkPurchaseCount(
     state.permanent.acquiredPerks,
     "fasterAsteroidScan",
   );
-  const asteroidDwellersPurchases = permanentPerkPurchaseCount(
-    state.permanent.acquiredPerks,
-    "asteroidDwellers",
-  );
-  const stellarInsightManifoldPurchases = permanentPerkPurchaseCount(
-    state.permanent.acquiredPerks,
-    "stellarInsightManifold",
-  );
   const adjustedDuration = isAsteroidSurvey
-    ? Math.max(
-        MINIMUM_ASTEROID_SEARCH_DURATION_MS,
-        duration.durationMs *
-          Math.pow(0.75, scanSpeedLevel) *
-          Math.pow(0.99, asteroidDwellersPurchases),
-      )
-    : survey === "stars"
-      ? duration.durationMs * Math.pow(0.99, stellarInsightManifoldPurchases)
-      : duration.durationMs;
+    ? Math.max(MINIMUM_ASTEROID_SEARCH_DURATION_MS, duration.durationMs * 0.75 ** scanSpeedLevel)
+    : duration.durationMs;
   const timerId = createTimerId(
     "survey",
     survey === "asteroids" ? "asteroid-scan" : survey === "stars" ? "star-study" : "void-pillage",
@@ -970,6 +981,56 @@ function enemyHealthPoolsForEncounter(
   return Object.fromEntries(
     ENEMY_FLEET_IDS.map((fleetId) => [fleetId, encounter.enemyFleets[fleetId] * health]),
   ) as Record<(typeof ENEMY_FLEET_IDS)[number], number>;
+}
+
+function rapidExpansionSystems(state: GameState, destinationSystemId: SystemId) {
+  let random = state.run.random;
+  const allowedRoll = nextRandom(random);
+  random = allowedRoll.state;
+  const maximum = Math.floor(allowedRoll.value * 4);
+  if (maximum === 0) return { systemIds: [] as SystemId[], random };
+
+  const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
+  const destination = catalogue.find((star) => star.id === destinationSystemId);
+  if (!destination) return { systemIds: [] as SystemId[], random };
+  const unavailable = new Set([
+    ...state.permanent.settledSystemIds,
+    ...state.run.expansionistExtraSystemIds,
+    state.run.space.currentSystemId,
+    destinationSystemId,
+  ]);
+  const manuscriptSystems = new Set(
+    state.permanent.megastructures.ancientManuscripts.map((record) => record.factorySystemId),
+  );
+  let candidates = catalogue
+    .filter((star) => !unavailable.has(star.id) && star.starType !== "O")
+    .filter((star) => !manuscriptSystems.has(star.id))
+    .map((star) => ({ star, distance: distanceBetweenStars(destination, star) }))
+    .filter((entry) => entry.distance <= 10);
+  const fleetPower = totalPlayerFleetPower(state.run.space.playerFleetCombatTotals).attackPower;
+  const captured: SystemId[] = [];
+  const settlementCapacity = Math.max(
+    0,
+    100 - state.permanent.settledSystemIds.length - 1 - state.run.expansionistExtraSystemIds.length,
+  );
+  const count = Math.min(maximum, candidates.length, settlementCapacity);
+  for (let index = 0; index < count; index += 1) {
+    const selection = nextRandom(random);
+    random = selection.state;
+    const candidateIndex = Math.floor(selection.value * candidates.length);
+    const candidate = candidates.splice(candidateIndex, 1)[0]!;
+    const fleetScore = Math.min(fleetPower / 275, 1) * 50;
+    const distanceScore =
+      candidate.distance < 1
+        ? 50
+        : candidate.distance >= 10
+          ? 0
+          : (1 - (candidate.distance - 1) / 9) * 50;
+    const roll = nextRandom(random);
+    random = roll.state;
+    if (roll.value * 100 <= fleetScore + distanceScore) captured.push(candidate.star.id);
+  }
+  return { systemIds: captured, random };
 }
 
 function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransition {
@@ -1117,12 +1178,40 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
       },
     },
   };
+  let battleState = nextState;
+  if (
+    result === "victory" &&
+    state.permanent.philosophyId === "expansionist" &&
+    state.run.philosophyAbilityActive
+  ) {
+    const expansion = rapidExpansionSystems(state, systemId);
+    battleState = {
+      ...nextState,
+      run: {
+        ...nextState.run,
+        random: expansion.random,
+        expansionistExtraSystemIds: [
+          ...nextState.run.expansionistExtraSystemIds,
+          ...expansion.systemIds,
+        ].slice(0, 3),
+      },
+    };
+  }
   return {
-    state: nextState,
+    state: battleState,
     events: [
       ...(result === null
         ? [{ type: "space.battle.round", systemId, round: battle.round } as const]
-        : [{ type: "space.battle.finished", systemId, result } as const]),
+        : [
+            {
+              type: "space.battle.finished",
+              systemId,
+              result,
+              scannerBuilt:
+                state.run.space.starshipModules.stellarScanner.builtParts >=
+                STARSHIP_MODULES.stellarScanner.parts,
+            } as const,
+          ]),
     ],
   };
 }
@@ -1144,7 +1233,10 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
     };
   }
   if (command.type === "space.telescope.build") {
-    const run = payCost(state, TELESCOPE_COST);
+    const run = payCost(
+      state,
+      philosophyDiscountedSpaceCost(state, TELESCOPE_COST, "efficientAssembly", 0.01, true),
+    );
     return {
       state: {
         ...state,
@@ -1154,7 +1246,10 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
     };
   }
   if (command.type === "space.launch-pad.build") {
-    const run = payCost(state, LAUNCH_PAD_COST);
+    const run = payCost(
+      state,
+      philosophyDiscountedSpaceCost(state, LAUNCH_PAD_COST, "efficientAssembly", 0.01, true),
+    );
     return {
       state: { ...state, run: { ...run, space: { ...run.space, launchPadBuilt: true } } },
       events: [{ type: "space.launch-pad.built" }],
@@ -1167,7 +1262,8 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
       starshipModulePartCost(
         command.moduleId,
         module.builtParts,
-        permanentPerkPurchaseCount(state.permanent.acquiredPerks, "spaceElevator"),
+        permanentPerkPurchaseCount(state.permanent.acquiredPerks, "spaceElevator") +
+          philosophyRepeatableRank(state, "spaceElevator"),
       ),
     );
     const builtParts = module.builtParts + 1;
@@ -1267,10 +1363,17 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
     const destination = createStarCatalogue(GALAXY_SEED_DEFAULT).find(
       (star) => star.id === systemId,
     )!;
-    const isFactorySystem = state.run.space.ancientManuscripts.some(
+    const isFactorySystem = state.permanent.megastructures.ancientManuscripts.some(
       (record) => record.factorySystemId === systemId,
     );
-    const encounter = generateStarSystemEncounter(destination, isFactorySystem);
+    const generatedEncounter = generateStarSystemEncounter(destination, isFactorySystem);
+    const impressionBonus = philosophyRepeatableRank(state, "stellarWhispers");
+    const initialImpression = Math.min(100, generatedEncounter.initialImpression + impressionBonus);
+    const encounter = {
+      ...generatedEncounter,
+      initialImpression,
+      currentImpression: initialImpression,
+    };
     return {
       state: {
         ...state,
@@ -1400,7 +1503,7 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
       (entry) => entry.systemId === systemId,
     );
     const encounter = state.run.space.systemEncounters[encounterIndex]!;
-    const factorySystem = state.run.space.ancientManuscripts.some(
+    const factorySystem = state.permanent.megastructures.ancientManuscripts.some(
       (record) => record.factorySystemId === systemId,
     );
     const systemType = starTypeForSystem(systemId);
@@ -1426,12 +1529,45 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
     );
     const philosophyAscendencyBonus =
       state.permanent.philosophyId === "voidborn" && state.permanent.rebirthCount > 0
-        ? permanentPerkPurchaseCount(state.permanent.acquiredPerks, "ascendencyPhilosophy")
+        ? permanentPerkPurchaseCount(state.permanent.acquiredPerks, "ascendencyPhilosophy") +
+          philosophyRepeatableRank(state, "ascendencyPhilosophy")
         : 0;
     const ascendencyPoints = state.run.space.ascendencyAwardedThisRun
       ? 0
       : baseAscendencyPoints + philosophyAscendencyBonus;
     const settledSystemIds = [...state.permanent.settledSystemIds, systemId];
+    const previousManuscripts = state.permanent.megastructures.ancientManuscripts;
+    const reportedManuscripts = reportAncientManuscriptsAtSystem(previousManuscripts, systemId);
+    const newlyReportedManuscripts = reportedManuscripts.filter(
+      (record) =>
+        record.manuscriptSystemId === systemId &&
+        !previousManuscripts.some(
+          (previous) => previous.manuscriptSystemId === systemId && previous.reported,
+        ),
+    );
+    const manuscriptRewardClaimed =
+      state.permanent.megastructures.manuscriptRewardClaimed || newlyReportedManuscripts.length > 0;
+    const conquestRewardClaimed =
+      state.permanent.megastructures.conquestRewardClaimed || factorySystem;
+    const miaplacidusStoryPending =
+      state.permanent.megastructures.miaplacidusStoryPending ||
+      (createStarCatalogue(GALAXY_SEED_DEFAULT).find((star) => star.id === systemId)?.name ===
+        HOME_SYSTEM_NAME &&
+        encounter.battle.phase === "victory" &&
+        !state.permanent.megastructures.miaplacidusStoryShown);
+    const goods = { ...state.run.goods };
+    if (
+      newlyReportedManuscripts.length > 0 &&
+      !state.permanent.megastructures.manuscriptRewardClaimed
+    ) {
+      for (const compoundId of COMPOUND_IDS) {
+        const good = goods[compoundId];
+        goods[compoundId] = {
+          ...good,
+          quantity: Math.min(good.storageCapacity, Math.floor(good.quantity * 2)),
+        };
+      }
+    }
     const systemEncounters = [...state.run.space.systemEncounters];
     systemEncounters[encounterIndex] = {
       ...encounter,
@@ -1443,6 +1579,12 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
         ...state,
         run: {
           ...state.run,
+          cash:
+            state.run.cash +
+            (factorySystem && !state.permanent.megastructures.conquestRewardClaimed
+              ? 1_000_000
+              : 0),
+          goods,
           space: {
             ...state.run.space,
             ascendencyAwardedThisRun: true,
@@ -1452,8 +1594,14 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
         permanent: {
           ...state.permanent,
           ascendencyPoints: state.permanent.ascendencyPoints + ascendencyPoints,
-          gloryPoints: state.permanent.gloryPoints + 1,
           settledSystemIds,
+          megastructures: {
+            ...state.permanent.megastructures,
+            ancientManuscripts: reportedManuscripts,
+            manuscriptRewardClaimed,
+            conquestRewardClaimed,
+            miaplacidusStoryPending,
+          },
           oTypePowerPlantAssignments: oTypePlantId
             ? { ...state.permanent.oTypePowerPlantAssignments, [oTypePlantId]: systemId }
             : state.permanent.oTypePowerPlantAssignments,
@@ -1464,9 +1612,17 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
           type: "space.system.settled",
           systemId,
           ascendencyPoints,
-          gloryPoints: 1,
           ...(oTypePlantId ? { oTypePlantId } : {}),
         },
+        ...newlyReportedManuscripts.map((record) => ({
+          type: "space.manuscript.reported" as const,
+          manuscriptSystemId: record.manuscriptSystemId,
+          factorySystemId: record.factorySystemId,
+          megastructureId: record.megastructureId,
+        })),
+        ...(miaplacidusStoryPending && !state.permanent.megastructures.miaplacidusStoryPending
+          ? ([{ type: "space.miaplacidus.story-ready" as const }] as const)
+          : []),
       ],
     };
   }
@@ -1518,7 +1674,8 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
       state,
       rocketPartCost(
         rocket.builtParts,
-        permanentPerkPurchaseCount(state.permanent.acquiredPerks, "launchPadMassProduction"),
+        permanentPerkPurchaseCount(state.permanent.acquiredPerks, "launchPadMassProduction") +
+          philosophyRepeatableRank(state, "launchPadMassProduction"),
       ),
     );
     const builtParts = rocket.builtParts + 1;
@@ -1841,6 +1998,10 @@ export function antimatterMiningRatePerSecond(state: GameState): number {
   );
   const boostMultiplier = state.run.space.antimatterBoostActive ? ANTIMATTER_BOOST_MULTIPLIER : 1;
   const rocketRate = ROCKET_IDS.reduce((total, rocketId) => {
+    const breakdown = state.run.randomEvents.activeEffects.find(
+      (effect) => effect.id === "minerBrokeDown",
+    );
+    if (breakdown && (breakdown.targetId === null || breakdown.targetId === rocketId)) return total;
     const rocket = state.run.space.rockets[rocketId];
     if (rocket.phase !== "mining" || !rocket.targetAsteroidId) return total;
     const asteroid = state.run.space.asteroids.find(
@@ -1874,6 +2035,10 @@ export function advanceSpaceMining(
   let nextState = state;
   const events: (SpaceEvent | TimerEvent)[] = [];
   for (const rocketId of ROCKET_IDS) {
+    const breakdown = nextState.run.randomEvents.activeEffects.find(
+      (effect) => effect.id === "minerBrokeDown",
+    );
+    if (breakdown && (breakdown.targetId === null || breakdown.targetId === rocketId)) continue;
     const rocketElapsedMs = elapsedByRocket[rocketId] ?? 0;
     if (rocketElapsedMs <= 0) continue;
     const rocket = nextState.run.space.rockets[rocketId];
@@ -2117,6 +2282,7 @@ function completeVoidPillage(state: GameState): SpaceTransition {
 
 function surveyCompletion(state: GameState, survey: TelescopeSurvey): SpaceTransition {
   if (survey === "stars") {
+    const discovery = rollBlackHoleDiscovery(state);
     const range = addStarStudyRange(state);
     const systemProfiles = ensureDiscoveredStarSystemProfiles(
       state.run.space.systemProfiles,
@@ -2124,7 +2290,7 @@ function surveyCompletion(state: GameState, survey: TelescopeSurvey): SpaceTrans
       range,
     );
     const ancientManuscripts = generateAncientManuscriptAtStudyMilestone(
-      state.run.space.ancientManuscripts,
+      state.permanent.megastructures.ancientManuscripts,
       state.run.space.currentSystemId,
       state.run.space.starStudyRange,
       range,
@@ -2139,21 +2305,29 @@ function surveyCompletion(state: GameState, survey: TelescopeSurvey): SpaceTrans
       : state.run.space.starship;
     return {
       state: {
-        ...state,
+        ...discovery.state,
+        permanent: {
+          ...discovery.state.permanent,
+          megastructures: {
+            ...discovery.state.permanent.megastructures,
+            ancientManuscripts,
+          },
+        },
         run: {
-          ...state.run,
+          ...discovery.state.run,
           space: {
             ...state.run.space,
             activeSurvey: null,
             surveyPowerBlocked: false,
             starStudyRange: range,
             systemProfiles,
-            ancientManuscripts,
             starship,
           },
+          philosophyChoicePending:
+            state.run.philosophyChoicePending || state.permanent.philosophyId === null,
         },
       },
-      events: [{ type: "space.stars.studied", range }],
+      events: [...discovery.events, { type: "space.stars.studied", range }],
     };
   }
   if (survey === "pillageVoid") return completeVoidPillage(state);

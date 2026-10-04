@@ -64,16 +64,21 @@ function applyNextWeatherCycle(state: GameState): GameState {
   const random = createSystemRandom(
     `${state.run.random.seed}:${resolvedSystemId}:weather:${cycleCount}`,
   );
-  let weather = selectWeather(weatherChances(space), random);
+  const endlessSummer = state.run.randomEvents.activeEffects.some(
+    (effect) => effect.id === "endlessSummer",
+  );
+  let weather = endlessSummer ? "sunny" : selectWeather(weatherChances(space), random);
   const forceRelief =
     (weather === "rain" || weather === "volcano") &&
     previousSevereCount >= WEATHER_SEVERE_STREAK_BEFORE_RELIEF;
   if (forceRelief) weather = "cloudy";
 
   const severe = weather === "rain" || weather === "volcano";
-  const durationMs = forceRelief
-    ? WEATHER_WINDOW_MIN_MS
-    : (Math.floor(random() * 3) + 1) * WEATHER_WINDOW_MIN_MS;
+  const durationMs = endlessSummer
+    ? 10_000
+    : forceRelief
+      ? WEATHER_WINDOW_MIN_MS
+      : (Math.floor(random() * 3) + 1) * WEATHER_WINDOW_MIN_MS;
   const currentPrecipitationRate = weather === "rain" ? Math.floor(random() * 4) + 1 : 0;
   const timer = createTimer({
     id: STAR_WEATHER_TIMER_ID,

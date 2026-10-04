@@ -13,6 +13,8 @@ export interface ClockInput {
   /** Used at boot to account for time since the last saved wall-clock sample. */
   readonly offlineElapsedMs?: number;
   readonly timeWarpMultiplier?: number;
+  /** Saved casino/ability warp duration; omitted for the legacy injected multiplier. */
+  readonly timeWarpRemainingMs?: number;
   readonly blackHoleAlwaysOn?: boolean;
   readonly blackHolePower?: number;
 }
@@ -100,17 +102,42 @@ export function advanceClock(state: ClockState, input: ClockInput): ClockAdvance
     // call. This preserves elapsed time without an unbounded catch-up loop.
     pendingForegroundMs = Math.min(pendingForegroundMs + foregroundDelta, MAX_OFFLINE_ELAPSED_MS);
     let count = 0;
+    let warpedWallElapsedMs = 0;
+    const configuredTimeWarpRemaining = input.timeWarpRemainingMs;
     while (pendingForegroundMs > 0 && count < MAX_FOREGROUND_STEPS_PER_ADVANCE) {
-      const elapsedMs = Math.min(MAX_FOREGROUND_STEP_MS, pendingForegroundMs);
+      const nominalElapsedMs = Math.min(MAX_FOREGROUND_STEP_MS, pendingForegroundMs);
       const requestedMultiplier = input.blackHoleAlwaysOn
         ? (input.blackHolePower ?? 1)
         : (input.timeWarpMultiplier ?? 1);
       const multiplier =
         Number.isFinite(requestedMultiplier) && requestedMultiplier > 0 ? requestedMultiplier : 1;
-      const warpedElapsedMs = elapsedMs * multiplier;
-      steps.push({ phase: "foreground", elapsedMs, warpedElapsedMs, offlineElapsedMs: 0 });
-      simulationMs += warpedElapsedMs;
-      pendingForegroundMs -= elapsedMs;
+      const activeWarpRemaining =
+        configuredTimeWarpRemaining === undefined
+          ? Infinity
+          : Math.max(0, configuredTimeWarpRemaining - warpedWallElapsedMs);
+      const warpedChunkMs = Math.min(nominalElapsedMs, activeWarpRemaining);
+      if (warpedChunkMs > 0) {
+        const warpedChunkSimulationMs = warpedChunkMs * multiplier;
+        steps.push({
+          phase: "foreground",
+          elapsedMs: warpedChunkMs,
+          warpedElapsedMs: warpedChunkSimulationMs,
+          offlineElapsedMs: 0,
+        });
+        simulationMs += warpedChunkSimulationMs;
+        warpedWallElapsedMs += warpedChunkMs;
+      }
+      const normalChunkMs = nominalElapsedMs - warpedChunkMs;
+      if (normalChunkMs > 0) {
+        steps.push({
+          phase: "foreground",
+          elapsedMs: normalChunkMs,
+          warpedElapsedMs: normalChunkMs,
+          offlineElapsedMs: 0,
+        });
+        simulationMs += normalChunkMs;
+      }
+      pendingForegroundMs -= nominalElapsedMs;
       count += 1;
     }
   } else if (state.paused) {

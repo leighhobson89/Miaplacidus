@@ -13,6 +13,7 @@ import { createStarCatalogue, GALAXY_SEED_DEFAULT } from "../content";
 import { permanentPerkPurchaseCount } from "../content/economyRules";
 import { isStarshipReady, starshipModulePartCost } from "../engine/spaceRules";
 import { starshipTravelPlan } from "../engine/spaceMechanics";
+import { philosophyRepeatableRank } from "../engine/philosophy";
 import {
   playerFleetBuildCost,
   playerFleetUnitStats,
@@ -255,7 +256,8 @@ export function StarshipPane({
             : starshipModulePartCost(
                 moduleId,
                 module.builtParts,
-                permanentPerkPurchaseCount(state.permanent.acquiredPerks, "spaceElevator"),
+                permanentPerkPurchaseCount(state.permanent.acquiredPerks, "spaceElevator") +
+                  philosophyRepeatableRank(state, "spaceElevator"),
               );
 
           return (
