@@ -10,6 +10,8 @@ const en = {
   studyRange: "Study range",
   zoomIn: "Zoom in",
   zoomOut: "Zoom out",
+  keyboardHelp:
+    "With the map focused, use the arrow keys to pan. Use the zoom buttons to change magnification.",
   resetView: "Reset map view",
   current: "Current system",
   studied: "Studied",
@@ -21,6 +23,7 @@ const en = {
   homeLocked: "Miaplacidus access opens at the fourth milestone.",
   mapView: "Map",
   dataView: "Star Data",
+  starDataDescription: "Review the properties of systems already studied in the star map.",
   sortBy: "Sort by",
   sortName: "Name",
   sortDistance: "Distance",
@@ -38,6 +41,12 @@ const en = {
   fuel: "Antimatter",
   ascendency: "AP",
   mapTarget: "Show on map",
+  antimatterRequired: "Antimatter required",
+  potentialAp: "Potential AP",
+  destinationUnavailable: "This star is not currently available as a travel destination.",
+  unidentifiedUnavailable: "This unidentified star cannot be selected until it is disclosed.",
+  sortAscending: "Switch to ascending order",
+  sortDescending: "Switch to descending order",
   noData: "No studied destinations have profile data yet.",
   factorySystem: "Factory system revealed by an ancient manuscript",
   unidentifiedStar: "Unidentified star",
@@ -62,6 +71,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     studyRange: "Alcance del estudio",
     zoomIn: "Acercar",
     zoomOut: "Alejar",
+    keyboardHelp:
+      "Con el mapa enfocado, usa las flechas para desplazarte. Usa los botones de zoom para cambiar la ampliación.",
     resetView: "Restablecer mapa",
     current: "Sistema actual",
     studied: "Estudiada",
@@ -71,6 +82,13 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     distance: "Distancia",
     studyFarther: "Estudia más para seleccionar esta estrella.",
     homeLocked: "Miaplacidus se abre en el cuarto hito.",
+    antimatterRequired: "Antimateria necesaria",
+    potentialAp: "PA potenciales",
+    destinationUnavailable: "Esta estrella no está disponible como destino de viaje.",
+    unidentifiedUnavailable:
+      "Esta estrella no identificada no se puede seleccionar hasta revelarla.",
+    sortAscending: "Cambiar a orden ascendente",
+    sortDescending: "Cambiar a orden descendente",
   },
   pt: {
     title: "Mapa estelar",
@@ -82,6 +100,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     studyRange: "Alcance do estudo",
     zoomIn: "Aproximar",
     zoomOut: "Afastar",
+    keyboardHelp:
+      "Com o mapa em foco, use as setas para deslocá-lo. Use os botões de zoom para alterar a ampliação.",
     resetView: "Repor vista do mapa",
     current: "Sistema atual",
     studied: "Estudada",
@@ -91,6 +111,13 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     distance: "Distância",
     studyFarther: "Estude mais para selecionar esta estrela.",
     homeLocked: "Miaplacidus abre no quarto marco.",
+    antimatterRequired: "Antimatéria necessária",
+    potentialAp: "PA potenciais",
+    destinationUnavailable: "Esta estrela não está disponível como destino de viagem.",
+    unidentifiedUnavailable:
+      "Esta estrela não identificada não pode ser selecionada até ser revelada.",
+    sortAscending: "Mudar para ordem crescente",
+    sortDescending: "Mudar para ordem decrescente",
   },
   de: {
     title: "Sternkarte",
@@ -102,6 +129,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     studyRange: "Forschungsreichweite",
     zoomIn: "Vergrößern",
     zoomOut: "Verkleinern",
+    keyboardHelp:
+      "Wenn die Karte fokussiert ist, verschiebe sie mit den Pfeiltasten. Mit den Zoom-Schaltflächen änderst du die Vergrößerung.",
     resetView: "Kartenansicht zurücksetzen",
     current: "Aktuelles System",
     studied: "Erforscht",
@@ -111,6 +140,13 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     distance: "Entfernung",
     studyFarther: "Erforsche weiter, um diesen Stern auszuwählen.",
     homeLocked: "Miaplacidus wird mit dem vierten Meilenstein zugänglich.",
+    antimatterRequired: "Benötigte Antimaterie",
+    potentialAp: "Mögliche AP",
+    destinationUnavailable: "Dieser Stern ist derzeit kein verfügbares Reiseziel.",
+    unidentifiedUnavailable:
+      "Dieser unidentifizierte Stern kann erst nach seiner Enthüllung ausgewählt werden.",
+    sortAscending: "Aufsteigende Sortierung wählen",
+    sortDescending: "Absteigende Sortierung wählen",
   },
   it: {
     title: "Mappa stellare",
@@ -122,6 +158,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     studyRange: "Raggio di studio",
     zoomIn: "Ingrandisci",
     zoomOut: "Riduci",
+    keyboardHelp:
+      "Con la mappa attiva, usa le frecce per spostarla. Usa i pulsanti dello zoom per cambiare ingrandimento.",
     resetView: "Reimposta la mappa",
     current: "Sistema attuale",
     studied: "Studiata",
@@ -131,6 +169,14 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     distance: "Distanza",
     studyFarther: "Studia più lontano per selezionare questa stella.",
     homeLocked: "Miaplacidus si sblocca al quarto traguardo.",
+    antimatterRequired: "Antimateria necessaria",
+    potentialAp: "PA potenziali",
+    destinationUnavailable:
+      "Questa stella non è attualmente disponibile come destinazione di viaggio.",
+    unidentifiedUnavailable:
+      "Questa stella non identificata non può essere selezionata finché non viene rivelata.",
+    sortAscending: "Passa all'ordine crescente",
+    sortDescending: "Passa all'ordine decrescente",
   },
   fr: {
     title: "Carte stellaire",
@@ -143,6 +189,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     studyRange: "Portée d'étude",
     zoomIn: "Agrandir",
     zoomOut: "Réduire",
+    keyboardHelp:
+      "Lorsque la carte est sélectionnée, utilisez les flèches pour la déplacer. Les boutons de zoom modifient l’agrandissement.",
     resetView: "Réinitialiser la carte",
     current: "Système actuel",
     studied: "Étudiée",
@@ -152,6 +200,13 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     distance: "Distance",
     studyFarther: "Étudiez plus loin pour choisir cette étoile.",
     homeLocked: "Miaplacidus sera accessible au quatrième jalon.",
+    antimatterRequired: "Antimatière requise",
+    potentialAp: "PA potentiels",
+    destinationUnavailable: "Cette étoile n'est pas disponible comme destination de voyage.",
+    unidentifiedUnavailable:
+      "Cette étoile non identifiée ne peut pas être choisie avant sa révélation.",
+    sortAscending: "Passer à l'ordre croissant",
+    sortDescending: "Passer à l'ordre décroissant",
   },
 };
 
@@ -160,6 +215,8 @@ const additionalMessages: Readonly<
 > = {
   en: {},
   es: {
+    starDataDescription:
+      "Consulta las características de los sistemas ya estudiados en el mapa estelar.",
     mapView: "Mapa",
     dataView: "Datos estelares",
     sortBy: "Ordenar por",
@@ -187,6 +244,7 @@ const additionalMessages: Readonly<
     volcano: "Volcanico",
   },
   pt: {
+    starDataDescription: "Consulte as características dos sistemas já estudados no mapa estelar.",
     mapView: "Mapa",
     dataView: "Dados estelares",
     sortBy: "Ordenar por",
@@ -214,6 +272,8 @@ const additionalMessages: Readonly<
     volcano: "Vulcanico",
   },
   de: {
+    starDataDescription:
+      "Sieh dir die Eigenschaften der bereits auf der Sternkarte erforschten Systeme an.",
     mapView: "Karte",
     dataView: "Sterndaten",
     sortBy: "Sortieren nach",
@@ -241,6 +301,8 @@ const additionalMessages: Readonly<
     volcano: "Vulkanisch",
   },
   it: {
+    starDataDescription:
+      "Consulta le caratteristiche dei sistemi già studiati sulla mappa stellare.",
     mapView: "Mappa",
     dataView: "Dati stellari",
     sortBy: "Ordina per",
@@ -268,6 +330,8 @@ const additionalMessages: Readonly<
     volcano: "Vulcanico",
   },
   fr: {
+    starDataDescription:
+      "Consultez les caractéristiques des systèmes déjà étudiés sur la carte stellaire.",
     mapView: "Carte",
     dataView: "Donnees stellaires",
     sortBy: "Trier par",

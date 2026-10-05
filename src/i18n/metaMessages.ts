@@ -3,6 +3,7 @@ import type { AscendencyPerkId } from "../content/ascendency";
 
 interface MetaCopy {
   readonly title: string;
+  readonly perksTitle: string;
   readonly ap: string;
   readonly gp: string;
   readonly rebirths: string;
@@ -47,6 +48,7 @@ const PACKS: Record<
 > = {
   en: {
     title: "Ascendency",
+    perksTitle: "Ascendency Perks",
     ap: "Ascendency Points",
     gp: "Glory Points",
     rebirths: "Rebirths",
@@ -100,6 +102,7 @@ const PACKS: Record<
   },
   es: {
     title: "Ascendencia",
+    perksTitle: "Ventajas de Ascendencia",
     ap: "Puntos de Ascendencia",
     gp: "Puntos de Gloria",
     rebirths: "Renacimientos",
@@ -153,6 +156,7 @@ const PACKS: Record<
   },
   pt: {
     title: "Ascendência",
+    perksTitle: "Vantagens de Ascendência",
     ap: "Pontos de Ascendência",
     gp: "Pontos de Glória",
     rebirths: "Renascimentos",
@@ -206,6 +210,7 @@ const PACKS: Record<
   },
   de: {
     title: "Aszendenz",
+    perksTitle: "Aufstiegsperks",
     ap: "Aszendenzpunkte",
     gp: "Ruhmpunkte",
     rebirths: "Wiedergeburten",
@@ -259,6 +264,7 @@ const PACKS: Record<
   },
   it: {
     title: "Ascendenza",
+    perksTitle: "Perk di ascendenza",
     ap: "Punti Ascendenza",
     gp: "Punti Gloria",
     rebirths: "Rinascite",
@@ -312,6 +318,7 @@ const PACKS: Record<
   },
   fr: {
     title: "Ascendance",
+    perksTitle: "Avantages d'ascendance",
     ap: "Points d’ascendance",
     gp: "Points de gloire",
     rebirths: "Renaissances",
@@ -489,8 +496,18 @@ export function rebirthText(
   return REBIRTH_TEXT[locale][key];
 }
 
-export function rebirthCarryText(locale: LocaleId, points: number): string {
-  return REBIRTH_TEXT[locale].carry.replace("{ap}", new Intl.NumberFormat(locale).format(points));
+export function rebirthCarryText(
+  locale: LocaleId,
+  points: number,
+  notation: "standard" | "scientific" = "standard",
+): string {
+  const amount = new Intl.NumberFormat(
+    locale,
+    notation === "scientific"
+      ? { notation, maximumSignificantDigits: 1 }
+      : { maximumFractionDigits: 0 },
+  ).format(points);
+  return REBIRTH_TEXT[locale].carry.replace("{ap}", amount);
 }
 
 export function rebirthLockText(locale: LocaleId, reason: RebirthLockReason | undefined): string {

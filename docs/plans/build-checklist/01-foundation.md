@@ -47,7 +47,7 @@
 
 ## First vertical slice and test tools
 
-- [x] **F-31** Render a semantic nine-tab shell with locked placeholders and stable pane IDs. Evidence: [app shell](../../../src/app/App.tsx), [boot/navigation browser tests](../../../tests/e2e/app-boot/hydrogen-boot.spec.ts).
+- [x] **F-31** Render the initial semantic nine-source-tab shell with locked placeholders and stable pane IDs. This was the foundation baseline; M-06's current navigation policy omits locked main tabs, uses names-only labels, and appends Miaplaedia after Settings. Evidence: [app shell](../../../src/app/App.tsx), [boot/navigation browser tests](../../../tests/e2e/app-boot/hydrogen-boot.spec.ts), and the [current navigation contract](../presentation-navigation-contract.md).
 - [x] **F-32** Implement Hydrogen manual gain, quantity/cap readout, sell, storage purchase, cash and one autobuyer through real engine commands. Evidence: [Hydrogen commands](../../../src/engine/commands.ts), [content rules](../../../src/content/hydrogen.ts), and [Hydrogen pane](../../../src/app/App.tsx).
 - [x] **F-33** Show affordability and disabled reasons from selectors, never parsed DOM text. Evidence: [purchase and action selectors](../../../src/engine/selectors.ts).
 - [x] **F-34** Wire English plus five other locale catalogues to the first slice; all visible text uses stable message keys. Evidence: [six typed catalogues](../../../src/i18n/messages.ts), [key/placeholder parity unit test](../../../tests/unit/hydrogen.spec.ts), and the six-locale browser check.

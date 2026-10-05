@@ -49,6 +49,7 @@ import { permanentPerkPurchaseCount } from "../content/economyRules";
 import { philosophyDiscountedSpaceCost, philosophyRepeatableRank } from "./philosophy";
 import { canAfford, settleSpend } from "./precision";
 import { nextRandom } from "./random";
+import { addLifetimeCount } from "./statistics";
 import { createSystemRandom } from "./systemRandom";
 import { resolveDiplomacyChoice } from "./diplomacy";
 import {
@@ -1323,6 +1324,13 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
             },
           },
         },
+        statistics: {
+          ...state.statistics,
+          lifetimeStarshipsLaunched: addLifetimeCount(
+            state.statistics.lifetimeStarshipsLaunched,
+            1,
+          ),
+        },
       },
       events: [
         {
@@ -1606,6 +1614,13 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
             ? { ...state.permanent.oTypePowerPlantAssignments, [oTypePlantId]: systemId }
             : state.permanent.oTypePowerPlantAssignments,
         },
+        statistics: {
+          ...state.statistics,
+          lifetimeAscendencyPointsGained: addLifetimeCount(
+            state.statistics.lifetimeAscendencyPointsGained,
+            ascendencyPoints,
+          ),
+        },
       },
       events: [
         {
@@ -1679,6 +1694,7 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
       ),
     );
     const builtParts = rocket.builtParts + 1;
+    const completedRocket = builtParts === ROCKET_PART_REQUIREMENTS[command.rocketId];
     return {
       state: {
         ...state,
@@ -1691,12 +1707,17 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
               [command.rocketId]: {
                 ...rocket,
                 builtParts,
-                phase:
-                  builtParts === ROCKET_PART_REQUIREMENTS[command.rocketId] ? "ready" : "assembly",
+                phase: completedRocket ? "ready" : "assembly",
               },
             },
           },
         },
+        statistics: completedRocket
+          ? {
+              ...state.statistics,
+              lifetimeRocketsBuilt: addLifetimeCount(state.statistics.lifetimeRocketsBuilt, 1),
+            }
+          : state.statistics,
       },
       events: [{ type: "space.rocket.part.built", rocketId: command.rocketId, builtParts }],
     };
@@ -1755,6 +1776,10 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
               [command.rocketId]: { ...rocket, phase: "orbit", fuelPumpEnabled: false },
             },
           },
+        },
+        statistics: {
+          ...state.statistics,
+          lifetimeRocketsLaunched: addLifetimeCount(state.statistics.lifetimeRocketsLaunched, 1),
         },
       },
       events: [{ type: "space.rocket.launched", rocketId: command.rocketId }],
@@ -1885,11 +1910,16 @@ export function completeSpaceJourneys(
           space: {
             ...nextState.run.space,
             antimatterUnlocked: true,
+            asteroidsMinedThisRun: addLifetimeCount(nextState.run.space.asteroidsMinedThisRun, 1),
             rockets: {
               ...nextState.run.space.rockets,
               [rocketId]: { ...rocket, phase: "mining", timerId: null },
             },
           },
+        },
+        statistics: {
+          ...nextState.statistics,
+          lifetimeAsteroidsMined: addLifetimeCount(nextState.statistics.lifetimeAsteroidsMined, 1),
         },
       };
       events.push({ type: "space.rocket.arrived", rocketId, asteroidId });
@@ -2392,6 +2422,17 @@ function surveyCompletion(state: GameState, survey: TelescopeSurvey): SpaceTrans
           asteroids,
           nextAsteroidSequence: state.run.space.nextAsteroidSequence + 1,
         },
+      },
+      statistics: {
+        ...state.statistics,
+        lifetimeAsteroidsDiscovered: addLifetimeCount(
+          state.statistics.lifetimeAsteroidsDiscovered,
+          1,
+        ),
+        lifetimeLegendaryAsteroidsDiscovered: addLifetimeCount(
+          state.statistics.lifetimeLegendaryAsteroidsDiscovered,
+          generated.asteroid.rarity === "legendary" ? 1 : 0,
+        ),
       },
     },
     events: [

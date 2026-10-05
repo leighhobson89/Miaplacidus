@@ -6,8 +6,10 @@ import { hydrogenAutobuyerPrice } from "../../content/hydrogen";
 import { autobuyerUpgradeId } from "../../content/ids";
 import { useGameSnapshot } from "../../ui/useGameSnapshot";
 import { translate, type MessageKey } from "../../i18n/messages";
+import { createLateGameNavigationCheckpoint } from "./navigationCheckpoint";
 
-type ScenarioId = "compressor-ready" | "storage-ready";
+type ScenarioId = "compressor-ready" | "storage-ready" | "late-game-navigation";
+type ResourceScenarioId = Exclude<ScenarioId, "late-game-navigation">;
 
 interface DebugMetrics {
   readonly frames: number;
@@ -19,6 +21,7 @@ interface DebugToolsProps {
   readonly store: GameStore;
   readonly seed: number;
   advanceBy(milliseconds: number): void;
+  applyTestCheckpoint(state: GameState): boolean;
   readonly readFrameMetrics: () => DebugMetrics;
 }
 
@@ -27,7 +30,7 @@ interface DebugToolsComponentProps extends DebugToolsProps {
   readonly onClose: () => void;
 }
 
-interface DebugGateway extends DebugToolsProps {
+interface DebugGateway extends Omit<DebugToolsProps, "applyTestCheckpoint"> {
   dispatch(command: GameCommand): boolean;
   runScenario(scenario: ScenarioId): GameState;
   getState(): GameState;
@@ -46,7 +49,7 @@ function clonedState(store: GameStore): GameState {
 
 function applyScenario(
   store: GameStore,
-  scenario: ScenarioId,
+  scenario: ResourceScenarioId,
   dispatchBatch: (commands: readonly GameCommand[]) => void,
 ): GameState {
   const target =
@@ -69,6 +72,7 @@ function applyScenario(
 }
 
 export function installDebugGateway(props: DebugToolsProps): () => void {
+  const { applyTestCheckpoint, ...gatewayProps } = props;
   const commandLog: string[] = [];
   const dispatch = (command: GameCommand): boolean => {
     commandLog.push(JSON.stringify(command));
@@ -79,13 +83,25 @@ export function installDebugGateway(props: DebugToolsProps): () => void {
     props.store.dispatchBatch(commands);
   };
   const gateway: DebugGateway = {
-    ...props,
+    ...gatewayProps,
     advanceBy(milliseconds) {
       commandLog.push(JSON.stringify({ type: "test.clock.advance", milliseconds }));
       props.advanceBy(milliseconds);
     },
     dispatch,
-    runScenario: (scenario) => applyScenario(props.store, scenario, dispatchBatch),
+    runScenario: (scenario) => {
+      if (scenario === "late-game-navigation") {
+        const checkpoint = createLateGameNavigationCheckpoint(props.store.getState());
+        if (!applyTestCheckpoint(checkpoint)) {
+          throw new Error("The late-game navigation checkpoint is only available in test builds.");
+        }
+        commandLog.push(
+          JSON.stringify({ type: "test.checkpoint.apply", checkpoint: "late-game-navigation" }),
+        );
+        return checkpoint;
+      }
+      return applyScenario(props.store, scenario, dispatchBatch);
+    },
     getState: () => clonedState(props.store),
     getCommandLog: () => [...commandLog],
   };

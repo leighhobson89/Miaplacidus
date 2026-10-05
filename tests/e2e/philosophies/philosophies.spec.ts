@@ -1,4 +1,6 @@
 import { expect, test } from "../_harness/fixtures";
+import { saveNowFromSettings } from "../_harness/save-controls";
+import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 
 async function startSpaceFixture(page: import("@playwright/test").Page): Promise<void> {
   await page.addInitScript(() => {
@@ -12,19 +14,17 @@ async function startSpaceFixture(page: import("@playwright/test").Page): Promise
   });
   await page.goto("/?testSeed=20261003&testLocale=en&economyFixture=space-telescope");
   await page.getByLabel("Pioneer name").fill("Philosophy Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
-  await page.getByRole("button", { name: "Begin exploring" }).click();
+  await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
 }
 
 test("chooses a path after first star study and restores its ability and repeatable after reload @philosophy", async ({
   page,
-}) => {
+}, testInfo) => {
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-telescope").click();
   await page.getByRole("button", { name: "Build telescope" }).click();
   await page.getByRole("button", { name: "Study stars", exact: true }).click();
   expect(
@@ -46,11 +46,27 @@ test("chooses a path after first star study and restores its ability and repeata
     )
     .toEqual({ pending: true, survey: null, range: 1, timer: "complete" });
   await expect(page.getByTestId("philosophy-choice")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Choose your civilization's philosophy" }),
+  ).toBeFocused();
+  await expect(page.getByTestId("philosophy-choice").locator("[data-philosophy-art]")).toHaveCount(
+    4,
+  );
+  const philosophyChoices = page.getByTestId("philosophy-choice");
+  for (const name of ["Constructor", "Supremacist", "Voidborn", "Expansionist"]) {
+    await expect(philosophyChoices.getByRole("button", { name, exact: true })).toBeInViewport({
+      ratio: 1,
+    });
+  }
+  await captureVisualCheckpoint(page, testInfo, "philosophy-path-choice-artwork");
   await page.getByTestId("philosophy-choice").getByRole("button", { name: "Expansionist" }).click();
 
   await page.getByRole("tab", { name: "Research" }).click();
+  await page.getByRole("tab", { name: "Philosophy" }).click();
   const philosophy = page.getByTestId("philosophy-pane");
   await expect(philosophy).toContainText("Expansionist");
+  await expect(philosophy.locator('[data-philosophy-art="expansionist"]')).toBeVisible();
+  await captureVisualCheckpoint(page, testInfo, "philosophy-selected-path-artwork");
   await philosophy
     .locator('[data-philosophy-ability="rapidExpansion"]')
     .getByRole("button", { name: "Research" })
@@ -67,13 +83,15 @@ test("chooses a path after first star study and restores its ability and repeata
     }));
   await expect.poll(readProgress).toEqual({ path: "expansionist", ability: true, rank: 1 });
 
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   await expect(page.getByTestId("save-status")).toContainText("Saved");
   await page.reload();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.getByLabel("Pioneer name").click();
+  await page.getByRole("option", { name: /Philosophy Pioneer/ }).click();
+  await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await page.getByRole("tab", { name: "Research" }).click();
+  await page.getByRole("tab", { name: "Philosophy" }).click();
   await expect(page.getByTestId("philosophy-pane")).toContainText("Expansionist");
   await expect.poll(readProgress).toEqual({ path: "expansionist", ability: true, rank: 1 });
 });

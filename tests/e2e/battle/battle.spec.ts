@@ -23,10 +23,7 @@ async function startBattleFixture(
   });
   await page.goto(`/?testSeed=20261003&testLocale=en&economyFixture=${fixture}`);
   await page.getByLabel("Pioneer name").fill("Battle Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
-  await page.getByRole("button", { name: "Begin exploring" }).click();
+  await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
   await page.getByRole("tab", { name: "Interstellar" }).click();
@@ -58,6 +55,10 @@ test("wins a hostile battle through the starship controls and records settlement
       ),
     )
     .toBe("victory");
+  const victoryNotice = page.locator(
+    '[data-testid="game-notification"][data-classification="battle"]',
+  );
+  await expect(victoryNotice).toContainText("Victory");
   const victory = await page.evaluate(() => window.miaplacidusTest!.getState());
   const destinationId = victory.run.space.starship.destinationSystemId;
   const destinationProfile = victory.run.space.systemProfiles.find(
@@ -97,6 +98,10 @@ test("retains the starship and surviving enemy after defeat, then retries with r
       ),
     )
     .toBe("defeat");
+  const defeatNotice = page.locator(
+    '[data-testid="game-notification"][data-classification="battle"]',
+  );
+  await expect(defeatNotice).toContainText("Defeat");
   const defeat = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(defeat.run.space.playerFleets.scout).toBe(0);
   expect(defeat.run.space.systemEncounters[0]?.enemyFleets.air).toBeGreaterThan(0);

@@ -91,6 +91,40 @@ describe("local save formats and identity", () => {
     expect(encodePortable(source)).toMatch(/^MIA1:/);
   });
 
+  it("persists per-good production ledgers through local and portable saves", () => {
+    const base = envelope("Production Ledger");
+    const state = {
+      ...base.state,
+      run: {
+        ...base.state.run,
+        goodsProducedThisRun: {
+          ...base.state.run.goodsProducedThisRun,
+          hydrogen: 12.5,
+          water: 7,
+        },
+      },
+      statistics: {
+        ...base.state.statistics,
+        lifetimeGoodsProducedByGood: {
+          ...base.state.statistics.lifetimeGoodsProducedByGood,
+          hydrogen: 123.5,
+          water: 42,
+        },
+      },
+    };
+    const source = makeEnvelope({
+      slotId: base.slotId,
+      pioneerName: base.pioneerName,
+      createdAt: base.createdAt,
+      savedAt: base.savedAt,
+      revision: base.revision,
+      state,
+    });
+
+    expect(decodeLocal(encodeLocal(source)).state).toEqual(state);
+    expect(decodePortable(encodePortable(source)).state).toEqual(state);
+  });
+
   it("detects payload modification and rejects unmarked old-game codes", () => {
     const source = envelope();
     expect(isSaveEnvelope(source)).toBe(true);
@@ -130,7 +164,7 @@ describe("local save formats and identity", () => {
     const migrated = decodePortable(oldCode);
     expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run.pioneerName).toBe("Mira");
-    expect(migrated.state.statistics).toEqual({
+    expect(migrated.state.statistics).toMatchObject({
       lifetimeCashEarned: 0,
       lifetimeGoodsProduced: 0,
       lifetimeAntimatterMined: 0,
@@ -138,6 +172,9 @@ describe("local save formats and identity", () => {
       acceptedCommands: 0,
       completedTimers: 0,
     });
+    expect(migrated.state.statistics.lifetimeRandomEventCounts).toEqual(
+      createInitialGameState().statistics.lifetimeRandomEventCounts,
+    );
     expect(isSaveEnvelope(migrated)).toBe(true);
   });
 
@@ -1041,9 +1078,18 @@ describe("local save formats and identity", () => {
         lifetimeCashEarned: 9_000_000,
         lifetimeGoodsProduced: 25_000_000,
         lifetimeAntimatterMined: 100,
+        lifetimeAscendencyPointsGained: 0,
+        lifetimeAsteroidsDiscovered: 0,
+        lifetimeLegendaryAsteroidsDiscovered: 0,
+        lifetimeAsteroidsMined: 0,
+        lifetimeRocketsBuilt: 0,
+        lifetimeRocketsLaunched: 0,
+        lifetimeStarshipsLaunched: 0,
+        lifetimeGoodsProducedByGood: base.statistics.lifetimeGoodsProducedByGood,
         lifetimeActiveMs: 1_800_000,
         acceptedCommands: 900_000,
         completedTimers: 42_000,
+        lifetimeRandomEventCounts: base.statistics.lifetimeRandomEventCounts,
       },
     };
     const profiles = [
@@ -1083,18 +1129,22 @@ describe("local save formats and identity", () => {
 });
 
 describe("local save repository", () => {
-  it("persists first-run briefing only for fresh slots and clears it on completion or delete", () => {
-    const repository = createSaveRepository(new MemoryStorage());
+  it("creates fresh slots without first-run briefing metadata", () => {
+    const storage = new MemoryStorage();
+    const repository = createSaveRepository(storage);
     const freshId = "00000000-0000-4000-8000-000000000011";
-    const fresh = repository.createFresh(
+    const fresh = repository.create(
       freshId,
       createInitialGameState({ pioneerName: "New Pioneer" }),
       "New Pioneer",
       100,
     );
-    expect(repository.needsHydrogenBriefing(fresh.slotId)).toBe(true);
-    repository.completeHydrogenBriefing(fresh.slotId);
-    expect(repository.needsHydrogenBriefing(fresh.slotId)).toBe(false);
+    expect(repository.readSlot(fresh.slotId)).not.toBeNull();
+    expect(
+      Array.from({ length: storage.length }, (_, index) => storage.key(index)).some((key) =>
+        key?.includes(":hydrogenBriefing:"),
+      ),
+    ).toBe(false);
 
     const imported = repository.create(
       "00000000-0000-4000-8000-000000000012",
@@ -1102,16 +1152,7 @@ describe("local save repository", () => {
       "Imported Pioneer",
       110,
     );
-    expect(repository.needsHydrogenBriefing(imported.slotId)).toBe(false);
-
-    const pending = repository.createFresh(
-      "00000000-0000-4000-8000-000000000013",
-      createInitialGameState({ pioneerName: "Deleted Pioneer" }),
-      "Deleted Pioneer",
-      120,
-    );
-    repository.remove(pending.slotId);
-    expect(repository.needsHydrogenBriefing(pending.slotId)).toBe(false);
+    expect(repository.readSlot(imported.slotId)).not.toBeNull();
   });
 
   it("creates independent slots, enforces normalized uniqueness, and uses an explicit active ID", () => {
@@ -1168,14 +1209,13 @@ describe("local save repository", () => {
     ).toThrowError(/not enough browser storage/i);
     const failedFreshId = "00000000-0000-4000-8000-000000000014";
     expect(() =>
-      repository.createFresh(
+      repository.create(
         failedFreshId,
         createInitialGameState({ pioneerName: "Uncommitted Pioneer" }),
         "Uncommitted Pioneer",
         130,
       ),
     ).toThrowError(/not enough browser storage/i);
-    expect(repository.needsHydrogenBriefing(failedFreshId)).toBe(false);
     storage.failHeadWrites = false;
     expect(repository.readSlot(initial.slotId)?.revision).toBe(1);
     expect(repository.readSlot(initial.slotId)?.state.run.goods.hydrogen.quantity).toBe(0);
@@ -1237,7 +1277,7 @@ describe("local save repository", () => {
     const storage = new SecurityFailureStorage(new MemoryStorage());
     const repository = createSaveRepository(storage);
     expect(() =>
-      repository.createFresh(
+      repository.create(
         "00000000-0000-4000-8000-000000000001",
         createInitialGameState({ pioneerName: "Storage denied" }),
         "Storage denied",
@@ -1300,7 +1340,205 @@ describe("Black Hole save migration", () => {
   });
 });
 
-describe("foreground active-time save migration", () => {
+describe("lifetime statistics save migration", () => {
+  it("preserves source Overview totals through save and reload", () => {
+    const initial = createInitialGameState({ pioneerName: "Stats Save", seed: 18 });
+    const state: GameState = {
+      ...initial,
+      statistics: {
+        ...initial.statistics,
+        lifetimeAscendencyPointsGained: 7,
+        lifetimeAsteroidsDiscovered: 3,
+        lifetimeLegendaryAsteroidsDiscovered: 1,
+        lifetimeAsteroidsMined: 6,
+        lifetimeRocketsBuilt: 4,
+        lifetimeRocketsLaunched: 2,
+        lifetimeStarshipsLaunched: 4,
+      },
+      run: {
+        ...initial.run,
+        space: { ...initial.run.space, asteroidsMinedThisRun: 2 },
+      },
+    };
+    const saved = makeEnvelope({
+      slotId: "00000000-0000-4000-8000-000000000913",
+      pioneerName: state.run.pioneerName,
+      createdAt: 10,
+      savedAt: 20,
+      revision: 1,
+      state,
+    });
+
+    const restored = decodePortable(encodePortable(saved));
+    expect(restored.state.statistics).toMatchObject({
+      lifetimeAscendencyPointsGained: 7,
+      lifetimeAsteroidsDiscovered: 3,
+      lifetimeLegendaryAsteroidsDiscovered: 1,
+      lifetimeAsteroidsMined: 6,
+      lifetimeRocketsBuilt: 4,
+      lifetimeRocketsLaunched: 2,
+      lifetimeStarshipsLaunched: 4,
+    });
+  });
+
+  it("adds source Overview counters to version 34 saves", () => {
+    const current = envelope("Stats Migration");
+    const {
+      lifetimeAscendencyPointsGained: _apGain,
+      lifetimeAsteroidsDiscovered: _asteroids,
+      lifetimeLegendaryAsteroidsDiscovered: _legendaryAsteroids,
+      lifetimeAsteroidsMined: _asteroidsMined,
+      lifetimeRocketsBuilt: _rocketsBuilt,
+      lifetimeRocketsLaunched: _rockets,
+      lifetimeStarshipsLaunched: _starships,
+      lifetimeGoodsProducedByGood: _goodsProduced,
+      ...oldStatistics
+    } = current.state.statistics;
+    const { goodsProducedThisRun: _goodsProducedThisRun, ...oldRun } = current.state.run;
+    const { asteroidsMinedThisRun: _minedThisRun, ...oldSpace } = oldRun.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 34,
+      run: { ...oldRun, space: oldSpace },
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 34, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.statistics).toMatchObject({
+      lifetimeAscendencyPointsGained: 0,
+      lifetimeAsteroidsDiscovered: 0,
+      lifetimeLegendaryAsteroidsDiscovered: 0,
+      lifetimeAsteroidsMined: 0,
+      lifetimeRocketsBuilt: 0,
+      lifetimeRocketsLaunched: 0,
+      lifetimeStarshipsLaunched: 0,
+      lifetimeActiveMs: current.state.statistics.lifetimeActiveMs,
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("adds Space Mining counters to version 35 saves", () => {
+    const current = envelope("Space Mining Migration");
+    const {
+      lifetimeAsteroidsMined: _asteroidsMined,
+      lifetimeRocketsBuilt: _rocketsBuilt,
+      lifetimeGoodsProducedByGood: _goodsProduced,
+      ...oldStatistics
+    } = current.state.statistics;
+    const { asteroidsMinedThisRun: _asteroidsMinedThisRun, ...oldSpace } = current.state.run.space;
+    const { goodsProducedThisRun: _goodsProducedThisRun, ...oldRun } = current.state.run;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 35,
+      run: { ...oldRun, space: oldSpace },
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 35, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.asteroidsMinedThisRun).toBe(0);
+    expect(migrated.state.statistics).toMatchObject({
+      lifetimeAsteroidsMined: 0,
+      lifetimeRocketsBuilt: 0,
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("adds per-good production counters to version 36 saves", () => {
+    const current = envelope("Production Statistics Migration");
+    const { lifetimeGoodsProducedByGood: _goodsProduced, ...oldStatistics } =
+      current.state.statistics;
+    const { goodsProducedThisRun: _goodsProducedThisRun, ...oldRun } = current.state.run;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 36,
+      run: oldRun,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 36, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    const expectedZeros = Object.fromEntries(
+      Object.keys(current.state.run.goodsProducedThisRun).map((goodId) => [goodId, 0]),
+    );
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.goodsProducedThisRun).toEqual(expectedZeros);
+    expect(migrated.state.statistics.lifetimeGoodsProducedByGood).toEqual(expectedZeros);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("upgrades a version 32 save with an empty pending-navigation list", () => {
+    const current = envelope("Navigation Migration Pioneer");
+    const {
+      navigationAttentionIds: _attention,
+      navigationAttentionInitialized: _initialized,
+      ...oldRun
+    } = current.state.run;
+    const oldState = { ...current.state, schemaVersion: 32, run: oldRun };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 32, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.navigationAttentionIds).toEqual([]);
+    expect(migrated.state.run.navigationAttentionInitialized).toBe(false);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("upgrades a version 33 save without losing pending attention IDs", () => {
+    const current = envelope("First Access Migration Pioneer");
+    const { navigationAttentionInitialized: _initialized, ...oldRun } = current.state.run;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 33,
+      run: {
+        ...oldRun,
+        navigationAttentionIds: ["settings-visual", "miaplaedia-story"],
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 33, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.navigationAttentionIds).toEqual([
+      "settings-visual",
+      "miaplaedia-story",
+    ]);
+    expect(migrated.state.run.navigationAttentionInitialized).toBe(false);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
   it("upgrades a version 29 envelope through the current save decoder", () => {
     const current = envelope("Active-Time Pioneer");
     const { lifetimeActiveMs: _active, ...oldStatistics } = current.state.statistics;

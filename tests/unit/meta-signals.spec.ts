@@ -2,21 +2,29 @@ import { describe, expect, it } from "vitest";
 import { ACHIEVEMENT_CATALOGUE, achievementName } from "../../src/content/achievements";
 import { LOCALE_IDS } from "../../src/content/ids";
 import { THEME_IDS } from "../../src/content/themes";
+import { starTypeForSystem } from "../../src/content/starCatalogue";
 import { transition } from "../../src/engine/commands";
 import { advanceRandomEvents } from "../../src/engine/randomEvents";
 import { STAR_WEATHER_TIMER_ID } from "../../src/engine/weather";
 import { createInitialGameState, isValidGameState } from "../../src/engine/state";
 import { makeEnvelope } from "../../src/persistence/schema";
 import { decodeLocal, encodeLocal } from "../../src/persistence/codec";
+import { metaSignalText, newsEntryText } from "../../src/i18n/metaSignalMessages";
 
 describe("meta achievements, events, and ticker", () => {
   it("ships all stable achievements with localized names for every supported locale", () => {
     expect(ACHIEVEMENT_CATALOGUE).toHaveLength(70);
+    const encodingArtifacts = /Ã[\u0080-\u00bf]|Â[\u0080-\u00bf]|â[€‚œ]|Å“|ÄŒ/u;
     for (const achievement of ACHIEVEMENT_CATALOGUE) {
       for (const locale of LOCALE_IDS) {
-        expect(achievementName(achievement.id, locale)).not.toBe(achievement.id);
+        const name = achievementName(achievement.id, locale);
+        expect(name).not.toBe(achievement.id);
+        expect(name).not.toMatch(encodingArtifacts);
       }
     }
+    expect(achievementName("collect50Hydrogen", "es")).toBe("Recoge 50 Hidrógeno");
+    expect(achievementName("collect50Hydrogen", "pt")).toBe("Colete 50 de Hidrogênio");
+    expect(achievementName("collect50Hydrogen", "fr")).toBe("Collectez 50 Hydrogène");
   });
 
   it("awards a threshold achievement once at the accepted-command boundary", () => {
@@ -70,14 +78,40 @@ describe("meta achievements, events, and ticker", () => {
     const start = createInitialGameState({ pioneerName: "Ticker", seed: 512 });
     const ticker = transition(start, { type: "news.ticker.force", category: "prize", id: 2000 });
     expect(ticker.accepted).toBe(true);
+    expect(starTypeForSystem(ticker.state.run.space.currentSystemId)).toBe("B");
+    const entry = ticker.state.run.newsTicker.entries.at(-1);
+    expect(entry?.prizeAmount).toBeGreaterThan(0);
+    const hydrogenBeforeClaim = ticker.state.run.goods.hydrogen.quantity;
     const claim = transition(ticker.state, { type: "news.prize.claim", id: 2000 });
     expect(claim.accepted).toBe(true);
-    expect(claim.state.run.goods.hydrogen.quantity).toBeGreaterThan(0);
+    const prize = claim.events.find((event) => event.type === "news.prize.claimed");
+    expect(prize?.type).toBe("news.prize.claimed");
+    if (prize?.type === "news.prize.claimed") {
+      expect(prize.amount).toBe(entry?.prizeAmount);
+      expect(claim.state.run.goods.hydrogen.quantity - hydrogenBeforeClaim).toBe(prize.amount);
+    }
     expect(claim.state.run.goods.hydrogen.quantity).toBeLessThanOrEqual(
       claim.state.run.goods.hydrogen.storageCapacity / 10,
     );
+    if (prize?.type === "news.prize.claimed") {
+      expect(claim.state.run.goodsProducedThisRun[prize.goodId]).toBe(prize.amount);
+      expect(claim.state.statistics.lifetimeGoodsProducedByGood[prize.goodId]).toBe(prize.amount);
+      expect(claim.state.statistics.lifetimeGoodsProduced).toBe(prize.amount);
+    }
     const duplicate = transition(claim.state, { type: "news.prize.claim", id: 2000 });
     expect(duplicate.accepted).toBe(false);
+  });
+
+  it("keeps the exact prize amount and localized here action in fallback copy", () => {
+    const start = createInitialGameState({ pioneerName: "Ticker", seed: 514 });
+    const ticker = transition(start, { type: "news.ticker.force", category: "prize", id: 2000 });
+    const entry = ticker.state.run.newsTicker.entries.at(-1)!;
+
+    for (const locale of LOCALE_IDS) {
+      const fallbackCopy = newsEntryText(locale, entry);
+      expect(fallbackCopy).toContain(new Intl.NumberFormat(locale).format(entry.prizeAmount ?? 0));
+      expect(fallbackCopy).toContain(metaSignalText(locale, "here"));
+    }
   });
 
   it("applies a one-off bulletin exactly once and tracks distinct visual effects", () => {
@@ -87,9 +121,22 @@ describe("meta achievements, events, and ticker", () => {
     const claim = transition(bulletin.state, { type: "news.prize.claim", id: 3013 });
     expect(claim.accepted).toBe(true);
     expect(claim.state.permanent.ascendencyPoints).toBe(1);
+    expect(claim.state.statistics.lifetimeAscendencyPointsGained).toBe(1);
     expect(transition(claim.state, { type: "news.prize.claim", id: 3013 }).accepted).toBe(false);
-    state = transition(state, { type: "news.ticker.force", category: "wacky", id: 1000 }).state;
-    state = transition(state, { type: "news.ticker.force", category: "wacky", id: 1000 }).state;
+    const wacky = transition(state, { type: "news.ticker.force", category: "wacky", id: 1000 });
+    expect(wacky.accepted).toBe(true);
+    state = wacky.state;
+    const activation = transition(state, { type: "news.wacky.activate", id: 1000 });
+    expect(activation.accepted).toBe(true);
+    state = activation.state;
+    const repeatedWacky = transition(state, {
+      type: "news.ticker.force",
+      category: "wacky",
+      id: 1000,
+    });
+    expect(repeatedWacky.accepted).toBe(true);
+    expect(repeatedWacky.state.run.newsTicker.seenIds.filter((id) => id === 1000)).toHaveLength(1);
+    expect(repeatedWacky.state.run.newsTicker.activatedWackyIds).toEqual([1000]);
     expect(state.run.newsTicker.seenIds.filter((id) => id === 1000)).toHaveLength(1);
     expect(state.run.newsTicker.activatedWackyIds).toEqual([1000]);
   });
@@ -107,6 +154,7 @@ describe("meta achievements, events, and ticker", () => {
     const longRun = transition(activeHours, { type: "onboarding.complete" });
     expect(longRun.state.permanent.achievements.unlockedIds).toContain("have50HoursWithOnePioneer");
     expect(longRun.state.permanent.ascendencyPoints).toBe(50);
+    expect(longRun.state.statistics.lifetimeAscendencyPointsGained).toBe(50);
   });
 
   it("records all nine selected themes permanently, awards their milestone once, and reloads cleanly", () => {

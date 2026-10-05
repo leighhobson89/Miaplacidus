@@ -9,10 +9,6 @@ const INDEX_KEY = SAVE_PREFIX + "index";
 const LAST_STARTED_KEY = SAVE_PREFIX + "lastStartedSlot";
 const PREFERENCES_KEY = SAVE_PREFIX + "preferences";
 
-function onboardingKey(slotId: string): string {
-  return SAVE_PREFIX + "hydrogenBriefing:" + slotId;
-}
-
 export interface SaveIndexEntry {
   readonly slotId: string;
   readonly pioneerName: string;
@@ -32,14 +28,6 @@ export interface SaveRepository {
   lastStartedSlot(): string | null;
   activate(slotId: string): void;
   create(slotId: string, state: SaveEnvelopeV1["state"], name: string, now: number): SaveEnvelopeV1;
-  createFresh(
-    slotId: string,
-    state: SaveEnvelopeV1["state"],
-    name: string,
-    now: number,
-  ): SaveEnvelopeV1;
-  needsHydrogenBriefing(slotId: string): boolean;
-  completeHydrogenBriefing(slotId: string): void;
   commit(
     slotId: string,
     state: SaveEnvelopeV1["state"],
@@ -56,13 +44,13 @@ export interface SaveRepository {
     readonly locale?: string;
     readonly lastConfirmedName?: string;
     readonly autoSaveEnabled?: boolean;
-    readonly autoSaveIntervalSeconds?: 10 | 30 | 60;
+    readonly autoSaveIntervalSeconds?: 300 | 900 | 1800 | 3600;
   };
   writePreferences(value: {
     readonly locale?: string;
     readonly lastConfirmedName?: string;
     readonly autoSaveEnabled?: boolean;
-    readonly autoSaveIntervalSeconds?: 10 | 30 | 60;
+    readonly autoSaveIntervalSeconds?: 300 | 900 | 1800 | 3600;
   }): void;
   estimateStorage(): { readonly appBytes: number; readonly estimatedLimitBytes: number };
   restoreGeneration(reference: string, now: number): SaveEnvelopeV1;
@@ -449,38 +437,6 @@ export function createSaveRepository(storage: StorageAdapter = browserStorage())
     create(slotId, state, name, now) {
       return commit(slotId, state, name, now, null);
     },
-    createFresh(slotId, state, name, now) {
-      const key = onboardingKey(slotId);
-      try {
-        storage.setItem(key, "pending");
-      } catch (error) {
-        throw storageFailure(error);
-      }
-      try {
-        return commit(slotId, state, name, now, null);
-      } catch (error) {
-        try {
-          storage.removeItem(key);
-        } catch {
-          /* A stray namespaced marker does not create or select a save slot. */
-        }
-        throw error;
-      }
-    },
-    needsHydrogenBriefing(slotId) {
-      try {
-        return storage.getItem(onboardingKey(slotId)) === "pending";
-      } catch {
-        return false;
-      }
-    },
-    completeHydrogenBriefing(slotId) {
-      try {
-        storage.removeItem(onboardingKey(slotId));
-      } catch (error) {
-        throw storageFailure(error);
-      }
-    },
     commit,
     rename(slotId, name, now, expectedRevision) {
       const existing = readSlot(slotId);
@@ -499,7 +455,7 @@ export function createSaveRepository(storage: StorageAdapter = browserStorage())
         if (key === slotHeadKey(slotId) || key?.startsWith(slotPrefix(slotId)))
           storage.removeItem(key);
       }
-      storage.removeItem(onboardingKey(slotId));
+      storage.removeItem(SAVE_PREFIX + "hydrogenBriefing:" + slotId);
       if (storage.getItem(LAST_STARTED_KEY) === slotId) storage.removeItem(LAST_STARTED_KEY);
       const remaining = list().filter((entry) => entry.status === "ready");
       const preferences = this.readPreferences();
@@ -574,9 +530,11 @@ export function createSaveRepository(storage: StorageAdapter = browserStorage())
           ...(typeof value.autoSaveEnabled === "boolean"
             ? { autoSaveEnabled: value.autoSaveEnabled }
             : {}),
-          ...([10, 30, 60].includes(value.autoSaveIntervalSeconds as number)
-            ? { autoSaveIntervalSeconds: value.autoSaveIntervalSeconds as 10 | 30 | 60 }
-            : {}),
+          ...([300, 900, 1800, 3600].includes(value.autoSaveIntervalSeconds as number)
+            ? { autoSaveIntervalSeconds: value.autoSaveIntervalSeconds as 300 | 900 | 1800 | 3600 }
+            : [10, 30, 60].includes(value.autoSaveIntervalSeconds as number)
+              ? { autoSaveIntervalSeconds: 300 as const }
+              : {}),
         };
       } catch {
         return {};

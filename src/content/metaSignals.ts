@@ -32,6 +32,24 @@ export interface RandomEventHistoryEntry {
   readonly negative: boolean;
 }
 
+export type RandomEventCounts = Readonly<Record<RandomEventId, number>>;
+
+export function createRandomEventCounts(
+  history: readonly unknown[] = [],
+): Record<RandomEventId, number> {
+  const counts = Object.fromEntries(RANDOM_EVENT_IDS.map((id) => [id, 0])) as Record<
+    RandomEventId,
+    number
+  >;
+  for (const entry of history) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const id = (entry as { readonly id?: unknown }).id;
+    if (typeof id === "string" && RANDOM_EVENT_IDS.includes(id as RandomEventId))
+      counts[id as RandomEventId] += 1;
+  }
+  return counts;
+}
+
 export interface ActiveRandomEvent {
   readonly id: RandomEventId;
   readonly remainingMs: number;
@@ -50,6 +68,7 @@ export interface RandomEventProgress {
   readonly halfwayAttempted: boolean;
   readonly probabilities: Readonly<Record<RandomEventId, number>>;
   readonly history: readonly RandomEventHistoryEntry[];
+  readonly eventCountsThisRun: RandomEventCounts;
   readonly activeEffects: readonly ActiveRandomEvent[];
 }
 
@@ -59,6 +78,10 @@ export interface NewsTickerEntry {
   readonly textKey: string;
   readonly simulationMs: number;
   readonly prizeGoodId: string | null;
+  /** Pre-rolled when the ticker is generated, matching the amount shown in the source ticker. */
+  readonly prizeAmount?: number | null;
+  /** The manuscript system named in a clue; absent on ticker entries from older saves. */
+  readonly clueSystemId?: string | null;
   readonly claimed: boolean;
 }
 
@@ -99,6 +122,7 @@ export function createInitialRandomEventProgress(): RandomEventProgress {
     halfwayAttempted: false,
     probabilities,
     history: [],
+    eventCountsThisRun: createRandomEventCounts(),
     activeEffects: [],
   };
 }

@@ -8,7 +8,9 @@ import {
 } from "../engine/galacticMarket";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
-import { economyGoodName } from "./EconomyPanes";
+import { economyGoodName } from "./economyDisplay";
+import { formatCurrency } from "./currencyFormatting";
+import { formatNumber } from "./numberFormatting";
 import { marketFailureText, marketLockCountdownText, marketText } from "../i18n/metaMessages";
 
 interface Props {
@@ -16,24 +18,28 @@ interface Props {
   readonly store: GameStore;
 }
 
-function whole(locale: GameState["settings"]["locale"], value: number): string {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value);
+function whole(state: GameState, value: number): string {
+  return formatNumber(state.settings.locale, value, 0, state.settings.notation);
 }
 
-function currency(locale: GameState["settings"]["locale"], value: number): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+function currency(state: GameState, value: number): string {
+  return formatCurrency(
+    state.settings.locale,
+    value,
+    state.settings.currencyId ?? "usd",
+    0,
+    state.settings.notation,
+  );
 }
 
-function unitValue(locale: GameState["settings"]["locale"], value: number): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 4,
-  }).format(value);
+function unitValue(state: GameState, value: number): string {
+  return formatCurrency(
+    state.settings.locale,
+    value,
+    state.settings.currencyId ?? "usd",
+    4,
+    state.settings.notation,
+  );
 }
 
 export function GalacticMarketPane({ state, store }: Props) {
@@ -58,10 +64,8 @@ export function GalacticMarketPane({ state, store }: Props) {
   const selectedMarketGoods = ECONOMIC_GOOD_IDS.filter(
     (goodId) => goodId === outgoingGoodId || goodId === incomingGoodId,
   );
-  const marketNumber = new Intl.NumberFormat(locale, {
-    maximumFractionDigits: 2,
-    signDisplay: "always",
-  });
+  const marketNumber = (value: number) =>
+    formatNumber(locale, value, 2, state.settings.notation, "always");
   const quantity = Number(quantityText);
   const quote =
     outgoingGoodId && incomingGoodId
@@ -99,7 +103,7 @@ export function GalacticMarketPane({ state, store }: Props) {
     }
     setQuantityText("");
     setFeedback(
-      `${whole(locale, quantity)} ${economyGoodName(locale, outgoingGoodId)} → ${whole(locale, quote?.incomingQuantity ?? 0)} ${economyGoodName(locale, incomingGoodId)}`,
+      `${whole(state, quantity)} ${economyGoodName(locale, outgoingGoodId)} → ${whole(state, quote?.incomingQuantity ?? 0)} ${economyGoodName(locale, incomingGoodId)}`,
     );
   }
 
@@ -107,7 +111,7 @@ export function GalacticMarketPane({ state, store }: Props) {
     const result = store.dispatch({ type: "meta.market.sell-ap", quantity: apSellQuantity });
     setFeedback(
       result.accepted
-        ? `${whole(locale, apSellQuantity)} AP · ${currency(locale, apSellQuantity * market.apSellPrice)}`
+        ? `${whole(state, apSellQuantity)} AP · ${currency(state, apSellQuantity * market.apSellPrice)}`
         : marketFailureText(locale, result.failure?.code ?? ""),
     );
   }
@@ -117,7 +121,7 @@ export function GalacticMarketPane({ state, store }: Props) {
     setConfirmLiquidation(false);
     setFeedback(
       result.accepted
-        ? `${whole(locale, liquidation.ap)} AP`
+        ? `${whole(state, liquidation.ap)} AP`
         : marketFailureText(locale, result.failure?.code ?? ""),
     );
   }
@@ -136,16 +140,15 @@ export function GalacticMarketPane({ state, store }: Props) {
           <div className="card-copy">
             <h3>{marketText(locale, "preview")}</h3>
             <p>
-              {marketText(locale, "commission")}: {whole(locale, market.commissionPercent)}%
+              {marketText(locale, "commission")}: {whole(state, market.commissionPercent)}%
             </p>
             {selectedMarketGoods.map((goodId) => (
               <p className="market-rate-detail" key={goodId}>
                 {economyGoodName(locale, goodId)} — {marketText(locale, "adjustedValue")}:{" "}
-                {unitValue(locale, galacticMarketUnitPrice(state, goodId))};{" "}
-                {marketText(locale, "marketBias")}:{" "}
-                {marketNumber.format(market.goods[goodId].marketBias)}%;{" "}
-                {marketText(locale, "tradeVolume")}:{" "}
-                {whole(locale, market.goods[goodId].tradeVolume)}
+                {unitValue(state, galacticMarketUnitPrice(state, goodId))};{" "}
+                {marketText(locale, "marketBias")}: {marketNumber(market.goods[goodId].marketBias)}
+                %; {marketText(locale, "tradeVolume")}:{" "}
+                {whole(state, market.goods[goodId].tradeVolume)}
               </p>
             ))}
             {unlockedGoods.length < 2 ? (
@@ -205,16 +208,15 @@ export function GalacticMarketPane({ state, store }: Props) {
                 </label>
                 <p>
                   {marketText(locale, "outgoing")}:{" "}
-                  {whole(locale, Number.isSafeInteger(quantity) ? quantity : 0)}{" "}
+                  {whole(state, Number.isSafeInteger(quantity) ? quantity : 0)}{" "}
                   {outgoingGoodId ? economyGoodName(locale, outgoingGoodId) : ""}
                 </p>
                 <p>
-                  {marketText(locale, "incoming")}: {whole(locale, quote?.incomingQuantity ?? 0)}{" "}
+                  {marketText(locale, "incoming")}: {whole(state, quote?.incomingQuantity ?? 0)}{" "}
                   {incomingGoodId ? economyGoodName(locale, incomingGoodId) : ""}
                 </p>
                 <p>
-                  {marketText(locale, "commission")}:{" "}
-                  {whole(locale, quote?.commissionQuantity ?? 0)}{" "}
+                  {marketText(locale, "commission")}: {whole(state, quote?.commissionQuantity ?? 0)}{" "}
                   {outgoingGoodId ? economyGoodName(locale, outgoingGoodId) : ""}
                 </p>
                 <button
@@ -233,7 +235,7 @@ export function GalacticMarketPane({ state, store }: Props) {
           <div className="card-copy">
             <h3>{marketText(locale, "sellAp")}</h3>
             <p>
-              {marketText(locale, "apPrice")}: {currency(locale, market.apSellPrice)}
+              {marketText(locale, "apPrice")}: {currency(state, market.apSellPrice)}
             </p>
             <label>
               {marketText(locale, "sellAp")}
@@ -252,7 +254,7 @@ export function GalacticMarketPane({ state, store }: Props) {
                 ))}
               </select>
             </label>
-            <p>{currency(locale, apSellQuantity * market.apSellPrice)}</p>
+            <p>{currency(state, apSellQuantity * market.apSellPrice)}</p>
             <button
               type="button"
               className="secondary-button"
@@ -267,10 +269,10 @@ export function GalacticMarketPane({ state, store }: Props) {
           <div className="card-copy">
             <h3>{marketText(locale, "liquidation")}</h3>
             <p>
-              {marketText(locale, "liquidationValue")}: {currency(locale, liquidation.value)}
+              {marketText(locale, "liquidationValue")}: {currency(state, liquidation.value)}
             </p>
             <p>
-              {marketText(locale, "liquidationAp")}: {whole(locale, liquidation.ap)}
+              {marketText(locale, "liquidationAp")}: {whole(state, liquidation.ap)}
             </p>
             <button
               type="button"
@@ -300,11 +302,11 @@ export function GalacticMarketPane({ state, store }: Props) {
           <ol>
             {[...market.history].reverse().map((entry) => (
               <li key={entry.id}>
-                {whole(locale, entry.outgoingQuantity)}{" "}
+                {whole(state, entry.outgoingQuantity)}{" "}
                 {economyGoodName(locale, entry.outgoingGoodId)} →{" "}
-                {whole(locale, entry.incomingQuantity)}{" "}
+                {whole(state, entry.incomingQuantity)}{" "}
                 {economyGoodName(locale, entry.incomingGoodId)} ({marketText(locale, "commission")}:{" "}
-                {whole(locale, entry.commissionQuantity)})
+                {whole(state, entry.commissionQuantity)})
               </li>
             ))}
           </ol>
@@ -320,10 +322,10 @@ export function GalacticMarketPane({ state, store }: Props) {
           <h2 id="market-liquidation-title">{marketText(locale, "liquidateTitle")}</h2>
           <p>{marketText(locale, "liquidatePrompt")}</p>
           <p>
-            {marketText(locale, "liquidationValue")}: {currency(locale, liquidation.value)}
+            {marketText(locale, "liquidationValue")}: {currency(state, liquidation.value)}
           </p>
           <p>
-            {marketText(locale, "liquidationAp")}: {whole(locale, liquidation.ap)}
+            {marketText(locale, "liquidationAp")}: {whole(state, liquidation.ap)}
           </p>
           <div className="card-controls">
             <button type="button" className="primary-button" onClick={liquidate}>

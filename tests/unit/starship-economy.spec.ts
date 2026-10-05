@@ -238,6 +238,7 @@ describe("starship antimatter spending", () => {
       phase: "travelling",
       antimatterSpent: required,
     });
+    expect(launched.state.statistics.lifetimeStarshipsLaunched).toBe(1);
     expect(launched.events).toContainEqual({
       type: "space.starship.launched",
       systemId: destination.id,

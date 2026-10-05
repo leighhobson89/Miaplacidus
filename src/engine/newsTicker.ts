@@ -13,6 +13,7 @@ import {
   type NewsCategory,
 } from "../content/metaSignals";
 import { nextRandom, nextRandomInteger } from "./random";
+import { addLifetimeCount } from "./statistics";
 import type { GameState } from "./state";
 
 const NEWS_GOODS: readonly EconomicGoodId[] = [
@@ -32,9 +33,11 @@ const NEWS_GOODS: readonly EconomicGoodId[] = [
   "water",
 ];
 const ONE_OFF_IDS = Array.from({ length: 14 }, (_, index) => 3000 + index);
+const MANUSCRIPT_CLUE_CHANCE = 0.25;
 
 export type NewsTickerEvent =
   | { readonly type: "news.ticker.created"; readonly id: number; readonly category: NewsCategory }
+  | { readonly type: "news.wacky.activated"; readonly id: number }
   | {
       readonly type: "news.prize.claimed";
       readonly id: number;
@@ -98,7 +101,7 @@ function selectCategory(state: GameState): {
   if (category === "headline") {
     const clueRoll = nextRandom(next.run.random);
     next = { ...next, run: { ...next.run, random: clueRoll.state } };
-    if (clueRoll.value < 0.05 && availableFor(next, "manuscriptClue").length > 0)
+    if (clueRoll.value < MANUSCRIPT_CLUE_CHANCE && availableFor(next, "manuscriptClue").length > 0)
       category = "manuscriptClue";
   }
   if (availableFor(next, category).length === 0) category = "headline";
@@ -126,6 +129,29 @@ export function forceNewsTicker(state: GameState, category?: NewsCategory, reque
     chosenId = available[draw.index]!;
   }
   const goodId = selectedCategory === "prize" ? NEWS_GOODS[chosenId - 2000]! : null;
+  let prizeAmount: number | null = null;
+  if (goodId) {
+    const good = next.run.goods[goodId];
+    const room = good.storageCapacity - good.quantity;
+    const amountLimit = Math.max(
+      1,
+      Math.min(Math.floor(good.storageCapacity / 10), Math.floor(room)),
+    );
+    const amountRoll = nextRandomInteger(next.run.random, 1, amountLimit);
+    next = { ...next, run: { ...next.run, random: amountRoll.state } };
+    prizeAmount = amountRoll.value;
+  }
+  let clueSystemId: string | null = null;
+  if (selectedCategory === "manuscriptClue") {
+    const eligibleManuscripts = next.permanent.megastructures.ancientManuscripts.filter(
+      (record) => !record.reported,
+    );
+    if (eligibleManuscripts.length > 0) {
+      const draw = randomIndex(next, eligibleManuscripts.length);
+      next = draw.state;
+      clueSystemId = eligibleManuscripts[draw.index]!.manuscriptSystemId;
+    }
+  }
   const interval = nextRandomInteger(next.run.random, 20_000, 35_000);
   next = { ...next, run: { ...next.run, random: interval.state } };
   const entry = {
@@ -134,16 +160,14 @@ export function forceNewsTicker(state: GameState, category?: NewsCategory, reque
     textKey: `${selectedCategory}.${chosenId}`,
     simulationMs: next.run.clock.simulationMs,
     prizeGoodId: goodId,
+    prizeAmount,
+    clueSystemId,
     claimed: selectedCategory === "wacky",
   } as const;
   const ticker = next.run.newsTicker;
   const seenIds = ticker.seenIds.includes(chosenId)
     ? ticker.seenIds
     : [...ticker.seenIds, chosenId];
-  const activatedWackyIds =
-    selectedCategory === "wacky" && !ticker.activatedWackyIds.includes(chosenId)
-      ? [...ticker.activatedWackyIds, chosenId]
-      : ticker.activatedWackyIds;
   next = {
     ...next,
     run: {
@@ -153,13 +177,31 @@ export function forceNewsTicker(state: GameState, category?: NewsCategory, reque
         remainingMs: interval.value,
         entries: [...ticker.entries, entry].slice(-50),
         seenIds,
-        activatedWackyIds,
       },
     },
   };
   return {
     state: next,
     events: [{ type: "news.ticker.created", id: chosenId, category: selectedCategory } as const],
+  };
+}
+
+export function checkNewsWackyActivation(state: GameState, id: number): boolean {
+  const current = state.run.newsTicker.entries.at(-1);
+  return current?.id === id && current.category === "wacky";
+}
+
+export function activateNewsWacky(state: GameState, id: number) {
+  if (!checkNewsWackyActivation(state, id)) return null;
+  const activatedWackyIds = state.run.newsTicker.activatedWackyIds.includes(id)
+    ? state.run.newsTicker.activatedWackyIds
+    : [...state.run.newsTicker.activatedWackyIds, id];
+  return {
+    state: {
+      ...state,
+      run: { ...state.run, newsTicker: { ...state.run.newsTicker, activatedWackyIds } },
+    },
+    events: [{ type: "news.wacky.activated", id } as const],
   };
 }
 
@@ -247,6 +289,13 @@ function applyOneOff(state: GameState, id: number): GameState {
     return {
       ...state,
       permanent: { ...state.permanent, ascendencyPoints: state.permanent.ascendencyPoints + 1 },
+      statistics: {
+        ...state.statistics,
+        lifetimeAscendencyPointsGained: addLifetimeCount(
+          state.statistics.lifetimeAscendencyPointsGained,
+          1,
+        ),
+      },
     };
   return state;
 }
@@ -272,9 +321,14 @@ export function claimNewsPrize(state: GameState, id: number) {
     const good = state.run.goods[goodId];
     const room = good.storageCapacity - good.quantity;
     if (room <= 0) return null;
-    const max = Math.max(1, Math.floor(good.storageCapacity / 10));
-    const amountLimit = Math.max(1, Math.min(max, Math.floor(room)));
-    const amountRoll = nextRandomInteger(state.run.random, 1, amountLimit);
+    const amountLimit = Math.max(
+      1,
+      Math.min(Math.floor(good.storageCapacity / 10), Math.floor(room)),
+    );
+    const amountRoll =
+      typeof entry.prizeAmount === "number"
+        ? { state: state.run.random, value: Math.min(amountLimit, entry.prizeAmount) }
+        : nextRandomInteger(state.run.random, 1, amountLimit);
     next = {
       ...state,
       run: {

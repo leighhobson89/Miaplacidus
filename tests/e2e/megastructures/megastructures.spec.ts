@@ -7,7 +7,8 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
   page,
 }, testInfo) => {
   await startMetaFixture(page, "meta-megastructure-route");
-  await page.getByRole("tab", { name: "Galaxy" }).click();
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Megastructures" }).click();
 
   const archive = page.getByTestId("megastructure-track-galacticMemoryArchive");
   await expect(page.getByTestId("megastructure-force-field")).toContainText("3/4");
@@ -34,6 +35,7 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
     .getByRole("button", { name: "Set as destination" })
     .click();
 
+  await page.getByRole("tab", { name: "Starship construction" }).click();
   const starship = page.getByTestId("starship-pane");
   await starship.getByRole("button", { name: "Launch starship" }).click();
   await page
@@ -51,6 +53,7 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.starship.phase))
     .toBe("orbiting");
+  await page.locator("#tab-interstellar-colonise").click();
   await starship.getByTestId("starship-scan-system-button").click();
   await starship.getByTestId("starship-enter-war-button").click();
   await starship.getByTestId("starship-battle-engage-button").click();

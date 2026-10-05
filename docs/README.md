@@ -20,6 +20,7 @@
 - [Detailed work packages](plans/build-checklist/README.md) — task IDs for each phase.
 - [Local save contract](plans/local-save-contract.md) — multi-slot startup, autosave, import/export and recovery rules.
 - [Feature parity ledger](plans/feature-parity-checklist.md) — area-by-area evidence status, not a second work queue.
+- [Bug tracker](bugs.md) — player-reported defects and their current investigation status.
 - [Reuse and replacement decisions](plans/reuse-decisions.md) — what to port, adapt, or redesign.
 - [Test harness plan](plans/test-harness.md) — implemented M-01 browser coverage, visual baselines and focused test commands.
 - [Run and deploy guide](run-and-deploy.md) — start the Vite development server, preview the production build and publish `dist/` to a static host.

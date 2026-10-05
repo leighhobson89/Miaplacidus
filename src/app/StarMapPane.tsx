@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { createStarCatalogue, GALAXY_SEED_DEFAULT } from "../content";
 import { STAR_TYPE_IDS, type StarType } from "../content/starCatalogue";
 import {
@@ -10,18 +17,23 @@ import {
   type StarDataRow,
 } from "../engine/starData";
 import { createStarMapModel, searchStarCatalogue } from "../engine/starMap";
+import { selectStarDestination, type StarDestinationSelection } from "../engine/starMapSelectors";
 import { miaplacidusForceFieldLevel } from "../engine/megastructures";
 import type { GameState } from "../engine/state";
 import { starMapText } from "../i18n/starMapMessages";
 import { starshipText } from "../i18n/starshipMessages";
-import { economyGoodName } from "./EconomyPanes";
-import { checkPreconditions } from "../engine/commands";
+import { CelestialIllustration } from "./CelestialIllustration";
+import { economyGoodName } from "./economyDisplay";
+import { formatNumber } from "./numberFormatting";
+import type { CommandFailure } from "../engine/commands";
 import type { GameStore } from "../engine/store";
 import type { SystemId } from "../content/ids";
 
 interface StarMapPaneProps {
   readonly state: GameState;
   readonly store: GameStore;
+  readonly view: "map" | "data";
+  readonly onShowOnMap: () => void;
 }
 
 const MAP_WIDTH = 1200;
@@ -44,28 +56,41 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function formatDistance(locale: GameState["settings"]["locale"], value: number): string {
-  return `${new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} ly`;
+function formatDistance(
+  locale: GameState["settings"]["locale"],
+  value: number,
+  notation: GameState["settings"]["notation"],
+): string {
+  return `${formatNumber(locale, value, 2, notation)} ly`;
+}
+
+function destinationFailureText(
+  locale: GameState["settings"]["locale"],
+  failure: CommandFailure | undefined,
+): string {
+  return failure?.code === "space-starship-already-launched"
+    ? starshipText(locale, "alreadyLaunched")
+    : starMapText(locale, "destinationUnavailable");
 }
 
 interface StarDataTableProps {
   readonly locale: GameState["settings"]["locale"];
+  readonly notation: GameState["settings"]["notation"];
   readonly rows: readonly StarDataRow[];
   readonly onShowOnMap: (systemId: string) => void;
   readonly onSetDestination: (systemId: SystemId) => void;
+  readonly selectDestination: (systemId: SystemId) => StarDestinationSelection;
   readonly destinationSystemId: string | null;
-  readonly canChangeDestination: boolean;
-  readonly isDestinationSelectable: (systemId: SystemId) => boolean;
 }
 
 function StarDataTable({
   locale,
+  notation,
   rows,
   onShowOnMap,
   onSetDestination,
+  selectDestination,
   destinationSystemId,
-  canChangeDestination,
-  isDestinationSelectable,
 }: StarDataTableProps) {
   const [query, setQuery] = useState("");
   const [starType, setStarType] = useState<StarType | "all">("all");
@@ -75,7 +100,7 @@ function StarDataTable({
     () => sortStarDataRows(filterStarDataRows(rows, query, starType), sortBy, sortDirection),
     [rows, query, starType, sortBy, sortDirection],
   );
-  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+  const number = (value: number) => formatNumber(locale, value, 0, notation);
   const sortLabels: Readonly<Record<StarDataSortKey, string>> = {
     name: starMapText(locale, "sortName"),
     distance: starMapText(locale, "sortDistance"),
@@ -128,7 +153,11 @@ function StarDataTable({
         <button
           type="button"
           className="star-data-reverse"
-          aria-label={starMapText(locale, "reverseSort")}
+          aria-label={starMapText(
+            locale,
+            sortDirection === "ascending" ? "sortDescending" : "sortAscending",
+          )}
+          aria-pressed={sortDirection === "descending"}
           onClick={() =>
             setSortDirection((direction) =>
               direction === "ascending" ? "descending" : "ascending",
@@ -157,49 +186,72 @@ function StarDataTable({
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => (
-                <tr key={row.systemId}>
-                  <th scope="row">
-                    {row.name}
-                    {row.revealedFactory && (
-                      <span
-                        className="star-data-factory-marker"
-                        data-testid={`factory-system-${row.systemId}`}
-                        aria-label={starMapText(locale, "factorySystem")}
-                        title={starMapText(locale, "factorySystem")}
+              {filteredRows.map((row) => {
+                const destination = selectDestination(row.systemId);
+                const failureText = destinationFailureText(locale, destination.failure);
+                const reasonId = `star-data-destination-reason-${row.systemId}`;
+                return (
+                  <tr key={row.systemId}>
+                    <th scope="row">
+                      {row.name}
+                      {row.revealedFactory && (
+                        <span
+                          className="star-data-factory-marker"
+                          data-testid={`factory-system-${row.systemId}`}
+                          aria-label={starMapText(locale, "factorySystem")}
+                          title={starMapText(locale, "factorySystem")}
+                        >
+                          {" "}
+                          &#9881;
+                        </span>
+                      )}
+                    </th>
+                    <td>{formatDistance(locale, row.distanceLy, notation)}</td>
+                    <td>{row.starType}</td>
+                    <td>
+                      {starMapText(locale, row.weatherType)} {number(row.weatherChance)}%
+                    </td>
+                    <td>{economyGoodName(locale, row.precipitationGoodId)}</td>
+                    <td>
+                      {number(destination.route?.antimatterRequired ?? row.antimatterRequired)}
+                    </td>
+                    <td>{number(destination.route?.ascendencyPoints ?? row.ascendencyPoints)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        aria-label={`${starMapText(locale, "mapTarget")}: ${row.name}`}
+                        onClick={() => onShowOnMap(row.systemId)}
                       >
-                        {" "}
-                        &#9881;
-                      </span>
-                    )}
-                  </th>
-                  <td>{formatDistance(locale, row.distanceLy)}</td>
-                  <td>{row.starType}</td>
-                  <td>
-                    {starMapText(locale, row.weatherType)} {number.format(row.weatherChance)}%
-                  </td>
-                  <td>{economyGoodName(locale, row.precipitationGoodId)}</td>
-                  <td>{number.format(row.antimatterRequired)}</td>
-                  <td>{number.format(row.ascendencyPoints)}</td>
-                  <td>
-                    <button type="button" onClick={() => onShowOnMap(row.systemId)}>
-                      {starMapText(locale, "mapTarget")}
-                    </button>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      disabled={!canChangeDestination || !isDestinationSelectable(row.systemId)}
-                      aria-pressed={destinationSystemId === row.systemId}
-                      onClick={() => onSetDestination(row.systemId)}
-                    >
-                      {destinationSystemId === row.systemId
-                        ? starshipText(locale, "destinationSelected")
-                        : starshipText(locale, "setDestination")}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                        {starMapText(locale, "mapTarget")}
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        disabled={!destination.enabled}
+                        aria-pressed={destinationSystemId === row.systemId}
+                        aria-label={`${starshipText(
+                          locale,
+                          destinationSystemId === row.systemId
+                            ? "destinationSelected"
+                            : "setDestination",
+                        )}: ${row.name}`}
+                        aria-describedby={!destination.enabled ? reasonId : undefined}
+                        onClick={() => onSetDestination(row.systemId)}
+                      >
+                        {destinationSystemId === row.systemId
+                          ? starshipText(locale, "destinationSelected")
+                          : starshipText(locale, "setDestination")}
+                      </button>
+                      {!destination.enabled && (
+                        <span className="control-reason" id={reasonId}>
+                          {failureText}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -208,7 +260,8 @@ function StarDataTable({
   );
 }
 
-export function StarMapPane({ state, store }: StarMapPaneProps) {
+export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProps) {
+  const focusMapAfterDataNavigation = useRef(false);
   const locale = state.settings.locale;
   const catalogue = useMemo(() => createStarCatalogue(GALAXY_SEED_DEFAULT), []);
   const hiddenFactoryIds = new Set(
@@ -229,7 +282,6 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
   );
   const currentNode = model.find((node) => node.current);
   const currentSystemIdentity = state.run.space.currentSystemId;
-  const [view, setView] = useState<"map" | "data">("map");
   const [selection, setSelection] = useState<{
     readonly origin: string;
     readonly id: string | null;
@@ -284,7 +336,10 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
   const viewBox = `${viewX} ${viewY} ${viewWidth} ${viewHeight}`;
 
   function selectNode(systemId: SystemId): void {
-    if (hiddenFactoryIds.has(systemId)) return;
+    if (hiddenFactoryIds.has(systemId)) {
+      setSelectionFeedback(starMapText(locale, "unidentifiedUnavailable"));
+      return;
+    }
     const node = model.find((entry) => entry.id === systemId);
     if (!node) return;
     if (!node.selectable) {
@@ -327,6 +382,21 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
     }
   }
 
+  function handleMapKeyDown(event: ReactKeyboardEvent<SVGSVGElement>): void {
+    const horizontalStep = Math.max(24, viewWidth * 0.12);
+    const verticalStep = Math.max(24, viewHeight * 0.12);
+    const panByKey: Readonly<Record<string, PanState>> = {
+      ArrowLeft: { x: -horizontalStep, y: 0 },
+      ArrowRight: { x: horizontalStep, y: 0 },
+      ArrowUp: { x: 0, y: -verticalStep },
+      ArrowDown: { x: 0, y: verticalStep },
+    };
+    const delta = panByKey[event.key];
+    if (!delta) return;
+    event.preventDefault();
+    setPan((previous) => ({ x: previous.x + delta.x, y: previous.y + delta.y }));
+  }
+
   function resetView(): void {
     setZoom(1);
     setPan({ x: 0, y: 0 });
@@ -335,7 +405,8 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
   function showOnMap(systemId: string): void {
     setSelection({ origin: currentSystemIdentity, id: systemId });
     setSelectionFeedback("");
-    setView("map");
+    focusMapAfterDataNavigation.current = true;
+    onShowOnMap();
   }
 
   function setDestination(systemId: SystemId): void {
@@ -344,21 +415,13 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
     setSelectionFeedback(
       result.accepted
         ? starshipText(locale, "destinationSelected")
-        : starshipText(locale, "noDestination"),
+        : destinationFailureText(locale, selectStarDestination(state, systemId).failure),
     );
   }
 
   function clearDestination(): void {
     store.dispatch({ type: "space.starship.destination.select", systemId: null });
     setSelectionFeedback("");
-  }
-
-  function isDestinationSelectable(systemId: SystemId): boolean {
-    if (hiddenFactoryIds.has(systemId)) return false;
-    return checkPreconditions(state, {
-      type: "space.starship.destination.select",
-      systemId,
-    }).ok;
   }
 
   const destinationSystemId = state.run.space.starship.destinationSystemId;
@@ -370,172 +433,178 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
           systemId: selectedNode.id,
         } as const)
       : null;
-  const selectedTargetAvailable =
-    selectedTargetCommand !== null && checkPreconditions(state, selectedTargetCommand).ok;
+  const selectedTargetSelection = selectedTargetCommand
+    ? selectStarDestination(state, selectedTargetCommand.systemId)
+    : null;
+  const selectedTargetAvailable = selectedTargetSelection?.enabled ?? false;
+
+  useEffect(() => {
+    if (view !== "map" || !focusMapAfterDataNavigation.current) return;
+    focusMapAfterDataNavigation.current = false;
+    document.getElementById("panel-interstellar-star-map")?.focus();
+  }, [view]);
 
   return (
-    <div className="star-map-panel" data-testid="star-map-pane">
-      <header className="pane-heading">
-        <div>
-          <p className="eyebrow">05 / {starMapText(locale, "title")}</p>
-          <h2>{starMapText(locale, "title")}</h2>
-          <p className="pane-intro">{starMapText(locale, "description")}</p>
-        </div>
-        <p className="star-map-range">
-          {starMapText(locale, "studyRange")}: <strong>{state.run.space.starStudyRange}</strong> ly
-        </p>
-      </header>
-
-      <div
-        className="star-map-view-switch"
-        role="tablist"
-        aria-label={starMapText(locale, "title")}
+    <div className="star-map-panel">
+      <section
+        id="panel-interstellar-star-map"
+        className="subpane-panel"
+        role="tabpanel"
+        aria-labelledby="tab-interstellar-star-map"
+        tabIndex={0}
+        data-testid="star-map-pane"
+        hidden={view !== "map"}
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "map"}
-          onClick={() => setView("map")}
-        >
-          {starMapText(locale, "mapView")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "data"}
-          onClick={() => setView("data")}
-        >
-          {starMapText(locale, "dataView")}
-        </button>
-      </div>
-
-      {view === "data" ? (
-        <StarDataTable
-          locale={locale}
-          rows={dataRows}
-          onShowOnMap={showOnMap}
-          onSetDestination={setDestination}
-          destinationSystemId={destinationSystemId}
-          canChangeDestination={canChangeDestination}
-          isDestinationSelectable={isDestinationSelectable}
-        />
-      ) : (
-        <>
-          <div className="star-map-toolbar">
-            <label htmlFor="star-map-search">{starMapText(locale, "searchLabel")}</label>
-            <input
-              id="star-map-search"
-              type="search"
-              autoComplete="off"
-              placeholder={starMapText(locale, "searchPlaceholder")}
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-            />
-            {searchStatus && (
-              <output className="star-map-search-status" aria-live="polite">
-                {searchStatus}
-              </output>
-            )}
-            {normalizedQuery.length >= 2 && matches.length > 0 && (
-              <ul className="star-map-search-results">
-                {matches.map((star) => {
-                  const node = model.find((entry) => entry.id === star.id);
-                  return (
-                    <li key={star.id}>
-                      <button type="button" onClick={() => selectNode(star.id)}>
-                        {star.name}
-                      </button>
-                      {node && !node.selectable && (
-                        <span className="star-map-result-state">
-                          {star.name === "Miaplacidus"
-                            ? starMapText(locale, "homeLocked")
-                            : starMapText(locale, "studyFarther")}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+        <header className="pane-heading">
+          <div>
+            <h2>{starMapText(locale, "title")}</h2>
+            <p className="pane-intro">{starMapText(locale, "description")}</p>
           </div>
+          <p className="star-map-range">
+            {starMapText(locale, "studyRange")}: <strong>{state.run.space.starStudyRange}</strong>{" "}
+            ly
+          </p>
+        </header>
 
-          <div className="star-map-layout">
-            <div className="star-map-viewport">
-              <svg
-                ref={svgRef}
-                className="star-map-canvas"
-                data-testid="star-map-canvas"
-                data-zoom={zoom}
-                viewBox={viewBox}
-                preserveAspectRatio="none"
-                aria-label={starMapText(locale, "title")}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-              >
-                <defs>
-                  <radialGradient id="star-map-nebula">
-                    <stop offset="0" stopColor="#16365b" stopOpacity="0.7" />
-                    <stop offset="1" stopColor="#07101c" stopOpacity="0" />
-                  </radialGradient>
-                </defs>
-                <title>{starMapText(locale, "title")}</title>
-                <rect x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} fill="#07101c" />
-                <ellipse cx="590" cy="220" rx="520" ry="245" fill="url(#star-map-nebula)" />
-                {model.map((node) => {
-                  if (!node.visible) {
-                    return (
-                      <circle
-                        key={node.id}
-                        className="star-map-unseen-dot"
-                        cx={node.x}
-                        cy={node.y}
-                        r="1.5"
-                        aria-hidden="true"
-                      />
-                    );
-                  }
-                  const selected = node.id === selectedNode?.id;
-                  const settled = state.permanent.settledSystemIds.includes(node.id);
-                  const undisclosedFactory = hiddenFactoryIds.has(node.id);
-                  return (
-                    <g
-                      key={node.id}
-                      className={`star-map-marker${node.current ? " is-current" : ""}${node.name === "Miaplacidus" ? " is-home" : ""}${settled ? " is-settled" : ""}${selected ? " is-selected" : ""}${!node.studied ? " is-locked" : ""}`}
-                      data-settled={settled}
+        <div className="star-map-toolbar">
+          <label htmlFor="star-map-search">{starMapText(locale, "searchLabel")}</label>
+          <input
+            id="star-map-search"
+            type="search"
+            autoComplete="off"
+            placeholder={starMapText(locale, "searchPlaceholder")}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+          {searchStatus && (
+            <output className="star-map-search-status" aria-live="polite">
+              {searchStatus}
+            </output>
+          )}
+          {normalizedQuery.length >= 2 && matches.length > 0 && (
+            <ul className="star-map-search-results">
+              {matches.map((star) => {
+                const node = model.find((entry) => entry.id === star.id);
+                return (
+                  <li key={star.id}>
+                    <button
+                      type="button"
+                      aria-disabled={node ? !node.selectable : undefined}
+                      aria-describedby={
+                        node && !node.selectable ? `star-map-search-reason-${star.id}` : undefined
+                      }
+                      onClick={() => selectNode(star.id)}
                     >
-                      {selected && (
-                        <circle
-                          className="star-map-selection-ring"
-                          cx={node.x}
-                          cy={node.y}
-                          r={node.size * 4}
-                        />
-                      )}
+                      {star.name}
+                    </button>
+                    {node && !node.selectable && (
+                      <span
+                        className="star-map-result-state"
+                        id={`star-map-search-reason-${star.id}`}
+                      >
+                        {star.name === "Miaplacidus"
+                          ? starMapText(locale, "homeLocked")
+                          : starMapText(locale, "studyFarther")}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="star-map-layout">
+          <p id="star-map-keyboard-help" className="sr-only">
+            {starMapText(locale, "keyboardHelp")}
+          </p>
+          <div className="star-map-viewport">
+            <svg
+              ref={svgRef}
+              className="star-map-canvas"
+              role="group"
+              tabIndex={0}
+              data-testid="star-map-canvas"
+              data-zoom={zoom}
+              viewBox={viewBox}
+              preserveAspectRatio="none"
+              aria-label={starMapText(locale, "title")}
+              aria-describedby="star-map-keyboard-help"
+              onKeyDown={handleMapKeyDown}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+            >
+              <defs>
+                <radialGradient id="star-map-nebula">
+                  <stop offset="0" stopColor="#16365b" stopOpacity="0.7" />
+                  <stop offset="1" stopColor="#07101c" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              <title>{starMapText(locale, "title")}</title>
+              <rect x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} fill="var(--bg-color)" />
+              <ellipse cx="590" cy="220" rx="520" ry="245" fill="url(#star-map-nebula)" />
+              {model.map((node) => {
+                if (!node.visible) {
+                  return (
+                    <circle
+                      key={node.id}
+                      className="star-map-unseen-dot"
+                      cx={node.x}
+                      cy={node.y}
+                      r="1.5"
+                      aria-hidden="true"
+                    />
+                  );
+                }
+                const selected = node.id === selectedNode?.id;
+                const settled = state.permanent.settledSystemIds.includes(node.id);
+                const undisclosedFactory = hiddenFactoryIds.has(node.id);
+                return (
+                  <g
+                    key={node.id}
+                    className={`star-map-marker${node.current ? " is-current" : ""}${node.name === "Miaplacidus" ? " is-home" : ""}${settled ? " is-settled" : ""}${selected ? " is-selected" : ""}${!node.studied ? " is-locked" : ""}`}
+                    data-settled={settled}
+                  >
+                    {selected && (
                       <circle
-                        className="star-map-star"
+                        className="star-map-selection-ring"
                         cx={node.x}
                         cy={node.y}
-                        r={Math.max(2.5, node.size * 1.1)}
+                        r={node.size * 4}
                       />
-                      {!undisclosedFactory && (
-                        <text className="star-map-label" x={node.x + 8} y={node.y - 7}>
-                          {node.name}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </svg>
-              <div className="star-map-marker-overlay">
-                {model
-                  .filter((node) => node.visible)
-                  .map((node) => {
-                    const undisclosedFactory = hiddenFactoryIds.has(node.id);
-                    return (
+                    )}
+                    <circle
+                      className="star-map-star"
+                      cx={node.x}
+                      cy={node.y}
+                      r={Math.max(2.5, node.size * 1.1)}
+                    />
+                    {!undisclosedFactory && (
+                      <text className="star-map-label" x={node.x + 8} y={node.y - 7}>
+                        {node.name}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+            <div className="star-map-marker-overlay">
+              {model
+                .filter((node) => node.visible)
+                .map((node) => {
+                  const undisclosedFactory = hiddenFactoryIds.has(node.id);
+                  const markerUnavailableReason = undisclosedFactory
+                    ? starMapText(locale, "unidentifiedUnavailable")
+                    : node.name === "Miaplacidus"
+                      ? starMapText(locale, "homeLocked")
+                      : starMapText(locale, "studyFarther");
+                  const markerDisabled = !node.selectable || undisclosedFactory;
+                  const markerReasonId = `star-map-marker-reason-${node.id}`;
+                  return (
+                    <span key={node.id}>
                       <button
-                        key={node.id}
                         type="button"
                         className="star-map-hit-target"
                         data-testid={`star-marker-${node.id}`}
@@ -545,101 +614,173 @@ export function StarMapPane({ state, store }: StarMapPaneProps) {
                           left: `${((node.x - viewX) / viewWidth) * 100}%`,
                           top: `${((node.y - viewY) / viewHeight) * 100}%`,
                         }}
-                        aria-label={`${undisclosedFactory ? starMapText(locale, "unidentifiedStar") : node.name}, ${starMapText(locale, "starType")} ${node.starType}, ${formatDistance(locale, node.distanceLy)}`}
-                        aria-disabled={!node.selectable || undisclosedFactory}
-                        disabled={!node.selectable || undisclosedFactory}
+                        aria-label={`${undisclosedFactory ? starMapText(locale, "unidentifiedStar") : node.name}, ${starMapText(locale, "starType")} ${node.starType}, ${formatDistance(locale, node.distanceLy, state.settings.notation)}`}
+                        aria-disabled={markerDisabled}
+                        aria-describedby={markerDisabled ? markerReasonId : undefined}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={() => selectNode(node.id)}
                       />
-                    );
-                  })}
-              </div>
-              <div className="star-map-zoom-controls" aria-label={starMapText(locale, "title")}>
-                <button
-                  type="button"
-                  aria-label={starMapText(locale, "zoomIn")}
-                  onClick={() => setZoom((value) => clamp(value * 1.25, MIN_ZOOM, MAX_ZOOM))}
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  aria-label={starMapText(locale, "zoomOut")}
-                  onClick={() => setZoom((value) => clamp(value / 1.25, MIN_ZOOM, MAX_ZOOM))}
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  aria-label={starMapText(locale, "resetView")}
-                  onClick={resetView}
-                >
-                  ↺
-                </button>
-              </div>
+                      {markerDisabled && (
+                        <span id={markerReasonId} className="sr-only">
+                          {markerUnavailableReason}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
             </div>
-
-            <aside className="star-map-selection" data-testid="star-selection" aria-live="polite">
-              <p className="eyebrow">{starMapText(locale, "selected")}</p>
-              {selectedNode ? (
-                <>
-                  <h3>{selectedNode.name}</h3>
-                  <dl>
-                    <div>
-                      <dt>{starMapText(locale, "starType")}</dt>
-                      <dd>{selectedNode.starType}</dd>
-                    </div>
-                    <div>
-                      <dt>{starMapText(locale, "distance")}</dt>
-                      <dd data-testid="star-distance">
-                        {formatDistance(locale, selectedNode.distanceLy)}
-                      </dd>
-                    </div>
-                  </dl>
-                </>
-              ) : (
-                <p>{starMapText(locale, "studyFarther")}</p>
-              )}
-              {selectionFeedback && (
-                <output className="star-map-selection-feedback" aria-live="polite">
-                  {selectionFeedback}
-                </output>
-              )}
-              {selectedTargetCommand && (
-                <button
-                  type="button"
-                  disabled={!selectedTargetAvailable}
-                  aria-pressed={destinationSystemId === selectedTargetCommand.systemId}
-                  onClick={() => setDestination(selectedTargetCommand.systemId)}
-                >
-                  {destinationSystemId === selectedTargetCommand.systemId
-                    ? starshipText(locale, "destinationSelected")
-                    : starshipText(locale, "setDestination")}
-                </button>
-              )}
-              {destinationSystemId && canChangeDestination && (
-                <button type="button" onClick={clearDestination}>
-                  {starshipText(locale, "clearDestination")}
-                </button>
-              )}
-              <ul className="star-map-legend">
-                <li>
-                  <span className="legend-current" />
-                  {starMapText(locale, "current")}
-                </li>
-                <li>
-                  <span className="legend-studied" />
-                  {starMapText(locale, "studied")}
-                </li>
-                <li>
-                  <span className="legend-uncharted" />
-                  {starMapText(locale, "uncharted")}
-                </li>
-              </ul>
-            </aside>
+            <div className="star-map-zoom-controls" aria-label={starMapText(locale, "title")}>
+              <button
+                type="button"
+                aria-label={starMapText(locale, "zoomIn")}
+                onClick={() => setZoom((value) => clamp(value * 1.25, MIN_ZOOM, MAX_ZOOM))}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                aria-label={starMapText(locale, "zoomOut")}
+                onClick={() => setZoom((value) => clamp(value / 1.25, MIN_ZOOM, MAX_ZOOM))}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                aria-label={starMapText(locale, "resetView")}
+                onClick={resetView}
+              >
+                ↺
+              </button>
+            </div>
           </div>
-        </>
-      )}
+
+          <aside className="star-map-selection" data-testid="star-selection" aria-live="polite">
+            <p className="eyebrow">{starMapText(locale, "selected")}</p>
+            {selectedNode ? (
+              <>
+                <h3>{selectedNode.name}</h3>
+                <CelestialIllustration kind="star-system" className="star-system-mark" />
+                <dl>
+                  <div>
+                    <dt>{starMapText(locale, "starType")}</dt>
+                    <dd>{selectedNode.starType}</dd>
+                  </div>
+                  <div>
+                    <dt>{starMapText(locale, "distance")}</dt>
+                    <dd data-testid="star-distance">
+                      {formatDistance(locale, selectedNode.distanceLy, state.settings.notation)}
+                    </dd>
+                  </div>
+                  {selectedTargetSelection?.route && (
+                    <>
+                      <div>
+                        <dt>{starMapText(locale, "antimatterRequired")}</dt>
+                        <dd data-testid="star-route-antimatter">
+                          {formatNumber(
+                            locale,
+                            selectedTargetSelection.route.antimatterRequired,
+                            0,
+                            state.settings.notation,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{starMapText(locale, "potentialAp")}</dt>
+                        <dd data-testid="star-route-ap">
+                          {selectedTargetSelection.route.ascendencyPoints === null
+                            ? "—"
+                            : formatNumber(
+                                locale,
+                                selectedTargetSelection.route.ascendencyPoints,
+                                0,
+                                state.settings.notation,
+                              )}
+                        </dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
+              </>
+            ) : (
+              <p>{starMapText(locale, "studyFarther")}</p>
+            )}
+            {selectionFeedback && (
+              <output className="star-map-selection-feedback" aria-live="polite">
+                {selectionFeedback}
+              </output>
+            )}
+            {selectedTargetCommand && (
+              <button
+                type="button"
+                disabled={!selectedTargetAvailable}
+                aria-pressed={destinationSystemId === selectedTargetCommand.systemId}
+                aria-describedby={
+                  !selectedTargetAvailable ? "star-map-destination-reason" : undefined
+                }
+                aria-label={`${starshipText(
+                  locale,
+                  destinationSystemId === selectedTargetCommand.systemId
+                    ? "destinationSelected"
+                    : "setDestination",
+                )}: ${selectedNode?.name ?? ""}`}
+                onClick={() => setDestination(selectedTargetCommand.systemId)}
+              >
+                {destinationSystemId === selectedTargetCommand.systemId
+                  ? starshipText(locale, "destinationSelected")
+                  : starshipText(locale, "setDestination")}
+              </button>
+            )}
+            {selectedTargetCommand && !selectedTargetAvailable && (
+              <p className="control-reason" id="star-map-destination-reason">
+                {destinationFailureText(locale, selectedTargetSelection?.failure)}
+              </p>
+            )}
+            {destinationSystemId && canChangeDestination && (
+              <button type="button" onClick={clearDestination}>
+                {starshipText(locale, "clearDestination")}
+              </button>
+            )}
+            <ul className="star-map-legend">
+              <li>
+                <span className="legend-current" />
+                {starMapText(locale, "current")}
+              </li>
+              <li>
+                <span className="legend-studied" />
+                {starMapText(locale, "studied")}
+              </li>
+              <li>
+                <span className="legend-uncharted" />
+                {starMapText(locale, "uncharted")}
+              </li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+      <section
+        id="panel-interstellar-star-data"
+        className="subpane-panel"
+        role="tabpanel"
+        aria-labelledby="tab-interstellar-star-data"
+        tabIndex={0}
+        hidden={view !== "data"}
+      >
+        <header className="pane-heading">
+          <div>
+            <h2>{starMapText(locale, "dataView")}</h2>
+            <p className="pane-intro">{starMapText(locale, "starDataDescription")}</p>
+          </div>
+        </header>
+        <StarDataTable
+          locale={locale}
+          notation={state.settings.notation}
+          rows={dataRows}
+          onShowOnMap={showOnMap}
+          onSetDestination={setDestination}
+          selectDestination={(systemId) => selectStarDestination(state, systemId)}
+          destinationSystemId={destinationSystemId}
+        />
+      </section>
     </div>
   );
 }

@@ -5,14 +5,16 @@ import { checkPreconditions, type GameCommand } from "../engine/commands";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { blackHoleText } from "../i18n/blackHoleMessages";
+import { formatNumber } from "./numberFormatting";
+import { CelestialIllustration } from "./CelestialIllustration";
 
 interface BlackHolePaneProps {
   readonly state: GameState;
   readonly store: GameStore;
 }
 
-function number(locale: GameState["settings"]["locale"], value: number, digits = 0): string {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(value);
+function number(state: GameState, value: number, digits = 0): string {
+  return formatNumber(state.settings.locale, value, digits, state.settings.notation);
 }
 
 export function BlackHolePane({ state, store }: BlackHolePaneProps) {
@@ -42,7 +44,18 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
     setFeedback("");
   };
   const canRun = (nextCommand: GameCommand) => checkPreconditions(state, nextCommand).ok;
-  const points = `${number(locale, state.run.researchPoints)} ${copy.researchPoints}`;
+  const disabledReason = (nextCommand: GameCommand): string | null => {
+    const result = checkPreconditions(state, nextCommand);
+    if (result.ok) return null;
+    const failure = result.failure;
+    if (!failure || !(failure.code in copy.errors)) return null;
+    return copy.errors[failure.code as keyof typeof copy.errors];
+  };
+  const points = `${number(state, state.run.researchPoints)} ${copy.researchPoints}`;
+  const researchCommand = command("black-hole.research");
+  const researchReason = disabledReason(researchCommand);
+  const activationCommand = command("black-hole.activate");
+  const activationReason = disabledReason(activationCommand);
 
   return (
     <section className="black-hole-pane" aria-labelledby="black-hole-title">
@@ -52,6 +65,9 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
           <h2 id="black-hole-title">{copy.title}</h2>
         </div>
       </header>
+      <div className="deep-space-banner">
+        <CelestialIllustration kind="black-hole" />
+      </div>
       {!hole.discovered ? (
         <div className="black-hole-discovery" data-testid="black-hole-discovery">
           <p>{copy.introduction}</p>
@@ -60,7 +76,7 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
             <p>
               {copy.discoveryProgress.replace(
                 "{percent}",
-                number(locale, hole.discoveryProbability),
+                number(state, hole.discoveryProbability),
               )}
             </p>
           )}
@@ -71,11 +87,17 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
           <button
             type="button"
             className="primary-button"
-            disabled={!canRun(command("black-hole.research"))}
-            onClick={() => runCommand(command("black-hole.research"))}
+            disabled={!canRun(researchCommand)}
+            aria-describedby={researchReason ? "black-hole-research-reason" : undefined}
+            onClick={() => runCommand(researchCommand)}
           >
-            {copy.researchAction} · {number(locale, hole.researchPrice)} RP
+            {copy.researchAction} · {number(state, hole.researchPrice)} RP
           </button>
+          {researchReason && (
+            <p className="control-reason" id="black-hole-research-reason">
+              {researchReason}
+            </p>
+          )}
         </div>
       ) : (
         <>
@@ -83,17 +105,17 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
           <dl className="black-hole-stats">
             <div>
               <dt>{copy.power}</dt>
-              <dd>{number(locale, hole.power, 1)}×</dd>
+              <dd>{number(state, hole.power, 1)}×</dd>
             </div>
             <div>
               <dt>{copy.duration}</dt>
-              <dd>{number(locale, hole.durationMs / 1000, 1)} s</dd>
+              <dd>{number(state, hole.durationMs / 1000, 1)} s</dd>
             </div>
             <div>
               <dt>{copy.recharge}</dt>
               <dd>
                 {number(
-                  locale,
+                  state,
                   Math.max(30, (BLACK_HOLE_BASE_CHARGE_MS * hole.rechargeMultiplier) / 1000),
                 )}{" "}
                 s
@@ -105,11 +127,11 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
                 {hole.alwaysOn
                   ? copy.alwaysOn
                   : state.run.blackHoleWarpActive
-                    ? `${copy.warping} · ${number(locale, state.run.timeWarp.remainingMs / 1000, 1)} s`
+                    ? `${copy.warping} · ${number(state, state.run.timeWarp.remainingMs / 1000, 1)} s`
                     : state.run.blackHoleChargeReady
                       ? copy.ready
                       : charging
-                        ? `${copy.charging} · ${number(locale, Math.max(0, chargeTimer.durationMs - chargeTimer.elapsedMs) / 1000, 1)} s`
+                        ? `${copy.charging} · ${number(state, Math.max(0, chargeTimer.durationMs - chargeTimer.elapsedMs) / 1000, 1)} s`
                         : copy.startCharge}
               </dd>
             </div>
@@ -128,24 +150,33 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
             {(["power", "duration", "recharge"] as const).map((upgradeId) => {
               const nextCommand = command("black-hole.upgrade", upgradeId);
               const price = hole[`${upgradeId}Price`];
+              const reason = disabledReason(nextCommand);
               return (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  key={upgradeId}
-                  disabled={!canRun(nextCommand)}
-                  onClick={() => runCommand(nextCommand)}
-                >
-                  {copy.upgradeNames[upgradeId]} · {number(locale, price)} RP
-                </button>
+                <div className="black-hole-upgrade" key={upgradeId}>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={!canRun(nextCommand)}
+                    aria-describedby={reason ? `black-hole-${upgradeId}-reason` : undefined}
+                    onClick={() => runCommand(nextCommand)}
+                  >
+                    {copy.upgradeNames[upgradeId]} · {number(state, price)} RP
+                  </button>
+                  {reason && (
+                    <p className="control-reason" id={`black-hole-${upgradeId}-reason`}>
+                      {reason}
+                    </p>
+                  )}
+                </div>
               );
             })}
           </div>
           <button
             type="button"
             className="primary-button"
-            disabled={!canRun(command("black-hole.activate"))}
-            onClick={() => runCommand(command("black-hole.activate"))}
+            disabled={!canRun(activationCommand)}
+            aria-describedby={activationReason ? "black-hole-activate-reason" : undefined}
+            onClick={() => runCommand(activationCommand)}
           >
             {hole.alwaysOn
               ? copy.alwaysOn
@@ -155,6 +186,11 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
                   ? copy.charging
                   : copy.startCharge}
           </button>
+          {activationReason && (
+            <p className="control-reason" id="black-hole-activate-reason">
+              {activationReason}
+            </p>
+          )}
         </>
       )}
       <output className="live-feedback" aria-live="polite" data-testid="black-hole-feedback">

@@ -6,6 +6,7 @@ import {
   type MaterialId,
 } from "../content/ids";
 import { GALACTIC_MARKET_CATALOG, type GalacticMarketState } from "../content/galacticMarket";
+import { addLifetimeCount } from "./statistics";
 import type { GameState } from "./state";
 import { nextRandomInteger } from "./random";
 
@@ -306,6 +307,13 @@ export function applyGalacticMarketCommand(
       permanent: {
         ...state.permanent,
         ascendencyPoints: state.permanent.ascendencyPoints + preview.ap,
+      },
+      statistics: {
+        ...state.statistics,
+        lifetimeAscendencyPointsGained: addLifetimeCount(
+          state.statistics.lifetimeAscendencyPointsGained,
+          preview.ap,
+        ),
       },
     },
     events: [{ type: "meta.market.liquidated", value: preview.value, apGained: preview.ap }],

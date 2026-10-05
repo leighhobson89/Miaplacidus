@@ -60,7 +60,7 @@ describe("star data table model", () => {
     expect(antimatterRequiredForDistance(200)).toBe(155_000);
   });
 
-  it("marks factory systems only after their manuscript has been reported", () => {
+  it("hides factory systems until their manuscript has been reported", () => {
     const row = rows[0]!;
     const hidden = createStarDataRows(catalogue, profiles, "spica", [
       {
@@ -79,7 +79,7 @@ describe("star data table model", () => {
       },
     ]);
 
-    expect(hidden.find((entry) => entry.systemId === row.systemId)?.revealedFactory).toBe(false);
+    expect(hidden.find((entry) => entry.systemId === row.systemId)).toBeUndefined();
     expect(revealed.find((entry) => entry.systemId === row.systemId)?.revealedFactory).toBe(true);
   });
 });

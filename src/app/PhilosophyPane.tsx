@@ -6,6 +6,8 @@ import { philosophyRepeatablePrice } from "../engine/philosophy";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { philosophyText } from "../i18n/philosophyMessages";
+import { formatNumber } from "./numberFormatting";
+import { PhilosophyPathArtwork } from "./PhilosophyPathArtwork";
 
 interface PhilosophyPaneProps {
   readonly state: GameState;
@@ -13,7 +15,7 @@ interface PhilosophyPaneProps {
 }
 
 function number(state: GameState, value: number): string {
-  return new Intl.NumberFormat(state.settings.locale, { maximumFractionDigits: 0 }).format(value);
+  return formatNumber(state.settings.locale, value, 0, state.settings.notation);
 }
 
 export function PhilosophyPane({ state, store }: PhilosophyPaneProps) {
@@ -24,7 +26,10 @@ export function PhilosophyPane({ state, store }: PhilosophyPaneProps) {
 
   useEffect(() => {
     const dialog = choiceDialogRef.current;
-    if (state.run.philosophyChoicePending && dialog && !dialog.open) dialog.showModal();
+    if (state.run.philosophyChoicePending && dialog && !dialog.open) {
+      dialog.showModal();
+      dialog.querySelector<HTMLElement>("#philosophy-choice-title")?.focus();
+    }
     if (!state.run.philosophyChoicePending && dialog?.open) dialog.close();
   }, [state.run.philosophyChoicePending]);
 
@@ -38,7 +43,9 @@ export function PhilosophyPane({ state, store }: PhilosophyPaneProps) {
         onCancel={(event) => event.preventDefault()}
       >
         <p className="eyebrow">{copy.title}</p>
-        <h2 id="philosophy-choice-title">{copy.choiceTitle}</h2>
+        <h2 id="philosophy-choice-title" tabIndex={-1}>
+          {copy.choiceTitle}
+        </h2>
         <p>{copy.choicePrompt}</p>
         <div className="philosophy-choice-grid">
           {PHILOSOPHY_IDS.map((id) => {
@@ -46,22 +53,29 @@ export function PhilosophyPane({ state, store }: PhilosophyPaneProps) {
             const ability = copy.abilities[path.abilityId];
             return (
               <article className="philosophy-choice-card" key={id}>
-                <h3>{copy.paths[id].name}</h3>
-                <p>{copy.paths[id].summary}</p>
+                <div className="philosophy-choice-card-heading">
+                  <PhilosophyPathArtwork id={id} />
+                  <div>
+                    <h3>{copy.paths[id].name}</h3>
+                    <p>{copy.paths[id].summary}</p>
+                  </div>
+                </div>
                 <h4>{ability.name}</h4>
                 <p>{ability.effect}</p>
-                <ul>
-                  {path.repeatables.map((repeatableId) => (
-                    <li key={repeatableId}>
-                      <strong>{copy.upgrades[repeatableId].name}:</strong>{" "}
-                      {copy.upgrades[repeatableId].effect}
-                    </li>
-                  ))}
-                </ul>
+                <details className="philosophy-choice-repeatables">
+                  <summary>{copy.repeatables}</summary>
+                  <ul>
+                    {path.repeatables.map((repeatableId) => (
+                      <li key={repeatableId}>
+                        <strong>{copy.upgrades[repeatableId].name}:</strong>{" "}
+                        {copy.upgrades[repeatableId].effect}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
                 <button
                   type="button"
                   className="primary-button"
-                  autoFocus={id === PHILOSOPHY_IDS[0]}
                   onClick={() => {
                     choiceDialogRef.current?.close();
                     store.dispatch({ type: "philosophy.select", philosophyId: id });
@@ -96,10 +110,13 @@ export function PhilosophyPane({ state, store }: PhilosophyPaneProps) {
 
   return (
     <section className="economy-section philosophy-section" data-testid="philosophy-pane">
-      <div className="economy-section-heading">
-        <p className="eyebrow">{copy.title}</p>
-        <h2>{copy.paths[philosophyId].name}</h2>
-        <p>{copy.paths[philosophyId].summary}</p>
+      <div className="economy-section-heading philosophy-path-heading">
+        <PhilosophyPathArtwork id={philosophyId} />
+        <div>
+          <p className="eyebrow">{copy.title}</p>
+          <h2>{copy.paths[philosophyId].name}</h2>
+          <p>{copy.paths[philosophyId].summary}</p>
+        </div>
       </div>
       <article className="economy-card philosophy-ability" data-philosophy-ability={path.abilityId}>
         <h3>

@@ -21,3 +21,9 @@ Run later with `npm.cmd run test:e2e:focused -- tests/e2e/space-telescope/space-
 ## Current evidence
 
 `tests/unit/space-rules.spec.ts` passed 14 tests. `tests/e2e/space-telescope/space-telescope.spec.ts` reported all four browser scenarios passing in system Chrome with Playwright video disabled. The full suite reported all 57 browser cases passing in Chrome with video capture disabled. Playwright remained alive after the final case and was stopped manually; its server had already exited.
+
+On 2026-10-04, the focused Rocket assembly case passed in installed Google Chrome 154 (`MIAPLACIDUS_BROWSER_CHANNEL=chrome`): 1 passed, exit code 0. Running against an already-started test server avoids the Windows web-server shutdown hang.
+
+The same date, the `@ui-navigation` group passed 4/4 cases in Chrome, including checks that all four Rocket child tabs are initially absent and that building Rocket 1 reveals only Rocket 1's page. Unbuilt rocket assembly cards remain available under Launch Pad.
+
+On 2026-10-05, the focused Space Mining browser file passed 4/4 in Chrome. Coverage now reflects page ownership and unlock visibility: Mining is absent before antimatter unlock, telescope construction and auto-survey controls are tested on the Space Telescope child page, and each Rocket child page remains hidden until that rocket is complete.

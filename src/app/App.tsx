@@ -1,4 +1,13 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
 import type { LocaleId } from "../content/ids";
 import { LOCALE_IDS, autobuyerUpgradeId } from "../content/ids";
 import {
@@ -9,7 +18,7 @@ import {
 import { createEconomyTickPlan } from "../engine/economySimulation";
 import { checkPreconditions } from "../engine/commands";
 import { createGameStore, type GameStore } from "../engine/store";
-import { createInitialGameState, type GameState } from "../engine/state";
+import { createInitialGameState, isValidGameState, type GameState } from "../engine/state";
 import {
   selectHydrogenAutobuyerPurchase,
   selectHydrogenCollection,
@@ -17,24 +26,41 @@ import {
   selectHydrogenStoragePurchase,
 } from "../engine/selectors";
 import { displayCurrency, displayQuantity } from "../engine/precision";
+import { formatCurrency } from "./currencyFormatting";
+import { formatNumber } from "./numberFormatting";
 import { translate, type MessageKey } from "../i18n/messages";
 import { economyLabel } from "../i18n/economyMessages";
 import { GameErrorBoundary } from "../ui/GameErrorBoundary";
 import { useGameSnapshot } from "../ui/useGameSnapshot";
+import { currentWeatherForSystem } from "../engine/weather";
 import { BUILD_INFO } from "./buildInfo";
-import { EconomyPanes, economyGoodName, economyRatePerSecond } from "./EconomyPanes";
-import { SpaceMiningPane } from "./SpaceMiningPane";
-import { StarMapPane } from "./StarMapPane";
-import { StarshipPane } from "./StarshipPane";
-import { AscendencyPane } from "./AscendencyPane";
-import { PhilosophyPane } from "./PhilosophyPane";
-import { BlackHolePane } from "./BlackHolePane";
-import { MegastructurePane } from "./MegastructurePane";
-import { MiaplacidusEndgameStory } from "./MiaplacidusEndgameStory";
-import { CosmicRipPane } from "./CosmicRipPane";
-import { SettingsPane } from "./SettingsPane";
+import { NewsTickerBar } from "./NewsTickerBar";
+import { withGameAudio } from "./audio";
+import { economyGoodName, economyRatePerSecond } from "./economyDisplay";
+import { EconomicGoodEmblem } from "./EconomicGoodEmblem";
+import { blackHoleText } from "../i18n/blackHoleMessages";
 import { SaveStartScreen } from "./SaveStartScreen";
-import { SaveManager } from "./SaveManager";
+import { PaneNavigation, type PaneNavigationItem } from "./PaneNavigation";
+import { readCollapsedGroupIds, writeCollapsedGroupIds } from "./navigationPreferences";
+import {
+  galacticPaneItems,
+  interstellarPaneItems,
+  miaplaediaPaneItems,
+  miaplaediaSectionId,
+  spaceMiningPaneItems,
+  cosmicRipPaneItems,
+  resourcePaneGroups,
+  energyPaneItems,
+  researchPaneItems,
+  settingsPaneItems,
+  compoundPaneItems,
+  type GalacticPaneId,
+  type InterstellarPaneId,
+  type MiaplaediaPaneId,
+  type SpaceMiningPaneId,
+  type CosmicRipPaneId,
+  type ResourcePaneGroup,
+} from "./presentationNavigation";
 import {
   acquireSlotLock,
   browserStorage,
@@ -46,6 +72,78 @@ import {
   type SaveRepository,
 } from "../persistence";
 import { saveErrorText, saveText } from "../i18n/saveMessages";
+import { AscendencyBalance, LocationStatus, ResearchBalance, TopStatusBar } from "./TopStatusBar";
+import { TECHNOLOGY_NAMES } from "../content/technologyNames";
+import { cosmicRipText } from "../i18n/cosmicRipMessages";
+import { technologyNotificationText } from "../i18n/technologyNotificationMessages";
+import { createSpaceEventNoticeHandler } from "./spaceEventNotifications";
+import { WeatherEffectsOverlay } from "./WeatherEffectsOverlay";
+import {
+  GameNotificationProvider,
+  GameNotificationRegion,
+  useGameNotificationControls,
+  useGameNotifications,
+} from "./NotificationStack";
+
+const SpaceMiningPane = lazy(() =>
+  import("./SpaceMiningPane").then((module) => ({ default: module.SpaceMiningPane })),
+);
+const EconomyPanes = lazy(() =>
+  import("./EconomyPanes").then((module) => ({ default: module.EconomyPanes })),
+);
+const HydrogenAutobuyerTiers = lazy(() =>
+  import("./EconomyPanes").then((module) => ({ default: module.HydrogenAutobuyerTiers })),
+);
+const HydrogenAllocationControls = lazy(() =>
+  import("./EconomyPanes").then((module) => ({ default: module.HydrogenAllocationControls })),
+);
+const HydrogenFusionDetails = lazy(() =>
+  import("./EconomyPanes").then((module) => ({ default: module.HydrogenFusionDetails })),
+);
+const PhilosophyPane = lazy(() =>
+  import("./PhilosophyPane").then((module) => ({ default: module.PhilosophyPane })),
+);
+const StarMapPane = lazy(() =>
+  import("./StarMapPane").then((module) => ({ default: module.StarMapPane })),
+);
+const StarshipPane = lazy(() =>
+  import("./StarshipPane").then((module) => ({ default: module.StarshipPane })),
+);
+const AscendencyPane = lazy(() =>
+  import("./AscendencyPane").then((module) => ({ default: module.AscendencyPane })),
+);
+const RebirthPane = lazy(() =>
+  import("./AscendencyPane").then((module) => ({ default: module.RebirthPane })),
+);
+const GalacticCasinoPane = lazy(() =>
+  import("./GalacticCasinoPane").then((module) => ({ default: module.GalacticCasinoPane })),
+);
+const GalacticMarketPane = lazy(() =>
+  import("./GalacticMarketPane").then((module) => ({ default: module.GalacticMarketPane })),
+);
+const BlackHolePane = lazy(() =>
+  import("./BlackHolePane").then((module) => ({ default: module.BlackHolePane })),
+);
+const MegastructurePane = lazy(() =>
+  import("./MegastructurePane").then((module) => ({ default: module.MegastructurePane })),
+);
+const MiaplacidusEndgameStory = lazy(() =>
+  import("./MiaplacidusEndgameStory").then((module) => ({
+    default: module.MiaplacidusEndgameStory,
+  })),
+);
+const CosmicRipPane = lazy(() =>
+  import("./CosmicRipPane").then((module) => ({ default: module.CosmicRipPane })),
+);
+const SettingsPane = lazy(() =>
+  import("./SettingsPane").then((module) => ({ default: module.SettingsPane })),
+);
+const MiaplaediaPane = lazy(() =>
+  import("./MiaplaediaPane").then((module) => ({ default: module.MiaplaediaPane })),
+);
+const SaveManager = lazy(() =>
+  import("./SaveManager").then((module) => ({ default: module.SaveManager })),
+);
 
 const GAME_TABS = [
   { id: "hydrogen", key: "tab.hydrogen" },
@@ -57,7 +155,166 @@ const GAME_TABS = [
   { id: "galaxy", key: "tab.galaxy" },
   { id: "cosmic-rip", key: "tab.cosmicRip" },
   { id: "settings", key: "tab.settings" },
+  { id: "miaplaedia", key: "tab.miaplaedia" },
 ] as const satisfies readonly { id: string; key: MessageKey }[];
+
+type GameTabId = (typeof GAME_TABS)[number]["id"];
+
+function isGameTabAvailable(tabId: GameTabId, state: GameState): boolean {
+  return (
+    tabId === "hydrogen" ||
+    tabId === "research" ||
+    (tabId === "energy" &&
+      state.run.economy.researchedTechnologies.includes("basicPowerGeneration")) ||
+    (tabId === "compounds" && state.run.economy.researchedTechnologies.includes("compounds")) ||
+    (tabId === "interstellar" &&
+      state.run.economy.researchedTechnologies.includes("stellarCartography")) ||
+    (tabId === "space-mining" &&
+      state.run.economy.researchedTechnologies.includes("atmosphericTelescopes")) ||
+    (tabId === "galaxy" &&
+      (state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0)) ||
+    (tabId === "cosmic-rip" && state.permanent.cosmicRip.unlocked) ||
+    tabId === "settings" ||
+    tabId === "miaplaedia"
+  );
+}
+
+function ResourceRail({
+  groups,
+  state,
+  activePane,
+  hidden,
+  storageScope,
+  onSelect,
+}: {
+  readonly groups: readonly ResourcePaneGroup[];
+  readonly state: GameState;
+  readonly activePane: string;
+  readonly hidden: boolean;
+  readonly storageScope: string;
+  readonly onSelect: (paneId: string) => void;
+}) {
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<ReadonlySet<string>>(() =>
+    readCollapsedGroupIds(storageScope),
+  );
+  useEffect(() => {
+    writeCollapsedGroupIds(storageScope, collapsedGroupIds);
+  }, [collapsedGroupIds, storageScope]);
+
+  return (
+    <aside
+      className="resource-rail"
+      aria-label={economyLabel(state.settings.locale, "resources")}
+      hidden={hidden}
+    >
+      {groups.map((group) => {
+        const collapsed = collapsedGroupIds.has(group.id);
+        return (
+          <section className="resource-rail-group" key={group.id}>
+            <button
+              className="resource-rail-group-toggle"
+              type="button"
+              data-testid={`resource-group-toggle-${group.id}`}
+              aria-expanded={!collapsed}
+              aria-controls={`resource-group-${group.id}`}
+              onClick={() =>
+                setCollapsedGroupIds((current) => {
+                  const next = new Set(current);
+                  if (next.has(group.id)) next.delete(group.id);
+                  else next.add(group.id);
+                  return next;
+                })
+              }
+            >
+              {group.label}
+              <span aria-hidden="true">{collapsed ? "›" : "⌄"}</span>
+            </button>
+            <div id={`resource-group-${group.id}`} hidden={collapsed}>
+              {group.goodIds.map((goodId) => {
+                const good = state.run.goods[goodId];
+                const rate = economyRatePerSecond(state, goodId);
+                const paneId = `resources-${goodId}`;
+                return (
+                  <button
+                    key={goodId}
+                    className={`resource-item${activePane === paneId ? " is-current" : ""}`}
+                    type="button"
+                    data-testid={`resource-rail-${goodId}`}
+                    onClick={() => onSelect(paneId)}
+                  >
+                    <EconomicGoodEmblem goodId={goodId} />
+                    <span className="resource-item-copy">
+                      <strong>
+                        {goodId === "hydrogen"
+                          ? translate(state.settings.locale, "hydrogen.title")
+                          : economyGoodName(state.settings.locale, goodId)}
+                      </strong>
+                      <small>
+                        {formatNumber(
+                          state.settings.locale,
+                          state.settings.notation === "scientific"
+                            ? good.quantity
+                            : displayQuantity(good.quantity),
+                          0,
+                          state.settings.notation,
+                        )}{" "}
+                        /{" "}
+                        {formatNumber(
+                          state.settings.locale,
+                          good.storageCapacity,
+                          0,
+                          state.settings.notation,
+                        )}
+                      </small>
+                    </span>
+                    <span className="resource-rate">
+                      {rate >= 0 ? "+" : "−"}
+                      {formatNumber(
+                        state.settings.locale,
+                        Math.abs(rate),
+                        2,
+                        state.settings.notation,
+                      )}
+                      /s
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </aside>
+  );
+}
+
+function PointerTrailLayer({ enabled }: { readonly enabled: boolean }) {
+  const layerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const layer = layerRef.current;
+    if (!layer) return;
+    let lastParticleAt = 0;
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse" || event.timeStamp - lastParticleAt < 36) return;
+      lastParticleAt = event.timeStamp;
+      const particle = document.createElement("span");
+      particle.className = "pointer-trail-particle";
+      particle.style.left = `${event.clientX}px`;
+      particle.style.top = `${event.clientY}px`;
+      particle.addEventListener("animationend", () => particle.remove(), { once: true });
+      layer.appendChild(particle);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      layer.replaceChildren();
+    };
+  }, [enabled]);
+
+  return <div ref={layerRef} className="pointer-trail-layer" aria-hidden="true" />;
+}
 
 interface BootOptions {
   readonly seed: number;
@@ -79,12 +336,12 @@ interface GameSessionProps {
   readonly slotId: string;
   readonly revision: number;
   readonly persistent: boolean;
-  readonly initialHydrogenBriefingPending: boolean;
   readonly initialWarning?: string | undefined;
   readonly onExit: (prefillName?: string) => void;
   readonly onDeleteActive: () => void;
   readonly onReplaceActive: (envelope: SaveEnvelopeV1) => void;
   readonly onSaveAsNew: (envelope: SaveEnvelopeV1, releaseLock: () => void) => void;
+  readonly onApplyTestCheckpoint: (state: GameState) => boolean;
 }
 
 class TestClock {
@@ -115,41 +372,30 @@ function bootOptions(): BootOptions {
   };
 }
 
-function formatNumber(
+function localizedReason(
   locale: LocaleId,
-  value: number,
-  maximumFractionDigits = 0,
+  key: string | undefined,
+  required?: number,
   notation: GameState["settings"]["notation"] = "standard",
 ): string {
-  return new Intl.NumberFormat(
-    locale,
-    notation === "scientific"
-      ? { notation: "scientific", maximumSignificantDigits: Math.max(1, maximumFractionDigits + 1) }
-      : { maximumFractionDigits },
-  ).format(value);
-}
-
-function formatMoney(locale: LocaleId, value: number): string {
-  const numericValue = Number(displayCurrency(value));
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(numericValue);
-}
-
-function localizedReason(locale: LocaleId, key: string | undefined, required?: number): string {
   if (key === "ui.hydrogen.inventory-full") return translate(locale, "reason.inventory-full");
   if (key === "ui.hydrogen.no-stock") return translate(locale, "reason.no-stock");
   if (key === "ui.hydrogen.autobuyer-locked") return translate(locale, "reason.autobuyer-locked");
   if (key === "engine.purchase.insufficient-material") {
-    return `${translate(locale, "reason.insufficient")} ${formatNumber(locale, required ?? 0)} H\u2082.`;
+    return `${translate(locale, "reason.insufficient")} ${formatNumber(locale, required ?? 0, 0, notation)} H\u2082.`;
   }
   return key ?? "";
 }
 
 export function App() {
+  return (
+    <GameNotificationProvider>
+      <AppContent />
+    </GameNotificationProvider>
+  );
+}
+
+function AppContent() {
   const initial = useState(bootOptions)[0];
   const repository = useState<SaveRepository | null>(() => {
     if (
@@ -191,11 +437,18 @@ export function App() {
     slotId: string;
     revision: number;
     persistent: boolean;
-    hydrogenBriefingPending: boolean;
     releaseLock: () => void;
     warning?: string;
   } | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(() => {
+    const lastStarted = repository?.lastStartedSlot();
+    if (!lastStarted) return null;
+    try {
+      return repository?.readSlot(lastStarted) ? lastStarted : null;
+    } catch {
+      return null;
+    }
+  });
   const [selectionError, setSelectionError] = useState("");
   const [selectionNotice, setSelectionNotice] = useState("");
   const [starting, setStarting] = useState(false);
@@ -210,36 +463,26 @@ export function App() {
   }, [locale, store]);
   function setDraftName(name: string) {
     setPioneerName(name);
-    setConfirmed(false);
+    setSelectedSlotId(null);
     setSelectionError("");
     setSelectionNotice("");
-  }
-  function setDraftLocale(nextLocale: LocaleId) {
-    setLocale(nextLocale);
-    setConfirmed(false);
-    setSelectionError("");
-    setSelectionNotice("");
-  }
-  function confirmSelection() {
-    try {
-      const name = validatePioneerName(pioneerName);
-      const matches = repository?.findByName(name.display) ?? [];
-      if (matches.length > 1)
-        throw new SaveError("duplicate-name", "Duplicate local save names need recovery.");
-      setPioneerName(name.display);
-      repository?.writePreferences({ locale, lastConfirmedName: name.display });
-      setConfirmed(true);
-      setSelectionError("");
-      setSelectionNotice("");
-    } catch (error) {
-      setSelectionError(
-        saveErrorText(locale, error instanceof SaveError ? error.code : "invalid-envelope"),
-      );
-    }
   }
 
-  async function startConfirmedRun() {
-    if (!confirmed || starting) return;
+  function selectSavedPioneer(slotId: string, name: string) {
+    setPioneerName(name);
+    setSelectedSlotId(slotId);
+    setSelectionError("");
+    setSelectionNotice("");
+  }
+
+  function setDraftLocale(nextLocale: LocaleId) {
+    setLocale(nextLocale);
+    setSelectionError("");
+    setSelectionNotice("");
+  }
+
+  async function startSelectedRun() {
+    if (starting) return;
     setStarting(true);
     setSelectionError("");
     setSelectionNotice("");
@@ -247,16 +490,19 @@ export function App() {
     let unsavedWarning = "";
     try {
       const name = validatePioneerName(pioneerName);
-      const matches = repository?.findByName(name.display) ?? [];
-      if (matches.length > 1)
-        throw new SaveError("duplicate-name", "Duplicate local save names need recovery.");
-      const existing = matches[0];
+      const existing = selectedSlotId
+        ? repository?.list().find((slot) => slot.slotId === selectedSlotId)
+        : undefined;
+      if (selectedSlotId && !existing)
+        throw new SaveError("not-found", "This save could not be found.");
       if (existing && existing.status !== "ready")
         throw new SaveError("corrupt-slot", "This save is damaged.");
+      if (existing && existing.pioneerName !== name.display)
+        throw new SaveError("not-found", "This save could not be found.");
+      if (!existing && (repository?.findByName(name.display).length ?? 0) > 0)
+        throw new SaveError("duplicate-name", "Choose the matching saved pioneer to resume it.");
+      repository?.writePreferences({ locale, lastConfirmedName: name.display });
       const slotId = existing?.slotId ?? createSlotId();
-      const hydrogenBriefingPending = existing
-        ? (repository?.needsHydrogenBriefing(slotId) ?? false)
-        : true;
       let persistent = repository !== null;
       if (!repository) unsavedWarning = saveErrorText(locale, "storage-unavailable");
       if (repository) {
@@ -325,6 +571,7 @@ export function App() {
               "compound-automation",
               "multipliers",
               "space-telescope",
+              "space-telescope-before-launch-pad",
               "space-starship",
               "space-starship-ready",
               "space-starship-scanning",
@@ -340,9 +587,13 @@ export function App() {
               "meta-rebirth-ready",
               "meta-market-ready",
               "meta-casino-ready",
+              "meta-rebirth-before-casino-unlock",
               "meta-black-hole-discovered",
               "meta-megastructure-route",
               "meta-cosmic-rip-route",
+              "meta-cosmic-rip-restore-affordance",
+              "meta-cosmic-rip-action-affordances",
+              "meta-cosmic-rip-close-affordance",
               "space-late-game",
               "space-manuscript-hidden",
             ].includes(fixture ?? "")
@@ -361,7 +612,7 @@ export function App() {
         };
         if (repository && persistent) {
           try {
-            const created = repository.createFresh(slotId, nextState, name.display, now);
+            const created = repository.create(slotId, nextState, name.display, now);
             revision = created.revision;
             try {
               repository.activate(slotId);
@@ -382,10 +633,10 @@ export function App() {
           }
         }
       }
-      if (BUILD_INFO.isTest || BUILD_INFO.isDevelopment) testClock.set(now);
+      if (BUILD_INFO.isTest) testClock.set(now);
       const nextStore = createGameStore(nextState, {
         clock: {
-          now: () => (BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now()),
+          now: () => (BUILD_INFO.isTest ? testClock.now() : Date.now()),
         },
       });
       setStore(nextStore);
@@ -393,11 +644,9 @@ export function App() {
         slotId,
         revision,
         persistent,
-        hydrogenBriefingPending,
         releaseLock,
         warning: unsavedWarning,
       });
-      setConfirmed(false);
     } catch (error) {
       releaseLock();
       setSelectionError(
@@ -420,9 +669,9 @@ export function App() {
     try {
       const recovered = repository.restoreGeneration(reference, Date.now());
       setPioneerName(recovered.pioneerName);
+      setSelectedSlotId(null);
       setSelectionError("");
       setSelectionNotice(saveText(locale, "recovered"));
-      setConfirmed(false);
       setSlotRefresh((value) => value + 1);
     } catch (error) {
       setSelectionError(
@@ -437,25 +686,20 @@ export function App() {
     session?.releaseLock();
     if (prefillName) setPioneerName(prefillName);
     else if (store) setPioneerName(store.getState().run.pioneerName);
+    setSelectedSlotId(null);
     setStore(null);
     setSession(null);
-    setConfirmed(false);
   }
   function afterDeleteActive() {
     const fallbackName = repository?.readPreferences().lastConfirmedName ?? "Pioneer";
     setPioneerName(fallbackName);
+    setSelectedSlotId(null);
     session?.releaseLock();
     setStore(null);
     setSession(null);
-    setConfirmed(false);
   }
   function replaceActiveSave(envelope: SaveEnvelopeV1) {
     if (!session) return;
-    try {
-      repository?.completeHydrogenBriefing(envelope.slotId);
-    } catch {
-      /* The imported state remains valid and playable. */
-    }
     const nextState = {
       ...envelope.state,
       run: { ...envelope.state.run, clock: { ...envelope.state.run.clock, foreground: false } },
@@ -463,7 +707,7 @@ export function App() {
     setStore(
       createGameStore(nextState, {
         clock: {
-          now: () => (BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now()),
+          now: () => (BUILD_INFO.isTest ? testClock.now() : Date.now()),
         },
       }),
     );
@@ -487,7 +731,7 @@ export function App() {
     setStore(
       createGameStore(nextState, {
         clock: {
-          now: () => (BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now()),
+          now: () => (BUILD_INFO.isTest ? testClock.now() : Date.now()),
         },
       }),
     );
@@ -495,11 +739,43 @@ export function App() {
       slotId: envelope.slotId,
       revision: envelope.revision,
       persistent: true,
-      hydrogenBriefingPending: false,
       releaseLock: newLockRelease,
     });
     setLocale(envelope.state.settings.locale);
   }
+
+  const applyTestCheckpoint = useCallback(
+    (checkpoint: GameState): boolean => {
+      if ((!BUILD_INFO.isTest && !import.meta.env.DEV) || !store || !session) return false;
+      const current = store.getState();
+      if (!isValidGameState(checkpoint) || checkpoint.run.pioneerName !== current.run.pioneerName)
+        return false;
+      const nextState: GameState = {
+        ...checkpoint,
+        settings: current.settings,
+        run: {
+          ...checkpoint.run,
+          pioneerName: current.run.pioneerName,
+          clock: {
+            ...checkpoint.run.clock,
+            wallNowMs: testClock.now(),
+            foreground: true,
+            hiddenElapsedMs: 0,
+            pendingForegroundMs: 0,
+          },
+        },
+      };
+      setStore(
+        createGameStore(nextState, {
+          clock: {
+            now: () => (BUILD_INFO.isTest ? testClock.now() : Date.now()),
+          },
+        }),
+      );
+      return true;
+    },
+    [store, session, testClock],
+  );
 
   const activeLocale = store?.getState().settings.locale ?? locale;
   const t = (key: MessageKey) => translate(activeLocale, key);
@@ -529,12 +805,12 @@ export function App() {
             slotId={session.slotId}
             revision={session.revision}
             persistent={session.persistent}
-            initialHydrogenBriefingPending={session.hydrogenBriefingPending}
             initialWarning={session.warning}
             onExit={exitRun}
             onDeleteActive={afterDeleteActive}
             onReplaceActive={replaceActiveSave}
             onSaveAsNew={switchToNewSaved}
+            onApplyTestCheckpoint={applyTestCheckpoint}
           />
         ) : (
           <SaveStartScreen
@@ -544,13 +820,13 @@ export function App() {
             name={pioneerName}
             setName={setDraftName}
             slots={repository?.list() ?? []}
-            confirmed={confirmed}
+            selectedSlotId={selectedSlotId}
             error={selectionError}
             notice={selectionNotice}
             storageAvailable={repository !== null}
-            onConfirm={confirmSelection}
-            onStart={() => void startConfirmedRun()}
-            onEdit={() => setConfirmed(false)}
+            onSelectSlot={selectSavedPioneer}
+            starting={starting}
+            onStart={() => void startSelectedRun()}
             onRecover={(reference) => void recoverAtBoot(reference)}
           />
         )}
@@ -560,7 +836,7 @@ export function App() {
 }
 
 function GameSession({
-  store,
+  store: engineStore,
   testClock,
   seed,
   frameMetrics,
@@ -568,24 +844,55 @@ function GameSession({
   slotId,
   revision: initialRevision,
   persistent: initialPersistent,
-  initialHydrogenBriefingPending,
   initialWarning,
   onExit,
   onDeleteActive,
   onReplaceActive,
   onSaveAsNew,
+  onApplyTestCheckpoint,
 }: GameSessionProps) {
+  const store = useMemo(() => withGameAudio(engineStore), [engineStore]);
+  useEffect(() => () => store.dispose(), [store]);
   const snapshot = useGameSnapshot(store);
-  const [activeTab, setActiveTab] = useState("hydrogen");
+  const notify = useGameNotifications();
+  const setNotificationsEnabled = useGameNotificationControls();
+  const [activeTab, setActiveTab] = useState<GameTabId>("hydrogen");
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<GameTabId>>(
+    () => new Set(["hydrogen"]),
+  );
+  const [visitedPanes, setVisitedPanes] = useState<ReadonlySet<string>>(
+    () =>
+      new Set([
+        "resources-hydrogen",
+        "energy-storage",
+        "research-science-buildings",
+        "research-tech-tree",
+        "compounds-diesel",
+        "galactic-rebirth",
+        "interstellar-star-map",
+        "space-mining-telescope",
+        "cosmic-rip-situation",
+      ]),
+  );
+  const [activeGalacticPane, setActiveGalacticPane] = useState<GalacticPaneId>("galactic-rebirth");
+  const [activeMiaplaediaPane, setActiveMiaplaediaPane] =
+    useState<MiaplaediaPaneId>("miaplaedia-get-started");
+  const [activeInterstellarPane, setActiveInterstellarPane] =
+    useState<InterstellarPaneId>("interstellar-star-map");
+  const [activeSpaceMiningPane, setActiveSpaceMiningPane] =
+    useState<SpaceMiningPaneId>("space-mining-launch-pad");
+  const [activeCosmicRipPane, setActiveCosmicRipPane] =
+    useState<CosmicRipPaneId>("cosmic-rip-situation");
+  const [activeResourcePane, setActiveResourcePane] = useState("resources-hydrogen");
+  const [activeEnergyPane, setActiveEnergyPane] = useState("energy-storage");
+  const [activeResearchPane, setActiveResearchPane] = useState("research-science-buildings");
+  const [activeCompoundPane, setActiveCompoundPane] = useState("compounds-diesel");
   const [sellAmount, setSellAmount] = useState<number | "all">("all");
   const [feedback, setFeedback] = useState("");
   const [saveManagerOpen, setSaveManagerOpen] = useState(false);
   const [saveRevision, setSaveRevision] = useState(initialRevision);
   const saveRevisionRef = useRef(initialRevision);
   const [savePersistent, setSavePersistent] = useState(initialPersistent);
-  const [hydrogenBriefingPending, setHydrogenBriefingPending] = useState(
-    initialHydrogenBriefingPending,
-  );
   const [saveWritesPaused, setSaveWritesPaused] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [saveFailure, setSaveFailure] = useState(initialWarning ?? "");
@@ -595,8 +902,8 @@ function GameSession({
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(
     repository?.readPreferences().autoSaveEnabled ?? true,
   );
-  const [autoSaveInterval, setAutoSaveInterval] = useState<10 | 30 | 60>(
-    repository?.readPreferences().autoSaveIntervalSeconds ?? 10,
+  const [autoSaveInterval, setAutoSaveInterval] = useState<300 | 900 | 1800 | 3600>(
+    repository?.readPreferences().autoSaveIntervalSeconds ?? 300,
   );
   const [debugLabOpen, setDebugLabOpen] = useState(false);
   const currentLocaleRef = useRef(snapshot.locale);
@@ -612,6 +919,7 @@ function GameSession({
     open: boolean;
     onClose: () => void;
     advanceBy: (milliseconds: number) => void;
+    applyTestCheckpoint: (state: GameState) => boolean;
     readFrameMetrics: () => {
       readonly frames: number;
       readonly durationMs: number;
@@ -619,6 +927,16 @@ function GameSession({
     };
   }> | null>(null);
   const t = (key: MessageKey) => translate(snapshot.locale, key);
+  const activateTab = (tabId: GameTabId) => {
+    setVisitedTabs((current) => (current.has(tabId) ? current : new Set(current).add(tabId)));
+    setActiveTab(tabId);
+  };
+  const activatePane = (paneId: string) => {
+    setVisitedPanes((current) => (current.has(paneId) ? current : new Set(current).add(paneId)));
+    if (store.getState().run.navigationAttentionIds.includes(paneId)) {
+      store.dispatch({ type: "navigation.attention.clear", pageId: paneId });
+    }
+  };
   const hydrogen = snapshot.goods.hydrogen;
   const storagePurchase = selectHydrogenStoragePurchase(store.getState());
   const autobuyerPurchase = selectHydrogenAutobuyerPurchase(store.getState());
@@ -636,12 +954,10 @@ function GameSession({
       const current = store.getState();
       const autoSavePaused =
         automatic &&
-        (hydrogenBriefingPending ||
-          Object.values(current.run.timers).some(
-            (timer) =>
-              timer.status === "running" &&
-              (timer.domain === "battle" || timer.domain === "travel"),
-          ));
+        Object.values(current.run.timers).some(
+          (timer) =>
+            timer.status === "running" && (timer.domain === "battle" || timer.domain === "travel"),
+        );
       if (autoSavePaused) return null;
       if (!repository || !savePersistent) {
         setSaveStatus(saveLabel("unsaved"));
@@ -682,33 +998,8 @@ function GameSession({
         return null;
       }
     },
-    [
-      repository,
-      savePersistent,
-      saveWritesPaused,
-      store,
-      slotId,
-      saveLabel,
-      hydrogenBriefingPending,
-    ],
+    [repository, savePersistent, saveWritesPaused, store, slotId, saveLabel],
   );
-
-  function finishHydrogenBriefing() {
-    store.dispatch({ type: "onboarding.complete" });
-    if (repository && savePersistent && !saveWritesPaused) {
-      try {
-        repository.completeHydrogenBriefing(slotId);
-      } catch (error) {
-        setSaveFailure(
-          saveErrorText(
-            currentLocaleRef.current,
-            error instanceof SaveError ? error.code : "storage-unavailable",
-          ),
-        );
-      }
-    }
-    setHydrogenBriefingPending(false);
-  }
 
   useEffect(() => {
     let timeout: number | null = null;
@@ -797,7 +1088,6 @@ function GameSession({
       const next = BUILD_INFO.isTest
         ? testClock.advance(milliseconds)
         : Math.max(Date.now(), previous + milliseconds);
-      if (BUILD_INFO.isDevelopment && !BUILD_INFO.isTest) testClock.set(next);
       const state = store.getState();
       const tickPlan = createEconomyTickPlan(state).tickPlan;
       const input = { wallNowMs: next, foreground: true };
@@ -823,8 +1113,7 @@ function GameSession({
   }, [snapshot.locale]);
 
   useEffect(() => {
-    const wallNow = () =>
-      BUILD_INFO.isTest || BUILD_INFO.isDevelopment ? testClock.now() : Date.now();
+    const wallNow = () => (BUILD_INFO.isTest ? testClock.now() : Date.now());
     const onVisibilityChange = () => {
       const current = store.getState();
       const tickPlan = createEconomyTickPlan(current).tickPlan;
@@ -839,6 +1128,7 @@ function GameSession({
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     let frame = 0;
+    let lastPresentationPublishAt = 0;
     const tick = (timestamp: number) => {
       frameMetrics.frames += 1;
       frameMetrics.firstFrameAt ??= timestamp;
@@ -855,6 +1145,10 @@ function GameSession({
         offlineTickPlan: tickPlan,
       });
       store.publishIfDue();
+      if (timestamp - lastPresentationPublishAt >= 250) {
+        store.publishNow();
+        lastPresentationPublishAt = timestamp;
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -888,6 +1182,7 @@ function GameSession({
         store,
         seed,
         advanceBy: advanceTestClock,
+        applyTestCheckpoint: onApplyTestCheckpoint,
         readFrameMetrics: () => {
           const durationMs = Math.max(
             0,
@@ -906,36 +1201,260 @@ function GameSession({
       removeGateway();
       window.removeEventListener("keydown", toggleTestLab);
     };
-  }, [store, seed, frameMetrics, advanceTestClock]);
+  }, [store, seed, frameMetrics, advanceTestClock, onApplyTestCheckpoint]);
 
-  function send(command: Parameters<GameStore["dispatch"]>[0], successKey: MessageKey): void {
+  function send(command: Parameters<GameStore["dispatch"]>[0]): void {
     const result = store.dispatch(command);
-    if (result.accepted) {
-      setFeedback(t(successKey));
-    } else {
-      setFeedback(
-        localizedReason(
-          snapshot.locale,
-          result.failure?.messageKey,
-          result.failure?.code === "insufficient-material" ? result.failure.required : undefined,
-        ),
-      );
-    }
+    setFeedback(
+      result.accepted
+        ? ""
+        : localizedReason(
+            snapshot.locale,
+            result.failure?.messageKey,
+            result.failure?.code === "insufficient-material" ? result.failure.required : undefined,
+            snapshot.notation,
+          ),
+    );
   }
 
-  const localeOptions = LOCALE_IDS.map((id) => (
-    <option key={id} value={id}>
-      {id.toUpperCase()}
-    </option>
-  ));
+  const currentState = store.getState();
+  useEffect(() => {
+    setNotificationsEnabled(currentState.settings.notificationsEnabled !== false);
+  }, [currentState.settings.notificationsEnabled, setNotificationsEnabled]);
+
+  useEffect(() => {
+    const routeSpaceEvents = createSpaceEventNoticeHandler(
+      () => currentLocaleRef.current,
+      () => store.getState(),
+      (notice) =>
+        notify(notice.message, {
+          classification: notice.classification,
+          type: notice.type,
+          durationMs: 3000,
+        }),
+    );
+    return store.subscribeEvents(routeSpaceEvents);
+  }, [notify, store]);
+
+  const previousNotificationState = useRef({
+    store,
+    rebirthCount: currentState.permanent.rebirthCount,
+    economyTechs: currentState.run.economy.researchedTechnologies,
+    cosmicRipTechs: currentState.permanent.cosmicRip.researchedTechnologyIds,
+  });
+  useEffect(() => {
+    const previous = previousNotificationState.current;
+    const economyTechs = currentState.run.economy.researchedTechnologies;
+    const cosmicRipTechs = currentState.permanent.cosmicRip.researchedTechnologyIds;
+    if (previous.store !== store || previous.rebirthCount !== currentState.permanent.rebirthCount) {
+      previousNotificationState.current = {
+        store,
+        rebirthCount: currentState.permanent.rebirthCount,
+        economyTechs,
+        cosmicRipTechs,
+      };
+      return;
+    }
+
+    for (const technologyId of economyTechs) {
+      if (previous.economyTechs.includes(technologyId)) continue;
+      notify(
+        technologyNotificationText(
+          snapshot.locale,
+          technologyId,
+          TECHNOLOGY_NAMES[technologyId][snapshot.locale],
+        ),
+        { classification: "tech", type: "info", durationMs: 3000 },
+      );
+    }
+
+    const cosmicRipMessages = cosmicRipText(snapshot.locale);
+    for (const technologyId of cosmicRipTechs) {
+      if (previous.cosmicRipTechs.includes(technologyId)) continue;
+      notify(
+        `${cosmicRipMessages.technologyNames[technologyId]} ${cosmicRipMessages.researched}!`,
+        {
+          classification: "cosmicRip",
+          type: "info",
+          durationMs: 3000,
+        },
+      );
+    }
+
+    previousNotificationState.current = {
+      store,
+      rebirthCount: currentState.permanent.rebirthCount,
+      economyTechs,
+      cosmicRipTechs,
+    };
+  }, [
+    currentState.permanent.cosmicRip.researchedTechnologyIds,
+    currentState.permanent.rebirthCount,
+    currentState.run.economy.researchedTechnologies,
+    notify,
+    snapshot.locale,
+    store,
+  ]);
+  const attentionIds = new Set(currentState.run.navigationAttentionIds);
+  const galacticPanels = galacticPaneItems(snapshot.locale, currentState);
+  const blackHoleReady =
+    currentState.permanent.blackHole.researched &&
+    currentState.run.blackHoleChargeReady &&
+    !currentState.run.blackHoleWarpActive;
+  const liveAttentionLabels = new Map<string, string>();
+  if (blackHoleReady) {
+    liveAttentionLabels.set("galactic-black-hole", blackHoleText(snapshot.locale).ready);
+  }
+  const interstellarPanels = interstellarPaneItems(snapshot.locale, currentState);
+  const spaceMiningPanels = spaceMiningPaneItems(snapshot.locale, currentState);
+  const cosmicRipPanels = cosmicRipPaneItems(snapshot.locale, currentState);
+  const miaplaediaPanels = miaplaediaPaneItems(snapshot.locale);
+  const settingsPanels = settingsPaneItems(snapshot.locale);
+  const resourceGroups = resourcePaneGroups(snapshot.locale, currentState.run.unlockedResources);
+  const resourcePanels = resourceGroups.flatMap((group) => group.items);
+  const energyPanels = energyPaneItems(
+    snapshot.locale,
+    currentState.run.economy.researchedTechnologies,
+  );
+  const researchPanels = researchPaneItems(
+    snapshot.locale,
+    store.getState().permanent.philosophyId !== null,
+  );
+  const compoundPanels = compoundPaneItems(
+    snapshot.locale,
+    currentState.run.economy.unlockedCompounds,
+  );
+  const paneItemsByTab = new Map<string, readonly PaneNavigationItem[]>([
+    ["hydrogen", resourcePanels],
+    ["energy", energyPanels],
+    ["research", researchPanels],
+    ["compounds", compoundPanels],
+    ["galaxy", galacticPanels],
+    ["interstellar", interstellarPanels],
+    ["space-mining", spaceMiningPanels],
+    ["cosmic-rip", cosmicRipPanels],
+    ["settings", settingsPanels],
+    ["miaplaedia", miaplaediaPanels],
+  ]);
+  const availableTabIds = new Set(
+    GAME_TABS.filter((tab) => isGameTabAvailable(tab.id, currentState)).map((tab) => tab.id),
+  );
+  const orderedTabs = GAME_TABS.filter((tab) => availableTabIds.has(tab.id));
+  const activeTabIsVisible = orderedTabs.some((tab) => tab.id === activeTab);
+  const selectedTabId = activeTabIsVisible ? activeTab : (orderedTabs[0]?.id ?? "hydrogen");
+  useEffect(() => {
+    if (selectedTabId !== activeTab) {
+      setActiveTab(selectedTabId);
+      setVisitedTabs((current) =>
+        current.has(selectedTabId) ? current : new Set([...current, selectedTabId]),
+      );
+    }
+  }, [activeTab, selectedTabId]);
+  const availablePaneItems = [...paneItemsByTab]
+    .filter(([tabId]) => availableTabIds.has(tabId as GameTabId))
+    .flatMap(([, items]) => items);
+  const availabilityKey = [...availableTabIds, ...availablePaneItems.map((item) => item.id)]
+    .sort()
+    .join("|");
+  const previousAvailabilityKey = useRef<string | null>(null);
+  useEffect(() => {
+    const nextIds = new Set(availabilityKey.split("|").filter(Boolean));
+    if (!currentState.run.navigationAttentionInitialized) {
+      store.dispatch({
+        type: "navigation.attention.initialize",
+        pageIds: [...nextIds],
+      });
+      previousAvailabilityKey.current = availabilityKey;
+      return;
+    }
+    const previousIds = new Set(previousAvailabilityKey.current?.split("|").filter(Boolean) ?? []);
+    const newlyAvailableIds = [...nextIds].filter((id) => !previousIds.has(id));
+    if (newlyAvailableIds.length > 0) {
+      store.dispatch({ type: "navigation.attention.discover", pageIds: newlyAvailableIds });
+    }
+    previousAvailabilityKey.current = availabilityKey;
+  }, [
+    availabilityKey,
+    currentState.run.navigationAttentionInitialized,
+    previousAvailabilityKey,
+    store,
+  ]);
+  const clearAttention = (id: string) => {
+    if (store.getState().run.navigationAttentionIds.includes(id)) {
+      store.dispatch({ type: "navigation.attention.clear", pageId: id });
+    }
+  };
+  const selectedResourcePane = resourcePanels.some((panel) => panel.id === activeResourcePane)
+    ? activeResourcePane
+    : (resourcePanels[0]?.id ?? "resources-hydrogen");
+  const selectedEnergyPane = energyPanels.some((panel) => panel.id === activeEnergyPane)
+    ? activeEnergyPane
+    : (energyPanels[0]?.id ?? "energy-storage");
+  const selectedResearchPane = researchPanels.some((panel) => panel.id === activeResearchPane)
+    ? activeResearchPane
+    : (researchPanels[0]?.id ?? "research-tech-tree");
+  const selectedInterstellarPane = interstellarPanels.some(
+    (panel) => panel.id === activeInterstellarPane,
+  )
+    ? activeInterstellarPane
+    : (interstellarPanels[0]?.id ?? "interstellar-star-map");
+  const selectedSpaceMiningPane = spaceMiningPanels.some(
+    (panel) => panel.id === activeSpaceMiningPane,
+  )
+    ? activeSpaceMiningPane
+    : ((spaceMiningPanels[0]?.id ?? "space-mining-telescope") as SpaceMiningPaneId);
+  const selectedCosmicRipPane = cosmicRipPanels.some((panel) => panel.id === activeCosmicRipPane)
+    ? activeCosmicRipPane
+    : ((cosmicRipPanels[0]?.id ?? "cosmic-rip-situation") as CosmicRipPaneId);
+  const selectedCompoundPane = compoundPanels.some((panel) => panel.id === activeCompoundPane)
+    ? activeCompoundPane
+    : (compoundPanels[0]?.id ?? "compounds-diesel");
+  const selectedGalacticPane = galacticPanels.some((panel) => panel.id === activeGalacticPane)
+    ? activeGalacticPane
+    : (galacticPanels[0]?.id ?? "galactic-rebirth");
+  const activePaneByTab: Partial<Record<GameTabId, string>> = {
+    hydrogen: selectedResourcePane,
+    energy: selectedEnergyPane,
+    research: selectedResearchPane,
+    compounds: selectedCompoundPane,
+    interstellar: selectedInterstellarPane,
+    "space-mining": selectedSpaceMiningPane,
+    galaxy: selectedGalacticPane,
+    "cosmic-rip": selectedCosmicRipPane,
+    miaplaedia: activeMiaplaediaPane,
+  };
+  const activateNavigationTab = (tabId: GameTabId) => {
+    clearAttention(tabId);
+    const activePaneId = activePaneByTab[tabId];
+    if (activePaneId) activatePane(activePaneId);
+    activateTab(tabId);
+  };
 
   return (
     <div
       className="game-frame"
       data-theme={snapshot.themeId}
+      data-reduced-motion={store.getState().settings.reducedMotion ? "true" : "false"}
+      data-custom-pointer={currentState.settings.customPointerEnabled !== false ? "true" : "false"}
+      data-weather-effects={
+        currentState.settings.weatherEffectsEnabled === false
+          ? "off"
+          : currentWeatherForSystem(currentState.run.space)
+      }
       data-engine-revision={snapshot.revision}
     >
       <h1 className="sr-only">{t("app.brand")}</h1>
+      <WeatherEffectsOverlay
+        weather={currentWeatherForSystem(currentState.run.space)}
+        enabled={currentState.settings.weatherEffectsEnabled !== false}
+        reducedMotion={currentState.settings.reducedMotion}
+        themeId={snapshot.themeId}
+      />
+      <PointerTrailLayer
+        enabled={
+          currentState.settings.pointerTrailEnabled === true && !currentState.settings.reducedMotion
+        }
+      />
       <header className="game-header">
         <a className="game-wordmark" href="#game" aria-label={t("app.brand")}>
           {t("app.brand")}
@@ -945,84 +1464,38 @@ function GameSession({
           {snapshot.pioneerName}
         </div>
         <div className="header-balances">
+          <LocationStatus state={currentState} locale={snapshot.locale} />
+          <AscendencyBalance state={currentState} locale={snapshot.locale} />
           <div>
             <span className="balance-label">{t("header.cash")}</span>
             <strong data-testid="cash-balance">
-              {formatMoney(snapshot.locale, snapshot.cash)}
+              {formatCurrency(
+                snapshot.locale,
+                Number(displayCurrency(snapshot.cash)),
+                snapshot.currencyId ?? "usd",
+                2,
+                snapshot.notation,
+              )}
             </strong>
           </div>
-          <div>
-            <span className="balance-label">{t("header.research")}</span>
-            <strong>
-              {formatNumber(snapshot.locale, snapshot.researchPoints, 0, snapshot.notation)}
-            </strong>
-          </div>
+          <ResearchBalance state={currentState} locale={snapshot.locale} />
         </div>
       </header>
-      <section className="save-toolbar" aria-label={saveLabel("manage")}>
-        <output
-          className={savePersistent ? "save-state saved-state" : "save-state unsaved-state"}
-          data-testid="save-status"
-        >
-          {saveFailure ||
-            saveStatus ||
-            (savePersistent ? saveLabel("saved") : saveLabel("unsaved"))}
-        </output>
-        <label className="autosave-toggle">
-          <input
-            type="checkbox"
-            checked={autoSaveEnabled}
-            onChange={(event) => {
-              const enabled = event.currentTarget.checked;
-              setAutoSaveEnabled(enabled);
-              repository?.writePreferences({ autoSaveEnabled: enabled });
-            }}
-          />
-          {saveLabel("autoSave")}
-        </label>
-        <label className="autosave-interval">
-          <span>{saveLabel("saveFrequency")}</span>
-          <select
-            aria-label={saveLabel("saveFrequency")}
-            value={autoSaveInterval}
-            onChange={(event) => {
-              const interval = Number(event.currentTarget.value) as 10 | 30 | 60;
-              setAutoSaveInterval(interval);
-              repository?.writePreferences({ autoSaveIntervalSeconds: interval });
-            }}
-          >
-            <option value={10}>{saveLabel("every10")}</option>
-            <option value={30}>{saveLabel("every30")}</option>
-            <option value={60}>{saveLabel("every60")}</option>
-          </select>
-        </label>
-        <button className="secondary-button" type="button" onClick={() => persistCurrent()}>
-          {saveLabel("saveNow")}
-        </button>
-        <button className="secondary-button" type="button" onClick={() => setSaveManagerOpen(true)}>
-          {saveLabel("manage")}
-        </button>
-        <button
-          className="text-button"
-          type="button"
-          onClick={() => {
-            if (!savePersistent || saveWritesPaused) {
-              setExitConfirmation(true);
-              return;
-            }
-            if (persistCurrent()) onExit();
-            else setExitConfirmation(true);
-          }}
-        >
-          {saveLabel("back")}
-        </button>
-      </section>
+      <TopStatusBar state={currentState} store={store} locale={snapshot.locale} />
+      <NewsTickerBar state={currentState} store={store} />
+      <GameNotificationRegion />
       {exitConfirmation && (
         <dialog
           ref={exitDialogRef}
           className="save-manager exit-save-dialog"
           aria-label={saveLabel("unsaved")}
           data-testid="unsaved-exit-dialog"
+          onCancel={(event) => {
+            event.preventDefault();
+            exitDialogRef.current?.close();
+            setExitConfirmation(false);
+            setPendingPioneerName(null);
+          }}
         >
           <p className="save-warning">{saveFailure || saveLabel("leaveWarning")}</p>
           <div className="save-actions">
@@ -1030,6 +1503,7 @@ function GameSession({
               className="secondary-button"
               type="button"
               onClick={() => {
+                exitDialogRef.current?.close();
                 setExitConfirmation(false);
                 setSaveManagerOpen(true);
               }}
@@ -1040,6 +1514,7 @@ function GameSession({
               className="secondary-button"
               type="button"
               onClick={() => {
+                exitDialogRef.current?.close();
                 setExitConfirmation(false);
                 setPendingPioneerName(null);
               }}
@@ -1049,12 +1524,30 @@ function GameSession({
             <button
               className="danger-button"
               type="button"
-              onClick={() => onExit(pendingPioneerName ?? undefined)}
+              onClick={() => {
+                exitDialogRef.current?.close();
+                onExit(pendingPioneerName ?? undefined);
+              }}
             >
               {saveLabel("discardRun")}
             </button>
           </div>
         </dialog>
+      )}
+      {saveFailure && !saveWritesPaused && (
+        <div className="save-error-banner" role="alert">
+          <span>{saveFailure}</span>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => {
+              activateTab("settings");
+              setSaveManagerOpen(true);
+            }}
+          >
+            {saveLabel("manage")}
+          </button>
+        </div>
       )}
       {saveWritesPaused && (
         <div className="save-conflict-banner" role="alert">
@@ -1078,55 +1571,59 @@ function GameSession({
 
       <nav aria-label={t("nav.label")}>
         <div className="game-nav" aria-label={t("nav.label")} role="tablist">
-          {GAME_TABS.map((tab, index) => {
-            const selected = activeTab === tab.id;
-            const currentState = store.getState();
-            const available =
-              tab.id === "hydrogen" ||
-              tab.id === "research" ||
-              (tab.id === "energy" &&
-                currentState.run.economy.researchedTechnologies.includes("basicPowerGeneration")) ||
-              (tab.id === "compounds" &&
-                currentState.run.economy.researchedTechnologies.includes("compounds")) ||
-              (tab.id === "interstellar" &&
-                currentState.run.economy.researchedTechnologies.includes("stellarCartography")) ||
-              (tab.id === "space-mining" &&
-                currentState.run.economy.researchedTechnologies.includes(
-                  "atmosphericTelescopes",
-                )) ||
-              (tab.id === "galaxy" &&
-                (currentState.run.space.ascendencyAwardedThisRun ||
-                  currentState.permanent.rebirthCount > 0)) ||
-              (tab.id === "cosmic-rip" && currentState.permanent.cosmicRip.unlocked) ||
-              tab.id === "settings";
+          {orderedTabs.map((tab, index) => {
+            const selected = selectedTabId === tab.id;
+            const childItems = paneItemsByTab.get(tab.id) ?? [];
+            const hasNewAttention =
+              attentionIds.has(tab.id) || childItems.some((item) => attentionIds.has(item.id));
+            const statusLabel = childItems
+              .map((item) => liveAttentionLabels.get(item.id))
+              .find((value): value is string => Boolean(value));
+            const hasAttention = hasNewAttention || Boolean(statusLabel);
+            const attentionReasons = [
+              hasNewAttention ? t("nav.new") : undefined,
+              statusLabel,
+            ].filter((value): value is string => Boolean(value));
             return (
               <button
                 key={tab.id}
                 id={`tab-${tab.id}`}
-                className={`nav-tab${selected ? " is-selected" : ""}${!available ? " is-locked" : ""}`}
+                className={`nav-tab${selected ? " is-selected" : ""}`}
                 type="button"
                 role="tab"
                 aria-selected={selected}
                 aria-controls={`pane-${tab.id}`}
-                aria-disabled={!available}
+                aria-label={hasAttention ? [t(tab.key), ...attentionReasons].join(", ") : undefined}
                 tabIndex={selected ? 0 : -1}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  activateNavigationTab(tab.id);
+                }}
                 onKeyDown={(event) => {
-                  if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+                  if (
+                    event.key !== "ArrowRight" &&
+                    event.key !== "ArrowLeft" &&
+                    event.key !== "Home" &&
+                    event.key !== "End"
+                  )
+                    return;
                   event.preventDefault();
-                  const direction = event.key === "ArrowRight" ? 1 : -1;
-                  const next = (index + direction + GAME_TABS.length) % GAME_TABS.length;
-                  const nextTab = GAME_TABS[next];
+                  const next =
+                    event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? orderedTabs.length - 1
+                        : (index + (event.key === "ArrowRight" ? 1 : -1) + orderedTabs.length) %
+                          orderedTabs.length;
+                  const nextTab = orderedTabs[next];
                   if (!nextTab) return;
-                  setActiveTab(nextTab.id);
+                  activateNavigationTab(nextTab.id);
                   document.getElementById(`tab-${nextTab.id}`)?.focus();
                 }}
               >
-                <span className="nav-index">0{index + 1}</span>
                 <span>{t(tab.key)}</span>
-                {!available && (
-                  <span className="lock-glyph" aria-hidden="true">
-                    {"\u00b7"}
+                {hasAttention && (
+                  <span className="attention-badge" aria-hidden="true">
+                    {statusLabel ?? t("nav.new")}
                   </span>
                 )}
               </button>
@@ -1135,497 +1632,739 @@ function GameSession({
         </div>
       </nav>
 
-      {hydrogenBriefingPending && (
-        <aside
-          className="hydrogen-briefing"
-          aria-labelledby="hydrogen-briefing-title"
-          data-testid="hydrogen-onboarding"
-        >
-          <div>
-            <p className="eyebrow">{saveLabel("hydrogenBriefingEyebrow")}</p>
-            <h2 id="hydrogen-briefing-title">{saveLabel("hydrogenBriefingTitle")}</h2>
-            <p>{saveLabel("hydrogenBriefingBody")}</p>
-          </div>
-          <button className="primary-button" type="button" onClick={finishHydrogenBriefing}>
-            {saveLabel("hydrogenBriefingContinue")}
-          </button>
-        </aside>
-      )}
-
-      <div className="main-layout">
-        <aside className="resource-rail" aria-label={t("tab.hydrogen")}>
-          <div className="rail-heading">{t("tab.hydrogen")}</div>
-          {store.getState().run.unlockedResources.map((goodId, index) => {
-            const good = store.getState().run.goods[goodId];
-            const rate = economyRatePerSecond(store.getState(), goodId);
-            return (
-              <button
-                key={goodId}
-                className={`resource-item${goodId === "hydrogen" ? " is-current" : ""}`}
-                type="button"
-                onClick={() => {
-                  setActiveTab("hydrogen");
-                  document
-                    .querySelector(`[data-resource-id="${goodId}"]`)
-                    ?.scrollIntoView({ block: "nearest" });
-                }}
-              >
-                <span className="element-tile" aria-hidden="true">
-                  <small>{index + 1}</small>
-                  {goodId.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="resource-item-copy">
-                  <strong>
-                    {goodId === "hydrogen"
-                      ? t("hydrogen.title")
-                      : economyGoodName(snapshot.locale, goodId)}
-                  </strong>
-                  <small>
-                    {formatNumber(
-                      snapshot.locale,
-                      snapshot.notation === "scientific"
-                        ? good.quantity
-                        : displayQuantity(good.quantity),
-                      0,
-                      snapshot.notation,
-                    )}{" "}
-                    / {formatNumber(snapshot.locale, good.storageCapacity, 0, snapshot.notation)}
-                  </small>
-                </span>
-                <span className="resource-rate">
-                  {rate >= 0 ? "+" : "−"}
-                  {formatNumber(snapshot.locale, Math.abs(rate), 2, snapshot.notation)}/s
-                </span>
-              </button>
-            );
-          })}
-          <div className="rail-note">
-            <span>01</span>
-            <span>{t("pane.locked")}</span>
-            <span aria-hidden="true">{"\u00b7\u00b7\u00b7"}</span>
-          </div>
-        </aside>
+      <div className={`main-layout${selectedTabId === "hydrogen" ? " has-resource-rail" : ""}`}>
+        <ResourceRail
+          groups={resourceGroups}
+          state={currentState}
+          activePane={selectedResourcePane}
+          hidden={selectedTabId !== "hydrogen"}
+          storageScope={`${slotId}:resource-rail`}
+          onSelect={(paneId) => {
+            clearAttention(paneId);
+            activateTab("hydrogen");
+            activatePane(paneId);
+            setActiveResourcePane(paneId);
+          }}
+        />
 
         <div className="pane-stack">
-          {GAME_TABS.map((tab, index) => (
-            <section
-              key={tab.id}
-              id={`pane-${tab.id}`}
-              className="game-pane"
-              role="tabpanel"
-              aria-labelledby={`tab-${tab.id}`}
-              hidden={activeTab !== tab.id}
-            >
-              {index === 0 ? (
-                <>
-                  <div className="pane-heading">
-                    <div>
-                      <p className="eyebrow">01 / {t("tab.hydrogen")}</p>
-                      <h2>{t("hydrogen.title")}</h2>
-                      <p className="pane-intro">{t("hydrogen.description")}</p>
-                    </div>
-                    <div className="header-display-settings">
-                      <label className="locale-switch" htmlFor="hydrogen-locale">
-                        <span>{t("app.locale")}</span>
-                        <select
-                          id="hydrogen-locale"
-                          aria-label={t("app.locale")}
-                          value={snapshot.locale}
-                          onChange={(event) =>
-                            store.dispatch({
-                              type: "settings.update",
-                              patch: { locale: event.currentTarget.value as LocaleId },
-                            })
-                          }
+          {orderedTabs.map((tab) => {
+            const sourceIndex = GAME_TABS.findIndex((item) => item.id === tab.id);
+            return (
+              <section
+                key={tab.id}
+                id={`pane-${tab.id}`}
+                className="game-pane"
+                role="tabpanel"
+                aria-labelledby={`tab-${tab.id}`}
+                tabIndex={0}
+                hidden={selectedTabId !== tab.id}
+              >
+                {(selectedTabId === tab.id || visitedTabs.has(tab.id)) && (
+                  <Suspense fallback={<div className="pane-loading" aria-hidden="true" />}>
+                    {tab.id === "hydrogen" ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={resourcePanels}
+                          selectedId={selectedResourcePane}
+                          label={t("nav.subsections")}
+                          storageScope={`${slotId}:resources`}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveResourcePane(id);
+                          }}
+                        />
+                        <div
+                          id="panel-resources-hydrogen"
+                          className="subpane-panel resource-subpane"
+                          role="tabpanel"
+                          aria-labelledby="tab-resources-hydrogen"
+                          tabIndex={0}
+                          data-resource-id="hydrogen"
+                          hidden={selectedResourcePane !== "resources-hydrogen"}
                         >
-                          {localeOptions}
-                        </select>
-                      </label>
-                      <label className="locale-switch" htmlFor="number-notation">
-                        <span>{economyLabel(snapshot.locale, "notation")}</span>
-                        <select
-                          id="number-notation"
-                          aria-label={economyLabel(snapshot.locale, "notation")}
-                          value={snapshot.notation}
-                          onChange={(event) =>
-                            store.dispatch({
-                              type: "settings.update",
-                              patch: {
-                                notation: event.currentTarget
-                                  .value as GameState["settings"]["notation"],
-                              },
-                            })
-                          }
-                        >
-                          <option value="standard">
-                            {economyLabel(snapshot.locale, "standardNotation")}
-                          </option>
-                          <option value="scientific">
-                            {economyLabel(snapshot.locale, "scientificNotation")}
-                          </option>
-                        </select>
-                      </label>
-                    </div>
-                  </div>
+                          <div className="pane-heading">
+                            <div>
+                              <h2>{t("hydrogen.title")}</h2>
+                              <p className="pane-intro">{t("hydrogen.description")}</p>
+                            </div>
+                          </div>
 
-                  <div className="hydrogen-hero">
-                    <div className="atom-art" aria-hidden="true">
-                      <span className="orbit orbit-one" />
-                      <span className="orbit orbit-two" />
-                      <span className="atom-core">H</span>
-                      <span className="atom-spark">{"\u2726"}</span>
-                    </div>
-                    <div className="stock-readout">
-                      <span className="eyebrow">{t("hydrogen.quantity")}</span>
-                      <strong data-testid="hydrogen-quantity">
-                        {formatNumber(snapshot.locale, hydrogen.quantity, 2, snapshot.notation)}{" "}
-                        <small>{"H\u2082"}</small>
-                      </strong>
-                      <span className="capacity-line">
-                        {t("hydrogen.capacity")}{" "}
-                        <b data-testid="hydrogen-capacity">
-                          {formatNumber(
-                            snapshot.locale,
-                            hydrogen.storageCapacity,
-                            0,
-                            snapshot.notation,
-                          )}
-                        </b>
-                      </span>
-                      <meter
-                        className="capacity-track"
-                        aria-label={t("hydrogen.capacity")}
-                        min={0}
-                        max={hydrogen.storageCapacity}
-                        value={Math.min(hydrogen.quantity, hydrogen.storageCapacity)}
-                      >
-                        {formatNumber(snapshot.locale, hydrogen.quantity, 0, snapshot.notation)} /{" "}
-                        {formatNumber(
-                          snapshot.locale,
-                          hydrogen.storageCapacity,
-                          0,
-                          snapshot.notation,
-                        )}
-                      </meter>
-                    </div>
-                    <div className="rate-readout">
-                      <span className="eyebrow">{t("hydrogen.production")}</span>
-                      <strong data-testid="hydrogen-rate">
-                        +
-                        {formatNumber(
-                          snapshot.locale,
-                          snapshot.hydrogenProductionPerSecond,
-                          2,
-                          snapshot.notation,
-                        )}
-                        <small>{"H\u2082/s"}</small>
-                      </strong>
-                    </div>
-                  </div>
-
-                  <button
-                    className="primary-button collect-button"
-                    type="button"
-                    disabled={!collection.enabled}
-                    aria-describedby="collect-reason"
-                    onClick={() =>
-                      send({ type: "resource.collect", goodId: "hydrogen" }, "status.collect")
-                    }
-                  >
-                    <span aria-hidden="true">+</span>
-                    {t("hydrogen.collect")}
-                  </button>
-                  {!collection.enabled && (
-                    <p className="control-reason" id="collect-reason">
-                      {localizedReason(snapshot.locale, collection.reasonKey)}
-                    </p>
-                  )}
-
-                  <div className="action-grid">
-                    <article className="upgrade-card sale-card">
-                      <div className="card-icon" aria-hidden="true">
-                        {"\u2197"}
-                      </div>
-                      <div className="card-copy">
-                        <h3>{t("hydrogen.sell")}</h3>
-                        <p>
-                          {t("hydrogen.sale.preview")}:{" "}
-                          <strong>{formatMoney(snapshot.locale, sale.cash)}</strong>
-                        </p>
-                      </div>
-                      <div className="card-controls">
-                        <label htmlFor="hydrogen-sell-amount">{t("hydrogen.sell.amount")}</label>
-                        <select
-                          id="hydrogen-sell-amount"
-                          value={sellAmount}
-                          onChange={(event) =>
-                            setSellAmount(
-                              event.currentTarget.value === "all"
-                                ? "all"
-                                : Number(event.currentTarget.value),
-                            )
-                          }
-                        >
-                          <option value="all">{t("hydrogen.sell.all")}</option>
-                          <option value="1">{t("hydrogen.sell.one")}</option>
-                          <option value="10">{t("hydrogen.sell.ten")}</option>
-                          <option value="100">{t("hydrogen.sell.hundred")}</option>
-                        </select>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={!sale.enabled}
-                          aria-describedby="sell-reason"
-                          onClick={() =>
-                            send(
-                              { type: "resource.sell", goodId: "hydrogen", amount: sellAmount },
-                              "status.sell",
-                            )
-                          }
-                        >
-                          {t("hydrogen.sell")}
-                        </button>
-                        {!sale.enabled && (
-                          <span className="control-reason" id="sell-reason">
-                            {localizedReason(snapshot.locale, sale.reasonKey)}
-                          </span>
-                        )}
-                      </div>
-                    </article>
-
-                    <article className="upgrade-card">
-                      <div className="card-icon storage-icon" aria-hidden="true">
-                        {"\u25c8"}
-                      </div>
-                      <div className="card-copy">
-                        <h3>{t("hydrogen.storage.title")}</h3>
-                        <p>{t("hydrogen.storage.description")}</p>
-                        <span className="cost-line">
-                          {t("hydrogen.storage.price")}:{" "}
-                          <strong>
-                            {formatNumber(
-                              snapshot.locale,
-                              storagePurchase.cost,
-                              0,
-                              snapshot.notation,
-                            )}{" "}
-                            {"H\u2082"}
-                          </strong>{" "}
-                          <span aria-hidden="true">{"\u00b7"}</span>{" "}
-                          {formatNumber(
-                            snapshot.locale,
-                            hydrogen.storageCapacity,
-                            0,
-                            snapshot.notation,
-                          )}{" "}
-                          {"\u2192"}{" "}
-                          {formatNumber(
-                            snapshot.locale,
-                            storagePurchase.capacityAfterPurchase ??
-                              hydrogen.storageCapacity * HYDROGEN_STORAGE_MULTIPLIER,
-                            0,
-                            snapshot.notation,
-                          )}
-                        </span>
-                      </div>
-                      <div className="card-controls">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={!storagePurchase.enabled}
-                          aria-describedby="storage-reason"
-                          onClick={() =>
-                            send({ type: "storage.purchase", goodId: "hydrogen" }, "status.storage")
-                          }
-                        >
-                          {t("hydrogen.storage.purchase")}
-                        </button>
-                        <span className="control-reason" id="storage-reason">
-                          {storagePurchase.enabled
-                            ? ""
-                            : localizedReason(
-                                snapshot.locale,
-                                storagePurchase.reasonKey,
-                                storagePurchase.required ??
-                                  Math.max(
+                          <div className="hydrogen-hero">
+                            <div className="hydrogen-overview">
+                              <div className="atom-art" aria-hidden="true">
+                                <span className="orbit orbit-one" />
+                                <span className="orbit orbit-two" />
+                                <span className="atom-core">H</span>
+                                <span className="atom-spark">{"\u2726"}</span>
+                              </div>
+                              <div className="stock-readout">
+                                <span className="eyebrow">{t("hydrogen.quantity")}</span>
+                                <strong data-testid="hydrogen-quantity">
+                                  {formatNumber(
+                                    snapshot.locale,
+                                    hydrogen.quantity,
+                                    2,
+                                    snapshot.notation,
+                                  )}{" "}
+                                  <small>{"H\u2082"}</small>
+                                </strong>
+                                <span className="capacity-line">
+                                  {t("hydrogen.capacity")}{" "}
+                                  <b data-testid="hydrogen-capacity">
+                                    {formatNumber(
+                                      snapshot.locale,
+                                      hydrogen.storageCapacity,
+                                      0,
+                                      snapshot.notation,
+                                    )}
+                                  </b>
+                                </span>
+                                <meter
+                                  className="capacity-track"
+                                  aria-label={t("hydrogen.capacity")}
+                                  min={0}
+                                  max={hydrogen.storageCapacity}
+                                  value={Math.min(hydrogen.quantity, hydrogen.storageCapacity)}
+                                >
+                                  {formatNumber(
+                                    snapshot.locale,
+                                    hydrogen.quantity,
                                     0,
-                                    hydrogen.storageCapacity - HYDROGEN_STORAGE_PRICE_OFFSET,
-                                  ),
-                              )}
-                        </span>
-                      </div>
-                    </article>
+                                    snapshot.notation,
+                                  )}{" "}
+                                  /{" "}
+                                  {formatNumber(
+                                    snapshot.locale,
+                                    hydrogen.storageCapacity,
+                                    0,
+                                    snapshot.notation,
+                                  )}
+                                </meter>
+                              </div>
+                              <div className="rate-readout">
+                                <span className="eyebrow">{t("hydrogen.production")}</span>
+                                <strong data-testid="hydrogen-rate">
+                                  +
+                                  {formatNumber(
+                                    snapshot.locale,
+                                    snapshot.hydrogenProductionPerSecond,
+                                    2,
+                                    snapshot.notation,
+                                  )}
+                                  <small>{"H\u2082/s"}</small>
+                                </strong>
+                              </div>
+                            </div>
 
-                    <article className="upgrade-card autobuyer-card">
-                      <div className="card-icon compressor-icon" aria-hidden="true">
-                        {"\u2699"}
+                            <button
+                              className="primary-button collect-button"
+                              type="button"
+                              disabled={!collection.enabled}
+                              aria-describedby="collect-reason"
+                              onClick={() => send({ type: "resource.collect", goodId: "hydrogen" })}
+                            >
+                              <span aria-hidden="true">+</span>
+                              {t("hydrogen.collect")}
+                            </button>
+                            {!collection.enabled && (
+                              <p className="control-reason" id="collect-reason">
+                                {localizedReason(
+                                  snapshot.locale,
+                                  collection.reasonKey,
+                                  undefined,
+                                  snapshot.notation,
+                                )}
+                              </p>
+                            )}
+
+                            <div className="hydrogen-sale-grid">
+                              <article className="sale-card hydrogen-sale-controls">
+                                <div className="card-copy">
+                                  <h3>{t("hydrogen.sell")}</h3>
+                                  <p>
+                                    {t("hydrogen.sale.preview")}:{" "}
+                                    <strong>
+                                      {formatCurrency(
+                                        snapshot.locale,
+                                        Number(displayCurrency(sale.cash)),
+                                        snapshot.currencyId ?? "usd",
+                                        2,
+                                        snapshot.notation,
+                                      )}
+                                    </strong>
+                                  </p>
+                                </div>
+                                <div className="card-controls">
+                                  <label htmlFor="hydrogen-sell-amount">
+                                    {t("hydrogen.sell.amount")}
+                                  </label>
+                                  <select
+                                    id="hydrogen-sell-amount"
+                                    value={sellAmount}
+                                    onChange={(event) =>
+                                      setSellAmount(
+                                        event.currentTarget.value === "all"
+                                          ? "all"
+                                          : Number(event.currentTarget.value),
+                                      )
+                                    }
+                                  >
+                                    <option value="all">{t("hydrogen.sell.all")}</option>
+                                    <option value="1">{t("hydrogen.sell.one")}</option>
+                                    <option value="10">{t("hydrogen.sell.ten")}</option>
+                                    <option value="100">{t("hydrogen.sell.hundred")}</option>
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={!sale.enabled}
+                                    aria-describedby="sell-reason"
+                                    onClick={() =>
+                                      send({
+                                        type: "resource.sell",
+                                        goodId: "hydrogen",
+                                        amount: sellAmount,
+                                      })
+                                    }
+                                  >
+                                    {t("hydrogen.sell")}
+                                  </button>
+                                  {!sale.enabled && (
+                                    <span className="control-reason" id="sell-reason">
+                                      {localizedReason(
+                                        snapshot.locale,
+                                        sale.reasonKey,
+                                        undefined,
+                                        snapshot.notation,
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                                <HydrogenFusionDetails state={store.getState()} store={store} />
+                              </article>
+                            </div>
+                          </div>
+
+                          <article className="upgrade-card hydrogen-storage-card">
+                            <div className="card-icon storage-icon" aria-hidden="true">
+                              {"\u25c8"}
+                            </div>
+                            <div className="card-copy">
+                              <h3>{t("hydrogen.storage.title")}</h3>
+                              <p>{t("hydrogen.storage.description")}</p>
+                              <span className="cost-line">
+                                {t("hydrogen.storage.price")}:{" "}
+                                <strong>
+                                  {formatNumber(
+                                    snapshot.locale,
+                                    storagePurchase.cost,
+                                    0,
+                                    snapshot.notation,
+                                  )}{" "}
+                                  {"H\u2082"}
+                                </strong>{" "}
+                                <span aria-hidden="true">{"\u00b7"}</span>{" "}
+                                {formatNumber(
+                                  snapshot.locale,
+                                  hydrogen.storageCapacity,
+                                  0,
+                                  snapshot.notation,
+                                )}{" "}
+                                {"\u2192"}{" "}
+                                {formatNumber(
+                                  snapshot.locale,
+                                  storagePurchase.capacityAfterPurchase ??
+                                    hydrogen.storageCapacity * HYDROGEN_STORAGE_MULTIPLIER,
+                                  0,
+                                  snapshot.notation,
+                                )}
+                              </span>
+                            </div>
+                            <div className="card-controls">
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                disabled={!storagePurchase.enabled}
+                                aria-describedby="storage-reason"
+                                onClick={() =>
+                                  send({ type: "storage.purchase", goodId: "hydrogen" })
+                                }
+                              >
+                                {t("hydrogen.storage.purchase")}
+                              </button>
+                              <span className="control-reason" id="storage-reason">
+                                {storagePurchase.enabled
+                                  ? ""
+                                  : localizedReason(
+                                      snapshot.locale,
+                                      storagePurchase.reasonKey,
+                                      storagePurchase.required ??
+                                        Math.max(
+                                          0,
+                                          hydrogen.storageCapacity - HYDROGEN_STORAGE_PRICE_OFFSET,
+                                        ),
+                                      snapshot.notation,
+                                    )}
+                              </span>
+                            </div>
+                          </article>
+
+                          <details className="economy-details hydrogen-autobuyer-section">
+                            <summary>{economyLabel(snapshot.locale, "autobuyers")}</summary>
+                            <article className="upgrade-card autobuyer-card">
+                              <div className="card-icon compressor-icon" aria-hidden="true">
+                                {"\u2699"}
+                              </div>
+                              <div className="card-copy">
+                                <h3>{t("hydrogen.autobuyer.title")}</h3>
+                                <p>
+                                  {t("hydrogen.autobuyer.description").replace(
+                                    "{rate}",
+                                    formatNumber(
+                                      snapshot.locale,
+                                      snapshot.hydrogenAutobuyerRatePerSecond,
+                                      2,
+                                      snapshot.notation,
+                                    ),
+                                  )}
+                                </p>
+                                <span className="cost-line">
+                                  {t("hydrogen.autobuyer.owned")}:{" "}
+                                  <strong data-testid="hydrogen-autobuyer-count">
+                                    {formatNumber(
+                                      snapshot.locale,
+                                      buyerCount,
+                                      0,
+                                      snapshot.notation,
+                                    )}
+                                  </strong>
+                                  <span aria-hidden="true">{" \u00b7 "}</span>
+                                  {t("hydrogen.autobuyer.price")}:{" "}
+                                  <strong>
+                                    {formatNumber(
+                                      snapshot.locale,
+                                      buyerPrice,
+                                      0,
+                                      snapshot.notation,
+                                    )}{" "}
+                                    {"H\u2082"}
+                                  </strong>
+                                </span>
+                              </div>
+                              <div className="card-controls">
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  disabled={!autobuyerPurchase.enabled}
+                                  aria-describedby="autobuyer-reason"
+                                  onClick={() => send({ type: "hydrogen.autobuyer.purchase" })}
+                                >
+                                  {t("hydrogen.autobuyer.purchase")}
+                                </button>
+                                {store
+                                  .getState()
+                                  .permanent.acquiredPerks.includes("bulkPurchasing") && (
+                                  <button
+                                    type="button"
+                                    className="text-button"
+                                    disabled={
+                                      !checkPreconditions(store.getState(), {
+                                        type: "economy.autobuyer.buyMax",
+                                        goodId: "hydrogen",
+                                        tier: 1,
+                                      }).ok
+                                    }
+                                    onClick={() =>
+                                      store.dispatch({
+                                        type: "economy.autobuyer.buyMax",
+                                        goodId: "hydrogen",
+                                        tier: 1,
+                                      })
+                                    }
+                                  >
+                                    {economyLabel(snapshot.locale, "buyMax")}
+                                  </button>
+                                )}
+                                <span className="control-reason" id="autobuyer-reason">
+                                  {autobuyerPurchase.enabled
+                                    ? ""
+                                    : localizedReason(
+                                        snapshot.locale,
+                                        autobuyerPurchase.reasonKey,
+                                        autobuyerPurchase.required ?? buyerPrice,
+                                        snapshot.notation,
+                                      )}
+                                </span>
+                                {buyerCount > 0 && (
+                                  <button
+                                    type="button"
+                                    className="text-button"
+                                    aria-pressed={snapshot.hydrogenAutobuyerEnabled}
+                                    onClick={() =>
+                                      store.dispatch({
+                                        type: "hydrogen.autobuyer.toggle",
+                                        enabled: !snapshot.hydrogenAutobuyerEnabled,
+                                      })
+                                    }
+                                  >
+                                    {snapshot.hydrogenAutobuyerEnabled
+                                      ? t("hydrogen.autobuyer.pause")
+                                      : t("hydrogen.autobuyer.resume")}
+                                  </button>
+                                )}
+                              </div>
+                            </article>
+                            <HydrogenAutobuyerTiers state={store.getState()} store={store} />
+                          </details>
+                          <HydrogenAllocationControls state={store.getState()} store={store} />
+                          <output className="live-feedback" aria-live="polite">
+                            {feedback}
+                          </output>
+                        </div>
+                        <EconomyPanes
+                          tabId="resources"
+                          activePane={selectedResourcePane}
+                          state={store.getState()}
+                          store={store}
+                        />
                       </div>
-                      <div className="card-copy">
-                        <h3>{t("hydrogen.autobuyer.title")}</h3>
-                        <p>
-                          {t("hydrogen.autobuyer.description").replace(
-                            "{rate}",
-                            formatNumber(
-                              snapshot.locale,
-                              snapshot.hydrogenAutobuyerRatePerSecond,
-                              2,
-                              snapshot.notation,
-                            ),
-                          )}
-                        </p>
-                        <span className="cost-line">
-                          {t("hydrogen.autobuyer.owned")}:{" "}
-                          <strong data-testid="hydrogen-autobuyer-count">
-                            {formatNumber(snapshot.locale, buyerCount, 0, snapshot.notation)}
-                          </strong>
-                          <span aria-hidden="true">{" \u00b7 "}</span>
-                          {t("hydrogen.autobuyer.price")}:{" "}
-                          <strong>
-                            {formatNumber(snapshot.locale, buyerPrice, 0, snapshot.notation)}{" "}
-                            {"H\u2082"}
-                          </strong>
-                        </span>
+                    ) : tab.id === "energy" &&
+                      currentState.run.economy.researchedTechnologies.includes(
+                        "basicPowerGeneration",
+                      ) ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={energyPanels}
+                          selectedId={selectedEnergyPane}
+                          label={t("nav.subsections")}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveEnergyPane(id);
+                          }}
+                        />
+                        <EconomyPanes
+                          tabId={tab.id}
+                          activePane={selectedEnergyPane}
+                          state={store.getState()}
+                          store={store}
+                        />
                       </div>
-                      <div className="card-controls">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={!autobuyerPurchase.enabled}
-                          aria-describedby="autobuyer-reason"
-                          onClick={() =>
-                            send({ type: "hydrogen.autobuyer.purchase" }, "status.autobuyer")
+                    ) : tab.id === "research" ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={researchPanels}
+                          selectedId={selectedResearchPane}
+                          label={t("nav.subsections")}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveResearchPane(id);
+                          }}
+                        />
+                        <EconomyPanes
+                          tabId={tab.id}
+                          activePane={selectedResearchPane}
+                          state={store.getState()}
+                          store={store}
+                        />
+                      </div>
+                    ) : tab.id === "compounds" &&
+                      currentState.run.economy.researchedTechnologies.includes("compounds") &&
+                      compoundPanels.length > 0 ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={compoundPanels}
+                          selectedId={selectedCompoundPane}
+                          label={t("nav.subsections")}
+                          storageScope={`${slotId}:compounds`}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveCompoundPane(id);
+                          }}
+                        />
+                        <EconomyPanes
+                          tabId={tab.id}
+                          activePane={selectedCompoundPane}
+                          state={store.getState()}
+                          store={store}
+                        />
+                      </div>
+                    ) : tab.id === "galaxy" &&
+                      (store.getState().run.space.ascendencyAwardedThisRun ||
+                        store.getState().permanent.rebirthCount > 0) ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={galacticPanels}
+                          selectedId={selectedGalacticPane}
+                          label={t("nav.subsections")}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          attentionLabelsById={liveAttentionLabels}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveGalacticPane(id as GalacticPaneId);
+                          }}
+                        />
+                        {galacticPanels.map((panel) => (
+                          <section
+                            key={panel.id}
+                            id={`panel-${panel.id}`}
+                            className="subpane-panel"
+                            role="tabpanel"
+                            aria-labelledby={`tab-${panel.id}`}
+                            tabIndex={0}
+                            hidden={selectedGalacticPane !== panel.id}
+                          >
+                            {visitedPanes.has(panel.id) ? (
+                              panel.id === "galactic-rebirth" ? (
+                                <RebirthPane state={store.getState()} store={store} />
+                              ) : panel.id === "galactic-market" ? (
+                                <GalacticMarketPane state={store.getState()} store={store} />
+                              ) : panel.id === "galactic-ascendency-perks" ? (
+                                <AscendencyPane state={store.getState()} store={store} />
+                              ) : panel.id === "galactic-megastructures" ? (
+                                <MegastructurePane state={store.getState()} store={store} />
+                              ) : panel.id === "galactic-black-hole" ? (
+                                <BlackHolePane state={store.getState()} store={store} />
+                              ) : panel.id === "galactic-casino" ? (
+                                <GalacticCasinoPane state={store.getState()} store={store} />
+                              ) : null
+                            ) : null}
+                          </section>
+                        ))}
+                      </div>
+                    ) : tab.id === "interstellar" &&
+                      store
+                        .getState()
+                        .run.economy.researchedTechnologies.includes("stellarCartography") ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={interstellarPanels}
+                          selectedId={selectedInterstellarPane}
+                          label={t("nav.subsections")}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveInterstellarPane(id as InterstellarPaneId);
+                          }}
+                        />
+                        {visitedPanes.has("interstellar-star-map") && (
+                          <StarMapPane
+                            state={store.getState()}
+                            store={store}
+                            view={
+                              selectedInterstellarPane === "interstellar-star-data" ? "data" : "map"
+                            }
+                            onShowOnMap={() => {
+                              activatePane("interstellar-star-map");
+                              setActiveInterstellarPane("interstellar-star-map");
+                            }}
+                          />
+                        )}
+                        <section
+                          id="panel-interstellar-starship"
+                          className="subpane-panel"
+                          role="tabpanel"
+                          aria-labelledby={`tab-${selectedInterstellarPane}`}
+                          tabIndex={0}
+                          hidden={
+                            selectedInterstellarPane !== "interstellar-starship" &&
+                            selectedInterstellarPane !== "interstellar-fleet-hangar" &&
+                            selectedInterstellarPane !== "interstellar-colonise"
                           }
                         >
-                          {t("hydrogen.autobuyer.purchase")}
-                        </button>
-                        {store.getState().permanent.acquiredPerks.includes("bulkPurchasing") && (
-                          <button
-                            type="button"
-                            className="text-button"
-                            disabled={
-                              !checkPreconditions(store.getState(), {
-                                type: "economy.autobuyer.buyMax",
-                                goodId: "hydrogen",
-                                tier: 1,
-                              }).ok
-                            }
-                            onClick={() =>
-                              store.dispatch({
-                                type: "economy.autobuyer.buyMax",
-                                goodId: "hydrogen",
-                                tier: 1,
-                              })
-                            }
-                          >
-                            {economyLabel(snapshot.locale, "buyMax")}
-                          </button>
-                        )}
-                        <span className="control-reason" id="autobuyer-reason">
-                          {autobuyerPurchase.enabled
-                            ? ""
-                            : localizedReason(
-                                snapshot.locale,
-                                autobuyerPurchase.reasonKey,
-                                autobuyerPurchase.required ?? buyerPrice,
-                              )}
-                        </span>
-                        {buyerCount > 0 && (
-                          <button
-                            type="button"
-                            className="text-button"
-                            aria-pressed={snapshot.hydrogenAutobuyerEnabled}
-                            onClick={() =>
-                              store.dispatch({
-                                type: "hydrogen.autobuyer.toggle",
-                                enabled: !snapshot.hydrogenAutobuyerEnabled,
-                              })
-                            }
-                          >
-                            {snapshot.hydrogenAutobuyerEnabled
-                              ? t("hydrogen.autobuyer.pause")
-                              : t("hydrogen.autobuyer.resume")}
-                          </button>
-                        )}
+                          {(visitedPanes.has("interstellar-starship") ||
+                            visitedPanes.has("interstellar-fleet-hangar") ||
+                            visitedPanes.has("interstellar-colonise")) && (
+                            <StarshipPane
+                              state={store.getState()}
+                              store={store}
+                              view={
+                                selectedInterstellarPane === "interstellar-fleet-hangar"
+                                  ? "fleet-hangar"
+                                  : selectedInterstellarPane === "interstellar-colonise"
+                                    ? "colonise"
+                                    : "starship"
+                              }
+                            />
+                          )}
+                        </section>
                       </div>
-                    </article>
-                  </div>
-                  <output className="live-feedback" aria-live="polite">
-                    {feedback}
-                  </output>
-                  <EconomyPanes tabId="resources" state={store.getState()} store={store} />
-                </>
-              ) : tab.id === "galaxy" &&
-                (store.getState().run.space.ascendencyAwardedThisRun ||
-                  store.getState().permanent.rebirthCount > 0) ? (
-                <>
-                  <AscendencyPane state={store.getState()} store={store} />
-                  <BlackHolePane state={store.getState()} store={store} />
-                  <MegastructurePane state={store.getState()} store={store} />
-                </>
-              ) : tab.id === "interstellar" &&
-                store
-                  .getState()
-                  .run.economy.researchedTechnologies.includes("stellarCartography") ? (
-                <>
-                  <StarMapPane state={store.getState()} store={store} />
-                  <StarshipPane state={store.getState()} store={store} />
-                </>
-              ) : tab.id === "space-mining" &&
-                store
-                  .getState()
-                  .run.economy.researchedTechnologies.includes("atmosphericTelescopes") ? (
-                <SpaceMiningPane state={store.getState()} store={store} />
-              ) : tab.id === "cosmic-rip" && store.getState().permanent.cosmicRip.unlocked ? (
-                <CosmicRipPane state={store.getState()} store={store} />
-              ) : tab.id === "settings" ? (
-                <SettingsPane state={store.getState()} store={store} />
-              ) : index < 4 ? (
-                <EconomyPanes tabId={tab.id} state={store.getState()} store={store} />
-              ) : (
-                <div className="locked-panel">
-                  <span className="locked-mark" aria-hidden="true">
-                    {"\u25a0"}
-                  </span>
-                  <p className="eyebrow">{t("pane.locked")}</p>
-                  <h2>{t(tab.key)}</h2>
-                  <p>{t("pane.locked.detail")}</p>
-                </div>
-              )}
-            </section>
-          ))}
+                    ) : tab.id === "space-mining" &&
+                      store
+                        .getState()
+                        .run.economy.researchedTechnologies.includes("atmosphericTelescopes") ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={spaceMiningPanels}
+                          selectedId={selectedSpaceMiningPane}
+                          label={t("nav.subsections")}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveSpaceMiningPane(id as SpaceMiningPaneId);
+                          }}
+                        />
+                        <SpaceMiningPane
+                          state={store.getState()}
+                          store={store}
+                          activePane={selectedSpaceMiningPane}
+                        />
+                      </div>
+                    ) : tab.id === "cosmic-rip" && store.getState().permanent.cosmicRip.unlocked ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={cosmicRipPanels}
+                          selectedId={selectedCosmicRipPane}
+                          label={t("nav.subsections")}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            clearAttention(id);
+                            activatePane(id);
+                            setActiveCosmicRipPane(id as CosmicRipPaneId);
+                          }}
+                        />
+                        <CosmicRipPane
+                          state={store.getState()}
+                          store={store}
+                          activePane={selectedCosmicRipPane}
+                        />
+                      </div>
+                    ) : tab.id === "miaplaedia" ? (
+                      <div className="tab-section-layout">
+                        <PaneNavigation
+                          items={miaplaediaPanels}
+                          selectedId={activeMiaplaediaPane}
+                          label={t("nav.subsections")}
+                          attentionIds={attentionIds}
+                          attentionLabel={t("nav.new")}
+                          onSelect={(id) => {
+                            activatePane(id);
+                            setActiveMiaplaediaPane(id as MiaplaediaPaneId);
+                          }}
+                        />
+                        {miaplaediaPanels.map((panel) => (
+                          <section
+                            key={panel.id}
+                            id={`panel-${panel.id}`}
+                            className="subpane-panel"
+                            role="tabpanel"
+                            aria-labelledby={`tab-${panel.id}`}
+                            tabIndex={0}
+                            hidden={activeMiaplaediaPane !== panel.id}
+                          >
+                            {activeMiaplaediaPane === panel.id || visitedPanes.has(panel.id) ? (
+                              <MiaplaediaPane
+                                locale={snapshot.locale}
+                                sectionId={miaplaediaSectionId(panel.id as MiaplaediaPaneId)}
+                              />
+                            ) : null}
+                          </section>
+                        ))}
+                      </div>
+                    ) : tab.id === "settings" ? (
+                      <SettingsPane
+                        state={store.getState()}
+                        store={store}
+                        attentionIds={attentionIds}
+                        attentionLabel={t("nav.new")}
+                        onPaneVisit={activatePane}
+                        savePersistent={savePersistent}
+                        saveStatus={
+                          saveFailure ||
+                          saveStatus ||
+                          (savePersistent ? saveLabel("saved") : saveLabel("unsaved"))
+                        }
+                        autoSaveEnabled={autoSaveEnabled}
+                        autoSaveInterval={autoSaveInterval}
+                        onAutoSaveEnabledChange={(enabled) => {
+                          setAutoSaveEnabled(enabled);
+                          repository?.writePreferences({ autoSaveEnabled: enabled });
+                        }}
+                        onAutoSaveIntervalChange={(interval) => {
+                          setAutoSaveInterval(interval);
+                          repository?.writePreferences({ autoSaveIntervalSeconds: interval });
+                        }}
+                        onSaveNow={() => persistCurrent()}
+                        onOpenSaveManager={() => setSaveManagerOpen(true)}
+                      />
+                    ) : sourceIndex < 4 ? (
+                      <EconomyPanes
+                        tabId={tab.id}
+                        activePane={
+                          tab.id === "energy"
+                            ? selectedEnergyPane
+                            : tab.id === "compounds"
+                              ? selectedCompoundPane
+                              : selectedResearchPane
+                        }
+                        state={currentState}
+                        store={store}
+                      />
+                    ) : null}
+                  </Suspense>
+                )}
+              </section>
+            );
+          })}
         </div>
       </div>
       {saveManagerOpen && (
-        <SaveManager
-          locale={snapshot.locale}
-          repository={repository}
-          slots={repository?.list() ?? []}
-          activeSlotId={slotId}
-          revision={saveRevision}
-          state={store.getState()}
-          lockHeld={(id) => id === slotId && savePersistent && !saveWritesPaused}
-          acquireLock={acquireSlotLock}
-          onSave={() => {
-            persistCurrent();
-          }}
-          onRename={persistRename}
-          onSaveAsNew={saveRunAsNew}
-          onSwitchTo={switchToPioneerSelection}
-          onReplaceActive={(envelope) => {
-            saveRevisionRef.current = envelope.revision;
-            setSaveRevision(envelope.revision);
-            setSaveWritesPaused(false);
-            setHydrogenBriefingPending(false);
-            onReplaceActive(envelope);
-          }}
-          onDeleted={onDeleteActive}
-          onClose={() => setSaveManagerOpen(false)}
-        />
+        <Suspense fallback={<div className="pane-loading" aria-hidden="true" />}>
+          <SaveManager
+            locale={snapshot.locale}
+            repository={repository}
+            slots={repository?.list() ?? []}
+            activeSlotId={slotId}
+            revision={saveRevision}
+            state={store.getState()}
+            lockHeld={(id) => id === slotId && savePersistent && !saveWritesPaused}
+            acquireLock={acquireSlotLock}
+            onSave={() => {
+              persistCurrent();
+            }}
+            onRename={persistRename}
+            onSaveAsNew={saveRunAsNew}
+            onSwitchTo={switchToPioneerSelection}
+            onReplaceActive={(envelope) => {
+              saveRevisionRef.current = envelope.revision;
+              setSaveRevision(envelope.revision);
+              setSaveWritesPaused(false);
+              onReplaceActive(envelope);
+            }}
+            onDeleted={onDeleteActive}
+            onClose={() => setSaveManagerOpen(false)}
+          />
+        </Suspense>
       )}
       {store.getState().run.philosophyChoicePending && (
-        <PhilosophyPane state={store.getState()} store={store} />
+        <Suspense fallback={<div className="pane-loading" aria-hidden="true" />}>
+          <PhilosophyPane state={store.getState()} store={store} />
+        </Suspense>
       )}
-      <MiaplacidusEndgameStory state={store.getState()} store={store} />
+      {store.getState().permanent.megastructures.miaplacidusStoryPending && (
+        <Suspense fallback={<div className="pane-loading" aria-hidden="true" />}>
+          <MiaplacidusEndgameStory state={store.getState()} store={store} />
+        </Suspense>
+      )}
       {DebugTools && (
         <DebugTools
           store={store}
@@ -1633,6 +2372,7 @@ function GameSession({
           open={debugLabOpen}
           onClose={() => setDebugLabOpen(false)}
           advanceBy={advanceTestClock}
+          applyTestCheckpoint={onApplyTestCheckpoint}
           readFrameMetrics={() => {
             const durationMs = Math.max(
               0,

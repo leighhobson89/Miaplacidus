@@ -4,6 +4,9 @@ import type { SaveErrorCode } from "../persistence/schema";
 export type SaveMessageKey =
   | "confirm"
   | "start"
+  | "startNewGame"
+  | "resumeGame"
+  | "starting"
   | "edit"
   | "cancel"
   | "choose"
@@ -52,9 +55,10 @@ export type SaveMessageKey =
   | "paste"
   | "autoSave"
   | "saveFrequency"
-  | "every10"
-  | "every30"
-  | "every60"
+  | "every5Minutes"
+  | "every15Minutes"
+  | "every30Minutes"
+  | "everyHour"
   | "reload"
   | "saveAsNew"
   | "recover"
@@ -64,16 +68,15 @@ export type SaveMessageKey =
   | "leaveWarning"
   | "stay"
   | "discardRun"
-  | "hydrogenBriefingEyebrow"
-  | "hydrogenBriefingTitle"
-  | "hydrogenBriefingBody"
-  | "hydrogenBriefingContinue"
   | "portableSize"
   | "localSaveSize"
   | "remainingCapacity";
 
 const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
   en: {
+    startNewGame: "START NEW GAME",
+    resumeGame: "RESUME GAME",
+    starting: "Starting…",
     confirm: "Confirm",
     start: "Start",
     edit: "Edit selection",
@@ -126,9 +129,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     paste: "Paste",
     autoSave: "Automatic saving",
     saveFrequency: "Save interval",
-    every10: "10 seconds",
-    every30: "30 seconds",
-    every60: "60 seconds",
+    every5Minutes: "5 minutes",
+    every15Minutes: "15 minutes",
+    every30Minutes: "30 minutes",
+    everyHour: "1 hour",
     reload: "Reload saved version",
     saveAsNew: "Save run as a new pioneer",
     recover: "Review recovery",
@@ -139,16 +143,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     leaveWarning: "This run has not been saved. Export it before leaving or discard it now.",
     stay: "Keep playing",
     discardRun: "Discard temporary run",
-    hydrogenBriefingEyebrow: "First voyage",
-    hydrogenBriefingTitle: "Hydrogen briefing",
-    hydrogenBriefingBody:
-      "Collect H₂ by hand, sell it for cash, then use Hydrogen to expand storage or build a compressor. This pioneer is saved locally on this device.",
-    hydrogenBriefingContinue: "Begin exploring",
     portableSize: "Portable code size",
     localSaveSize: "Compressed local save",
     remainingCapacity: "Estimated space left after this save:",
   },
   es: {
+    startNewGame: "EMPEZAR JUEGO NUEVO",
+    resumeGame: "REANUDAR JUEGO",
+    starting: "Iniciando…",
     confirm: "Confirmar",
     start: "Comenzar",
     edit: "Editar selección",
@@ -205,9 +207,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     paste: "Pegar",
     autoSave: "Guardado automático",
     saveFrequency: "Intervalo de guardado",
-    every10: "10 segundos",
-    every30: "30 segundos",
-    every60: "60 segundos",
+    every5Minutes: "5 minutos",
+    every15Minutes: "15 minutos",
+    every30Minutes: "30 minutos",
+    everyHour: "1 hora",
     reload: "Cargar versión guardada",
     saveAsNew: "Guardar como pionero nuevo",
     recover: "Revisar recuperación",
@@ -218,16 +221,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     leaveWarning: "Esta partida no se ha guardado. Expórtala antes de salir o descártala ahora.",
     stay: "Seguir jugando",
     discardRun: "Descartar partida temporal",
-    hydrogenBriefingEyebrow: "Primer viaje",
-    hydrogenBriefingTitle: "Guía del hidrógeno",
-    hydrogenBriefingBody:
-      "Recolecta H₂ a mano, véndelo para obtener dinero y usa el hidrógeno para ampliar el almacenamiento o construir un compresor. Este pionero se guarda localmente en este dispositivo.",
-    hydrogenBriefingContinue: "Empezar a explorar",
     portableSize: "Tamaño del código portátil",
     localSaveSize: "Tamaño comprimido local",
     remainingCapacity: "Espacio estimado restante tras este guardado:",
   },
   pt: {
+    startNewGame: "COMEÇAR NOVO JOGO",
+    resumeGame: "RETOMAR JOGO",
+    starting: "A iniciar…",
     confirm: "Confirmar",
     start: "Começar",
     edit: "Editar seleção",
@@ -283,9 +284,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     paste: "Colar",
     autoSave: "Salvamento automático",
     saveFrequency: "Intervalo de salvamento",
-    every10: "10 segundos",
-    every30: "30 segundos",
-    every60: "60 segundos",
+    every5Minutes: "5 minutos",
+    every15Minutes: "15 minutos",
+    every30Minutes: "30 minutos",
+    everyHour: "1 hora",
     reload: "Recarregar versão salva",
     saveAsNew: "Salvar como novo pioneiro",
     recover: "Revisar recuperação",
@@ -296,16 +298,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     leaveWarning: "Esta sessão não foi salva. Exporte antes de sair ou descarte agora.",
     stay: "Continuar jogando",
     discardRun: "Descartar sessão temporária",
-    hydrogenBriefingEyebrow: "Primeira viagem",
-    hydrogenBriefingTitle: "Guia do hidrogênio",
-    hydrogenBriefingBody:
-      "Colete H₂ manualmente, venda para ganhar dinheiro e use o hidrogênio para ampliar o armazenamento ou construir um compressor. Este pioneiro fica salvo localmente neste dispositivo.",
-    hydrogenBriefingContinue: "Começar a explorar",
     portableSize: "Tamanho do código portátil",
     localSaveSize: "Tamanho comprimido local",
     remainingCapacity: "Espaço estimado restante após este salvamento:",
   },
   de: {
+    startNewGame: "NEUES SPIEL STARTEN",
+    resumeGame: "SPIEL FORTSETZEN",
+    starting: "Spiel startet…",
     confirm: "Bestätigen",
     start: "Starten",
     edit: "Auswahl bearbeiten",
@@ -363,9 +363,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     paste: "Einfügen",
     autoSave: "Automatisches Speichern",
     saveFrequency: "Speicherintervall",
-    every10: "10 Sekunden",
-    every30: "30 Sekunden",
-    every60: "60 Sekunden",
+    every5Minutes: "5 Minuten",
+    every15Minutes: "15 Minuten",
+    every30Minutes: "30 Minuten",
+    everyHour: "1 Stunde",
     reload: "Gespeicherte Version laden",
     saveAsNew: "Lauf als neuen Pionier speichern",
     recover: "Wiederherstellung prüfen",
@@ -378,16 +379,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Dieser Lauf wurde nicht gespeichert. Exportiere ihn vor dem Verlassen oder verwerfe ihn jetzt.",
     stay: "Weiter spielen",
     discardRun: "Temporären Lauf verwerfen",
-    hydrogenBriefingEyebrow: "Erste Reise",
-    hydrogenBriefingTitle: "Wasserstoff-Einführung",
-    hydrogenBriefingBody:
-      "Sammle H₂ von Hand, verkaufe es für Geld und erweitere mit Wasserstoff den Speicher oder baue einen Kompressor. Dieser Pionier wird lokal auf diesem Gerät gespeichert.",
-    hydrogenBriefingContinue: "Erkundung beginnen",
     portableSize: "Größe des portablen Codes",
     localSaveSize: "Komprimierter lokaler Spielstand",
     remainingCapacity: "Geschätzter freier Speicher nach diesem Spielstand:",
   },
   it: {
+    startNewGame: "INIZIA NUOVA PARTITA",
+    resumeGame: "RIPRENDI PARTITA",
+    starting: "Avvio…",
     confirm: "Conferma",
     start: "Inizia",
     edit: "Modifica selezione",
@@ -443,9 +442,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     paste: "Incolla",
     autoSave: "Salvataggio automatico",
     saveFrequency: "Intervallo di salvataggio",
-    every10: "10 secondi",
-    every30: "30 secondi",
-    every60: "60 secondi",
+    every5Minutes: "5 minuti",
+    every15Minutes: "15 minuti",
+    every30Minutes: "30 minuti",
+    everyHour: "1 ora",
     reload: "Carica la versione salvata",
     saveAsNew: "Salva la partita come nuovo pioniere",
     recover: "Verifica il recupero",
@@ -457,16 +457,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     leaveWarning: "Questa partita non è stata salvata. Esportala prima di uscire o scartala ora.",
     stay: "Continua a giocare",
     discardRun: "Scarta la partita temporanea",
-    hydrogenBriefingEyebrow: "Primo viaggio",
-    hydrogenBriefingTitle: "Guida all'idrogeno",
-    hydrogenBriefingBody:
-      "Raccogli H₂ a mano, vendilo per ottenere denaro e usa l'idrogeno per ampliare lo stoccaggio o costruire un compressore. Questo pioniere viene salvato localmente su questo dispositivo.",
-    hydrogenBriefingContinue: "Inizia a esplorare",
     portableSize: "Dimensione del codice portatile",
     localSaveSize: "Dimensione del salvataggio locale compresso",
     remainingCapacity: "Spazio stimato disponibile dopo questo salvataggio:",
   },
   fr: {
+    startNewGame: "NOUVELLE PARTIE",
+    resumeGame: "REPRENDRE LA PARTIE",
+    starting: "Démarrage…",
     confirm: "Confirmer",
     start: "Commencer",
     edit: "Modifier la sélection",
@@ -522,9 +520,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     paste: "Coller",
     autoSave: "Enregistrement automatique",
     saveFrequency: "Fréquence d'enregistrement",
-    every10: "10 secondes",
-    every30: "30 secondes",
-    every60: "60 secondes",
+    every5Minutes: "5 minutes",
+    every15Minutes: "15 minutes",
+    every30Minutes: "30 minutes",
+    everyHour: "1 heure",
     reload: "Recharger la version enregistrée",
     saveAsNew: "Enregistrer comme nouveau pionnier",
     recover: "Examiner la récupération",
@@ -537,11 +536,6 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Cette partie n'a pas été enregistrée. Exportez-la avant de partir ou abandonnez-la maintenant.",
     stay: "Continuer à jouer",
     discardRun: "Abandonner la partie temporaire",
-    hydrogenBriefingEyebrow: "Premier voyage",
-    hydrogenBriefingTitle: "Guide de l'hydrogène",
-    hydrogenBriefingBody:
-      "Collectez H₂ à la main, vendez-le pour gagner de l'argent, puis utilisez l'hydrogène pour agrandir le stockage ou construire un compresseur. Ce pionnier est enregistré localement sur cet appareil.",
-    hydrogenBriefingContinue: "Commencer l'exploration",
     portableSize: "Taille du code portable",
     localSaveSize: "Taille de la sauvegarde locale compressée",
     remainingCapacity: "Espace estimé restant après cette sauvegarde :",

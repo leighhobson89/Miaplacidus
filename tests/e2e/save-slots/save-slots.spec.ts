@@ -1,5 +1,7 @@
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { openSaveManager, openSaveSettings, saveNowFromSettings } from "../_harness/save-controls";
+import type { Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { createInitialGameState } from "../../../src/engine/state";
 import {
@@ -55,33 +57,33 @@ function syntheticV0Code(name: string): string {
   return "MIA1:" + compressToEncodedURIComponent(canonicalJson({ ...oldBody, checksum }));
 }
 
-test("Confirm is only a preflight; cancelling creates no save and Start creates a local slot @save-slots @lifecycle", async ({
+async function startFreshPioneer(page: Page, name: string): Promise<void> {
+  await page.getByLabel("Pioneer name").fill(name);
+  await expect(page.getByTestId("start-game")).toHaveText("START NEW GAME");
+  await page.getByTestId("start-game").click();
+}
+
+async function resumePioneer(page: Page, name: string): Promise<void> {
+  await page.getByLabel("Pioneer name").fill(name);
+  await page.getByRole("option").filter({ hasText: name }).click();
+  await page.getByTestId("start-game").click();
+}
+
+test("Start creates a slot directly and saved pioneers require explicit selection to resume @save-slots @lifecycle", async ({
   page,
   browserErrors,
 }, testInfo) => {
   await page.addInitScript(() => localStorage.setItem("another-game:keep", "untouched"));
   await page.goto("/?testSeed=71&testLocale=en");
   await page.getByLabel("Pioneer name").fill("Ada Lovelace");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await captureVisualCheckpoint(page, testInfo, "name-confirmed");
+  await expect(page.getByTestId("start-game")).toHaveText("START NEW GAME");
   expect(
     await page.evaluate(() =>
       Object.keys(localStorage).filter((key) => key.startsWith("miaplacidus:v1:head:")),
     ),
   ).toEqual([]);
-
-  await page.getByRole("button", { name: "Edit selection" }).click();
-  expect(
-    await page.evaluate(() =>
-      Object.keys(localStorage).filter((key) => key.startsWith("miaplacidus:v1:head:")),
-    ),
-  ).toEqual([]);
-  await page.getByLabel("Pioneer name").fill("Grace");
-  await expect(page.getByRole("button", { name: "Start", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await captureVisualCheckpoint(page, testInfo, "changed-name-reconfirmed");
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.locator(".run-name")).toHaveText("Grace");
+  await page.getByTestId("start-game").click();
+  await expect(page.locator(".run-name")).toHaveText("Ada Lovelace");
   await expect
     .poll(() =>
       page.evaluate(
@@ -91,56 +93,88 @@ test("Confirm is only a preflight; cancelling creates no save and Start creates 
     )
     .toBe(1);
   expect(await page.evaluate(() => localStorage.getItem("another-game:keep"))).toBe("untouched");
-  await captureVisualCheckpoint(page, testInfo, "new-local-slot");
+  await page.reload();
+  await page.getByLabel("Pioneer name").click();
+  await expect(page.getByTestId("start-game")).toHaveText("START NEW GAME");
+  await page.getByRole("option", { name: /Ada Lovelace/ }).click();
+  await expect(page.getByTestId("start-game")).toHaveText("RESUME GAME Ada Lovelace");
+  await captureVisualCheckpoint(page, testInfo, "explicit-local-save-selection");
+  await page.getByTestId("start-game").click();
+  await expect(page.locator(".run-name")).toHaveText("Ada Lovelace");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Object.keys(localStorage).filter((key) => key.startsWith("miaplacidus:v1:head:")).length,
+      ),
+    )
+    .toBe(1);
   expect(browserErrors).toEqual([]);
 });
 
-test("a fresh pioneer receives the Hydrogen briefing once and its completion survives reload @save-slots @onboarding", async ({
+test("a fresh pioneer starts directly and Miaplaedia has no replay control @save-slots @presentation", async ({
   page,
 }, testInfo) => {
   await page.goto("/?testSeed=73&testLocale=en");
-  await page.getByLabel("Pioneer name").fill("Briefing Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
-  await captureVisualCheckpoint(page, testInfo, "hydrogen-first-run-briefing");
+  await page.getByLabel("Pioneer name").fill("Direct Start Pioneer");
+  await page.getByTestId("start-game").click();
+  await expect(page.locator(".run-name")).toHaveText("Direct Start Pioneer");
+  await expect(page.locator(".hydrogen-briefing")).toHaveCount(0);
+  await expect(page.locator("#tab-resources-hydrogen .attention-badge")).toHaveText("New");
+  await captureVisualCheckpoint(page, testInfo, "hydrogen-first-run-no-briefing");
+
+  await page.locator("#tab-settings").click();
+  const settingsGameOptions = page.locator("#tab-settings-game-options");
+  await expect(settingsGameOptions.locator(".attention-badge")).toHaveText("New");
+  await settingsGameOptions.click();
+  await expect(settingsGameOptions.locator(".attention-badge")).toHaveCount(0);
+  await page.locator("#tab-miaplaedia").click();
+  const miaplaediaStory = page.locator("#tab-miaplaedia-story");
+  await expect(miaplaediaStory.locator(".attention-badge")).toHaveText("New");
+  await miaplaediaStory.click();
+  await expect(miaplaediaStory.locator(".attention-badge")).toHaveCount(0);
 
   await page.reload();
-  await expect(page.getByLabel("Pioneer name")).toHaveValue("Briefing Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
-
-  await page.getByRole("button", { name: "Begin exploring" }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toHaveCount(0);
-  expect(
-    await page.evaluate(() =>
-      Object.keys(localStorage).filter((key) => key.includes(":hydrogenBriefing:")),
-    ),
-  ).toEqual([]);
-  await captureVisualCheckpoint(page, testInfo, "hydrogen-briefing-complete");
+  await expect(page.getByLabel("Pioneer name")).toHaveValue("Direct Start Pioneer");
+  await page.getByLabel("Pioneer name").click();
+  await page.getByRole("option", { name: /Direct Start Pioneer/ }).click();
+  await page.getByTestId("start-game").click();
+  await expect(page.locator(".hydrogen-briefing")).toHaveCount(0);
+  await expect(page.locator(".run-name")).toHaveText("Direct Start Pioneer");
+  await page.locator(".game-nav [role='tab'][aria-controls='pane-miaplaedia']").click();
+  await expect(page.locator(".miaplaedia-page button")).toHaveCount(0);
+  await captureVisualCheckpoint(page, testInfo, "hydrogen-resume-no-replay-control");
 
   await page.reload();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toHaveCount(0);
+  await page.getByLabel("Pioneer name").click();
+  await page.getByRole("option", { name: /Direct Start Pioneer/ }).click();
+  await page.getByTestId("start-game").click();
+  await expect(page.locator(".hydrogen-briefing")).toHaveCount(0);
+});
+
+test("Escape closes Save Manager and restores focus to its opener @save-slots @keyboard @ui-navigation", async ({
+  freshGame,
+}, testInfo) => {
+  await openSaveManager(freshGame);
+  const manager = freshGame.getByRole("dialog", { name: "Hydrogen Pioneer" });
+  const opener = freshGame.getByTestId("save-manager-open");
+  await expect(manager).toBeVisible();
+  await freshGame.keyboard.press("Escape");
+  await expect(manager).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await captureVisualCheckpoint(freshGame, testInfo, "save-manager-focus-restored");
 });
 
 test("two pioneers keep separate Hydrogen progress across switching and reload @save-slots @reload @save-load-local", async ({
   page,
 }, testInfo) => {
   await page.goto("/?testSeed=72&testLocale=en");
-  await page.getByLabel("Pioneer name").fill("Ada");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await startFreshPioneer(page, "Ada");
   await page.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
-  await page.getByRole("button", { name: "Pioneer selection" }).click();
-
-  await page.getByLabel("Pioneer name").fill("aDA");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.reload();
+  await resumePioneer(page, "Ada");
   await expect(page.locator(".run-name")).toHaveText("Ada");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
   expect(
@@ -149,29 +183,24 @@ test("two pioneers keep separate Hydrogen progress across switching and reload @
         Object.keys(localStorage).filter((key) => key.startsWith("miaplacidus:v1:head:")).length,
     ),
   ).toBe(1);
-  await page.getByRole("button", { name: "Pioneer selection" }).click();
-
-  await page.getByLabel("Pioneer name").fill("Grace");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.reload();
+  await startFreshPioneer(page, "Grace");
   for (let count = 0; count < 3; count += 1)
     await page.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("3");
-  await page.getByRole("button", { name: "Pioneer selection" }).click();
+  await page.reload();
+  await page.getByLabel("Pioneer name").fill("a");
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(2);
   await captureVisualCheckpoint(page, testInfo, "two-local-pioneers");
 
-  await page.getByRole("button", { name: /^Ada/ }).click();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumePioneer(page, "Ada");
   await expect(page.locator(".run-name")).toHaveText("Ada");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
   await captureVisualCheckpoint(page, testInfo, "ada-resumed");
 
   await page.reload();
-  await expect(page.getByLabel("Pioneer name")).toHaveValue("Ada");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumePioneer(page, "Ada");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
   const resumedSimulationMs = await page.evaluate(
     () => window.miaplacidusTest?.getState().run.clock.simulationMs ?? 0,
@@ -182,14 +211,13 @@ test("two pioneers keep separate Hydrogen progress across switching and reload @
     .poll(() => page.evaluate(() => window.miaplacidusTest?.getState().run.clock.simulationMs))
     .toBe(resumedSimulationMs);
 
-  await page.getByRole("button", { name: "Save manager" }).click();
+  await openSaveManager(page);
   const manager = page.getByRole("dialog", { name: "Ada" });
   await manager.getByRole("button", { name: /^Grace/ }).click();
   await expect(page.getByLabel("Pioneer name")).toHaveValue("Grace");
-  await expect(page.getByRole("button", { name: "Start", exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("start-game")).toHaveText("START NEW GAME");
   await captureVisualCheckpoint(page, testInfo, "manager-switch-prefill");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumePioneer(page, "Grace");
   await expect(page.locator(".run-name")).toHaveText("Grace");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("3");
 });
@@ -198,9 +226,7 @@ test("durable timer IDs and offline clock anchors survive a player-triggered sav
   page,
 }, testInfo) => {
   await page.goto("/?testSeed=76&testLocale=en");
-  await page.getByLabel("Pioneer name").fill("Timer Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await startFreshPioneer(page, "Timer Pioneer");
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
   const added = await page.evaluate(() =>
     window.miaplacidusTest?.dispatch({
@@ -215,7 +241,7 @@ test("durable timer IDs and offline clock anchors survive a player-triggered sav
   expect(
     await page.evaluate(() => window.miaplacidusTest?.getState().run.timers["research:long-study"]),
   ).toMatchObject({ id: "research:long-study", status: "running" });
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   const activePayload = await page.evaluate(() => {
     const headKey = Object.keys(localStorage).find((key) => key.startsWith("miaplacidus:v1:head:"));
     if (!headKey) return null;
@@ -251,8 +277,7 @@ test("durable timer IDs and offline clock anchors survive a player-triggered sav
     id: "research:long-study",
     status: "running",
   });
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumePioneer(page, "Timer Pioneer");
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
   const restored = await page.evaluate(() => window.miaplacidusTest?.getState());
   expect(restored?.run.timers["research:long-study"]).toMatchObject({
@@ -270,10 +295,8 @@ test("local slots preserve permanent state after one and two rebirths @save-slot
   page,
 }, testInfo) => {
   await page.goto("/?testSeed=77&testLocale=en");
-  await page.getByLabel("Pioneer name").fill("Fixture Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await page.getByRole("button", { name: "Save manager" }).click();
+  await startFreshPioneer(page, "Fixture Pioneer");
+  await openSaveManager(page);
   const manager = page.getByRole("dialog", { name: "Fixture Pioneer" });
 
   for (const rebirthCount of [1, 2] as const) {
@@ -289,30 +312,27 @@ test("local slots preserve permanent state after one and two rebirths @save-slot
   }
 
   await manager.getByRole("button", { name: "Cancel" }).click();
-  await page.getByRole("button", { name: "Pioneer selection" }).click();
+  await page.reload();
   for (const rebirthCount of [1, 2] as const) {
     const importedName = rebirthCount === 1 ? "Once Reborn" : "Twice Reborn";
-    await page.getByRole("button", { name: new RegExp("^" + importedName) }).click();
-    await page.getByRole("button", { name: "Confirm", exact: true }).click();
-    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await resumePioneer(page, importedName);
     await expect
       .poll(() => page.evaluate(() => window.miaplacidusTest?.getState().permanent.rebirthCount))
       .toBe(rebirthCount);
     await page.reload();
-    await page.getByRole("button", { name: "Confirm", exact: true }).click();
-    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await resumePioneer(page, importedName);
     await expect
       .poll(() => page.evaluate(() => window.miaplacidusTest?.getState().permanent.rebirthCount))
       .toBe(rebirthCount);
     await captureVisualCheckpoint(page, testInfo, `rebirth-${rebirthCount}-restored`);
-    if (rebirthCount === 1) await page.getByRole("button", { name: "Pioneer selection" }).click();
+    if (rebirthCount === 1) await page.reload();
   }
 });
 
 test("a synthetic MIAPLACIDUS v0 save migrates and starts as a playable slot @save-migration @migration", async ({
   freshGame,
 }, testInfo) => {
-  await freshGame.getByRole("button", { name: "Save manager" }).click();
+  await openSaveManager(freshGame);
   const manager = freshGame.getByRole("dialog", { name: "Hydrogen Pioneer" });
   await manager.getByLabel("Paste a MIAPLACIDUS save code").fill(syntheticV0Code("Legacy Pioneer"));
   await manager.getByRole("button", { name: "Preview import" }).click();
@@ -324,12 +344,10 @@ test("a synthetic MIAPLACIDUS v0 save migrates and starts as a playable slot @sa
   await manager.getByRole("button", { name: "Import as a new pioneer" }).click();
   await expect(manager.getByRole("status")).toContainText("Save imported");
   await manager.getByRole("button", { name: "Cancel" }).click();
-  await freshGame.getByRole("button", { name: "Pioneer selection" }).click();
-  await freshGame.getByRole("button", { name: /^Migrated Pioneer/ }).click();
-  await freshGame.getByRole("button", { name: "Confirm", exact: true }).click();
-  await freshGame.getByRole("button", { name: "Start", exact: true }).click();
+  await freshGame.reload();
+  await resumePioneer(freshGame, "Migrated Pioneer");
   await expect(freshGame.locator(".run-name")).toHaveText("Migrated Pioneer");
-  await expect(freshGame.getByTestId("hydrogen-onboarding")).toHaveCount(0);
+  await expect(freshGame.locator(".hydrogen-briefing")).toHaveCount(0);
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("0");
   await captureVisualCheckpoint(freshGame, testInfo, "synthetic-v0-migrated-playable");
 });
@@ -339,8 +357,8 @@ test("rename, save-as-new, and delete keep stable slots and return to a valid pr
 }, testInfo) => {
   for (let count = 0; count < 4; count += 1)
     await freshGame.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await freshGame.getByRole("button", { name: "Save now" }).click();
-  await freshGame.getByRole("button", { name: "Save manager" }).click();
+  await saveNowFromSettings(freshGame);
+  await openSaveManager(freshGame);
   let manager = freshGame.getByRole("dialog", { name: "Hydrogen Pioneer" });
   await manager.getByLabel("New pioneer name").first().fill("Hydrogen Prime");
   await manager.getByRole("button", { name: "Rename save" }).click();
@@ -351,6 +369,7 @@ test("rename, save-as-new, and delete keep stable slots and return to a valid pr
   await manager.getByLabel("New pioneer name").nth(1).fill("Hydrogen Clone");
   await manager.getByRole("button", { name: "Save run as a new pioneer" }).click();
   await expect(freshGame.getByRole("dialog")).toHaveCount(0);
+  await freshGame.locator("#tab-hydrogen").click();
   await expect(freshGame.locator(".run-name")).toHaveText("Hydrogen Clone");
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("4");
   expect(
@@ -360,7 +379,7 @@ test("rename, save-as-new, and delete keep stable slots and return to a valid pr
     ),
   ).toBe(2);
 
-  await freshGame.getByRole("button", { name: "Save manager" }).click();
+  await openSaveManager(freshGame);
   manager = freshGame.getByRole("dialog", { name: "Hydrogen Clone" });
   await manager.getByLabel("New pioneer name").first().fill("Hydrogen Prime");
   await manager.getByRole("button", { name: "Rename save" }).click();
@@ -369,8 +388,10 @@ test("rename, save-as-new, and delete keep stable slots and return to a valid pr
   await manager.getByRole("button", { name: "Delete this save" }).click();
   await manager.getByLabel("I exported this save or do not need it").click();
   await manager.getByRole("button", { name: "Confirm delete" }).click();
-  await expect(freshGame.getByLabel("Pioneer name")).toHaveValue("Hydrogen Prime");
-  await expect(freshGame.getByRole("button", { name: /^Hydrogen Prime/ })).toBeVisible();
+  const pioneerName = freshGame.getByLabel("Pioneer name");
+  await expect(pioneerName).toHaveValue("Hydrogen Prime");
+  await pioneerName.click();
+  await expect(freshGame.getByRole("option", { name: /^Hydrogen Prime/ })).toBeVisible();
   await captureVisualCheckpoint(freshGame, testInfo, "deleted-slot-valid-prefill");
 });
 
@@ -380,7 +401,7 @@ test("portable save preview offers replace, new pioneer, and cancel before impor
 }, testInfo) => {
   await freshGame.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
   await freshGame.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await freshGame.getByRole("button", { name: "Save manager" }).click();
+  await openSaveManager(freshGame);
   const manager = freshGame.getByRole("dialog", { name: "Hydrogen Pioneer" });
   await expect(manager.getByText("Compressed local save")).toBeVisible();
   await expect(manager.getByText(/Estimated space left after this save/)).toBeVisible();
@@ -431,11 +452,8 @@ test("portable save preview offers replace, new pioneer, and cancel before impor
   await manager.getByRole("button", { name: "Import as a new pioneer" }).click();
   await expect(manager.getByRole("status")).toContainText("Save imported");
   await manager.getByRole("button", { name: "Cancel" }).click();
-  await freshGame.getByRole("button", { name: "Pioneer selection" }).click();
-  await expect(freshGame.getByRole("button", { name: /^Hydrogen Restore/ })).toBeVisible();
-  await freshGame.getByRole("button", { name: /^Hydrogen Restore/ }).click();
-  await freshGame.getByRole("button", { name: "Confirm", exact: true }).click();
-  await freshGame.getByRole("button", { name: "Start", exact: true }).click();
+  await freshGame.reload();
+  await resumePioneer(freshGame, "Hydrogen Restore");
   await expect(freshGame.locator(".run-name")).toHaveText("Hydrogen Restore");
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("2");
   await captureVisualCheckpoint(freshGame, testInfo, "portable-save-restored");
@@ -445,20 +463,16 @@ test("portable save preview offers replace, new pioneer, and cancel before impor
   const restoreErrors: string[] = [];
   restorePage.on("pageerror", (error) => restoreErrors.push(error.message));
   await restorePage.goto("/?testSeed=82&testLocale=en");
-  await restorePage.getByLabel("Pioneer name").fill("Fresh Profile Starter");
-  await restorePage.getByRole("button", { name: "Confirm", exact: true }).click();
-  await restorePage.getByRole("button", { name: "Start", exact: true }).click();
-  await restorePage.getByRole("button", { name: "Save manager" }).click();
+  await startFreshPioneer(restorePage, "Fresh Profile Starter");
+  await openSaveManager(restorePage);
   const freshManager = restorePage.getByRole("dialog", { name: "Fresh Profile Starter" });
   await freshManager.getByLabel("Paste a MIAPLACIDUS save code").fill(portableCode);
   await freshManager.getByRole("button", { name: "Preview import" }).click();
   await freshManager.getByLabel("New pioneer name").last().fill("Fresh Profile Restore");
   await freshManager.getByRole("button", { name: "Import as a new pioneer" }).click();
   await freshManager.getByRole("button", { name: "Cancel", exact: true }).click();
-  await restorePage.getByRole("button", { name: "Pioneer selection" }).click();
-  await restorePage.getByRole("button", { name: /^Fresh Profile Restore/ }).click();
-  await restorePage.getByRole("button", { name: "Confirm", exact: true }).click();
-  await restorePage.getByRole("button", { name: "Start", exact: true }).click();
+  await restorePage.reload();
+  await resumePioneer(restorePage, "Fresh Profile Restore");
   await expect(restorePage.locator(".run-name")).toHaveText("Fresh Profile Restore");
   await expect(restorePage.getByTestId("hydrogen-quantity")).toContainText("2");
   await captureVisualCheckpoint(restorePage, testInfo, "fresh-profile-restore");
@@ -470,11 +484,9 @@ test("a damaged head can be restored from the retained prior generation @save-sl
   page,
 }, testInfo) => {
   await page.goto("/?testSeed=73&testLocale=en");
-  await page.getByLabel("Pioneer name").fill("Recover");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await startFreshPioneer(page, "Recover");
   await page.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   await page.evaluate(() => {
     const headKey = Object.keys(localStorage).find((key) => key.startsWith("miaplacidus:v1:head:"));
     if (!headKey) throw new Error("The first slot head was not written.");
@@ -484,13 +496,14 @@ test("a damaged head can be restored from the retained prior generation @save-sl
     localStorage.setItem("miaplacidus:v1:slot:" + slotId + ":" + commitId, "broken-generation");
   });
   await page.reload();
-  await expect(page.getByText("Needs recovery").first()).toBeVisible();
+  const recoverySection = page.locator(".local-save-recovery");
+  await recoverySection.locator("summary").click();
+  await expect(recoverySection.getByText("Needs recovery").first()).toBeVisible();
   await captureVisualCheckpoint(page, testInfo, "damaged-save-recovery");
   await page.getByRole("button", { name: "Review recovery" }).first().click();
   await page.getByRole("button", { name: "Restore this validated generation" }).first().click();
   await expect(page.getByRole("status")).toContainText("generation was restored");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumePioneer(page, "Recover");
   await expect(page.locator(".run-name")).toHaveText("Recover");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("0");
   await captureVisualCheckpoint(page, testInfo, "recovered-prior-generation");
@@ -500,38 +513,30 @@ test("blocked browser storage keeps the Hydrogen run playable and its code expor
   page,
 }, testInfo) => {
   await page.goto("/?testSeed=74&testLocale=en&testStorage=blocked");
-  await page.getByLabel("Pioneer name").fill("Temporary");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await startFreshPioneer(page, "Temporary");
+  await openSaveSettings(page);
   await expect(page.getByTestId("save-status")).toContainText("temporary");
+  await page.locator("#tab-hydrogen").click();
   await page.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
-  await page.getByRole("button", { name: "Save manager" }).click();
+  await openSaveManager(page);
   await expect(page.getByLabel("Portable save code")).toHaveValue(/^MIA1:/);
   await captureVisualCheckpoint(page, testInfo, "unsaved-temporary-session");
   await page
     .getByRole("dialog", { name: "Temporary" })
     .getByRole("button", { name: "Cancel" })
     .click();
-  await page.getByRole("button", { name: "Pioneer selection" }).click();
-  await expect(page.getByTestId("unsaved-exit-dialog")).toBeVisible();
-  await captureVisualCheckpoint(page, testInfo, "unsaved-exit-confirmation");
-  await page.getByRole("button", { name: "Keep playing" }).click();
-  await expect(page.getByTestId("unsaved-exit-dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Pioneer selection" }).click();
-  await page.getByRole("button", { name: "Discard temporary run" }).click();
-  await expect(page.getByLabel("Pioneer name")).toBeVisible();
+  await page.locator("#tab-hydrogen").click();
+  await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
 });
 
 test("quota failure exports the live run and leaves the previous generation loadable @save-slots @quota @save-migration", async ({
   page,
 }, testInfo) => {
   await page.goto("/?testSeed=78&testLocale=en");
-  await page.getByLabel("Pioneer name").fill("Quota Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await startFreshPioneer(page, "Quota Pioneer");
   await page.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   await page.evaluate(() => {
     const nativeSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key: string, value: string) {
@@ -542,11 +547,13 @@ test("quota failure exports the live run and leaves the previous generation load
     };
   });
   await page.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
+  await openSaveSettings(page);
   await expect(page.getByTestId("save-status")).toContainText("Browser storage is full");
+  await page.locator("#tab-hydrogen").click();
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("2");
   await captureVisualCheckpoint(page, testInfo, "quota-save-failure");
-  await page.getByRole("button", { name: "Save manager" }).click();
+  await openSaveManager(page);
   const manager = page.getByRole("dialog", { name: "Quota Pioneer" });
   const code = await manager.getByLabel("Portable save code").inputValue();
   const exported = JSON.parse(
@@ -557,8 +564,7 @@ test("quota failure exports the live run and leaves the previous generation load
   expect(exported.state?.run?.goods?.hydrogen?.quantity).toBe(2);
   await manager.getByRole("button", { name: "Cancel" }).click();
   await page.reload();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumePioneer(page, "Quota Pioneer");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
 });
 
@@ -567,24 +573,25 @@ test("a second tab can play its loaded snapshot but cannot write over the active
 }, testInfo) => {
   const secondTab = await freshGame.context().newPage();
   await secondTab.goto("/?testSeed=75&testLocale=en");
-  await secondTab.getByLabel("Pioneer name").fill("Hydrogen Pioneer");
-  await secondTab.getByRole("button", { name: "Confirm", exact: true }).click();
-  await secondTab.getByRole("button", { name: "Start", exact: true }).click();
+  await resumePioneer(secondTab, "Hydrogen Pioneer");
+  await openSaveSettings(secondTab);
   await expect(secondTab.getByTestId("save-status")).toContainText("another tab");
+  await secondTab.locator("#tab-hydrogen").click();
   const headKey = await secondTab.evaluate(
     () => Object.keys(localStorage).find((key) => key.startsWith("miaplacidus:v1:head:")) ?? null,
   );
   expect(headKey).not.toBeNull();
   const priorHead = await secondTab.evaluate((key) => localStorage.getItem(key!), headKey);
   await secondTab.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await secondTab.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(secondTab);
   await expect
     .poll(() => secondTab.evaluate((key) => localStorage.getItem(key!), headKey))
     .toBe(priorHead);
 
   await freshGame.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
-  await freshGame.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(freshGame);
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("1");
+  await openSaveSettings(secondTab);
   await expect(secondTab.getByTestId("save-status")).toContainText("changed in another tab");
   await captureVisualCheckpoint(freshGame, testInfo, "single-writer-active-tab");
   await secondTab.close();

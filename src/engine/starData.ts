@@ -67,11 +67,15 @@ export function createStarDataRows(
     findStarByName(catalogue, currentSystemIdentity);
   if (!current) return [];
   const profileById = new Map(profiles.map((profile) => [profile.systemId, profile]));
+  const undisclosedFactoryIds = new Set(
+    ancientManuscripts.filter((record) => !record.reported).map((record) => record.factorySystemId),
+  );
   const revealedFactoryIds = new Set(
     ancientManuscripts.filter((record) => record.reported).map((record) => record.factorySystemId),
   );
   return catalogue.flatMap((star) => {
     if (star.id === current.id) return [];
+    if (undisclosedFactoryIds.has(star.id) && !revealedFactoryIds.has(star.id)) return [];
     const profile = profileById.get(star.id);
     if (!profile) return [];
     const tendency = weatherTendency(profile);

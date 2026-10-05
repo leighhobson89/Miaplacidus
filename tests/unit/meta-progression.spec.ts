@@ -211,6 +211,30 @@ describe("validated rebirth and ascendency purchases", () => {
           },
         },
       },
+      statistics: {
+        ...ready.statistics,
+        lifetimeAscendencyPointsGained: 7,
+        lifetimeAsteroidsDiscovered: 3,
+        lifetimeLegendaryAsteroidsDiscovered: 1,
+        lifetimeAsteroidsMined: 6,
+        lifetimeRocketsBuilt: 4,
+        lifetimeRocketsLaunched: 2,
+        lifetimeStarshipsLaunched: 4,
+        lifetimeGoodsProducedByGood: {
+          ...ready.statistics.lifetimeGoodsProducedByGood,
+          hydrogen: 123,
+          water: 45,
+        },
+      },
+      run: {
+        ...ready.run,
+        goodsProducedThisRun: {
+          ...ready.run.goodsProducedThisRun,
+          hydrogen: 12,
+          water: 4,
+        },
+        space: { ...ready.run.space, asteroidsMinedThisRun: 2 },
+      },
     };
     const destination = ready.permanent.settledSystemIds.at(-1);
     const result = transition(readyWithCasino, { type: "meta.rebirth" });
@@ -234,6 +258,20 @@ describe("validated rebirth and ascendency purchases", () => {
     expect(result.state.run.upgrades).toEqual(createInitialGameState().run.upgrades);
     expect(result.state.settings).toEqual(readyWithCasino.settings);
     expect(result.state.statistics.lifetimeCashEarned).toBe(500);
+    expect(result.state.statistics).toMatchObject({
+      lifetimeAscendencyPointsGained: 7,
+      lifetimeAsteroidsDiscovered: 3,
+      lifetimeLegendaryAsteroidsDiscovered: 1,
+      lifetimeAsteroidsMined: 6,
+      lifetimeRocketsBuilt: 4,
+      lifetimeRocketsLaunched: 2,
+      lifetimeStarshipsLaunched: 4,
+      lifetimeGoodsProducedByGood: { hydrogen: 123, water: 45 },
+    });
+    expect(result.state.run.goodsProducedThisRun).toEqual(
+      createInitialGameState().run.goodsProducedThisRun,
+    );
+    expect(result.state.run.space.asteroidsMinedThisRun).toBe(0);
     expect(result.state.permanent.galacticCasino).toMatchObject({
       casinoPoints: 0,
       gamesWon: ["wheel"],
@@ -967,6 +1005,7 @@ describe("Galactic Market", () => {
     const liquidated = transition(state, { type: "meta.market.liquidate" });
     expect(liquidated.accepted).toBe(true);
     expect(liquidated.state.permanent.ascendencyPoints).toBe(101);
+    expect(liquidated.state.statistics.lifetimeAscendencyPointsGained).toBe(1);
     expect(liquidated.state.run.cash).toBe(0);
     expect(liquidated.state.run.goods.hydrogen.quantity).toBe(0);
     expect(liquidated.state.run.marketLiquidatedThisRun).toBe(true);

@@ -10,7 +10,7 @@
 - [ ] **V-04** Run focused pure-rule tests for precision, tick ordering, timers, randomness, economy, space, combat and meta progression.
 - [ ] **V-05** Run focused browser areas as each domain closes, using user controls and observable results.
 - [ ] **V-06** Compare fixed early, mid, travel, rebirth and endgame scenarios against the source; record approved deviations.
-- [ ] **V-07** Verify all nine tabs, current hidden/unlocked states and direct navigation from a clean save.
+- [ ] **V-07** Verify the nine source tabs in fixed source order followed by Miaplaedia; locked main gameplay tabs are absent, tab labels show names only, and Settings then Miaplaedia remain directly reachable from a clean save.
 - [ ] **V-08** Verify a complete run through both the Miaplacidus and Cosmic Rip end routes.
 - [ ] **V-09** Verify event, news, achievement, casino and philosophy branches that a normal happy-path run may miss.
 - [ ] **V-10** Check source coverage for eight resources, six compounds, four rockets, four philosophies, nine themes and six locales.
@@ -50,7 +50,7 @@
 ## Build, security and distribution
 
 - [ ] **V-37** Define the default full-browser build and an explicit opt-in demo flag with reproducible commands.
-- [ ] **V-38** Confirm default builds expose all nine tabs and full progression; no demo restriction is active accidentally.
+- [ ] **V-38** Confirm the default build exposes all nine source tabs in fixed order as their gates unlock, Miaplaedia follows Settings, and full progression is available; no demo restriction is active accidentally.
 - [ ] **V-39** If the optional demo is produced, verify its intended restrictions, labels and save rules separately.
 - [ ] **V-40** Verify production bundles omit debug menus, test gateway, cheat commands and source-only development tools.
 - [ ] **V-41** Verify there are no cloud-save UI controls, account routes, Supabase save calls or network-dependent progression paths.

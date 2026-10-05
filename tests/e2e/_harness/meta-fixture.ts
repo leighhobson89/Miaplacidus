@@ -7,9 +7,14 @@ export async function startMetaFixture(
     | "meta-rebirth-ready"
     | "meta-market-ready"
     | "meta-casino-ready"
+    | "meta-rebirth-before-casino-unlock"
     | "meta-black-hole-discovered"
     | "meta-megastructure-route"
-    | "meta-cosmic-rip-route" = "meta-rebirth-ready",
+    | "meta-cosmic-rip-route"
+    | "meta-cosmic-rip-restore-affordance"
+    | "meta-cosmic-rip-action-affordances"
+    | "meta-cosmic-rip-close-affordance"
+    | "space-manuscript-hidden" = "meta-rebirth-ready",
 ): Promise<void> {
   await page.addInitScript(() => {
     const prefix = "miaplacidus:v1:";
@@ -24,8 +29,8 @@ export async function startMetaFixture(
   });
   await page.goto(`/?testSeed=20261003&testLocale=en&economyFixture=${fixture}`);
   await page.getByLabel("Pioneer name").fill("Ascendency Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
-  await page.getByRole("button", { name: "Begin exploring" }).click();
+  await page.getByTestId("start-game").click();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
 }

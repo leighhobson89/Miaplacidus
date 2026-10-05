@@ -3,6 +3,7 @@ import { LOCALE_IDS } from "../../../src/content/ids";
 import { spaceText } from "../../../src/i18n/spaceMessages";
 import { starMapText } from "../../../src/i18n/starMapMessages";
 import { starshipText } from "../../../src/i18n/starshipMessages";
+import { setGameLocale } from "../_harness/settings-controls";
 
 test("sweeps map, stable star names, telescope, fleet, and battle UI in all locales @localization @star-map @space-telescope @starship @battle", async ({
   page,
@@ -16,17 +17,13 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
   });
   await page.goto("/?testSeed=314159&testLocale=en&economyFixture=space-battle-victory");
   await page.getByLabel("Pioneer name").fill("Interstellar Locale Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await page.getByTestId("hydrogen-onboarding").waitFor({ state: "visible" });
-  await page.getByRole("button", { name: "Begin exploring" }).click();
+  await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
 
   const renderedTitles = new Set<string>();
   for (const locale of LOCALE_IDS) {
-    await page.locator("#tab-hydrogen").click();
-    await page.locator("#hydrogen-locale").selectOption(locale);
+    await setGameLocale(page, locale);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
 
     await page.locator("#tab-interstellar").click();
@@ -43,14 +40,17 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
     await expect(map.getByTestId("star-data-table")).toBeVisible();
 
     const starship = page.getByTestId("starship-pane");
+    await page.locator("#tab-interstellar-starship").click();
     await expect(
       starship.getByRole("heading", { name: starshipText(locale, "title") }),
     ).toBeVisible();
+    await page.locator("#tab-interstellar-fleet-hangar").click();
     await expect(
       starship.getByTestId("starship-fleet-hangar").getByRole("heading", {
         name: starshipText(locale, "envoyTitle"),
       }),
     ).toBeVisible();
+    await page.locator("#tab-interstellar-colonise").click();
     await expect(
       starship.getByTestId("starship-battle").getByRole("heading", {
         name: starshipText(locale, "battleTitle"),
@@ -58,6 +58,7 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
     ).toBeVisible();
 
     await page.locator("#tab-space-mining").click();
+    await page.locator("#tab-space-mining-launch-pad").click();
     const mining = page.getByTestId("space-mining-pane");
     await expect(mining.getByRole("heading", { name: spaceText(locale, "title") })).toBeVisible();
     await expect(mining.getByText(spaceText(locale, "systemWeather"))).toBeVisible();

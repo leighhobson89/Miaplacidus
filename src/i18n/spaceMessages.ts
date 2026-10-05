@@ -2,6 +2,7 @@ import type { LocaleId } from "../content/ids";
 
 const en = {
   title: "Space Mining",
+  miningTitle: "Mining",
   telescopeTitle: "Space Telescope",
   telescopeDescription:
     "Search for asteroids or study the stars. Surveys need a powered telescope.",
@@ -77,6 +78,7 @@ export type SpaceMessageKey = keyof typeof en;
 const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, string>>>> = {
   en,
   es: {
+    miningTitle: "Minería",
     antimatterLocked: "La antimateria se desbloquea cuando un cohete llega a un asteroide.",
     miningRate: "Tasa de extracci\u00f3n",
     reasonInsufficientAntimatter: "No hay suficiente antimateria. Necesitas: {amount}.",
@@ -150,6 +152,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "No hay suficiente {material}. Necesitas: {amount}.",
   },
   pt: {
+    miningTitle: "Mineração",
     antimatterLocked:
       "A antimat\u00e9ria \u00e9 desbloqueada quando um foguete chega a um asteroide.",
     miningRate: "Taxa de extra\u00e7\u00e3o",
@@ -224,6 +227,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Quantidade insuficiente de {material}. Necessário: {amount}.",
   },
   de: {
+    miningTitle: "Abbau",
     antimatterLocked:
       "Antimaterie wird freigeschaltet, sobald eine Rakete einen Asteroiden erreicht.",
     miningRate: "Abbaurate",
@@ -298,6 +302,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Nicht genug {material}. Benötigt: {amount}.",
   },
   it: {
+    miningTitle: "Estrazione",
     antimatterLocked: "L'antimateria si sblocca quando un razzo raggiunge un asteroide.",
     miningRate: "Tasso di estrazione",
     reasonInsufficientAntimatter: "Antimateria insufficiente. Richiesta: {amount}.",
@@ -370,6 +375,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Quantità insufficiente di {material}. Richiesti: {amount}.",
   },
   fr: {
+    miningTitle: "Extraction",
     antimatterLocked:
       "L'antimati\u00e8re se d\u00e9bloque lorsqu'une fus\u00e9e atteint un ast\u00e9ro\u00efde.",
     miningRate: "Taux d'extraction",

@@ -12,25 +12,17 @@ async function startSpaceFixture(page: import("@playwright/test").Page): Promise
   });
   await page.goto("/?testSeed=20261003&testLocale=en&economyFixture=space-telescope");
   await page.getByLabel("Pioneer name").fill("Space Telescope Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByTestId("hydrogen-onboarding")).toBeVisible();
-  await page.getByRole("button", { name: "Begin exploring" }).click();
+  await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
 }
 
-test("keeps antimatter locked until a rocket reaches an asteroid @space-telescope", async ({
+test("keeps Mining hidden until a rocket reaches an asteroid @space-telescope", async ({
   page,
 }) => {
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
-  const pane = page.getByTestId("space-mining-pane");
-  await expect(pane.getByTestId("antimatter-locked")).toContainText(
-    "Antimatter unlocks when a rocket reaches an asteroid.",
-  );
-  await expect(pane.getByTestId("antimatter-rate")).toHaveCount(0);
-  await expect(pane.getByTestId("antimatter-boost")).toHaveCount(0);
+  await expect(page.locator("#tab-space-mining-mining")).toHaveCount(0);
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.space.antimatterUnlocked),
@@ -43,6 +35,7 @@ test("builds a telescope, starts an asteroid scan, and keeps its timer in game s
 }) => {
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-telescope").click();
   const pane = page.getByTestId("space-mining-pane");
   await expect(pane).toBeVisible();
   await expect(pane).toContainText("$10,000");
@@ -71,6 +64,7 @@ test("unlocked Auto Telescope starts the selected survey mode @space-telescope",
 }) => {
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-telescope").click();
   await page.getByRole("button", { name: "Build telescope" }).click();
   const controls = page.getByTestId("auto-telescope-controls");
   await expect(controls).toBeVisible();
@@ -90,11 +84,15 @@ test("unlocked Auto Telescope starts the selected survey mode @space-telescope",
     .toBe("stars");
 });
 
-test("assembles a rocket, buys its powered fuel pump, and reports fuel progress @rockets", async ({
+test("assembles a rocket, buys its powered fuel pump, and reports fuel progress @rockets @ui-navigation", async ({
   page,
 }) => {
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-launch-pad").click();
+  for (let rocket = 1; rocket <= 4; rocket += 1) {
+    await expect(page.locator(`#tab-space-mining-rocket-${rocket}`)).toHaveCount(0);
+  }
   await page.getByRole("button", { name: "Build launch pad" }).click();
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.launchPadBuilt))
@@ -102,6 +100,7 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   await expect(page.locator("[data-testid^='rocket-card-']")).toHaveCount(4);
 
   const rocket = page.getByTestId("rocket-card-rocket1");
+  await expect(rocket).toBeVisible();
   for (let part = 0; part < 12; part += 1) {
     await rocket.getByRole("button", { name: "Build one part" }).click();
   }
@@ -110,6 +109,11 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
       page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.builtParts),
     )
     .toBe(12);
+  await expect(page.locator("#tab-space-mining-rocket-1")).toBeVisible();
+  for (let otherRocket = 2; otherRocket <= 4; otherRocket += 1) {
+    await expect(page.locator(`#tab-space-mining-rocket-${otherRocket}`)).toHaveCount(0);
+  }
+  await page.locator("#tab-space-mining-rocket-1").click();
   await rocket.getByRole("button", { name: "Buy fuel pump" }).click();
   await expect
     .poll(() =>

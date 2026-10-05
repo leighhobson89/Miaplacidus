@@ -1,6 +1,6 @@
 # Reuse and replacement decisions
 
-“Keep” below means preserve **behavior or content after review**. Existing visual and audio assets are references only; MIAPLACIDUS will remake them all. It does not imply copying a source file into the new runtime. The application now has a minimal F-11–F-18 scaffold; game rules and feature UI remain unimplemented.
+“Keep” below means preserve **behavior or content after review**. Existing visual assets are references only and must be remade. By the project owner's explicit 2026-10-04 authorization, the 30 Cosmic Forge MP3 files may be reused unchanged in MIAPLACIDUS; their source paths and runtime uses are recorded in the asset manifest. This audio exception does not authorize copying source code or visual binaries.
 
 The current-source validation for these choices is recorded in the [foundation source contract](../audit/foundation-source-contract.md) and the [economy](../audit/foundation-economy.md), [space/interstellar](../audit/foundation-space.md) and [meta/endgame](../audit/foundation-meta.md) catalogues.
 
@@ -16,10 +16,10 @@ The current-source validation for these choices is recorded in the [foundation s
 | `localization.js`, `validateLocalization.cjs` | **Adapt behavior** | Locale resolution/fallback/persistence; build gate | Typed API, cached load, pluralization and locale-aware numbers; no implicit HTML. |
 | `saveLoadGame.js`, `patches.js` | **Replace core; no original-save import** | LZString code/file method, save controls and autosave intent as behavioral reference | Multiple local slots, confirmed-name selection at Start, versioned MIAPLACIDUS schema, atomic validation and future same-game migrations. Reject Cosmic Forge codes. |
 | `events.js`, `casino.js`, `cosmicRip.js`, `achievements.js`, `onboarding.js` | **Port rules in slices** | All shipped branches, rewards, prerequisites and narrative beats | Deterministic commands/events, stable IDs, isolated effects and area tests. |
-| `audioManager.js` | **Rebuild audio adapter** | Sound cue and ambience coverage | All new audio assets, fail-safe playback and user sound settings. |
+| `audioManager.js` | **Rebuild audio adapter** | Sound cue and ambience coverage | Owner-approved source MP3s, fail-safe playback and saved audio settings. |
 | `analytics.js` | **Exclude** | Nothing | No analytics collector, endpoint or analytics preference in this project. Cosmic Rip gameplay telemetry remains in game rules. |
-| `index.html`, `styles.css` | **Replace shell/styles** | Nine-tab reach, themes and critical information | Modern layout/tokens, mobile and keyboard paths, reduced-motion support. |
-| `images/`, `sounds/` | **Remake every asset** | Coverage inventory and creative references only | New illustrations, icons, cinematics, sound effects and music with provenance, optimization and accessible alternatives. |
+| `index.html`, `styles.css` | **Replace shell/styles** | Nine source-tab reach, fixed source order, the appended Miaplaedia reference tab, themes and critical information | Modern layout/tokens, omit locked main tabs without reordering or renumbering internal positions, use names-only tab labels, keep Settings followed by Miaplaedia, mobile and keyboard paths, reduced-motion support. |
+| `images/`, `sounds/` | **Remake visual assets; reuse audio by owner permission** | Visual coverage inventory and source sound behavior | New illustrations, icons and cinematics; reuse the 30 MP3 files unchanged, with source provenance and runtime mapping. |
 | `tests/e2e`, `tests/docs` | **Keep approach and taxonomy** | Area folders, clean fixture, scenario helpers, per-area reports, migration and performance coverage | TypeScript specs, semantic locators, pure engine tests, current result manifest. |
 | `create_build.py`, `tools/build-*`, Electron `main.js` | **Web build only** | Browser packaging lessons and old demo gates as reference | Vite browser release for desktop/mobile; full by default, optional flagged demo. No Electron packaging. |
 

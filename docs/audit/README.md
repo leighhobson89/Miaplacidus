@@ -40,3 +40,5 @@ The generated [coverage report](../../../cosmicForge/cosmicForge/tests/docs/cove
 The source reference is locked to full commit `93e32669c3b35e76cdd4cf82725c14e7215b2fbc`; no source changes after this audit snapshot were found during F-01 verification.
 
 The detailed code risks are in [quality and risks](quality-and-risks.md). The feature inventory in [mechanics and content](mechanics-and-content.md) is the practical parity boundary. A later implementation phase should build a machine-readable rules catalogue from the source data and validate every item, tech, perk, achievement, event, and star modifier against play.
+
+The [weather presentation comparison](weather-presentation.md) records the source rain/lava overlay and the remake's bounded canvas treatment.

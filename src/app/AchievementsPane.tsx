@@ -1,21 +1,23 @@
 import { ACHIEVEMENT_CATALOGUE, achievementName } from "../content/achievements";
-import type { LocaleId } from "../content/ids";
 import type { GameState } from "../engine/state";
 import { achievementText } from "../i18n/achievementMessages";
 import { achievementRewardText } from "../i18n/achievementRewardMessages";
 import { AchievementBadge } from "./AchievementBadge";
-import { economyGoodName } from "./EconomyPanes";
+import { economyGoodName } from "./economyDisplay";
+import { formatCurrency } from "./currencyFormatting";
+import { formatNumber } from "./numberFormatting";
 
 function rewardText(
-  locale: LocaleId,
+  state: GameState,
   reward: (typeof ACHIEVEMENT_CATALOGUE)[number]["reward"],
 ): string {
-  const amount = new Intl.NumberFormat(locale).format("amount" in reward ? reward.amount : 0);
+  const { locale, notation, currencyId } = state.settings;
+  const amount = formatNumber(locale, "amount" in reward ? reward.amount : 0, 0, notation);
   switch (reward.type) {
     case "none":
       return achievementText(locale, "noReward");
     case "cash":
-      return `$${amount}`;
+      return formatCurrency(locale, reward.amount, currencyId ?? "usd", 0, notation);
     case "ascendency-points":
       return achievementRewardText(locale, "ap", { amount });
     case "glory-points":
@@ -85,7 +87,7 @@ export function AchievementsPane({ state }: { readonly state: GameState }) {
                 <h3>{achievementName(definition.id, locale)}</h3>
                 <p>
                   <span>{achievementText(locale, "reward")}:</span>{" "}
-                  {rewardText(locale, definition.reward)}
+                  {rewardText(state, definition.reward)}
                 </p>
                 <small>
                   {permanent

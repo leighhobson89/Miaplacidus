@@ -1,6 +1,6 @@
 # Economy browser coverage (M-03)
 
-This area uses Playwright in Chrome with real clicks through the Resources, Energy, Research, and Compounds panels. Most later-system cases start from a named, deterministic fixture so the test can focus on the action under test. Fresh progression begins with a real Hydrogen save, buys the Science Kit and compressor through their controls, and reaches its first research purchase. Automatic-sale and compound-creation cases buy/enable producers, set visible allocation controls, and advance the injected clock.
+This area uses Playwright in Chrome with real clicks through the Resources, Energy, Research, and Compounds panels. Most later-system cases start from a named, deterministic fixture so the test can focus on the action under test. Fresh progression begins with a real Hydrogen save, buys the Science Kit and compressor through their controls, unlocks Energy and Compounds, and reaches the first Helium and Carbon child pages through the resource rail. That path checks source order, Energy's initial Energy Storage page, `New` badge clearing, and child-page restoration after switching main tabs. Automatic-sale and compound-creation cases buy/enable producers, operate the source-style two-handle segmented allocation slider with pointer/touch dragging or 5% keyboard steps, and advance the injected clock.
 
 ## Run
 
@@ -31,9 +31,15 @@ The intentional numerical deviation is production ordering: the remake computes 
 
 ## Evidence boundary
 
-The current E2E area covers a fresh Hydrogen route through the first Research purchase, Energy unlock and Diesel compound unlock; all eight material cards and six compound cards; every material and compound storage control; all autobuyer tiers and pause/resume controls; Water's secondary Concrete cost; Increase All Storage; all plant, battery, and science building cards; Power All and plant toggles; manual and automated technology purchases with accessible completion announcements; the manual completion announcement and economy screens in all six locales; permanent multipliers; Dyson infinite power; allocation controls for all eight resources; all six automatic compound recipes from newly produced inputs; battery charge/discharge/recharge; energy trip/recovery; six-language screenshots of Hydrogen, Research, Energy, and Compounds; notation; and economy save/reload. The save/reload case changes a resource balance and storage capacity, buys an autobuyer and power buildings, changes research, compound automation, an allocation share, locale, and notation, then compares all 14 material/compound balances and capacities plus the full upgrade/economy state after reload.
+The current E2E area covers a fresh Hydrogen route through the first Research purchase, Energy unlock and Diesel compound unlock; all eight material pages and six compound cards; every individual material and compound storage control; the single Hydrogen stock display and shared Compressor/tier Autobuyers disclosure; Fusion grouped with selling, including first-discovery and subsequent efficiency notices; removal of the duplicate bulk storage action; all autobuyer tiers and pause/resume controls; Water's secondary Concrete cost; all plant, battery, and science building cards; Power All and plant toggles; manual and automated technology purchases with accessible completion announcements; the manual completion announcement and economy screens in all six locales; permanent multipliers; Dyson infinite power; allocation controls for all eight resources; focused keyboard and pointer operation of the segmented cash/compound slider; all six automatic compound recipes from newly produced inputs; battery charge/discharge/recharge; energy trip/recovery; six-language screenshots of Hydrogen, Research, Energy, and Compounds; 390px document-width checks for those four tabs in all six locales; localized Energy and Compound child-page labels; notation; and economy save/reload. The save/reload case changes a resource balance and storage capacity, buys an autobuyer and power buildings, changes research, compound automation, an allocation share, locale, and notation, then compares all 14 material/compound balances and capacities plus the full upgrade/economy state after reload.
+
+The Tech Tree zoom case verifies both prerequisite edges into Advanced Power Generation, captures a screenshot panned to those dependencies, and confirms ArrowRight/ArrowDown scroll the named viewport on both axes after zooming. The complete graph, theme, and narrow-viewport review remains open under P-60.
 
 The M-03 economy and research gate is complete. Rebirth carryover and repeatable-price restoration (former E-06/E-13/E-36/E-56) belong to M-05; telescope/rocket demand and star/weather/space modifiers (E-09/E-25/E-26/E-35) belong to M-04/M-05; the exhaustive row/tooltip/modal/dynamic-cost language review (E-57) belongs to M-06. The [chronological economy checklist](../../../docs/plans/build-checklist/03-economy.md) links each follow-up to its owner. Their implementation remains open in those later phases and is not counted as M-03 evidence.
+
+## Focused allocation verification (5 October 2026)
+
+- Four desktop/mobile-emulated Chrome journeys passed **4/4** for 5% keyboard steps, pointer/touch dragging, allocation readouts, and production/automation using the resource allocation slider. The reviewed `economy-production-allocation-slider.png` screenshot records the themed segments and both handles; the nested compound pane screenshots were refreshed and passed on rerun.
 
 ## Latest verification (3 October 2026)
 
@@ -41,3 +47,20 @@ The M-03 economy and research gate is complete. Rebirth carryover and repeatable
 - After strengthening the economy save/reload assertions to compare all balances, capacities, upgrades and automation state: the focused E-56 browser case **passed** and its reviewed screenshot baseline was updated.
 - `npm.cmd run test:unit`: **43 passed**.
 - `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run check:boundaries`, `npm.cmd run format:check`, and `npm.cmd run build`: all passed.
+
+## Focused navigation update (5 October 2026)
+
+- `npm.cmd run test:e2e:focused -- --workers=1 tests/e2e/economy/economy.spec.ts -g "fresh Hydrogen progression unlocks Energy" --update-snapshots` reported **1 passed** in Chrome. It exercises a fresh Hydrogen save through technology unlocks, Energy/Compounds, the ordered Helium/Carbon child pages, Energy Storage as its default child, badge clearing, and child-page restoration after switching tabs. The Playwright process hung after reporting the pass and was interrupted during browser shutdown.
+- The same focused command without `--update-snapshots` also reported **1 passed** against the refreshed baselines. It had the same post-pass browser shutdown hang and was interrupted.
+- The journey exposed old flattened-resource and nested-technology-button selectors left over from before the Tech Tree and child-page redesign. They now follow the actual button and panel structure. The obsolete exact-cash assertion now checks the progression threshold, and the four affected screenshot baselines show the current Tech Tree and resource-page layouts.
+
+## Focused fusion notification verification (5 October 2026)
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL = 'chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO = '1'
+npm.cmd run test:e2e:focused -- tests/e2e/economy/economy.spec.ts -g "first fusion discovery reports stored yield" --workers=1
+```
+
+This passed **1/1** in system Chrome with video disabled. The player journey researched Hydrogen Fusion, discovered Helium and checked generated/stored quantities, then fused Hydrogen again and checked the later efficiency-loss notice.
+- `npm.cmd run test:unit:focused -- tests/unit/economy.spec.ts` passed **22/22**; the discovery event flag and rendered placeholder/quantity copy are covered, with all six locale templates checked. `npm.cmd run typecheck` passed.

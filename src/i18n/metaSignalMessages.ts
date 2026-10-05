@@ -1,5 +1,8 @@
 import type { LocaleId } from "../content/ids";
 import type { NewsCategory, NewsTickerEntry, RandomEventId } from "../content/metaSignals";
+import { GALAXY_SEED_DEFAULT } from "../content/ids";
+import { createStarCatalogue } from "../content/starCatalogue";
+import type { LocaleNewsCopy } from "./sourceNewsCopy";
 
 const messages: Record<
   LocaleId,
@@ -12,7 +15,8 @@ const messages: Record<
     history: string;
     claim: string;
     claimed: string;
-    noNews: string;
+    here: string;
+    activate: string;
     noEvents: string;
     prize: string;
     oneOff: string;
@@ -31,7 +35,8 @@ const messages: Record<
     history: "Event history",
     claim: "Claim",
     claimed: "Claimed",
-    noNews: "No reports yet. Advance the simulation to start the ticker.",
+    here: "here",
+    activate: "Activate",
     noEvents: "No random events have occurred.",
     prize: "A news service has a resource grant for",
     oneOff: "A special bulletin offers a permanent run upgrade",
@@ -49,7 +54,8 @@ const messages: Record<
     history: "Historial de eventos",
     claim: "Reclamar",
     claimed: "Reclamado",
-    noNews: "Aún no hay noticias. Avanza la simulación para iniciar el teletipo.",
+    here: "aquí",
+    activate: "Activar",
     noEvents: "Aún no han ocurrido eventos aleatorios.",
     prize: "Un servicio de noticias ofrece un recurso:",
     oneOff: "Un boletín especial ofrece una mejora para esta partida",
@@ -67,7 +73,8 @@ const messages: Record<
     history: "Histórico de eventos",
     claim: "Resgatar",
     claimed: "Resgatado",
-    noNews: "Ainda não há notícias. Avance a simulação para iniciar o ticker.",
+    here: "aqui",
+    activate: "Ativar",
     noEvents: "Ainda não ocorreram eventos aleatórios.",
     prize: "Um serviço de notícias oferece um recurso:",
     oneOff: "Um boletim especial oferece uma melhoria para esta partida",
@@ -85,7 +92,8 @@ const messages: Record<
     history: "Ereignisverlauf",
     claim: "Einlösen",
     claimed: "Eingelöst",
-    noNews: "Noch keine Meldungen. Starte die Simulation für den Ticker.",
+    here: "hier",
+    activate: "Aktivieren",
     noEvents: "Es gab noch keine Zufallsereignisse.",
     prize: "Ein Nachrichtendienst bietet eine Ressource an:",
     oneOff: "Eine Sondermeldung bietet eine Verbesserung für diesen Durchlauf",
@@ -103,7 +111,8 @@ const messages: Record<
     history: "Cronologia eventi",
     claim: "Riscatta",
     claimed: "Riscattato",
-    noNews: "Ancora nessuna notizia. Avanza la simulazione per avviare il ticker.",
+    here: "qui",
+    activate: "Attiva",
     noEvents: "Non si sono ancora verificati eventi casuali.",
     prize: "Un notiziario offre una risorsa:",
     oneOff: "Un bollettino speciale offre un potenziamento per questa partita",
@@ -121,7 +130,8 @@ const messages: Record<
     history: "Historique des événements",
     claim: "Récupérer",
     claimed: "Récupéré",
-    noNews: "Aucune actualité pour le moment. Avancez la simulation pour lancer le fil.",
+    here: "ici",
+    activate: "Activer",
     noEvents: "Aucun événement aléatoire ne s’est encore produit.",
     prize: "Un service d’actualités offre une ressource :",
     oneOff: "Une annonce spéciale offre une amélioration pour cette partie",
@@ -309,10 +319,54 @@ export function journalLabel(locale: LocaleId, key: "ago" | "eventProbabilities"
 export function newsCategoryName(locale: LocaleId, category: NewsCategory): string {
   return journalLabels[locale].categories[category];
 }
-export function newsEntryText(locale: LocaleId, entry: NewsTickerEntry): string {
-  if (entry.category === "prize") return `${messages[locale].prize} ${entry.prizeGoodId ?? ""}.`;
-  if (entry.category === "oneOff") return `${messages[locale].oneOff} #${entry.id}.`;
-  if (entry.category === "wacky") return `${messages[locale].wacky} #${entry.id - 1000}.`;
-  if (entry.category === "manuscriptClue") return `${messages[locale].clue} #${entry.id - 4000}.`;
-  return `${messages[locale].headline} #${entry.id}.`;
+let starNames: Map<string, string> | null = null;
+
+function starNameForSystem(systemId: string | null | undefined): string | undefined {
+  if (!systemId) return undefined;
+  starNames ??= new Map(
+    createStarCatalogue(GALAXY_SEED_DEFAULT).map((star) => [star.id, star.name] as const),
+  );
+  return starNames.get(systemId);
+}
+
+export function newsEntryText(
+  locale: LocaleId,
+  entry: NewsTickerEntry,
+  copy?: LocaleNewsCopy,
+): string {
+  if (!copy) {
+    if (entry.category === "prize") {
+      const amount =
+        typeof entry.prizeAmount === "number"
+          ? `${new Intl.NumberFormat(locale).format(entry.prizeAmount)} `
+          : "";
+      return `${messages[locale].prize} ${amount}${entry.prizeGoodId ?? ""} ${messages[locale].here}.`;
+    }
+    if (entry.category === "oneOff") return `${messages[locale].oneOff} ${messages[locale].here}.`;
+    if (entry.category === "wacky") return messages[locale].wacky;
+    if (entry.category === "manuscriptClue") return messages[locale].clue;
+    return messages[locale].headline;
+  }
+  if (entry.category === "prize") {
+    if (typeof entry.prizeAmount !== "number")
+      return `${messages[locale].prize} ${entry.prizeGoodId ?? ""}.`;
+    const template = copy.prizes[entry.id - 2000];
+    return template
+      ? template
+          .replace("{amount}", new Intl.NumberFormat(locale).format(entry.prizeAmount))
+          .replace("{here}", copy.here)
+      : `${messages[locale].prize} ${entry.prizeGoodId ?? ""}.`;
+  }
+  if (entry.category === "oneOff")
+    return (copy.oneOffs[entry.id - 3000] ?? `${messages[locale].oneOff}.`)
+      .replace("{here}", copy.here)
+      .replace("{ap}", new Intl.NumberFormat(locale).format(1));
+  if (entry.category === "wacky")
+    return copy.wackyEffects[entry.id - 1000] ?? messages[locale].wacky;
+  if (entry.category === "manuscriptClue") {
+    const template = copy.manuscriptClues[entry.id - 4000];
+    const starName = starNameForSystem(entry.clueSystemId);
+    return template && starName ? template.replaceAll("{STAR}", starName) : messages[locale].clue;
+  }
+  return copy.headlines[entry.id] ?? messages[locale].headline;
 }

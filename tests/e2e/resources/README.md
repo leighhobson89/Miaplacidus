@@ -19,3 +19,5 @@ Run with `npm run test:e2e:focused -- tests/e2e/resources/hydrogen-loop.spec.ts`
 ## Observed result
 
 2 October 2026: 2/2 browser tests passed with screenshot baselines for collected Hydrogen, post-sale balance and expanded storage. The 11 focused unit tests also passed. These results cover Hydrogen only; seven other resources, fusion and the rest of the economy remain open. See the [M-01 record](../../../docs/archive/plans/2026-10-02-hydrogen-vertical-slice.md).
+
+5 October 2026: the Chrome `navigation-hierarchy.spec.ts` area passed 2/2. It checks source-ordered Gases/Solids links, hides Solids before a solid is unlocked, and confirms Resources rail collapse choices survive reload/resume. Its 390px visual checkpoint was refreshed after inspecting the mobile layout; both the Resources rail and game page stay within the viewport.

@@ -4,7 +4,8 @@ import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 
 test("previews and settles an exact Galactic Market trade", async ({ page }, testInfo) => {
   await startMetaFixture(page, "meta-market-ready");
-  await page.getByRole("tab", { name: "Galaxy" }).click();
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Galactic Market" }).click();
   const market = page.getByRole("region", { name: "Galactic Market" });
   await market.getByLabel("You give").selectOption("hydrogen");
   await market.getByLabel("You receive").selectOption("helium");
@@ -18,10 +19,11 @@ test("previews and settles an exact Galactic Market trade", async ({ page }, tes
   expect(state.permanent.galacticMarket.history).toHaveLength(1);
   await expect(market.getByRole("listitem")).toContainText("10 Hydrogen");
 
+  const apBeforeSale = state.permanent.ascendencyPoints;
   await market.getByLabel("AP to sell").selectOption("10");
   await market.getByRole("button", { name: "Sell AP for cash", exact: true }).click();
   let marketState = await page.evaluate(() => window.miaplacidusTest!.getState());
-  expect(marketState.permanent.ascendencyPoints).toBe(90);
+  expect(marketState.permanent.ascendencyPoints).toBe(apBeforeSale - 10);
   expect(marketState.run.cash).toBe(11_000_000);
 
   await market.getByRole("button", { name: "Liquidate all assets", exact: true }).click();
@@ -29,7 +31,7 @@ test("previews and settles an exact Galactic Market trade", async ({ page }, tes
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "CONFIRM LIQUIDATION" }).click();
   marketState = await page.evaluate(() => window.miaplacidusTest!.getState());
-  expect(marketState.permanent.ascendencyPoints).toBe(91);
+  expect(marketState.permanent.ascendencyPoints).toBe(apBeforeSale - 9);
   expect(marketState.run.cash).toBe(0);
   expect(marketState.run.goods.hydrogen.quantity).toBe(0);
   expect(marketState.run.marketLiquidatedThisRun).toBe(true);

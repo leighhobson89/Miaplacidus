@@ -401,9 +401,26 @@ function trigger(
     ...state.run.randomEvents.history,
     { id, simulationMs: state.run.clock.simulationMs, negative },
   ].slice(-100);
+  const eventCountsThisRun = {
+    ...state.run.randomEvents.eventCountsThisRun,
+    [id]: state.run.randomEvents.eventCountsThisRun[id] + 1,
+  };
+  const lifetimeRandomEventCounts = {
+    ...state.statistics.lifetimeRandomEventCounts,
+    [id]: state.statistics.lifetimeRandomEventCounts[id] + 1,
+  };
   state = {
     ...state,
-    run: { ...state.run, randomEvents: { ...state.run.randomEvents, probabilities, history } },
+    run: {
+      ...state.run,
+      randomEvents: {
+        ...state.run.randomEvents,
+        probabilities,
+        history,
+        eventCountsThisRun,
+      },
+    },
+    statistics: { ...state.statistics, lifetimeRandomEventCounts },
   };
   return { state, events: [{ type: "random-event.triggered", id, negative }] };
 }

@@ -114,6 +114,7 @@ describe("space battle and settlement flow", () => {
     expect(victory.run.space.starship.destinationSystemId).toBe(destinationId);
     expect(victory.run.timers[battleTimerId]).toBeUndefined();
     expect(victory.permanent.ascendencyPoints).toBe(6);
+    expect(victory.statistics.lifetimeAscendencyPointsGained).toBe(6);
     expect(victory.permanent.achievements.unlockedIds).toEqual(
       expect.arrayContaining([
         "conquerEnemy",
@@ -133,6 +134,7 @@ describe("space battle and settlement flow", () => {
     expect(settled.state.permanent.settledSystemIds).toContain(destinationId);
     // The settlement's 6 AP and the victory achievements' 6 AP are distinct awards.
     expect(settled.state.permanent.ascendencyPoints).toBe(12);
+    expect(settled.state.statistics.lifetimeAscendencyPointsGained).toBe(12);
     expect(settled.state.permanent.gloryPoints).toBe(0);
     expect(settled.state.run.space.ascendencyAwardedThisRun).toBe(true);
     expect(transition(settled.state, { type: "space.system.settle" }).accepted).toBe(false);

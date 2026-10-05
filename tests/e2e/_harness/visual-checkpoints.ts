@@ -21,6 +21,13 @@ export async function captureVisualCheckpoint(
     expect(surface.background).not.toBe("rgb(255, 255, 255)");
   }
 
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        window.scrollTo(0, 0);
+        requestAnimationFrame(() => resolve());
+      }),
+  );
   const image = await page.screenshot({ fullPage: true, animations: "disabled" });
   await testInfo.attach(`${name}.png`, { body: image, contentType: "image/png" });
   await expect(page).toHaveScreenshot(`${name}.png`, {

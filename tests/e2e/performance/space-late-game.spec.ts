@@ -12,10 +12,7 @@ test("records frame and heap metrics with four active rockets @performance @rock
   });
   await page.goto("/?testSeed=314159&testLocale=en&economyFixture=space-late-game");
   await page.getByLabel("Pioneer name").fill("Late Game Performance Pioneer");
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await page.getByTestId("hydrogen-onboarding").waitFor({ state: "visible" });
-  await page.getByRole("button", { name: "Begin exploring" }).click();
+  await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
 

@@ -60,6 +60,7 @@ export type ResourceTransactionEvent =
 
 export interface ResourceTransactionResult {
   readonly goods: Readonly<Record<EconomicGoodId, GoodState>>;
+  readonly goodsProducedByGood: Readonly<Record<EconomicGoodId, number>>;
   readonly cash: number;
   readonly cashRaised: number;
   readonly goodsProduced: number;
@@ -95,9 +96,14 @@ export function transactResources(
   checkedAmount(cash, "Cash");
   checkedAmount(elapsedMs, "Elapsed time");
   const seconds = elapsedMs / 1000;
+  const goodsProducedByGood = Object.fromEntries(ECONOMIC_GOOD_IDS.map((id) => [id, 0])) as Record<
+    EconomicGoodId,
+    number
+  >;
   if (seconds === 0) {
     return {
       goods,
+      goodsProducedByGood,
       cash,
       cashRaised: 0,
       goodsProduced: 0,
@@ -121,7 +127,12 @@ export function transactResources(
     const amount =
       checkedRate(plan.productionPerSecond?.[goodId] ?? 0, `Production for ${goodId}`) * seconds;
     if (amount > 0) {
+      const actualGain = Math.min(
+        amount,
+        Math.max(0, next[goodId].storageCapacity - next[goodId].quantity),
+      );
       next[goodId] = { ...next[goodId], quantity: next[goodId].quantity + amount };
+      goodsProducedByGood[goodId] += actualGain;
       if (goodId in (plan.productionAllocation ?? {}))
         newlyProduced.set(goodId as MaterialId, amount);
       goodsProduced += amount;
@@ -237,6 +248,7 @@ export function transactResources(
       ...next[demand.outputId],
       quantity: next[demand.outputId].quantity + amount,
     };
+    goodsProducedByGood[demand.outputId] += amount;
     goodsProduced += amount;
     events.push({ type: "compound.created", goodId: demand.outputId, amount });
   }
@@ -248,6 +260,7 @@ export function transactResources(
     const amount = Math.min(requested, Math.max(0, good.storageCapacity - good.quantity));
     if (amount > 0) {
       next[precipitation.goodId] = { ...good, quantity: good.quantity + amount };
+      goodsProducedByGood[precipitation.goodId] += amount;
       goodsProduced += amount;
       precipitationCollected = amount;
       events.push({ type: "precipitation.collected", goodId: precipitation.goodId, amount });
@@ -272,6 +285,7 @@ export function transactResources(
 
   return {
     goods: next,
+    goodsProducedByGood,
     cash: cash + cashRaised,
     cashRaised,
     goodsProduced,

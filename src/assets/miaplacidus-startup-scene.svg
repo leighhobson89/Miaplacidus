@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" fill="none">
+  <defs>
+    <radialGradient id="starGlow" cx="0" cy="0" r="1" gradientTransform="matrix(0 112 -150 0 493 137)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00FF00" stop-opacity=".14" />
+      <stop offset=".46" stop-color="#00FF00" stop-opacity=".055" />
+      <stop offset="1" stop-color="#00FF00" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="ring" x1="205" x2="764" y1="230" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00FF00" stop-opacity="0" />
+      <stop offset=".2" stop-color="#00FF00" stop-opacity=".25" />
+      <stop offset=".49" stop-color="#FFFFFF" stop-opacity=".92" />
+      <stop offset=".78" stop-color="#00FF00" stop-opacity=".3" />
+      <stop offset="1" stop-color="#00FF00" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="planet" x1="225" x2="735" y1="190" y2="304" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#001500" />
+      <stop offset=".48" stop-color="#000800" />
+      <stop offset="1" stop-color="#000000" />
+    </linearGradient>
+    <clipPath id="sceneClip"><rect width="960" height="300" rx="22" /></clipPath>
+  </defs>
+  <g clip-path="url(#sceneClip)">
+    <rect width="960" height="300" fill="#000000" />
+    <rect width="960" height="300" fill="url(#starGlow)" />
+    <path d="M0 207c143-54 250-53 354-20 108 35 187 17 275-15 117-42 216-29 331 16v112H0V207Z" fill="#001000" fill-opacity=".72" />
+    <g fill="#FFFFFF">
+      <circle cx="99" cy="58" r="1.5" opacity=".85"/><circle cx="184" cy="106" r="1" opacity=".66"/>
+      <circle cx="274" cy="42" r="1.2" opacity=".9"/><circle cx="345" cy="91" r="1.1" opacity=".72"/>
+      <circle cx="404" cy="44" r="1.4" opacity=".8"/><circle cx="567" cy="39" r="1" opacity=".78"/>
+      <circle cx="662" cy="80" r="1.4" opacity=".84"/><circle cx="756" cy="48" r="1" opacity=".68"/>
+      <circle cx="851" cy="111" r="1.3" opacity=".82"/><circle cx="905" cy="55" r="1" opacity=".66"/>
+      <circle cx="143" cy="161" r="1" opacity=".62"/><circle cx="814" cy="168" r="1.1" opacity=".72"/>
+    </g>
+    <path d="M0 235c161-49 272-39 389-6 107 30 186 26 288-9 99-34 187-31 283 0v80H0v-65Z" fill="#001800" fill-opacity=".58" />
+    <ellipse cx="488" cy="253" rx="294" ry="61" stroke="url(#ring)" stroke-width="2" />
+    <ellipse cx="488" cy="252" rx="246" ry="45" stroke="#00FF00" stroke-opacity=".26" />
+    <path d="M238 255c27-41 76-67 132-72 95-9 148 29 231 25 62-3 100-29 154-14 35 10 57 34 68 61v88H238v-88Z" fill="url(#planet)" />
+    <path d="M246 248c46-39 92-52 137-54 93-4 144 32 220 28 61-3 107-28 166-13 19 5 36 14 52 28" stroke="#00FF00" stroke-opacity=".72" stroke-width="2" />
+    <path d="M0 286c149-24 280-15 390 1 117 18 215 15 319-3 91-16 166-18 251-6v22H0v-14Z" fill="#000000" fill-opacity=".82" />
+    <circle cx="492" cy="132" r="11" fill="#FFFFFF" />
+    <circle cx="492" cy="132" r="19" stroke="#00FF00" stroke-opacity=".58" />
+    <path d="M492 105v-11m0 76v-11m27-27h11m-76 0h11m46-19 8-8m-54 54 8-8m38 0 8 8m-54-54 8 8" stroke="#00FF00" stroke-opacity=".84" stroke-linecap="round" />
+    <circle cx="678" cy="197" r="3" fill="#00FF00" />
+    <path d="m669 197 9-4 12 4-12 4-9-4Z" fill="#FFFFFF" fill-opacity=".8" />
+  </g>
+</svg>

@@ -1,12 +1,14 @@
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
 
 test("researches, charges, saves and activates the Black Hole through the player pane @black-hole", async ({
   page,
 }, testInfo) => {
   await startMetaFixture(page, "meta-black-hole-discovered");
-  await page.getByRole("tab", { name: "Galaxy" }).click();
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Black Hole" }).click();
   const pane = page.getByTestId("black-hole-research");
   await expect(pane).toBeVisible();
   await expect(pane).toContainText("3,000,000 research points");
@@ -30,13 +32,13 @@ test("researches, charges, saves and activates the Black Hole through the player
     chargeStatus: "running",
   });
 
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   await expect(page.getByTestId("save-status")).toContainText("Saved");
   await page.reload();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumeSavedPioneer(page, "Ascendency Pioneer");
   await expect(page.locator("[data-app-ready]")).toBeVisible();
-  await page.getByRole("tab", { name: "Galaxy" }).click();
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Black Hole" }).click();
   await expect.poll(readProgress).toMatchObject({ researched: true, chargeStatus: "running" });
 
   expect(

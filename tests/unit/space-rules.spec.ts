@@ -267,8 +267,30 @@ describe("space content rules", () => {
         },
       },
     };
-    const search = transition(base, { type: "space.telescope.scan.start" });
-    expect(search.accepted).toBe(true);
+    const searchStart = transition(base, { type: "space.telescope.scan.start" });
+    expect(searchStart.accepted).toBe(true);
+    const successfulScanSeed = Array.from({ length: 256 }, (_, seed) => seed).find(
+      (seed) =>
+        generateAsteroid(
+          {
+            sequence: searchStart.state.run.space.nextAsteroidSequence,
+            systemId: searchStart.state.run.space.currentSystemId,
+            commanderName: searchStart.state.run.pioneerName,
+            existingNames: new Set(
+              searchStart.state.run.space.asteroids.map((asteroid) => asteroid.name),
+            ),
+          },
+          createRandomState(seed),
+        ).asteroid !== null,
+    );
+    expect(successfulScanSeed).toBeDefined();
+    const search = {
+      ...searchStart,
+      state: {
+        ...searchStart.state,
+        run: { ...searchStart.state.run, random: createRandomState(successfulScanSeed!) },
+      },
+    };
     const slot = "11111111-1111-4111-8111-111111111111";
     const resumed = decodePortable(
       encodePortable(
@@ -291,6 +313,12 @@ describe("space content rules", () => {
       timerId: createTimerId("survey", "asteroid-scan"),
     });
     const asteroidCountAfterCompletion = completedSearch.state.run.space.asteroids.length;
+    const discoveredAsteroid = completedSearch.state.run.space.asteroids.at(-1);
+    expect(discoveredAsteroid).toBeDefined();
+    expect(completedSearch.state.statistics.lifetimeAsteroidsDiscovered).toBe(1);
+    expect(completedSearch.state.statistics.lifetimeLegendaryAsteroidsDiscovered).toBe(
+      discoveredAsteroid?.rarity === "legendary" ? 1 : 0,
+    );
     const repeatedCompletion = transition(completedSearch.state, {
       type: "timer.complete",
       timerId: createTimerId("survey", "asteroid-scan"),
@@ -298,6 +326,7 @@ describe("space content rules", () => {
     expect(completedSearch.state.run.space.activeSurvey).toBeNull();
     expect(repeatedCompletion.state.run.space.asteroids).toHaveLength(asteroidCountAfterCompletion);
     expect(repeatedCompletion.state.statistics.completedTimers).toBe(1);
+    expect(repeatedCompletion.state.statistics.lifetimeAsteroidsDiscovered).toBe(1);
 
     const fueled = transition(resumed, {
       type: "clock.advance",
@@ -566,6 +595,7 @@ describe("space content rules", () => {
     }
     expect(state.run.space.rockets.rocket1.phase).toBe("ready");
     expect(state.run.space.rockets.rocket1.builtParts).toBe(12);
+    expect(state.statistics.lifetimeRocketsBuilt).toBe(1);
     const pump = transition(state, { type: "space.rocket.pump.purchase", rocketId: "rocket1" });
     expect(pump.accepted).toBe(true);
     expect(pump.state.run.space.rockets.rocket1).toMatchObject({
@@ -598,6 +628,7 @@ describe("space content rules", () => {
     });
     expect(launch.accepted).toBe(true);
     expect(launch.state.run.space.rockets.rocket1.phase).toBe("orbit");
+    expect(launch.state.statistics.lifetimeRocketsLaunched).toBe(1);
     expect(isValidGameState(launch.state)).toBe(true);
     const stormState = {
       ...fullRocketState,
@@ -612,6 +643,7 @@ describe("space content rules", () => {
     });
     expect(stormLaunch.accepted).toBe(false);
     expect(stormLaunch.failure?.code).toBe("space-weather-blocked");
+    expect(stormLaunch.state.statistics.lifetimeRocketsLaunched).toBe(0);
     expect(isValidGameState(stormState)).toBe(true);
     const volcanoState: GameState = {
       ...fullRocketState,
@@ -711,9 +743,13 @@ describe("space content rules", () => {
     });
     expect(arrived.state.run.space.rockets.rocket1.phase).toBe("mining");
     expect(arrived.state.run.space.antimatterUnlocked).toBe(true);
+    expect(arrived.state.run.space.asteroidsMinedThisRun).toBe(1);
+    expect(arrived.state.statistics.lifetimeAsteroidsMined).toBe(1);
 
     const resumedMining = reload(arrived.state);
     expect(resumedMining.run.space.rockets.rocket1.phase).toBe("mining");
+    expect(resumedMining.run.space.asteroidsMinedThisRun).toBe(1);
+    expect(resumedMining.statistics.lifetimeAsteroidsMined).toBe(1);
     expect(antimatterMiningRatePerSecond(resumedMining)).toBeCloseTo(0.4, 10);
     const boosted = transition(resumedMining, {
       type: "space.antimatter-boost.set-active",

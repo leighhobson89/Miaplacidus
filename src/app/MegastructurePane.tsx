@@ -9,6 +9,8 @@ import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { megastructureText } from "../i18n/megastructureMessages";
+import { formatNumber } from "./numberFormatting";
+import { CelestialIllustration } from "./CelestialIllustration";
 
 interface MegastructurePaneProps {
   readonly state: GameState;
@@ -27,21 +29,19 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
   const progress = state.permanent.megastructures;
   const records = progress.ancientManuscripts;
   const forceFieldLevel = miaplacidusForceFieldLevel(state);
-  const number = (value: number) =>
-    new Intl.NumberFormat(locale, {
-      notation: state.settings.notation === "scientific" ? "scientific" : "standard",
-      maximumFractionDigits: 0,
-    }).format(value);
+  const number = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
 
   return (
     <section className="economy-section megastructure-pane" data-testid="megastructure-pane">
       <div className="economy-section-heading">
-        <p className="eyebrow">05 / {text.title}</p>
         <h2>{text.title}</h2>
         <p>{text.introduction}</p>
         <p data-testid="megastructure-force-field">
           {text.forceField.replace("{level}", String(forceFieldLevel))}
         </p>
+      </div>
+      <div className="deep-space-banner">
+        <CelestialIllustration kind="megastructure" />
       </div>
 
       {records.length === 0 ? (

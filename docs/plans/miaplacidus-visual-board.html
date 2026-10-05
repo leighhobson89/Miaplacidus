@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIAPLACIDUS — visual direction board</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        color: #edf4fd;
+        background: #07101c;
+        font-synthesis: none;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        background:
+          radial-gradient(ellipse at 78% -12%, rgb(41 103 135 / 28%), transparent 42rem),
+          radial-gradient(ellipse at 8% 98%, rgb(58 74 126 / 16%), transparent 34rem), #07101c;
+      }
+      main {
+        width: min(100% - 2rem, 68rem);
+        margin: 0 auto;
+        padding: 3rem 0 5rem;
+      }
+      .eyebrow {
+        color: #7fe7d3;
+        font-size: 0.72rem;
+        font-weight: 750;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0.6rem 0;
+        font-size: clamp(2rem, 6vw, 4rem);
+        font-weight: 620;
+        letter-spacing: 0.12em;
+      }
+      h2 {
+        margin: 0 0 1rem;
+        font-size: 1rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      p {
+        color: #a9b9cc;
+        line-height: 1.65;
+      }
+      .hero,
+      .board-card {
+        border: 1px solid rgb(151 177 207 / 17%);
+        border-radius: 1.1rem;
+        background: linear-gradient(145deg, rgb(15 27 43 / 94%), rgb(10 20 34 / 96%));
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: 6rem 1fr;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 2rem;
+      }
+      .hero img {
+        width: 6rem;
+        filter: drop-shadow(0 0 1.4rem rgb(116 221 218 / 34%));
+      }
+      .hero p {
+        max-width: 48rem;
+        margin-bottom: 0;
+      }
+      .board-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+      .board-card {
+        padding: 1.35rem;
+      }
+      .startup-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(12rem, 32rem);
+        align-items: center;
+        gap: 1.25rem;
+        margin-top: 1rem;
+      }
+      .startup-card h2 {
+        margin-bottom: 0.5rem;
+      }
+      .startup-card p {
+        margin-bottom: 0;
+      }
+      .startup-card img {
+        display: block;
+        width: 100%;
+        border: 1px solid rgb(151 177 207 / 17%);
+        border-radius: 0.8rem;
+      }
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.6rem;
+      }
+      .swatch {
+        min-height: 5rem;
+        padding: 0.65rem;
+        border: 1px solid rgb(255 255 255 / 13%);
+        border-radius: 0.65rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: end;
+        font-size: 0.75rem;
+      }
+      .swatch b {
+        font-size: 0.85rem;
+      }
+      .swatch small {
+        opacity: 0.8;
+      }
+      .sample-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .tab,
+      .button {
+        border: 1px solid rgb(151 177 207 / 22%);
+        border-radius: 0.6rem;
+        padding: 0.7rem 0.9rem;
+        color: #c7d5e7;
+        background: #101e30;
+        font: inherit;
+      }
+      .tab.selected {
+        border-color: #74ddda;
+        color: #edf4fd;
+        box-shadow: inset 0 -2px #74ddda;
+      }
+      .badge {
+        margin-left: 0.4rem;
+        border-radius: 999px;
+        padding: 0.15rem 0.42rem;
+        color: #07101c;
+        background: #85e0bf;
+        font-size: 0.68rem;
+        font-weight: 750;
+      }
+      .button {
+        color: #07101c;
+        background: #74ddda;
+        font-weight: 700;
+      }
+      .theme-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .theme {
+        padding: 0.4rem 0.65rem;
+        border: 1px solid rgb(151 177 207 / 22%);
+        border-radius: 999px;
+        color: #c7d5e7;
+        font-size: 0.78rem;
+      }
+      .font-samples {
+        display: grid;
+        gap: 0.55rem;
+      }
+      .font-sample {
+        margin: 0;
+        padding: 0.65rem 0.75rem;
+        border-left: 2px solid rgb(127 231 211 / 44%);
+        background: rgb(255 255 255 / 3%);
+        color: #d8e4f1;
+      }
+      .font-terminal,
+      .font-space {
+        font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+      }
+      .font-serif {
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      .font-frosty {
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      }
+      .asset-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .asset-list li {
+        padding: 0.45rem 0.7rem;
+        border: 1px solid rgb(127 231 211 / 24%);
+        border-radius: 99px;
+        background: rgb(47 102 120 / 16%);
+        color: #b9dfdf;
+        font-size: 0.83rem;
+      }
+      code {
+        color: #b9d4ff;
+      }
+      @media (max-width: 600px) {
+        main {
+          padding-top: 1rem;
+        }
+        .hero {
+          grid-template-columns: 3.5rem 1fr;
+          gap: 0.8rem;
+          padding: 1rem;
+        }
+        .hero img {
+          width: 3.5rem;
+        }
+        .startup-card {
+          grid-template-columns: 1fr;
+        }
+        .board-grid {
+          grid-template-columns: 1fr;
+        }
+        .swatches {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <img src="../../src/assets/miaplacidus-emblem.svg" alt="" />
+        <div>
+          <div class="eyebrow">Visual direction · 01</div>
+          <h1>MIAPLACIDUS</h1>
+          <p>
+            Orbital geometry and a deep-space instrument palette give the remake a calm, readable
+            control-room feel. Use bright cyan for primary actions, blue for navigation, green for
+            success, and amber/red for warnings and failure. Keep the star field quiet so resource
+            values and decisions stay in front.
+          </p>
+        </div>
+      </section>
+      <section class="board-card startup-card">
+        <div>
+          <h2>Startup scene</h2>
+          <p>
+            Original orbital-horizon illustration for the save/start screen. Keep it quiet and
+            cropped around the luminous world so the pioneer identity and start controls remain the
+            main focus.
+          </p>
+        </div>
+        <img src="../../src/assets/miaplacidus-startup-scene.svg" alt="" />
+      </section>
+      <div class="board-grid">
+        <section class="board-card">
+          <h2>Core tokens</h2>
+          <div class="swatches">
+            <div class="swatch" style="background: #07101c"><b>Frame</b><small>#07101c</small></div>
+            <div class="swatch" style="background: #0f1b2b"><b>Panel</b><small>#0f1b2b</small></div>
+            <div class="swatch" style="background: #edf4fd; color: #07101c">
+              <b>Ink</b><small>#edf4fd</small>
+            </div>
+            <div class="swatch" style="background: #74ddda; color: #07101c">
+              <b>Primary</b><small>#74ddda</small>
+            </div>
+            <div class="swatch" style="background: #78aefc; color: #07101c">
+              <b>Navigation</b><small>#78aefc</small>
+            </div>
+            <div class="swatch" style="background: #85e0bf; color: #07101c">
+              <b>Success</b><small>#85e0bf</small>
+            </div>
+          </div>
+        </section>
+        <section class="board-card">
+          <h2>Hierarchy and controls</h2>
+          <div class="sample-nav">
+            <span class="tab selected">Galactic <span class="badge">Ready</span></span
+            ><span class="tab">Resources</span><span class="tab">Settings</span>
+          </div>
+          <p>
+            <strong style="color: #edf4fd; font-size: 1.35rem">One clear decision per card.</strong
+            ><br />Use sentence case for actions and labels; reserve tracked uppercase for short
+            status eyebrows.
+          </p>
+          <button class="button" type="button">Continue</button>
+        </section>
+        <section class="board-card">
+          <h2>Original asset families</h2>
+          <ul class="asset-list">
+            <li>Orbital title emblem and startup scene</li>
+            <li>14 resource and compound emblems</li>
+            <li>Technology and building emblems</li>
+            <li>9 celestial illustration kinds</li>
+            <li>ID-based achievement badges</li>
+            <li>4 endgame story scenes</li>
+          </ul>
+          <p>
+            These newly authored vector and CSS treatments carry the same cyan, blue, and muted
+            surface language into resources, space operations, achievements, and the ending. The
+            <a href="miaplacidus-asset-manifest.md">asset manifest</a> records their variants and
+            usage.
+          </p>
+        </section>
+        <section class="board-card">
+          <h2>Nine themes</h2>
+          <div class="theme-list">
+            <span class="theme">Terminal</span><span class="theme">Dark</span
+            ><span class="theme">Misty</span><span class="theme">Light</span
+            ><span class="theme">Frosty</span><span class="theme">Summer</span
+            ><span class="theme">Supernova</span><span class="theme">Galaxy</span
+            ><span class="theme">Space</span>
+          </div>
+          <p>
+            Theme variation changes surface, line, ink and accent tokens. Keep layout and status
+            meanings stable across all nine choices.
+          </p>
+        </section>
+        <section class="board-card">
+          <h2>Type and motion</h2>
+          <div class="font-samples">
+            <p class="font-sample"><strong>Light / Galaxy — Inter → system sans</strong><br />Readable UI text and tabular balance figures.</p>
+            <p class="font-sample font-frosty"><strong>Frosty — Trebuchet MS</strong><br />A softer, open sans-serif voice.</p>
+            <p class="font-sample font-serif"><strong>Misty / Summer — Georgia</strong><br />A warm, editorial serif voice.</p>
+            <p class="font-sample font-terminal"><strong>Terminal — Consolas → Cascadia Mono</strong><br />Dense console text with a clear monospace rhythm.</p>
+            <p class="font-sample font-space"><strong>Space — system monospace</strong><br />A quieter technical display voice.</p>
+          </div>
+          <p>
+            Use geometric orbital marks as accents; avoid busy illustration behind controls.
+            Dark and Supernova use the Arial system sans stack. Keep the type hierarchy and
+            status meanings clear in every theme.
+          </p>
+          <p>
+            Prefer short fades and restrained progress movement. Honor
+            <code>prefers-reduced-motion</code> and the in-game reduced-motion setting.
+          </p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

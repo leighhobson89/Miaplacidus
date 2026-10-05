@@ -1,12 +1,33 @@
-import type { EconomicGoodId, UpgradeId } from "../content/ids";
+import type {
+  AutobuyerTier,
+  CompoundId,
+  EconomicGoodId,
+  FixedUpgradeId,
+  MaterialId,
+  UpgradeId,
+} from "../content/ids";
+import { autobuyerUpgradeId } from "../content/ids";
 import type { GameState, GoodState } from "./state";
 import {
   checkPreconditions,
   checkPurchase,
+  buildingBuyMaxPlan,
+  buildingCost,
   type GameCommand,
+  type CommandFailure,
   type PurchaseCommand,
   type PreconditionResult,
 } from "./commands";
+import { COMPOUND_CATALOG, MATERIAL_CATALOG, SCIENCE_BUILDINGS } from "../content/economy";
+import type { RandomEventId } from "../content/metaSignals";
+import {
+  affordablePurchaseCount,
+  fusionEfficiencyRange,
+  fusionYield,
+  selectedSaleAmount,
+  type SaleSelection,
+} from "../content/economyRules";
+import { philosophyRepeatableRank, philosophyCompoundRecipe } from "./philosophy";
 import {
   HYDROGEN_AUTOBUYER_RATE,
   HYDROGEN_STORAGE_PRICE_OFFSET,
@@ -20,6 +41,8 @@ import {
   storageCapacityAfterPurchase,
 } from "../content/economyRules";
 import { createEconomyTickPlan } from "./economySimulation";
+import { CASINO_CP_BASE_COST, CASINO_CP_VALUES } from "../content/galacticCasino";
+import type { CasinoCommand } from "./galacticCasino";
 
 export interface GameSnapshot {
   readonly pioneerName: string;
@@ -33,6 +56,7 @@ export interface GameSnapshot {
   readonly simulationMs: number;
   readonly locale: GameState["settings"]["locale"];
   readonly themeId: GameState["settings"]["themeId"];
+  readonly currencyId: GameState["settings"]["currencyId"];
   readonly notation: GameState["settings"]["notation"];
   readonly soundEnabled: boolean;
   readonly hydrogenAutobuyerCount: number;
@@ -55,6 +79,7 @@ export function selectGameSnapshot(state: GameState): GameSnapshot {
     simulationMs: state.run.clock.simulationMs,
     locale: state.settings.locale,
     themeId: state.settings.themeId,
+    currencyId: state.settings.currencyId,
     notation: state.settings.notation,
     soundEnabled: state.settings.soundEnabled,
     hydrogenAutobuyerCount: hydrogenAutobuyerCount(state.run.upgrades),
@@ -64,6 +89,76 @@ export function selectGameSnapshot(state: GameState): GameSnapshot {
       repeatedPerkMultiplier(state.permanent.acquiredPerks, "smartAutoBuyers", 1.5),
     hydrogenProductionPerSecond: createEconomyTickPlan(state).netRatesPerSecond.hydrogen ?? 0,
     revision: state.statistics.acceptedCommands,
+  };
+}
+
+export interface TopStatusEventSelection {
+  readonly eventId: RandomEventId | null;
+  readonly active: boolean;
+  readonly remainingMs: number | null;
+}
+
+/** Picks the newest active event, falling back to the latest recorded event. */
+export function selectTopStatusEvent(state: GameState): TopStatusEventSelection {
+  const { history, activeEffects } = state.run.randomEvents;
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const eventId = history[index]!.id;
+    const activeEffect = activeEffects.find(
+      (effect) => effect.id === eventId && effect.remainingMs > 0,
+    );
+    if (activeEffect) {
+      return { eventId, active: true, remainingMs: activeEffect.remainingMs };
+    }
+  }
+
+  let latestActiveEffect: (typeof activeEffects)[number] | undefined;
+  for (let index = activeEffects.length - 1; index >= 0; index -= 1) {
+    if (activeEffects[index]!.remainingMs > 0) {
+      latestActiveEffect = activeEffects[index];
+      break;
+    }
+  }
+  if (latestActiveEffect) {
+    return {
+      eventId: latestActiveEffect.id,
+      active: true,
+      remainingMs: latestActiveEffect.remainingMs,
+    };
+  }
+
+  const latestHistory = history[history.length - 1];
+  return latestHistory
+    ? { eventId: latestHistory.id, active: false, remainingMs: null }
+    : { eventId: null, active: false, remainingMs: null };
+}
+
+export interface ResearchProductionBreakdown {
+  readonly scienceKits: number;
+  readonly scienceClubs: number;
+  readonly poweredScienceLabs: number;
+  readonly megastructureOtherBonus: number;
+  readonly total: number;
+}
+
+/** Mirrors the simulation's enabled-building and power rules for live RP details. */
+export function selectResearchProductionBreakdown(state: GameState): ResearchProductionBreakdown {
+  const owned = (id: keyof typeof SCIENCE_BUILDINGS) => state.run.upgrades[id] ?? 0;
+  const enabledCount = (id: keyof typeof SCIENCE_BUILDINGS) =>
+    state.run.economy.buildingEnabled[id] ? owned(id) : 0;
+  const gridRunning = state.run.economy.power.gridEnabled && !state.run.economy.power.tripped;
+  const scienceKits = enabledCount("scienceKit") * SCIENCE_BUILDINGS.scienceKit.ratePerSecond;
+  const scienceClubs = enabledCount("scienceClub") * SCIENCE_BUILDINGS.scienceClub.ratePerSecond;
+  const poweredScienceLabs = gridRunning
+    ? enabledCount("scienceLab") * SCIENCE_BUILDINGS.scienceLab.ratePerSecond
+    : 0;
+  const total = createEconomyTickPlan(state).researchPerSecond;
+
+  return {
+    scienceKits,
+    scienceClubs,
+    poweredScienceLabs,
+    megastructureOtherBonus: Math.max(0, total - scienceKits - scienceClubs - poweredScienceLabs),
+    total,
   };
 }
 
@@ -77,6 +172,224 @@ export function selectUpgradeCount(state: GameState, upgradeId: UpgradeId): numb
 
 export function selectPurchase(state: GameState, command: PurchaseCommand): PreconditionResult {
   return checkPurchase(state, command);
+}
+
+export interface EconomyActionSelection {
+  readonly enabled: boolean;
+  readonly failure?: CommandFailure;
+}
+
+/** A render-safe view of the engine's current action precondition. */
+export function selectEconomyAction(
+  state: GameState,
+  command: GameCommand,
+): EconomyActionSelection {
+  const result = checkPreconditions(state, command);
+  return result.ok ? { enabled: true } : { enabled: false, failure: result.failure };
+}
+
+export interface CasinoPointPurchasePlan extends EconomyActionSelection {
+  readonly cost: number;
+  readonly available: number;
+}
+
+/** Returns the exact engine-priced payment preview for buying Casino points. */
+export function selectCasinoPointPurchase(
+  state: GameState,
+  goodId: EconomicGoodId | "cash",
+  amount: number,
+): CasinoPointPurchasePlan {
+  const validAmount = Number.isSafeInteger(amount) && amount > 0;
+  const cost = validAmount
+    ? Math.ceil((amount * CASINO_CP_BASE_COST) / CASINO_CP_VALUES[goodId])
+    : 0;
+  const available = goodId === "cash" ? state.run.cash : state.run.goods[goodId].quantity;
+  const action = selectEconomyAction(state, { type: "casino.points.buy", goodId, amount });
+  return { ...action, cost, available };
+}
+
+/** CP required by each casino action that charges an entry amount. */
+export function selectCasinoEntryCost(command: CasinoCommand): number | null {
+  switch (command.type) {
+    case "casino.double-or-nothing.play":
+      return command.stake;
+    case "casino.wheel.spin":
+      return 1;
+    case "casino.higher-lower.start":
+      return 5;
+    case "casino.void-seer.play":
+      return ({ 1: 7, 2: 10, 3: 15 } as const)[command.tier];
+    default:
+      return null;
+  }
+}
+
+export interface SaleSelectionView extends EconomyActionSelection {
+  readonly amount: number;
+  readonly proceeds: number;
+}
+
+export function selectGoodSale(
+  state: GameState,
+  goodId: EconomicGoodId,
+  requested: SaleSelection,
+): SaleSelectionView {
+  const amount = selectedSaleAmount(state.run.goods[goodId].quantity, requested);
+  const action = selectEconomyAction(state, {
+    type: "resource.sell",
+    goodId,
+    amount: requested,
+  });
+  return {
+    ...action,
+    amount,
+    proceeds: amount * state.run.goods[goodId].saleValue,
+  };
+}
+
+export interface CompoundCreationSelection extends EconomyActionSelection {
+  readonly outputAmount: number;
+  readonly requiredInputs: readonly { readonly goodId: EconomicGoodId; readonly amount: number }[];
+}
+
+export function selectCompoundCreation(
+  state: GameState,
+  goodId: CompoundId,
+  amount: number,
+): CompoundCreationSelection {
+  const recipe = philosophyCompoundRecipe(state, goodId);
+  const validAmount = Number.isSafeInteger(amount) && amount > 0;
+  return {
+    ...selectEconomyAction(state, { type: "economy.compound.create", goodId, amount }),
+    outputAmount: validAmount ? amount : 0,
+    requiredInputs: recipe.map((input) => ({
+      goodId: input.goodId,
+      amount: input.amount * amount,
+    })),
+  };
+}
+
+export interface FusionPreviewSelection {
+  readonly validTarget: boolean;
+  readonly canFuse: boolean;
+  readonly sourceAvailable: number;
+  readonly minimumYield: number;
+  readonly maximumYield: number;
+  readonly freeStorage: number;
+  readonly minimumStored: number;
+  readonly maximumStored: number;
+}
+
+/** Shows the efficiency interval without consuming randomness or changing game state. */
+export function selectFusionPreview(
+  state: GameState,
+  sourceId: MaterialId,
+  targetId: MaterialId,
+  amount: number,
+): FusionPreviewSelection {
+  const sourceDefinition = MATERIAL_CATALOG[
+    sourceId
+  ] as import("../content/economy").MaterialDefinition;
+  const output = sourceDefinition.fusionOutputs?.find((entry) => entry.goodId === targetId);
+  const validAmount = Number.isSafeInteger(amount) && amount > 0;
+  const [minimumEfficiency, maximumEfficiency] = fusionEfficiencyRange(
+    state.run.economy.researchedTechnologies,
+  );
+  const firstDiscovery = !state.run.unlockedResources.includes(targetId);
+  const minimumYield =
+    output && validAmount
+      ? firstDiscovery
+        ? Math.ceil((amount * output.ratio) / 4)
+        : fusionYield(amount, output.ratio, minimumEfficiency)
+      : 0;
+  const maximumYield =
+    output && validAmount
+      ? firstDiscovery
+        ? minimumYield
+        : fusionYield(amount, output.ratio, maximumEfficiency)
+      : 0;
+  const target = state.run.goods[targetId];
+  const source = state.run.goods[sourceId];
+  const canFuse = Boolean(
+    output &&
+    validAmount &&
+    amount <= source.quantity &&
+    state.run.unlockedResources.includes(sourceId) &&
+    sourceDefinition.fusionTechId &&
+    state.run.economy.researchedTechnologies.includes(
+      sourceDefinition.fusionTechId as import("../content/ids").TechId,
+    ),
+  );
+  const freeStorage = Math.max(0, target.storageCapacity - target.quantity);
+  return {
+    validTarget: Boolean(output),
+    canFuse,
+    sourceAvailable: source.quantity,
+    minimumYield,
+    maximumYield,
+    freeStorage,
+    minimumStored: Math.min(minimumYield, freeStorage),
+    maximumStored: Math.min(maximumYield, freeStorage),
+  };
+}
+
+export interface AutobuyerBuyMaxSelection extends EconomyActionSelection {
+  readonly count: number;
+  readonly totalCost: number;
+  readonly ratePerSecond: number;
+}
+
+export function selectAutobuyerBuyMax(
+  state: GameState,
+  goodId: EconomicGoodId,
+  tier: AutobuyerTier,
+): AutobuyerBuyMaxSelection {
+  const definition =
+    goodId in MATERIAL_CATALOG
+      ? MATERIAL_CATALOG[goodId as MaterialId].buyerTiers[tier - 1]!
+      : COMPOUND_CATALOG[goodId as CompoundId].buyerTiers[tier - 1]!;
+  const upgradeId = autobuyerUpgradeId(goodId, tier);
+  const discount =
+    goodId in MATERIAL_CATALOG ? 0.95 ** philosophyRepeatableRank(state, "laserMining") : 1;
+  const available = state.run.goods[goodId].quantity;
+  const plan = affordablePurchaseCount(
+    definition.price * discount,
+    state.run.upgrades[upgradeId] ?? 0,
+    available,
+  );
+  const action = selectEconomyAction(state, {
+    type: "economy.autobuyer.buyMax",
+    goodId,
+    tier,
+  });
+  return {
+    ...action,
+    count: action.enabled ? plan.count : 0,
+    totalCost: action.enabled ? plan.totalCost : 0,
+    ratePerSecond: definition.ratePerSecond,
+  };
+}
+
+export interface BuildingBuyMaxSelection extends EconomyActionSelection {
+  readonly count: number;
+  readonly cashCost: number;
+  readonly materialCosts: readonly { readonly goodId: EconomicGoodId; readonly amount: number }[];
+  readonly perBuildingCost: ReturnType<typeof buildingCost>;
+}
+
+export function selectBuildingBuyMax(
+  state: GameState,
+  buildingId: FixedUpgradeId,
+): BuildingBuyMaxSelection {
+  const plan = buildingBuyMaxPlan(state, buildingId);
+  const action = selectEconomyAction(state, { type: "economy.building.buyMax", buildingId });
+  return {
+    ...action,
+    count: action.enabled ? plan.count : 0,
+    cashCost: action.enabled ? plan.cash : 0,
+    materialCosts: action.enabled ? plan.materials : [],
+    perBuildingCost: buildingCost(state, buildingId),
+  };
 }
 
 export interface HydrogenPurchaseSelection {

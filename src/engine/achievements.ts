@@ -7,6 +7,7 @@ import { ECONOMIC_GOOD_IDS, GALAXY_SEED_DEFAULT } from "../content/ids";
 import { createStarCatalogue, HOME_SYSTEM_NAME } from "../content/starCatalogue";
 import { TECHNOLOGY_CATALOG } from "../content/technology";
 import { THEME_IDS, isThemeId } from "../content/themes";
+import { addLifetimeCount } from "./statistics";
 import type { GameState } from "./state";
 
 export interface AchievementUnlockedEvent {
@@ -345,17 +346,27 @@ function applyReward(state: GameState, reward: AchievementReward, permanent: boo
         ...state,
         run: { ...state.run, cash: Math.min(BOUNDED_RESOURCE_CAP, state.run.cash + reward.amount) },
       };
-    case "ascendency-points":
+    case "ascendency-points": {
+      const ascendencyPoints = Math.min(
+        BOUNDED_RESOURCE_CAP,
+        state.permanent.ascendencyPoints + reward.amount,
+      );
+      const gained = ascendencyPoints - state.permanent.ascendencyPoints;
       return {
         ...state,
         permanent: {
           ...state.permanent,
-          ascendencyPoints: Math.min(
-            BOUNDED_RESOURCE_CAP,
-            state.permanent.ascendencyPoints + reward.amount,
+          ascendencyPoints,
+        },
+        statistics: {
+          ...state.statistics,
+          lifetimeAscendencyPointsGained: addLifetimeCount(
+            state.statistics.lifetimeAscendencyPointsGained,
+            gained,
           ),
         },
       };
+    }
     case "glory-points":
       return {
         ...state,

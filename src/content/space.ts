@@ -529,6 +529,8 @@ export interface SpaceState {
   readonly starStudyRange: number;
   readonly launchPadBuilt: boolean;
   readonly asteroids: readonly AsteroidState[];
+  /** Rocket arrivals at asteroids during the current run, matching the source stat counter. */
+  readonly asteroidsMinedThisRun: number;
   readonly selectedAsteroidId: string | null;
   readonly nextAsteroidSequence: number;
   readonly voidPillageCompletions: number;
@@ -582,6 +584,7 @@ export function createInitialSpaceState(): SpaceState {
     starStudyRange: 0,
     launchPadBuilt: false,
     asteroids: [],
+    asteroidsMinedThisRun: 0,
     selectedAsteroidId: null,
     nextAsteroidSequence: 1,
     voidPillageCompletions: 0,

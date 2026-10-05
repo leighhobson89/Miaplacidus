@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { RANDOM_EVENT_IDS } from "../content/metaSignals";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
@@ -8,6 +9,8 @@ import {
   newsEntryText,
   randomEventName,
 } from "../i18n/metaSignalMessages";
+import type { LocaleNewsCopy } from "../i18n/sourceNewsCopy";
+import { RandomEventArtwork } from "./RandomEventArtwork";
 
 function timeLabel(milliseconds: number): string {
   const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
@@ -18,15 +21,29 @@ function timeLabel(milliseconds: number): string {
 export function MetaJournalPane({
   state,
   store,
+  active,
 }: {
   readonly state: GameState;
   readonly store: GameStore;
+  readonly active: boolean;
 }) {
   const locale = state.settings.locale;
   const events = state.run.randomEvents;
   const news = state.run.newsTicker;
+  const [newsCopy, setNewsCopy] = useState<LocaleNewsCopy | null>(null);
   const latestEvents = [...events.history].slice(-8).reverse();
   const latestNews = [...news.entries].slice(-12).reverse();
+
+  useEffect(() => {
+    if (!active) return;
+    let current = true;
+    void import("../i18n/sourceNewsCopy").then((module) => {
+      if (current) setNewsCopy(module.sourceNewsCopy(locale));
+    });
+    return () => {
+      current = false;
+    };
+  }, [active, locale]);
   return (
     <section
       className="feature-pane meta-journal-pane"
@@ -48,14 +65,12 @@ export function MetaJournalPane({
               {metaSignalText(locale, "remaining")} {timeLabel(news.remainingMs)}
             </small>
           </header>
-          {latestNews.length === 0 ? (
-            <p className="journal-empty">{metaSignalText(locale, "noNews")}</p>
-          ) : (
+          {latestNews.length > 0 && (
             <ol className="journal-list">
               {latestNews.map((entry) => (
                 <li key={`${entry.id}-${entry.simulationMs}`} data-news-id={entry.id}>
                   <div>
-                    <p>{newsEntryText(locale, entry)}</p>
+                    <p>{newsEntryText(locale, entry, newsCopy ?? undefined)}</p>
                     <small>
                       {newsCategoryName(locale, entry.category)} ·{" "}
                       {timeLabel(Math.max(0, state.run.clock.simulationMs - entry.simulationMs))}{" "}
@@ -103,6 +118,7 @@ export function MetaJournalPane({
             <ol className="journal-list journal-event-list">
               {latestEvents.map((entry, index) => (
                 <li key={`${entry.id}-${entry.simulationMs}-${index}`} data-event-id={entry.id}>
+                  <RandomEventArtwork id={entry.id} negative={entry.negative} />
                   <span
                     className={entry.negative ? "journal-negative" : "journal-positive"}
                     aria-hidden="true"

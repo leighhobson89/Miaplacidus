@@ -3,7 +3,8 @@ import { startMetaFixture } from "../_harness/meta-fixture";
 
 test("spends AP once to buy a permanent ascendency perk", async ({ page }) => {
   await startMetaFixture(page);
-  await page.getByRole("tab", { name: "Galaxy" }).click();
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Ascendency Perks" }).click();
   const pane = page.getByTestId("ascendency-pane");
   await expect(pane.getByTestId("ascendency-points")).toHaveText("100");
   await pane.getByRole("button", { name: "Purchase", exact: true }).first().click();

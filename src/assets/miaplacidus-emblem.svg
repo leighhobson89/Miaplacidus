@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <defs>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientTransform="translate(48 48) rotate(90) scale(27)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4FFFF" />
+      <stop offset=".13" stop-color="#A7FFF2" />
+      <stop offset=".42" stop-color="#53CFCB" />
+      <stop offset="1" stop-color="#53CFCB" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="orbit" x1="14" x2="84" y1="25" y2="70" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7FE7D3" />
+      <stop offset="1" stop-color="#78AEFC" />
+    </linearGradient>
+    <filter id="glow" width="2.2" height="2.2" x="-0.6" y="-0.6" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="3" />
+    </filter>
+  </defs>
+  <circle cx="48" cy="48" r="27" fill="url(#core)" filter="url(#glow)" opacity=".72" />
+  <ellipse cx="48" cy="48" rx="36" ry="13" stroke="url(#orbit)" stroke-opacity=".85" stroke-width="1.5" transform="rotate(-31 48 48)" />
+  <ellipse cx="48" cy="48" rx="36" ry="13" stroke="#A9C6E6" stroke-opacity=".36" stroke-width="1" transform="rotate(42 48 48)" />
+  <circle cx="48" cy="48" r="8.5" fill="url(#core)" />
+  <path d="M48 30.5 51.2 43l12.3 5-12.3 3.1L48 64l-3.2-12.9-12.3-3.1 12.3-5L48 30.5Z" fill="#E9FFFC" />
+  <circle cx="19.7" cy="62.7" r="2.4" fill="#8FD5FF" />
+  <circle cx="75.8" cy="28.4" r="2.1" fill="#C1B3FF" />
+  <circle cx="72.3" cy="70.7" r="1.4" fill="#A7FFF2" />
+</svg>

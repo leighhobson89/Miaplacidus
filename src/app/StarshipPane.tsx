@@ -20,12 +20,15 @@ import {
   totalPlayerFleetPower,
   enemyFleetPower,
 } from "../engine/fleetMechanics";
-import { checkPreconditions } from "../engine/commands";
+import { checkPreconditions, type PreconditionResult } from "../engine/commands";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
-import { economyGoodName } from "./EconomyPanes";
+import { economyGoodName } from "./economyDisplay";
+import { formatCurrency } from "./currencyFormatting";
+import { formatNumber } from "./numberFormatting";
 import { spaceText } from "../i18n/spaceMessages";
 import { starshipText, type StarshipMessageKey } from "../i18n/starshipMessages";
+import { CelestialIllustration } from "./CelestialIllustration";
 
 const MODULE_LABELS: Readonly<Record<StarshipModuleId, StarshipModuleId>> = {
   structural: "structural",
@@ -43,18 +46,17 @@ const FLEET_LABELS: Readonly<Record<PlayerFleetId, StarshipMessageKey>> = {
 };
 
 function number(state: GameState, value: number): string {
-  return new Intl.NumberFormat(state.settings.locale, {
-    notation: state.settings.notation === "scientific" ? "scientific" : "standard",
-    maximumFractionDigits: 2,
-  }).format(value);
+  return formatNumber(state.settings.locale, value, 2, state.settings.notation);
 }
 
 function money(state: GameState, value: number): string {
-  return new Intl.NumberFormat(state.settings.locale, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
+  return formatCurrency(
+    state.settings.locale,
+    value,
+    state.settings.currencyId ?? "usd",
+    2,
+    state.settings.notation,
+  );
 }
 
 function costLines(state: GameState, cost: SpacePurchaseCost): string[] {
@@ -78,12 +80,56 @@ function presentSystemToken(value: string): string {
     .replace(/^./, (character) => character.toLocaleUpperCase("en"));
 }
 
+function actionReason(
+  state: GameState,
+  result: PreconditionResult,
+  fallback: StarshipMessageKey,
+): string {
+  if (result.ok) return "";
+  const failure = result.failure;
+  if (failure.code === "insufficient-cash")
+    return spaceText(state.settings.locale, "reasonInsufficientCash", {
+      amount: money(state, failure.required),
+    });
+  if (failure.code === "insufficient-material")
+    return spaceText(state.settings.locale, "reasonInsufficientMaterial", {
+      material: economyGoodName(state.settings.locale, failure.goodId),
+      amount: number(state, failure.required),
+    });
+  if (failure.code === "insufficient-antimatter")
+    return spaceText(state.settings.locale, "reasonInsufficientAntimatter", {
+      amount: number(state, failure.required),
+    });
+  if (failure.code === "space-starship-incomplete")
+    return starshipText(state.settings.locale, "incomplete");
+  if (failure.code === "space-starship-already-launched")
+    return starshipText(state.settings.locale, "alreadyLaunched");
+  if (failure.code === "space-starship-destination-invalid")
+    return starshipText(state.settings.locale, "noDestination");
+  if (failure.code === "space-starship-ftl-required")
+    return starshipText(state.settings.locale, "ftlRequired");
+  if (failure.code === "space-starship-module-complete")
+    return starshipText(state.settings.locale, "moduleComplete");
+  if (
+    failure.code === "space-envoy-module-required" ||
+    failure.code === "space-fleet-hangar-required"
+  )
+    return starshipText(state.settings.locale, "fleetHangarRequired");
+  if (failure.code === "space-envoy-built")
+    return starshipText(state.settings.locale, "envoyComplete");
+  if (failure.code === "space-fleet-at-capacity")
+    return starshipText(state.settings.locale, "fleetAtCapacity");
+  return starshipText(state.settings.locale, fallback);
+}
+
 export function StarshipPane({
   state,
   store,
+  view = "starship",
 }: {
   readonly state: GameState;
   readonly store: GameStore;
+  readonly view?: "starship" | "fleet-hangar" | "colonise";
 }) {
   const [feedbackText, setFeedbackText] = useState("");
   const [showLaunchWarning, setShowLaunchWarning] = useState(false);
@@ -129,6 +175,31 @@ export function StarshipPane({
   );
   const systemIsSettled =
     destinationSystemId !== null && state.permanent.settledSystemIds.includes(destinationSystemId);
+  const enemyFleetsCount = encounter
+    ? encounter.enemyFleets.air + encounter.enemyFleets.land + encounter.enemyFleets.sea
+    : 0;
+  const diplomacyUnavailableKey: StarshipMessageKey = space.fleetEnvoyBuilt
+    ? "diplomacyActionUnavailable"
+    : "diplomacyLocked";
+  const messageReason = actionReason(state, messageCheck, diplomacyUnavailableKey);
+  const harmonyReason = actionReason(state, harmonyCheck, diplomacyUnavailableKey);
+  const bullyReason = actionReason(
+    state,
+    bullyCheck,
+    !space.fleetEnvoyBuilt
+      ? "diplomacyLocked"
+      : encounter && fleetPower.attackPower <= enemyFleetsCount
+        ? "bullyRequiresPower"
+        : "diplomacyActionUnavailable",
+  );
+  const vassalizeReason = actionReason(
+    state,
+    vassalizeCheck,
+    diplomacyUnavailableKey === "diplomacyLocked" ? "diplomacyLocked" : "vassalizeRequirements",
+  );
+  const enterWarReason = actionReason(state, enterWarCheck, "warUnavailable");
+  const engageBattleReason = actionReason(state, engageBattleCheck, "battleUnavailable");
+  const settleReason = actionReason(state, settleSystemCheck, "settlementUnavailable");
   const oTypePowerPlantId = destinationSystemId
     ? Object.entries(state.permanent.oTypePowerPlantAssignments).find(
         ([, systemId]) => systemId === destinationSystemId,
@@ -184,6 +255,12 @@ export function StarshipPane({
       : space.starship.phase === "orbiting" && destination
         ? starshipText(state.settings.locale, "orbiting", { name: destination.name })
         : starshipText(state.settings.locale, ready ? "ready" : "building");
+  const paneTitle =
+    view === "fleet-hangar"
+      ? starshipText(state.settings.locale, "fleetHangar")
+      : view === "colonise"
+        ? starshipText(state.settings.locale, "colonise")
+        : starshipText(state.settings.locale, "title");
 
   useEffect(() => {
     const dialog = launchDialogRef.current;
@@ -233,7 +310,7 @@ export function StarshipPane({
       <div className="space-card-heading">
         <div>
           <p className="eyebrow">{starshipStatus}</p>
-          <h3 id="starship-title">{starshipText(state.settings.locale, "title")}</h3>
+          <h3 id="starship-title">{paneTitle}</h3>
         </div>
         <span
           className="status-pill"
@@ -243,8 +320,15 @@ export function StarshipPane({
           {starshipStatus}
         </span>
       </div>
-      <p>{starshipText(state.settings.locale, "description")}</p>
-      <div className="starship-module-grid">
+      <div className="space-card-illustration-wrap">
+        <CelestialIllustration
+          kind={
+            view === "fleet-hangar" ? "fleet" : view === "colonise" ? "megastructure" : "starship"
+          }
+        />
+      </div>
+      {view === "starship" && <p>{starshipText(state.settings.locale, "description")}</p>}
+      <div className="starship-module-grid" hidden={view !== "starship"}>
         {visibleModules.map((moduleId) => {
           const definition = STARSHIP_MODULES[moduleId];
           const module = space.starshipModules[moduleId];
@@ -259,6 +343,7 @@ export function StarshipPane({
                 permanentPerkPurchaseCount(state.permanent.acquiredPerks, "spaceElevator") +
                   philosophyRepeatableRank(state, "spaceElevator"),
               );
+          const moduleReason = complete ? "" : actionReason(state, check, "incomplete");
 
           return (
             <article
@@ -293,18 +378,40 @@ export function StarshipPane({
                 className="primary-button"
                 type="button"
                 disabled={complete || !check.ok}
+                aria-describedby={
+                  !complete && !check.ok ? `starship-module-${moduleId}-reason` : undefined
+                }
                 onClick={() => dispatchModule(moduleId)}
               >
                 {complete
                   ? starshipText(state.settings.locale, "moduleComplete")
                   : starshipText(state.settings.locale, "buildPart")}
               </button>
+              {!complete && !check.ok && (
+                <p className="live-feedback" id={`starship-module-${moduleId}-reason`}>
+                  {moduleReason}
+                </p>
+              )}
             </article>
           );
         })}
       </div>
+      {space.starshipModules.fleetHangar.builtParts < STARSHIP_MODULES.fleetHangar.parts && (
+        <section
+          className="starship-fleet-hangar"
+          data-testid="starship-fleet-hangar"
+          hidden={view !== "fleet-hangar"}
+        >
+          <h4>{starshipText(state.settings.locale, "fleetHangar")}</h4>
+          <p>{starshipText(state.settings.locale, "incomplete")}</p>
+        </section>
+      )}
       {space.starshipModules.fleetHangar.builtParts >= STARSHIP_MODULES.fleetHangar.parts && (
-        <section className="starship-fleet-hangar" data-testid="starship-fleet-hangar">
+        <section
+          className="starship-fleet-hangar"
+          data-testid="starship-fleet-hangar"
+          hidden={view !== "fleet-hangar"}
+        >
           <h4>{starshipText(state.settings.locale, "envoyTitle")}</h4>
           <p>{starshipText(state.settings.locale, "envoyDescription")}</p>
           <p data-testid="player-fleet-power">
@@ -324,6 +431,9 @@ export function StarshipPane({
             className="primary-button"
             type="button"
             disabled={space.fleetEnvoyBuilt || !envoyCheck.ok}
+            aria-describedby={
+              !space.fleetEnvoyBuilt && !envoyCheck.ok ? "starship-envoy-reason" : undefined
+            }
             onClick={() => {
               const result = store.dispatch(envoyCommand);
               if (result.accepted)
@@ -340,6 +450,11 @@ export function StarshipPane({
               ? starshipText(state.settings.locale, "envoyComplete")
               : starshipText(state.settings.locale, "buildEnvoy")}
           </button>
+          {!space.fleetEnvoyBuilt && !envoyCheck.ok && (
+            <p className="live-feedback" id="starship-envoy-reason">
+              {actionReason(state, envoyCheck, "fleetHangarRequired")}
+            </p>
+          )}
           <div className="starship-fleet-grid">
             {PLAYER_FLEET_IDS.map((fleetId) => {
               const definition = PLAYER_FLEETS[fleetId];
@@ -349,6 +464,9 @@ export function StarshipPane({
               const command = { type: "space.fleet.build" as const, fleetId };
               const check = checkPreconditions(state, command);
               const atCapacity = quantity >= definition.maxQuantity;
+              const fleetReason = atCapacity
+                ? starshipText(state.settings.locale, "fleetAtCapacity")
+                : actionReason(state, check, "fleetHangarRequired");
               return (
                 <article
                   className="starship-fleet-card"
@@ -376,8 +494,13 @@ export function StarshipPane({
                     </ul>
                   )}
                   <button
+                    className="primary-button"
                     type="button"
+                    data-testid={`starship-fleet-build-${fleetId}`}
                     disabled={atCapacity || !check.ok}
+                    aria-describedby={
+                      atCapacity || !check.ok ? `starship-fleet-${fleetId}-reason` : undefined
+                    }
                     onClick={() => {
                       const result = store.dispatch(command);
                       if (result.accepted)
@@ -387,13 +510,18 @@ export function StarshipPane({
                   >
                     {starshipText(state.settings.locale, "buildFleetShip")}
                   </button>
+                  {(atCapacity || !check.ok) && (
+                    <p className="live-feedback" id={`starship-fleet-${fleetId}-reason`}>
+                      {fleetReason}
+                    </p>
+                  )}
                 </article>
               );
             })}
           </div>
         </section>
       )}
-      <div className="starship-travel-summary">
+      <div className="starship-travel-summary" hidden={view !== "starship"}>
         <h4>{starshipText(state.settings.locale, "destinationSelected")}</h4>
         {destination && travelPlan ? (
           <>
@@ -422,16 +550,25 @@ export function StarshipPane({
               className="primary-button"
               type="button"
               disabled={!launchCheck.ok}
+              aria-describedby={!launchCheck.ok ? "starship-launch-reason" : undefined}
               onClick={() => setShowLaunchWarning(true)}
             >
               {starshipText(state.settings.locale, "launch")}
             </button>
-            {!launchCheck.ok && <p className="live-feedback">{launchFailureText()}</p>}
+            {!launchCheck.ok && (
+              <p className="live-feedback" id="starship-launch-reason">
+                {launchFailureText()}
+              </p>
+            )}
           </>
         )}
       </div>
       {space.starship.phase === "orbiting" && destination && (
-        <section className="starship-system-scan" data-testid="starship-system-scan">
+        <section
+          className="starship-system-scan"
+          data-testid="starship-system-scan"
+          hidden={view !== "colonise"}
+        >
           <h4>{starshipText(state.settings.locale, "scanSystem")}</h4>
           {!scannerComplete ? (
             <p>{starshipText(state.settings.locale, "scannerRequired")}</p>
@@ -478,20 +615,32 @@ export function StarshipPane({
               </dl>
             </div>
           ) : (
-            <button
-              className="primary-button"
-              type="button"
-              disabled={!scanCheck.ok}
-              onClick={scanDestinationSystem}
-              data-testid="starship-scan-system-button"
-            >
-              {starshipText(state.settings.locale, "scanSystem")}
-            </button>
+            <>
+              <button
+                className="primary-button"
+                type="button"
+                disabled={!scanCheck.ok}
+                aria-describedby={!scanCheck.ok ? "starship-scan-reason" : undefined}
+                onClick={scanDestinationSystem}
+                data-testid="starship-scan-system-button"
+              >
+                {starshipText(state.settings.locale, "scanSystem")}
+              </button>
+              {!scanCheck.ok && (
+                <p className="live-feedback" id="starship-scan-reason">
+                  {actionReason(state, scanCheck, "scannerRequired")}
+                </p>
+              )}
+            </>
           )}
         </section>
       )}
       {space.starship.phase === "orbiting" && destination && encounter && (
-        <section className="starship-diplomacy" data-testid="starship-diplomacy">
+        <section
+          className="starship-diplomacy"
+          data-testid="starship-diplomacy"
+          hidden={view !== "colonise"}
+        >
           <h4>{starshipText(state.settings.locale, "diplomacyTitle")}</h4>
           {!space.fleetEnvoyBuilt && (
             <p>{starshipText(state.settings.locale, "diplomacyLocked")}</p>
@@ -509,35 +658,61 @@ export function StarshipPane({
             <button
               type="button"
               disabled={!messageCheck.ok}
+              aria-describedby={!messageCheck.ok ? "starship-diplomacy-message-reason" : undefined}
               data-testid="starship-diplomacy-message-button"
               onClick={() => store.dispatch(messageCommand)}
             >
               {starshipText(state.settings.locale, "sendMessage")}
             </button>
+            {!messageCheck.ok && (
+              <p className="live-feedback" id="starship-diplomacy-message-reason">
+                {messageReason}
+              </p>
+            )}
             <button
               type="button"
               disabled={!harmonyCheck.ok}
+              aria-describedby={!harmonyCheck.ok ? "starship-diplomacy-harmony-reason" : undefined}
               data-testid="starship-diplomacy-harmony-button"
               onClick={() => store.dispatch(harmonyCommand)}
             >
               {starshipText(state.settings.locale, "seekHarmony")}
             </button>
+            {!harmonyCheck.ok && (
+              <p className="live-feedback" id="starship-diplomacy-harmony-reason">
+                {harmonyReason}
+              </p>
+            )}
             <button
               type="button"
               disabled={!bullyCheck.ok}
+              aria-describedby={!bullyCheck.ok ? "starship-diplomacy-bully-reason" : undefined}
               data-testid="starship-diplomacy-bully-button"
               onClick={() => store.dispatch(bullyCommand)}
             >
               {starshipText(state.settings.locale, "bullyEnemy")}
             </button>
+            {!bullyCheck.ok && (
+              <p className="live-feedback" id="starship-diplomacy-bully-reason">
+                {bullyReason}
+              </p>
+            )}
             <button
               type="button"
               disabled={!vassalizeCheck.ok}
+              aria-describedby={
+                !vassalizeCheck.ok ? "starship-diplomacy-vassalize-reason" : undefined
+              }
               data-testid="starship-diplomacy-vassalize-button"
               onClick={() => store.dispatch(vassalizeCommand)}
             >
               {starshipText(state.settings.locale, "vassalizeEnemy")}
             </button>
+            {!vassalizeCheck.ok && (
+              <p className="live-feedback" id="starship-diplomacy-vassalize-reason">
+                {vassalizeReason}
+              </p>
+            )}
           </div>
           {encounter.warReady &&
             !encounter.warMode &&
@@ -546,12 +721,18 @@ export function StarshipPane({
                 type="button"
                 className="primary-button"
                 disabled={!enterWarCheck.ok}
+                aria-describedby={!enterWarCheck.ok ? "starship-enter-war-reason" : undefined}
                 data-testid="starship-enter-war-button"
                 onClick={() => store.dispatch(enterWarCommand)}
               >
                 {starshipText(state.settings.locale, "enterWar")}
               </button>
             )}
+          {encounter.warReady && !encounter.warMode && !enterWarCheck.ok && (
+            <p className="live-feedback" id="starship-enter-war-reason">
+              {enterWarReason}
+            </p>
+          )}
           {encounter.warMode && (
             <p data-testid="starship-war-mode">
               {starshipText(state.settings.locale, "warModeActive")}
@@ -560,7 +741,11 @@ export function StarshipPane({
         </section>
       )}
       {space.starship.phase === "orbiting" && destination && encounter && (
-        <section className="starship-battle" data-testid="starship-battle">
+        <section
+          className="starship-battle"
+          data-testid="starship-battle"
+          hidden={view !== "colonise"}
+        >
           <h4>{starshipText(state.settings.locale, "battleTitle")}</h4>
           <p data-testid="starship-battle-status">
             {starshipText(
@@ -604,17 +789,29 @@ export function StarshipPane({
                 className="primary-button"
                 type="button"
                 disabled={!engageBattleCheck.ok}
+                aria-describedby={
+                  !engageBattleCheck.ok ? "starship-battle-engage-reason" : undefined
+                }
                 data-testid="starship-battle-engage-button"
                 onClick={() => store.dispatch(engageBattleCommand)}
               >
                 {starshipText(state.settings.locale, "engageBattle")}
               </button>
             )}
+          {encounter.warMode &&
+            encounter.battle.phase !== "inProgress" &&
+            encounter.battle.phase !== "victory" &&
+            !engageBattleCheck.ok && (
+              <p className="live-feedback" id="starship-battle-engage-reason">
+                {engageBattleReason}
+              </p>
+            )}
           {encounter.battle.phase === "victory" && !systemIsSettled && (
             <button
               className="primary-button"
               type="button"
               disabled={!settleSystemCheck.ok}
+              aria-describedby={!settleSystemCheck.ok ? "starship-settle-reason" : undefined}
               data-testid="starship-settle-system-button"
               onClick={() => {
                 const result = store.dispatch(settleSystemCommand);
@@ -653,6 +850,7 @@ export function StarshipPane({
                 className="primary-button"
                 type="button"
                 disabled={!settleSystemCheck.ok}
+                aria-describedby={!settleSystemCheck.ok ? "starship-settle-reason" : undefined}
                 data-testid="starship-settle-system-button"
                 onClick={() => {
                   const result = store.dispatch(settleSystemCommand);
@@ -663,6 +861,11 @@ export function StarshipPane({
                 {starshipText(state.settings.locale, "settleSystem")}
               </button>
             )}
+          {!systemIsSettled && !settleSystemCheck.ok && (
+            <p className="live-feedback" id="starship-settle-reason">
+              {settleReason}
+            </p>
+          )}
         </section>
       )}
       <output className="live-feedback" aria-live="polite" data-testid="starship-feedback">

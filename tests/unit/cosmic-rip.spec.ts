@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { COSMIC_RIP_TECHNOLOGIES, COSMIC_RIP_UPGRADES } from "../../src/content/cosmicRip";
+import {
+  COSMIC_RIP_CLOSURE_GP,
+  COSMIC_RIP_SCANNER_REPAIR_GP,
+  COSMIC_RIP_TECHNOLOGIES,
+  COSMIC_RIP_UPGRADES,
+} from "../../src/content/cosmicRip";
 import { LOCALE_IDS } from "../../src/content/ids";
 import { HOME_SYSTEM_NAME, createStarCatalogue } from "../../src/content/starCatalogue";
 import { transition } from "../../src/engine/commands";
 import { advanceCosmicRip, cosmicRipUpgradeCost } from "../../src/engine/cosmicRip";
+import { selectEconomyAction } from "../../src/engine/selectors";
 import { makeEnvelope } from "../../src/persistence/schema";
 import { decodeLocal, encodeLocal } from "../../src/persistence/codec";
 import { cosmicRipText } from "../../src/i18n/cosmicRipMessages";
@@ -117,6 +123,99 @@ describe("Cosmic Rip", () => {
     const duplicate = transition(state, { type: "cosmic-rip.sector.scan", sectorIndex: location });
     expect(duplicate.accepted).toBe(false);
     expect(duplicate.state.permanent.gloryPoints).toBe(state.permanent.gloryPoints);
+  });
+
+  it("reports engine-backed failure reasons for each disabled Cosmic Rip action", () => {
+    expect(COSMIC_RIP_SCANNER_REPAIR_GP).toBe(10);
+    expect(COSMIC_RIP_CLOSURE_GP).toBe(1);
+
+    const scannerState = unlockedState();
+    const restoreFailure = selectEconomyAction(
+      {
+        ...scannerState,
+        permanent: { ...scannerState.permanent, gloryPoints: 9 },
+      },
+      { type: "cosmic-rip.scanner.restore" },
+    );
+    expect(restoreFailure).toMatchObject({
+      enabled: false,
+      failure: { code: "cosmic-rip-insufficient-gp" },
+    });
+
+    expect(
+      selectEconomyAction(scannerState, { type: "cosmic-rip.sector.scan", sectorIndex: 0 }),
+    ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-scanner-required" } });
+
+    const route = readyToResearch();
+    const noGpRoute = {
+      ...route,
+      run: {
+        ...route.run,
+        cash: 0,
+        goods: Object.fromEntries(
+          Object.entries(route.run.goods).map(([id, good]) => [id, { ...good, quantity: 0 }]),
+        ) as GameState["run"]["goods"],
+      },
+      permanent: { ...route.permanent, gloryPoints: 0 },
+    };
+    expect(
+      selectEconomyAction(noGpRoute, { type: "cosmic-rip.sector.scan", sectorIndex: 0 }),
+    ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-insufficient-gp" } });
+    expect(
+      selectEconomyAction(noGpRoute, { type: "cosmic-rip.sector.scan", sectorIndex: 2 }),
+    ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-sector-scanned" } });
+    expect(
+      selectEconomyAction(noGpRoute, {
+        type: "cosmic-rip.upgrade.purchase",
+        upgradeId: "sensorBuoy",
+      }),
+    ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-insufficient-cost" } });
+
+    const firstTechnology = COSMIC_RIP_TECHNOLOGIES[0];
+    expect(
+      selectEconomyAction(
+        {
+          ...route,
+          permanent: {
+            ...route.permanent,
+            gloryPoints: 0,
+            cosmicRip: { ...route.permanent.cosmicRip, telemetryData: 0 },
+          },
+        },
+        { type: "cosmic-rip.tech.start", technologyId: firstTechnology.id },
+      ),
+    ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-tech-hidden" } });
+    expect(
+      selectEconomyAction(noGpRoute, {
+        type: "cosmic-rip.tech.start",
+        technologyId: firstTechnology.id,
+      }),
+    ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-insufficient-gp" } });
+    expect(
+      selectEconomyAction(noGpRoute, {
+        type: "cosmic-rip.tech.start",
+        technologyId: COSMIC_RIP_TECHNOLOGIES[1].id,
+      }),
+    ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-tech-locked" } });
+
+    const complete = {
+      ...noGpRoute,
+      permanent: {
+        ...noGpRoute.permanent,
+        cosmicRip: {
+          ...noGpRoute.permanent.cosmicRip,
+          researchedTechnologyIds: COSMIC_RIP_TECHNOLOGIES.map((technology) => technology.id),
+        },
+      },
+    };
+    expect(selectEconomyAction(route, { type: "cosmic-rip.close" })).toMatchObject({
+      enabled: false,
+      failure: { code: "cosmic-rip-close-incomplete" },
+    });
+    expect(selectEconomyAction(complete, { type: "cosmic-rip.close" })).toMatchObject({
+      enabled: false,
+      failure: { code: "cosmic-rip-insufficient-gp" },
+    });
   });
 
   it("keeps scanner and sector rewards guarded after reload, while telemetry follows warp and offline time", () => {
@@ -305,7 +404,7 @@ describe("Cosmic Rip", () => {
     const { achievements: _runAchievements, ...oldRun } = current.run;
     const old = { ...current, schemaVersion: 25 as const, run: oldRun, permanent: oldPermanent };
     const migrated = upgradeGameStateV25(old);
-    expect(migrated?.schemaVersion).toBe(31);
+    expect(migrated?.schemaVersion).toBe(37);
     expect(migrated?.permanent.cosmicRip).toEqual(createInitialCosmicRipProgress());
     expect(migrated?.permanent.achievements).toEqual(createInitialPermanentAchievementProgress());
     expect(migrated?.run.achievements).toEqual(createInitialRunAchievementProgress());
@@ -317,7 +416,7 @@ describe("Cosmic Rip", () => {
     const { achievements: _achievements, ...oldPermanent } = current.permanent;
     const old = { ...current, schemaVersion: 26 as const, run: oldRun, permanent: oldPermanent };
     const migrated = upgradeGameStateV26(old);
-    expect(migrated?.schemaVersion).toBe(31);
+    expect(migrated?.schemaVersion).toBe(37);
     expect(migrated?.permanent.cosmicRip).toEqual(current.permanent.cosmicRip);
     expect(migrated?.permanent.achievements).toEqual(createInitialPermanentAchievementProgress());
     expect(migrated?.run.achievements).toEqual(createInitialRunAchievementProgress());
@@ -328,7 +427,7 @@ describe("Cosmic Rip", () => {
     const { randomEvents: _randomEvents, newsTicker: _newsTicker, ...oldRun } = current.run;
     const old = { ...current, schemaVersion: 27 as const, run: oldRun };
     const migrated = upgradeGameStateV27(old);
-    expect(migrated?.schemaVersion).toBe(31);
+    expect(migrated?.schemaVersion).toBe(37);
     expect(migrated?.run.randomEvents.history).toEqual([]);
     expect(migrated?.run.newsTicker.seenIds).toEqual([]);
   });
@@ -338,7 +437,7 @@ describe("Cosmic Rip", () => {
     const { lifetimeActiveMs: _active, ...oldStatistics } = current.statistics;
     const old = { ...current, schemaVersion: 29 as const, statistics: oldStatistics };
     const migrated = upgradeGameStateV29(old);
-    expect(migrated?.schemaVersion).toBe(31);
+    expect(migrated?.schemaVersion).toBe(37);
     expect(migrated?.statistics.lifetimeActiveMs).toBe(0);
   });
 
@@ -370,7 +469,7 @@ describe("Cosmic Rip", () => {
       },
     };
     const migrated = upgradeGameStateV30(old);
-    expect(migrated?.schemaVersion).toBe(31);
+    expect(migrated?.schemaVersion).toBe(37);
     expect(migrated?.settings.themeId).toBe("terminal");
     expect(migrated?.permanent.achievements.themeIdsTried).toEqual(["terminal"]);
     expect(migrated?.run.randomEvents.activeEffects[0]?.nextShiftInMs).toBe(60_000);

@@ -1,6 +1,7 @@
 import { expect, test } from "../_harness/fixtures";
 import { runTestLabAction } from "../_harness/test-lab";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { setGameLocale } from "../_harness/settings-controls";
 
 test("manual collection sells Hydrogen and credits its catalogue value @resources @precision", async ({
   freshGame,
@@ -16,7 +17,7 @@ test("manual collection sells Hydrogen and credits its catalogue value @resource
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("0");
   await expect(freshGame.getByText("$10.06")).toBeVisible();
   await captureVisualCheckpoint(freshGame, testInfo, "hydrogen-after-sale");
-  await freshGame.locator("#hydrogen-locale").selectOption("es");
+  await setGameLocale(freshGame, "es");
   await expect(freshGame.locator(".header-balances strong").first()).toContainText("$");
   await expect(freshGame.locator(".header-balances strong").first()).not.toContainText("€");
 });

@@ -1,6 +1,6 @@
 # Detailed work packages
 
-The [single master checklist](../master-checklist.md) is the project control document. Its phase boxes link to these detailed work packages. Task IDs in the packages are stable references for directing a specific slice; checking a package task does not complete its master phase until the exit gate and evidence are met.
+The [single master checklist](../master-checklist.md) is the project control document. Its phase boxes link to these detailed work packages. Task IDs in the packages are stable references for directing a specific slice; checking a package task does not complete its master phase until the exit gate and evidence are met. The separate [bug run checklist](bug-checklist.md) supports the planned Phase 08 pass; reported defects are tracked in [docs/bugs.md](../../bugs.md).
 
 | Phase | Detailed tasks | Outcome |
 |---|---|---|
@@ -9,10 +9,11 @@ The [single master checklist](../master-checklist.md) is the project control doc
 | 3 | [Economy and research](03-economy.md) | Resources, automation, energy, research and compounds |
 | 4 | [Space and interstellar](04-space-interstellar.md) | Telescopes, mining, stars, travel, battle and settlement |
 | 5 | [Meta progression and endgame](05-meta-endgame.md) | Rebirth, AP/GP, casino, philosophies, megastructures and Cosmic Rip |
-| 6 | [Presentation and localization](06-presentation.md) | Nine polished tabs, new assets, onboarding, themes, audio and six languages |
+| 6 | [Presentation and localization](06-presentation.md) | Nine source tabs in fixed order followed by Miaplaedia, names-only tab labels, new assets, onboarding, themes, audio and six languages |
 | 7 | [Verification and release](07-verification-release.md) | Browser and responsive mobile quality, parity evidence, release and optional flagged demo |
+| 8 | [Big fix pass](08-big-fix.md) | Reproduce, prioritize and resolve the tracked production and research autobuyer reports |
 
-MIAPLACIDUS retains Cosmic Forge gameplay breadth. Cloud saves, Electron, original-game save compatibility and analytics are excluded by the [decision record](../open-decisions.md). All visual and audio assets are remade. The [parity ledger](../feature-parity-checklist.md) records coverage by functional area without creating a second work queue.
+MIAPLACIDUS retains Cosmic Forge gameplay breadth. Cloud saves, Electron, original-game save compatibility and analytics are excluded by the [decision record](../open-decisions.md). Visual assets are remade; the 30 Cosmic Forge MP3s are reused unchanged under the project owner's explicit 2026-10-04 authorization, as recorded in the [asset manifest](../miaplacidus-asset-manifest.md). The [parity ledger](../feature-parity-checklist.md) records coverage by functional area without creating a second work queue.
 
 Phase 4 source and state contracts: [telescope, asteroids and rockets](../space-mining-contract.md) and [stable star catalogue](../star-catalogue-contract.md). Settings and Test Lab placement are recorded in the [Phase 6 checklist](06-presentation.md) for implementation with the presentation phase.
 

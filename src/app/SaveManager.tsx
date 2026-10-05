@@ -7,6 +7,8 @@ import { makeEnvelope, SaveError, type SaveEnvelopeV1 } from "../persistence/sch
 import { saveErrorText, saveText, type SaveMessageKey } from "../i18n/saveMessages";
 import { translate } from "../i18n/messages";
 import { validatePioneerName } from "../persistence/validation";
+import { formatCurrency } from "./currencyFormatting";
+import { formatNumber } from "./numberFormatting";
 
 interface Props {
   readonly locale: LocaleId;
@@ -132,11 +134,6 @@ export function SaveManager(props: Props) {
           Date.now(),
           matchingSlot.revision,
         );
-        try {
-          repository.completeHydrogenBriefing(matchingSlot.slotId);
-        } catch {
-          /* Replacing progress still succeeds if the optional briefing marker is unavailable. */
-        }
       } finally {
         release?.();
       }
@@ -227,13 +224,18 @@ export function SaveManager(props: Props) {
   }
 
   return (
-    <dialog ref={dialogRef} className="save-manager" aria-labelledby="save-manager-title">
+    <dialog
+      ref={dialogRef}
+      className="save-manager"
+      aria-labelledby="save-manager-title"
+      onClose={props.onClose}
+    >
       <header className="save-manager-header">
         <div>
           <p className="eyebrow">{t("manage")}</p>
           <h2 id="save-manager-title">{state.run.pioneerName}</h2>
         </div>
-        <button className="text-button" type="button" onClick={props.onClose}>
+        <button className="text-button" type="button" onClick={() => dialogRef.current?.close()}>
           {t("cancel")}
         </button>
       </header>
@@ -424,12 +426,21 @@ export function SaveManager(props: Props) {
             </p>
             <p>
               <strong>{translate(locale, "hydrogen.title")}:</strong>{" "}
-              {new Intl.NumberFormat(locale).format(preview.state.run.goods.hydrogen.quantity)}
+              {formatNumber(
+                locale,
+                preview.state.run.goods.hydrogen.quantity,
+                0,
+                preview.state.settings.notation,
+              )}
             </p>
             <p>
               <strong>{translate(locale, "header.cash")}:</strong>{" "}
-              {new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(
+              {formatCurrency(
+                locale,
                 preview.state.run.cash,
+                preview.state.settings.currencyId ?? "usd",
+                2,
+                preview.state.settings.notation,
               )}
             </p>
             {matchingSlot ? (

@@ -80,9 +80,21 @@ function hiloDeck() {
 }
 
 describe("Galactic Casino economy and games", () => {
-  it("requires the first AP award or an earlier rebirth to unlock casino actions", () => {
+  it("requires a current-run AP award to unlock casino actions", () => {
     const state = createInitialGameState({ seed: 5 });
     const blocked = transition(state, { type: "casino.wheel.spin" });
+    expect(blocked.accepted).toBe(false);
+    expect(blocked.failure?.code).toBe("casino-locked");
+  });
+
+  it("does not carry Casino access through rebirth before the next AP award", () => {
+    const initial = createInitialGameState({ seed: 5 });
+    const afterRebirth = {
+      ...initial,
+      permanent: { ...initial.permanent, rebirthCount: 1 },
+    };
+    const blocked = transition(afterRebirth, { type: "casino.wheel.spin" });
+
     expect(blocked.accepted).toBe(false);
     expect(blocked.failure?.code).toBe("casino-locked");
   });

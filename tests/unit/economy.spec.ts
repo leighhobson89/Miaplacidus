@@ -26,9 +26,43 @@ import { createEconomyTickPlan } from "../../src/engine/economySimulation";
 import { TECHNOLOGY_NAMES } from "../../src/content/technologyNames";
 import { TECHNOLOGY_DESCRIPTIONS } from "../../src/content/technologyDescriptions";
 import { ECONOMY_BUILDING_NAMES } from "../../src/content/economyBuildingNames";
-import { economyGoodName } from "../../src/app/EconomyPanes";
+import { economyGoodName } from "../../src/app/economyDisplay";
+import { economyLabel, formatEconomyMessage } from "../../src/i18n/economyMessages";
+import {
+  selectAutobuyerBuyMax,
+  selectBuildingBuyMax,
+  selectCompoundCreation,
+  selectEconomyAction,
+  selectFusionPreview,
+  selectGoodSale,
+} from "../../src/engine/selectors";
 
 describe("M-03 economy catalogue and shared rules", () => {
+  it("localizes first-time fusion discovery and both yield amounts in all six locales", () => {
+    for (const locale of ["en", "es", "pt", "de", "it", "fr"] as const) {
+      const message = economyLabel(locale, "fusionDiscoveredNotice");
+      expect(message).toContain("{target}");
+      expect(message).toContain("{generatedAmount}");
+      expect(message).toContain("{outputAmount}");
+      expect(message).toContain("{efficiencyLost}");
+      expect(message).toContain("{storageLost}");
+      const rendered = formatEconomyMessage(locale, "fusionDiscoveredNotice", {
+        sourceAmount: "100",
+        source: economyGoodName(locale, "hydrogen"),
+        target: economyGoodName(locale, "helium"),
+        generatedAmount: "13",
+        outputAmount: "12",
+        efficiencyLost: "37",
+        storageLost: "1",
+      });
+      expect(rendered).not.toMatch(/\{[^}]+\}/);
+      expect(rendered).toContain(economyGoodName(locale, "hydrogen"));
+      expect(rendered).toContain(economyGoodName(locale, "helium"));
+      expect(rendered).toContain("13");
+      expect(rendered).toContain("12");
+    }
+  });
+
   it("contains all eight material and six compound source rows", () => {
     expect(Object.keys(MATERIAL_CATALOG)).toHaveLength(8);
     expect(Object.keys(COMPOUND_CATALOG)).toHaveLength(6);
@@ -92,6 +126,181 @@ describe("M-03 economy catalogue and shared rules", () => {
     expect(fusionYield(100, 0.5, 0.2)).toBe(10);
   });
 
+  it("selects visible economy action reasons and amount-specific result previews", () => {
+    const initial = createInitialGameState();
+    const fullHydrogen: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        goods: {
+          ...initial.run.goods,
+          hydrogen: {
+            ...initial.run.goods.hydrogen,
+            quantity: initial.run.goods.hydrogen.storageCapacity,
+          },
+        },
+      },
+    };
+    expect(
+      selectEconomyAction(fullHydrogen, { type: "resource.collect", goodId: "hydrogen" }),
+    ).toMatchObject({ enabled: false, failure: { code: "inventory-full" } });
+
+    const emptyHydrogen: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 0 },
+        },
+      },
+    };
+    expect(selectGoodSale(emptyHydrogen, "hydrogen", "all")).toMatchObject({
+      enabled: false,
+      amount: 0,
+      proceeds: 0,
+      failure: { code: "no-stock", goodId: "hydrogen" },
+    });
+
+    const compoundReady: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 100 },
+          carbon: { ...initial.run.goods.carbon, quantity: 100 },
+        },
+        economy: { ...initial.run.economy, unlockedCompounds: ["diesel"] },
+      },
+    };
+    expect(selectCompoundCreation(compoundReady, "diesel", 2)).toMatchObject({
+      enabled: true,
+      outputAmount: 2,
+      requiredInputs: [
+        { goodId: "hydrogen", amount: 52 },
+        { goodId: "carbon", amount: 24 },
+      ],
+    });
+
+    const fusionReady: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 100 },
+        },
+        economy: {
+          ...initial.run.economy,
+          researchedTechnologies: ["fusionTheory", "hydrogenFusion"],
+        },
+      },
+    };
+    expect(selectFusionPreview(fusionReady, "hydrogen", "helium", 100)).toMatchObject({
+      validTarget: true,
+      canFuse: true,
+      minimumYield: 13,
+      maximumYield: 13,
+      minimumStored: 13,
+      maximumStored: 13,
+    });
+    const heliumDiscovered: GameState = {
+      ...fusionReady,
+      run: {
+        ...fusionReady.run,
+        unlockedResources: [...fusionReady.run.unlockedResources, "helium"],
+      },
+    };
+    expect(selectFusionPreview(heliumDiscovered, "hydrogen", "helium", 100)).toMatchObject({
+      minimumYield: 10,
+      maximumYield: 15,
+    });
+  });
+
+  it("previews exact autobuyer/building bulk plans and reports missing building material", () => {
+    const initial = createInitialGameState();
+    const bulkReady: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 150 },
+        },
+        cash: 11,
+        economy: {
+          ...initial.run.economy,
+          researchedTechnologies: ["basicPowerGeneration"],
+          revealedTechnologies: ["basicPowerGeneration"],
+        },
+      },
+      permanent: { ...initial.permanent, acquiredPerks: ["bulkPurchasing"] },
+    };
+    expect(selectAutobuyerBuyMax(bulkReady, "hydrogen", 1)).toMatchObject({
+      enabled: true,
+      count: 2,
+      totalCost: 107,
+      ratePerSecond: 2,
+    });
+    expect(selectBuildingBuyMax(bulkReady, "scienceKit")).toMatchObject({
+      enabled: true,
+      count: 2,
+      cashCost: 11,
+      materialCosts: [],
+    });
+
+    const shortOnCarbon: GameState = {
+      ...bulkReady,
+      run: {
+        ...bulkReady.run,
+        goods: {
+          ...bulkReady.run.goods,
+          carbon: { ...bulkReady.run.goods.carbon, quantity: 0 },
+        },
+      },
+    };
+    expect(
+      selectEconomyAction(shortOnCarbon, {
+        type: "economy.building.purchase",
+        buildingId: "powerPlant1",
+      }),
+    ).toMatchObject({
+      enabled: false,
+      failure: {
+        code: "insufficient-material",
+        goodId: "carbon",
+        required: 100,
+      },
+    });
+  });
+
+  it("localizes economy affordability and result previews in all supported locales", () => {
+    for (const locale of ["en", "es", "pt", "de", "it", "fr"] as const) {
+      for (const [key, values] of [
+        ["needGoodAmount", { amount: "2", good: "Hydrogen" }],
+        ["needCashAmount", { amount: "$5" }],
+        ["compoundPreview", { amount: "2", good: "Diesel", inputs: "52 H₂ + 24 C" }],
+        [
+          "fusionPreview",
+          {
+            sourceAmount: "100",
+            source: "Hydrogen",
+            minimum: "10",
+            maximum: "15",
+            target: "Helium",
+            stored: "15",
+          },
+        ],
+        ["buyMaxPreview", { count: "2", costs: "107 H₂", result: "+4 per second" }],
+      ] as const) {
+        const rendered = formatEconomyMessage(locale, key, values);
+        expect(rendered).not.toMatch(/\{[^}]+\}/);
+        expect(rendered.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("uses one deterministic pass with fuel before crafting and sales", () => {
     const initial = createInitialGameState();
     const goods = {
@@ -124,7 +333,45 @@ describe("M-03 economy catalogue and shared rules", () => {
     expect(result.goods.carbon.quantity).toBe(1);
     expect(result.goods.diesel.quantity).toBe(1);
     expect(result.goods.hydrogen.quantity).toBe(34);
+    expect(result.goodsProducedByGood.carbon).toBe(2);
+    expect(result.goodsProducedByGood.diesel).toBe(1);
+    expect(result.goodsProducedByGood.hydrogen).toBe(0);
     expect(result.cash).toBeCloseTo(0.1);
+  });
+
+  it("counts per-good automated output, crafting, and precipitation", () => {
+    const initial = createInitialGameState();
+    const result = transactResources(initial.run.goods, 0, 1000, {
+      productionPerSecond: { hydrogen: 2, oxygen: 1 },
+      crafting: [
+        {
+          outputId: "water",
+          unitsPerSecond: 1,
+          inputs: [
+            { goodId: "hydrogen", unitsPerOutput: 1 },
+            { goodId: "oxygen", unitsPerOutput: 1 },
+          ],
+        },
+      ],
+      precipitation: { goodId: "water", unitsPerSecond: 0.5 },
+    });
+    expect(result.goodsProducedByGood.hydrogen).toBe(2);
+    expect(result.goodsProducedByGood.oxygen).toBe(1);
+    expect(result.goodsProducedByGood.water).toBe(1.5);
+
+    const fullGoods = {
+      ...initial.run.goods,
+      hydrogen: {
+        ...initial.run.goods.hydrogen,
+        quantity: initial.run.goods.hydrogen.storageCapacity,
+      },
+    };
+    const capped = transactResources(fullGoods, 0, 1000, {
+      productionPerSecond: { hydrogen: 10 },
+      salesPerSecond: { hydrogen: 1 },
+    });
+    expect(capped.goods.hydrogen.quantity).toBe(fullGoods.hydrogen.storageCapacity);
+    expect(capped.goodsProducedByGood.hydrogen).toBe(0);
   });
 
   it("collects only unlocked materials and keeps a generic sale preview and payout aligned", () => {
@@ -146,6 +393,57 @@ describe("M-03 economy catalogue and shared rules", () => {
       preview * state.run.goods.hydrogen.saleValue,
     );
     expect(result.state.run.goods.hydrogen.quantity).toBe(stockAfterSale(12.5, preview));
+  });
+
+  it("counts manual collection, fusion and compound crafting by produced good", () => {
+    const initial = createInitialGameState();
+    const collected = transition(initial, { type: "resource.collect", goodId: "hydrogen" });
+    expect(collected.state.run.goodsProducedThisRun.hydrogen).toBe(1);
+    expect(collected.state.statistics.lifetimeGoodsProducedByGood.hydrogen).toBe(1);
+
+    const fusionReady: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 100 },
+        },
+        economy: {
+          ...initial.run.economy,
+          researchedTechnologies: ["fusionTheory", "hydrogenFusion"],
+          revealedTechnologies: ["knowledgeSharing", "fusionTheory", "hydrogenFusion"],
+        },
+      },
+    };
+    const fused = transition(fusionReady, {
+      type: "economy.fuse",
+      sourceId: "hydrogen",
+      targetId: "helium",
+      amount: 100,
+    });
+    expect(fused.state.run.goodsProducedThisRun.helium).toBe(13);
+    expect(fused.state.statistics.lifetimeGoodsProducedByGood.helium).toBe(13);
+
+    const compoundReady: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        goods: {
+          ...initial.run.goods,
+          carbon: { ...initial.run.goods.carbon, quantity: 100 },
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 100 },
+        },
+        economy: { ...initial.run.economy, unlockedCompounds: ["diesel"] },
+      },
+    };
+    const created = transition(compoundReady, {
+      type: "economy.compound.create",
+      goodId: "diesel",
+      amount: 2,
+    });
+    expect(created.state.run.goodsProducedThisRun.diesel).toBe(2);
+    expect(created.state.statistics.lifetimeGoodsProducedByGood.diesel).toBe(2);
   });
 
   it("purchases research once, grants the first fusion resource, and rejects duplicate research", () => {
@@ -201,7 +499,40 @@ describe("M-03 economy catalogue and shared rules", () => {
     expect(fused.accepted).toBe(true);
     expect(fused.state.run.unlockedResources).toContain("helium");
     expect(fused.state.run.goods.helium.quantity).toBe(13);
+    expect(fused.events).toContainEqual(
+      expect.objectContaining({
+        type: "economy.fusion.completed",
+        sourceId: "hydrogen",
+        targetId: "helium",
+        firstDiscovery: true,
+        amount: 13,
+        generatedAmount: 13,
+      }),
+    );
     expect(isValidGameState(fused.state)).toBe(true);
+  });
+
+  it("keeps a previously revealed technology visible after research points are spent", () => {
+    const initial = createInitialGameState();
+    const revealedState: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        researchPoints: 520,
+        economy: {
+          ...initial.run.economy,
+          revealedTechnologies: ["knowledgeSharing", "fusionTheory"],
+        },
+      },
+    };
+    const researched = transition(revealedState, {
+      type: "economy.research",
+      technologyId: "knowledgeSharing",
+    });
+
+    expect(researched.accepted).toBe(true);
+    expect(researched.state.run.researchPoints).toBe(370);
+    expect(researched.state.run.economy.revealedTechnologies).toContain("fusionTheory");
   });
 
   it("enforces energy tier research gates and creates compounds atomically", () => {
@@ -361,8 +692,26 @@ describe("M-03 economy catalogue and shared rules", () => {
     }
     // Building Plant 1 unlocks the 1.1x production achievement after its first tick.
     expect(tenSeconds.run.goods.hydrogen.quantity).toBeCloseTo(21.8, 8);
+    expect(tenSeconds.run.goodsProducedThisRun.hydrogen).toBeCloseTo(21.8, 8);
+    expect(tenSeconds.statistics.lifetimeGoodsProducedByGood.hydrogen).toBeCloseTo(21.8, 8);
     expect(tenSeconds.run.goods.carbon.quantity).toBe(70);
     expect(tenSeconds.run.researchPoints).toBe(55);
+  });
+
+  it("credits offline automated production to both per-good totals", () => {
+    const initial = createInitialGameState();
+    const state: GameState = {
+      ...initial,
+      run: { ...initial.run, clock: { ...initial.run.clock, wallNowMs: 0 } },
+    };
+    const offline = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 1000, foreground: true, offlineElapsedMs: 1000 },
+      offlineTickPlan: { productionPerSecond: { hydrogen: 2 } },
+    });
+    expect(offline.accepted).toBe(true);
+    expect(offline.state.run.goodsProducedThisRun.hydrogen).toBeCloseTo(0.668, 8);
+    expect(offline.state.statistics.lifetimeGoodsProducedByGood.hydrogen).toBeCloseTo(0.668, 8);
   });
 
   it("reports fuel-limited plant output and a one-second power shortage accurately", () => {

@@ -1,12 +1,14 @@
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
+import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
 
 test("confirms, cancels, and reloads a second rebirth into the settled system", async ({
   page,
 }) => {
   await startMetaFixture(page);
-  await page.getByRole("tab", { name: "Galaxy" }).click();
-  const pane = page.getByTestId("ascendency-pane");
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Rebirth" }).click();
+  const pane = page.getByTestId("rebirth-pane");
   const destination = await page.evaluate(() =>
     window.miaplacidusTest!.getState().permanent.settledSystemIds.at(-1),
   );
@@ -25,9 +27,14 @@ test("confirms, cancels, and reloads a second rebirth into the settled system", 
   );
 
   await pane.getByRole("button", { name: "Rebirth", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "WARNING: REBIRTH!" })).toBeVisible();
-  await expect(page.getByText("You will carry over 100 AP!", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "RESET ALL PROGRESS AND KEEP AP", exact: true }).click();
+  const confirmation = page.getByRole("dialog", { name: "WARNING: REBIRTH!" });
+  await expect(confirmation).toBeVisible();
+  await expect(
+    confirmation.getByText("You will carry over 100 AP!", { exact: true }),
+  ).toBeVisible();
+  await confirmation
+    .getByRole("button", { name: "RESET ALL PROGRESS AND KEEP AP", exact: true })
+    .click();
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest?.getState().permanent.rebirthCount))
     .toBe(2);
@@ -40,11 +47,10 @@ test("confirms, cancels, and reloads a second rebirth into the settled system", 
   expect(reborn.run.space.ascendencyAwardedThisRun).toBe(false);
   expect(reborn.permanent.galacticCasino.casinoPoints).toBe(0);
 
-  await page.getByRole("button", { name: "Save now" }).click();
+  await saveNowFromSettings(page);
   await expect(page.getByTestId("save-status")).toContainText("Saved");
   await page.reload();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await resumeSavedPioneer(page, "Ascendency Pioneer");
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest?.getState().permanent.rebirthCount))
     .toBe(2);

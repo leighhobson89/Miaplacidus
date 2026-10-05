@@ -4,7 +4,8 @@ The first completed star study opens a permanent one-path choice. The Research t
 
 ## Evidence
 
-- `philosophies.spec.ts` uses the telescope and study controls, selects Expansionist, researches Rapid Expansion and Warp Drive, saves, reloads, and checks that the path, active ability and permanent rank return.
+- `philosophies.spec.ts` checks all four path illustrations and choice controls fit the viewport, then uses the telescope and study controls, selects Expansionist, researches Rapid Expansion and Warp Drive, saves, reloads, and checks that the path, active ability and permanent rank return.
+- Screenshot checkpoints cover the path choice artwork and the selected Expansionist header artwork.
 - `tests/unit/philosophy.spec.ts` checks all four paths, exact ability/repeatable costs, wrong-path and duplicate-selection rejection, Constructor storage scaling, rebirth reset/retention, v22 migration, save round-trip, and all six locale records.
 - `tests/unit/diplomacy.spec.ts` checks the strict Supremacist threshold above 3× fleet power.
 
@@ -18,3 +19,5 @@ npm.cmd run test:unit:focused -- tests/unit/philosophy.spec.ts tests/unit/diplom
 ```
 
 The browser path uses the normal `timer.complete` engine command boundary to finish the study. It does not wait the several game minutes represented by the study timer.
+
+Verification record (5 October 2026): the focused Chrome browser journey passed with the artwork checkpoints updated. The runner printed the passing result, then hung during browser shutdown and was interrupted.

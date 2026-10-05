@@ -2,6 +2,7 @@ import type { LocaleId } from "../content/ids";
 
 const en = {
   title: "Starship construction",
+  colonise: "Colonise",
   description: "Build the four required modules to prepare the starship for interstellar travel.",
   ready: "Ready for interstellar travel",
   building: "Construction in progress",
@@ -95,6 +96,16 @@ const en = {
   fleetBuilt: "Fleet ship built.",
   fleetPower: "Fleet power — {attack} attack / {defense} defense",
   fleetStats: "Unit stats — {attack} attack / {defense} defense / {speed} speed / {health} hull",
+  fleetAtCapacity: "This fleet already has the maximum number of ships.",
+  fleetHangarRequired: "Research Starship Fleets and complete the Fleet Hangar first.",
+  diplomacyActionUnavailable: "This diplomatic choice is unavailable in the current encounter.",
+  bullyRequiresPower: "Your fleet's attack power must exceed the enemy fleet count.",
+  vassalizeRequirements:
+    "Vassalization requires a receptive civilization and a sufficient fleet power advantage.",
+  warUnavailable: "War mode is only available for a war-ready encounter.",
+  battleUnavailable: "A fleet ship is needed, with no battle already active or finished.",
+  settlementUnavailable:
+    "Defeat the hostile fleet, win the battle, or reach a system with no sentient defenders before settling.",
   fleetScout: "Scout",
   fleetMarauder: "Marauder",
   fleetLandStalker: "Land Stalker",
@@ -112,6 +123,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
     en,
     es: {
       title: "Construcción de la nave estelar",
+      colonise: "Colonizar",
       description: "Construye los cuatro módulos obligatorios para preparar el viaje interestelar.",
       ready: "Lista para viajar entre estrellas",
       building: "Construcción en curso",
@@ -210,6 +222,18 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetPower: "Poder de la flota — {attack} de ataque / {defense} de defensa",
       fleetStats:
         "Estadísticas de unidad — {attack} de ataque / {defense} de defensa / {speed} de velocidad / {health} de casco",
+      fleetAtCapacity: "Esta flota ya tiene el número máximo de naves.",
+      fleetHangarRequired: "Investiga Flotas estelares y completa primero el Hangar de flotas.",
+      diplomacyActionUnavailable:
+        "Esta opción diplomática no está disponible en el encuentro actual.",
+      bullyRequiresPower: "El ataque de tu flota debe superar el número de naves enemigas.",
+      vassalizeRequirements:
+        "El vasallaje requiere una civilización receptiva y una ventaja suficiente de poder de flota.",
+      warUnavailable: "El modo de guerra solo está disponible en un encuentro listo para combatir.",
+      battleUnavailable:
+        "Necesitas una nave de flota y no debe haber una batalla activa o terminada.",
+      settlementUnavailable:
+        "Derrota a la flota hostil, gana la batalla o llega a un sistema sin defensores conscientes antes de asentarte.",
       fleetScout: "Explorador",
       fleetMarauder: "Saqueador",
       fleetLandStalker: "Acechador terrestre",
@@ -222,6 +246,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
     },
     pt: {
       title: "Construção da nave estelar",
+      colonise: "Colonizar",
       description: "Construa os quatro módulos obrigatórios para preparar a viagem interestelar.",
       ready: "Pronta para viajar entre estrelas",
       building: "Construção em curso",
@@ -319,6 +344,17 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetPower: "Poder da frota — {attack} de ataque / {defense} de defesa",
       fleetStats:
         "Estatísticas da unidade — {attack} de ataque / {defense} de defesa / {speed} de velocidade / {health} de casco",
+      fleetAtCapacity: "Esta frota já tem o número máximo de naves.",
+      fleetHangarRequired: "Pesquisa Frotas Estelares e conclui primeiro o Hangar de Frotas.",
+      diplomacyActionUnavailable: "Esta opção diplomática não está disponível no encontro atual.",
+      bullyRequiresPower: "O ataque da tua frota deve superar o número de naves inimigas.",
+      vassalizeRequirements:
+        "A vassalização requer uma civilização recetiva e uma vantagem suficiente de poder da frota.",
+      warUnavailable: "O modo de guerra só está disponível num encontro pronto para a guerra.",
+      battleUnavailable:
+        "É necessária uma nave de frota e não pode haver uma batalha ativa ou terminada.",
+      settlementUnavailable:
+        "Derrota a frota hostil, vence a batalha ou chega a um sistema sem defensores conscientes antes de colonizar.",
       fleetScout: "Batedor",
       fleetMarauder: "Marauder",
       fleetLandStalker: "Perseguidor terrestre",
@@ -331,6 +367,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
     },
     de: {
       title: "Raumschiffbau",
+      colonise: "Kolonisieren",
       description: "Baue die vier Pflichtmodule für interstellare Reisen.",
       ready: "Bereit für interstellare Reisen",
       building: "Bau läuft",
@@ -430,6 +467,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetPower: "Flottenstärke — {attack} Angriff / {defense} Verteidigung",
       fleetStats:
         "Einheitenwerte — {attack} Angriff / {defense} Verteidigung / {speed} Tempo / {health} Hülle",
+      fleetAtCapacity: "Diese Flotte hat bereits die maximale Anzahl an Schiffen.",
+      fleetHangarRequired: "Erforsche Sternenflotten und stelle zuerst den Flottenhangar fertig.",
+      diplomacyActionUnavailable:
+        "Diese diplomatische Wahl ist in der aktuellen Begegnung nicht verfügbar.",
+      bullyRequiresPower:
+        "Die Angriffskraft deiner Flotte muss die Anzahl der feindlichen Schiffe übersteigen.",
+      vassalizeRequirements:
+        "Vasallisierung erfordert eine aufgeschlossene Zivilisation und einen ausreichenden Flottenmachtvorteil.",
+      warUnavailable: "Der Kriegsmodus ist nur in einer kriegsbereiten Begegnung verfügbar.",
+      battleUnavailable:
+        "Ein Flottenschiff wird benötigt; es darf keine aktive oder beendete Schlacht geben.",
+      settlementUnavailable:
+        "Besiege die feindliche Flotte, gewinne die Schlacht oder erreiche ein System ohne bewusste Verteidiger, bevor du dich niederlässt.",
       fleetScout: "Aufklärer",
       fleetMarauder: "Marodeur",
       fleetLandStalker: "Landpirscher",
@@ -442,6 +492,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
     },
     it: {
       title: "Costruzione dell'astronave",
+      colonise: "Colonizza",
       description: "Costruisci i quattro moduli necessari per il viaggio interstellare.",
       ready: "Pronta per il viaggio interstellare",
       building: "Costruzione in corso",
@@ -539,6 +590,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetPower: "Potenza della flotta — {attack} attacco / {defense} difesa",
       fleetStats:
         "Statistiche unità — {attack} attacco / {defense} difesa / {speed} velocità / {health} scafo",
+      fleetAtCapacity: "Questa flotta ha già il numero massimo di navi.",
+      fleetHangarRequired: "Ricerca Flotte stellari e completa prima l'Hangar della flotta.",
+      diplomacyActionUnavailable:
+        "Questa scelta diplomatica non è disponibile nell'incontro attuale.",
+      bullyRequiresPower:
+        "La potenza d'attacco della flotta deve superare il numero di navi nemiche.",
+      vassalizeRequirements:
+        "La sottomissione richiede una civiltà ricettiva e un vantaggio sufficiente di potenza della flotta.",
+      warUnavailable: "La modalità guerra è disponibile solo in un incontro pronto alla guerra.",
+      battleUnavailable:
+        "Serve una nave della flotta e non deve esserci una battaglia attiva o conclusa.",
+      settlementUnavailable:
+        "Sconfiggi la flotta ostile, vinci la battaglia o raggiungi un sistema senza difensori senzienti prima di insediarti.",
       fleetScout: "Ricognitore",
       fleetMarauder: "Predone",
       fleetLandStalker: "Predatore terrestre",
@@ -551,6 +615,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
     },
     fr: {
       title: "Construction du vaisseau stellaire",
+      colonise: "Coloniser",
       description: "Construisez les quatre modules requis pour le voyage interstellaire.",
       ready: "Prêt pour le voyage interstellaire",
       building: "Construction en cours",
@@ -649,6 +714,20 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetPower: "Puissance de flotte — {attack} attaque / {defense} défense",
       fleetStats:
         "Statistiques — {attack} attaque / {defense} défense / {speed} vitesse / {health} coque",
+      fleetAtCapacity: "Cette flotte a déjà atteint son nombre maximal de vaisseaux.",
+      fleetHangarRequired: "Recherchez les flottes stellaires et terminez d'abord le hangar.",
+      diplomacyActionUnavailable:
+        "Ce choix diplomatique n'est pas disponible dans la rencontre actuelle.",
+      bullyRequiresPower:
+        "La puissance d'attaque de votre flotte doit dépasser le nombre de vaisseaux ennemis.",
+      vassalizeRequirements:
+        "La vassalisation exige une civilisation réceptive et un avantage suffisant de puissance de flotte.",
+      warUnavailable:
+        "Le mode guerre est disponible uniquement lors d'une rencontre prête au combat.",
+      battleUnavailable:
+        "Un vaisseau de flotte est requis et aucune bataille ne doit être active ou terminée.",
+      settlementUnavailable:
+        "Vainquez la flotte hostile, gagnez la bataille ou atteignez un système sans défenseurs conscients avant de vous installer.",
       fleetScout: "Éclaireur",
       fleetMarauder: "Maraudeur",
       fleetLandStalker: "Traqueur terrestre",

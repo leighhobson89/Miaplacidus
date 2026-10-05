@@ -47,6 +47,12 @@ import {
   migrateSaveV28,
   migrateSaveV29,
   migrateSaveV30,
+  migrateSaveV31,
+  migrateSaveV32,
+  migrateSaveV33,
+  migrateSaveV34,
+  migrateSaveV35,
+  migrateSaveV36,
 } from "./migrations";
 
 export const PORTABLE_PREFIX = "MIA1:";
@@ -320,8 +326,56 @@ function parseEnvelope(json: string): SaveEnvelopeV1 {
     parsed &&
     typeof parsed === "object" &&
     "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 31
+  ) {
+    return migrateSaveV31(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 32
+  ) {
+    return migrateSaveV32(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 33
+  ) {
+    return migrateSaveV33(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 34
+  ) {
+    return migrateSaveV34(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 35
+  ) {
+    return migrateSaveV35(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 36
+  ) {
+    return migrateSaveV36(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
     typeof (parsed as { schemaVersion?: unknown }).schemaVersion === "number" &&
-    (parsed as { schemaVersion: number }).schemaVersion > 31
+    (parsed as { schemaVersion: number }).schemaVersion > 37
   ) {
     throw new SaveError("future-version", "This save was made by a newer version of MIAPLACIDUS.");
   }

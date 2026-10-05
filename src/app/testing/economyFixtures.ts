@@ -42,6 +42,7 @@ type EconomyFixtureKind =
   | "compound-automation"
   | "multipliers"
   | "space-telescope"
+  | "space-telescope-before-launch-pad"
   | "space-starship"
   | "space-starship-ready"
   | "space-starship-scanning"
@@ -58,9 +59,13 @@ type EconomyFixtureKind =
   | "meta-rebirth-ready"
   | "meta-market-ready"
   | "meta-casino-ready"
+  | "meta-rebirth-before-casino-unlock"
   | "meta-black-hole-discovered"
   | "meta-megastructure-route"
   | "meta-cosmic-rip-route"
+  | "meta-cosmic-rip-restore-affordance"
+  | "meta-cosmic-rip-action-affordances"
+  | "meta-cosmic-rip-close-affordance"
   | "space-late-game";
 
 /** Test-only start states used by click-driven browser tests to reach later economy systems. */
@@ -137,6 +142,17 @@ export function createEconomyFixture(
         ...base.permanent,
         rebirthCount: 1,
         galacticCasino: { ...base.permanent.galacticCasino, casinoPoints: 0 },
+      },
+    };
+  }
+  if (kind === "meta-rebirth-before-casino-unlock") {
+    return {
+      ...base,
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        ascendencyPoints: 100,
+        gloryPoints: 1,
       },
     };
   }
@@ -317,6 +333,62 @@ export function createEconomyFixture(
       },
     };
   }
+  if (kind === "meta-cosmic-rip-restore-affordance") {
+    const route = createEconomyFixture("meta-cosmic-rip-route", locale);
+    return {
+      ...route,
+      permanent: {
+        ...route.permanent,
+        gloryPoints: 0,
+        cosmicRip: {
+          ...route.permanent.cosmicRip,
+          scannerRestored: false,
+          ripLocationSectorIndex: null,
+          scannedSectorIndexes: [],
+          ripFound: false,
+          telemetryData: 0,
+        },
+      },
+    };
+  }
+  if (kind === "meta-cosmic-rip-action-affordances") {
+    const route = createEconomyFixture("meta-cosmic-rip-route", locale);
+    return {
+      ...route,
+      run: {
+        ...route.run,
+        cash: 0,
+        goods: Object.fromEntries(
+          ECONOMIC_GOOD_IDS.map((goodId) => [goodId, { ...route.run.goods[goodId], quantity: 0 }]),
+        ) as GameState["run"]["goods"],
+      },
+      permanent: {
+        ...route.permanent,
+        gloryPoints: 0,
+        cosmicRip: { ...route.permanent.cosmicRip, telemetryData: 200_000 },
+      },
+    };
+  }
+  if (kind === "meta-cosmic-rip-close-affordance") {
+    const route = createEconomyFixture("meta-cosmic-rip-route", locale);
+    return {
+      ...route,
+      permanent: {
+        ...route.permanent,
+        gloryPoints: 0,
+        cosmicRip: {
+          ...route.permanent.cosmicRip,
+          researchedTechnologyIds: [
+            "stabilizerArray",
+            "quantumContainmentField",
+            "dimensionalAnchorMatrix",
+            "singularityStabilizer",
+            "realityWeaveRegulator",
+          ],
+        },
+      },
+    };
+  }
   if (kind === "storage") {
     return {
       ...base,
@@ -406,6 +478,7 @@ export function createEconomyFixture(
   const researchedTechnologies = completeResearch
     ? TECHNOLOGY_CATALOG.filter(
         (tech) =>
+          !(kind === "space-telescope-before-launch-pad" && tech.id === "rocketComposites") &&
           !(kind === "save" && tech.id === "fusionEfficiencyIII") &&
           !(kind === "infinite-power" && tech.id === "dysonSpherePower"),
       ).map((tech) => tech.id)

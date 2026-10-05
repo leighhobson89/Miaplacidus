@@ -15,20 +15,22 @@ import {
   rebirthLockText,
   rebirthText,
 } from "../i18n/metaMessages";
-import { GalacticMarketPane } from "./GalacticMarketPane";
-import { GalacticCasinoPane } from "./GalacticCasinoPane";
+import { formatNumber } from "./numberFormatting";
+
+function number(state: GameState, value: number): string {
+  return formatNumber(state.settings.locale, value, 0, state.settings.notation);
+}
 
 interface Props {
   readonly state: GameState;
   readonly store: GameStore;
 }
 
-export function AscendencyPane({ state, store }: Props) {
+export function RebirthPane({ state, store }: Props) {
   const locale = state.settings.locale;
   const [confirmingRebirth, setConfirmingRebirth] = useState(false);
   const confirmationDialog = useRef<HTMLDialogElement>(null);
   const rebirthCheck = checkPreconditions(state, { type: "meta.rebirth" });
-  const number = new Intl.NumberFormat(locale);
   useEffect(() => {
     const dialog = confirmationDialog.current;
     if (confirmingRebirth && dialog && !dialog.open) dialog.showModal();
@@ -54,25 +56,29 @@ export function AscendencyPane({ state, store }: Props) {
   );
   const carryClass =
     state.permanent.ascendencyPoints > 0 ? "green-ready-text" : "red-disabled-text";
+
   return (
-    <div className="economy-pane" data-testid="ascendency-pane">
+    <section
+      className="economy-pane"
+      aria-labelledby="rebirth-pane-title"
+      data-testid="rebirth-pane"
+    >
       <div className="pane-heading">
         <div>
-          <p className="eyebrow">07 / {metaText(locale, "title")}</p>
-          <h2>{metaText(locale, "title")}</h2>
+          <h2 id="rebirth-pane-title">{rebirthText(locale, "title")}</h2>
         </div>
       </div>
       <div className="action-grid">
         <article className="upgrade-card">
           <div className="card-copy">
             <h3>{metaText(locale, "ap")}</h3>
-            <p data-testid="ascendency-points">{number.format(state.permanent.ascendencyPoints)}</p>
+            <p data-testid="ascendency-points">{number(state, state.permanent.ascendencyPoints)}</p>
           </div>
         </article>
         <article className="upgrade-card">
           <div className="card-copy">
             <h3>{metaText(locale, "rebirths")}</h3>
-            <p>{number.format(state.permanent.rebirthCount)}</p>
+            <p>{number(state, state.permanent.rebirthCount)}</p>
           </div>
           <div className="card-controls">
             <button
@@ -100,7 +106,9 @@ export function AscendencyPane({ state, store }: Props) {
         >
           <h2 id="rebirth-confirm-title">{rebirthText(locale, "title")}</h2>
           <p className="rebirth-confirm-prompt">{rebirthText(locale, "prompt")}</p>
-          <p className={carryClass}>{rebirthCarryText(locale, state.permanent.ascendencyPoints)}</p>
+          <p className={carryClass}>
+            {rebirthCarryText(locale, state.permanent.ascendencyPoints, state.settings.notation)}
+          </p>
           {cosmicRipUnlocked && <p className={carryClass}>{rebirthText(locale, "gp")}</p>}
           <div className="card-controls">
             <button
@@ -123,10 +131,27 @@ export function AscendencyPane({ state, store }: Props) {
           </div>
         </dialog>
       )}
+    </section>
+  );
+}
 
-      <GalacticMarketPane state={state} store={store} />
-      <GalacticCasinoPane state={state} store={store} />
+export function AscendencyPane({ state, store }: Props) {
+  const locale = state.settings.locale;
 
+  return (
+    <section
+      className="economy-pane"
+      aria-labelledby="ascendency-pane-title"
+      data-testid="ascendency-pane"
+    >
+      <div className="pane-heading">
+        <div>
+          <h2 id="ascendency-pane-title">{metaText(locale, "title")}</h2>
+          <p className="pane-intro">
+            {metaText(locale, "ap")}: {number(state, state.permanent.ascendencyPoints)}
+          </p>
+        </div>
+      </div>
       <div className="action-grid" aria-label={metaText(locale, "title")}>
         {ASCENDENCY_PERKS.map((perk) => {
           const level = ascendencyPerkLevel(state.permanent.acquiredPerks, perk.id);
@@ -140,8 +165,8 @@ export function AscendencyPane({ state, store }: Props) {
                 <h3>{name}</h3>
                 <p>{description}</p>
                 <span className="cost-line">
-                  {metaText(locale, "level")}: {number.format(level)} · {metaText(locale, "cost")}:{" "}
-                  {maxed ? metaText(locale, "maxed") : number.format(cost)} AP
+                  {metaText(locale, "level")}: {number(state, level)} · {metaText(locale, "cost")}:{" "}
+                  {maxed ? metaText(locale, "maxed") : number(state, cost)} AP
                 </span>
               </div>
               <div className="card-controls">
@@ -158,6 +183,6 @@ export function AscendencyPane({ state, store }: Props) {
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
