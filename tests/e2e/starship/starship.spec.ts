@@ -1,4 +1,87 @@
+import type { BrowserContext, Page } from "@playwright/test";
+import { createRequire } from "node:module";
 import { expect, test } from "../_harness/fixtures";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import { starshipTravelPlan } from "../../../src/engine/spaceMechanics";
+import type { GameState } from "../../../src/engine/state";
+import { spaceText } from "../../../src/i18n/spaceMessages";
+import { starshipText } from "../../../src/i18n/starshipMessages";
+import { canonicalJson, makeEnvelope, type SaveEnvelopeV1 } from "../../../src/persistence/schema";
+import { saveNowFromSettings, resumeSavedPioneer } from "../_harness/save-controls";
+
+type StoredEntry = readonly [string, string];
+
+const { compressToUTF16, decompressFromUTF16 } = createRequire(import.meta.url)(
+  "lz-string",
+) as typeof import("lz-string");
+
+function saveWithAntimatter(entries: readonly StoredEntry[], quantity: number): StoredEntry[] {
+  const values = new Map(entries);
+  const slotId = values.get("miaplacidus:v1:lastStartedSlot") ?? null;
+  if (!slotId) throw new Error("The Starship test save was not marked as the latest save.");
+  const commitId = values.get(`miaplacidus:v1:head:${slotId}`);
+  if (!commitId) throw new Error("The Starship test save has no committed generation.");
+  const payloadKey = `miaplacidus:v1:slot:${slotId}:${commitId}`;
+  const payload = values.get(payloadKey);
+  if (!payload) throw new Error("The Starship test save payload could not be read.");
+  const json = decompressFromUTF16(payload);
+  if (!json) throw new Error("The Starship test save payload could not be decompressed.");
+  const envelope = JSON.parse(json) as SaveEnvelopeV1;
+  const state: GameState = {
+    ...envelope.state,
+    run: {
+      ...envelope.state.run,
+      space: { ...envelope.state.run.space, antimatter: quantity },
+    },
+  };
+  const updated = makeEnvelope({
+    slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: Math.max(Date.now(), envelope.savedAt),
+    revision: envelope.revision + 1,
+    state,
+  });
+  values.set(payloadKey, compressToUTF16(canonicalJson(updated)));
+  return [...values.entries()];
+}
+
+async function openSavedPioneer(
+  context: BrowserContext,
+  entries: readonly StoredEntry[],
+): Promise<Page> {
+  const page = await context.newPage();
+  await page.addInitScript(
+    (storedEntries: StoredEntry[]) => {
+      const prefix = "miaplacidus:v1:";
+      const keys = Array.from({ length: localStorage.length }, (_, index) =>
+        localStorage.key(index),
+      ).filter((key): key is string => key?.startsWith(prefix) ?? false);
+      for (const key of keys) localStorage.removeItem(key);
+      for (const [key, value] of storedEntries) localStorage.setItem(key, value);
+    },
+    [...entries],
+  );
+  await page.goto("/");
+  await resumeSavedPioneer(page, "Starship Pioneer");
+  await expect(page.locator("[data-app-ready]")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  return page;
+}
+
+async function browserLocalStorageEntries(page: Page): Promise<StoredEntry[]> {
+  return page.evaluate(() => {
+    const prefix = "miaplacidus:v1:";
+    const entries: StoredEntry[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(prefix)) continue;
+      const value = localStorage.getItem(key);
+      if (value !== null) entries.push([key, value]);
+    }
+    return entries;
+  });
+}
 
 async function startStarshipFixture(
   page: import("@playwright/test").Page,
@@ -151,6 +234,127 @@ test("cancels the point-of-no-return prompt and arrives through the saved voyage
   expect(arrived.run.timers[voyageTimerId]?.status).toBe("complete");
 });
 
+test("blocks the irreversible Starship launch one antimatter short @starship-fuel-shortfall", async ({
+  page,
+}) => {
+  await startStarshipFixture(page, "space-starship-ready");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+
+  const map = page.getByTestId("star-map-pane");
+  await map.getByRole("searchbox", { name: "Search stars" }).fill("Sirius");
+  await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
+  await map
+    .getByTestId("star-selection")
+    .getByRole("button", { name: "Set as destination" })
+    .click();
+  await page.getByRole("tab", { name: "Starship construction" }).click();
+  await saveNowFromSettings(page);
+
+  const savedState = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const destinationId = savedState.run.space.starship.destinationSystemId;
+  expect(destinationId).not.toBeNull();
+  const plan = starshipTravelPlan(savedState, destinationId!);
+  expect(plan).not.toBeNull();
+  const requiredFuel = plan!.antimatter;
+  expect(requiredFuel).toBeGreaterThan(0);
+  const formattedFuel = formatNumber(
+    savedState.settings.locale,
+    requiredFuel,
+    2,
+    savedState.settings.notation,
+  );
+  const savedEntries = await browserLocalStorageEntries(page);
+  const context = page.context();
+  await page.close();
+
+  const shortfallEntries = saveWithAntimatter(savedEntries, requiredFuel - 1);
+  const shortfallPage = await openSavedPioneer(context, shortfallEntries);
+  try {
+    await shortfallPage.getByRole("tab", { name: "Interstellar" }).click();
+    await shortfallPage.getByRole("tab", { name: "Starship construction" }).click();
+    const starship = shortfallPage.getByTestId("starship-pane");
+    const travelSummary = starship.locator(".starship-travel-summary");
+    await expect(travelSummary.locator(".space-cost-list")).toContainText(
+      `${starshipText("en", "fuelCost")}: ${formattedFuel}`,
+    );
+    const launchButton = travelSummary.getByRole("button", { name: "Launch starship" });
+    await expect(launchButton).toBeDisabled();
+    await expect(launchButton).toHaveAttribute("aria-describedby", "starship-launch-reason");
+    await expect(travelSummary.locator("#starship-launch-reason")).toHaveText(
+      spaceText(savedState.settings.locale, "reasonInsufficientAntimatter", {
+        amount: formattedFuel,
+      }),
+    );
+    const shortfallState = await shortfallPage.evaluate(() => window.miaplacidusTest!.getState());
+    expect(shortfallState.run.space.antimatter).toBe(requiredFuel - 1);
+  } finally {
+    await shortfallPage.close();
+  }
+
+  const exactStockEntries = saveWithAntimatter(savedEntries, requiredFuel);
+  const exactStockPage = await openSavedPioneer(context, exactStockEntries);
+  try {
+    await exactStockPage.getByRole("tab", { name: "Interstellar" }).click();
+    await exactStockPage.getByRole("tab", { name: "Starship construction" }).click();
+    const starship = exactStockPage.getByTestId("starship-pane");
+    const travelSummary = starship.locator(".starship-travel-summary");
+    await expect(travelSummary.locator(".space-cost-list")).toContainText(
+      `${starshipText("en", "fuelCost")}: ${formattedFuel}`,
+    );
+    const launchButton = travelSummary.getByRole("button", { name: "Launch starship" });
+    await expect(launchButton).toBeEnabled();
+    await expect(launchButton).not.toHaveAttribute("aria-describedby", "starship-launch-reason");
+    const beforeCancel = await exactStockPage.evaluate(() => window.miaplacidusTest!.getState());
+    expect(beforeCancel.run.space.antimatter).toBe(requiredFuel);
+
+    await launchButton.click();
+    const warning = exactStockPage.getByRole("dialog", { name: "Warning: point of no return" });
+    await expect(warning).toBeVisible();
+    await warning.getByRole("button", { name: starshipText("en", "cancelLaunch") }).click();
+    await expect(warning).toBeHidden();
+    await expect(launchButton).toBeEnabled();
+    const afterCancel = await exactStockPage.evaluate(() => window.miaplacidusTest!.getState());
+    expect(afterCancel.run.space.starship.phase).toBe("unlaunched");
+    expect(afterCancel.run.space.antimatter).toBe(requiredFuel);
+  } finally {
+    await exactStockPage.close();
+  }
+});
+
+test("shows the starship's live journey countdown on its page @starship-live-countdown", async ({
+  page,
+}) => {
+  await startStarshipFixture(page, "space-starship-ready");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+
+  const map = page.getByTestId("star-map-pane");
+  await map.getByRole("searchbox", { name: "Search stars" }).fill("Sirius");
+  await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
+  await map
+    .getByTestId("star-selection")
+    .getByRole("button", { name: "Set as destination" })
+    .click();
+
+  await page.getByRole("tab", { name: "Starship construction" }).click();
+  const starship = page.getByTestId("starship-pane");
+  await starship.getByRole("button", { name: "Launch starship" }).click();
+  await page
+    .getByRole("dialog", { name: "Warning: point of no return" })
+    .getByRole("button", { name: "Confirm launch" })
+    .click();
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.starship.phase))
+    .toBe("travelling");
+
+  const journeyCountdown = starship.getByTestId("starship-journey-countdown");
+  await expect(journeyCountdown).toBeVisible();
+  const initialRemainingMs = Number(await journeyCountdown.getAttribute("data-remaining-ms"));
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(async () => Number(await journeyCountdown.getAttribute("data-remaining-ms")))
+    .toBeLessThan(initialRemainingMs);
+});
+
 test("scans an orbiting destination once and persists stable hostility data @starship", async ({
   page,
 }) => {
@@ -237,6 +441,65 @@ test("builds an Envoy and records message and harmony effects @starship", async 
   const harmonized = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(harmonized.run.space.systemEncounters[0]?.lastDiplomacyMessage).toMatch(/^harmony/);
   expect(harmonized.run.space.systemEncounters[0]?.patience).toBeLessThanOrEqual(2);
+});
+
+test("shows the Envoy shortfall one unit below cost and enables it at exact stock @starship-affordability", async ({
+  page,
+}) => {
+  await startStarshipFixture(page, "space-diplomacy");
+
+  // Shape the deterministic fixture with valid sale commands; the Envoy
+  // action itself is checked and completed through its visible UI control.
+  await page.evaluate(() => {
+    const state = window.miaplacidusTest!.getState();
+    const targets = { hydrogen: 7_999, silicon: 300, titanium: 120 } as const;
+    for (const [goodId, target] of Object.entries(targets)) {
+      const quantity = state.run.goods[goodId as keyof typeof targets].quantity;
+      if (
+        !window.miaplacidusTest!.dispatch({
+          type: "resource.sell",
+          goodId: goodId as keyof typeof targets,
+          amount: quantity - target,
+        })
+      ) {
+        throw new Error(`Could not prepare ${goodId} stock for the Envoy affordability check.`);
+      }
+    }
+  });
+
+  const underfunded = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(underfunded.run.goods.hydrogen.quantity).toBe(7_999);
+  expect(underfunded.run.goods.silicon.quantity).toBe(300);
+  expect(underfunded.run.goods.titanium.quantity).toBe(120);
+
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+  const hangar = page.getByTestId("starship-fleet-hangar");
+  const envoyButton = hangar.getByRole("button", { name: "Build Envoy" });
+  await expect(envoyButton).toBeDisabled();
+  await expect(envoyButton).toHaveAttribute("aria-describedby", "starship-envoy-reason");
+  await expect(hangar.locator("#starship-envoy-reason")).toHaveText(
+    "Not enough Hydrogen. Required: 8,000.",
+  );
+
+  await page.getByRole("tab", { name: "Resources" }).click();
+  await page.getByRole("button", { name: "Collect 1 Hydrogen", exact: true }).click();
+  const exactlyAffordable = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(exactlyAffordable.run.goods.hydrogen.quantity).toBe(8_000);
+  expect(exactlyAffordable.run.goods.silicon.quantity).toBe(300);
+  expect(exactlyAffordable.run.goods.titanium.quantity).toBe(120);
+
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+  await expect(envoyButton).toBeEnabled();
+  await envoyButton.click();
+
+  const built = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(built.run.space.fleetEnvoyBuilt).toBe(true);
+  expect(built.run.goods.hydrogen.quantity).toBe(0);
+  expect(built.run.goods.silicon.quantity).toBe(0);
+  expect(built.run.goods.titanium.quantity).toBe(0);
+  expect(built.run.cash).toBe(exactlyAffordable.run.cash - 2_000);
 });
 
 test("Fleet Hangar build controls support keyboard focus and activation @fleet-controls", async ({

@@ -11,6 +11,8 @@ test("visual and audio preferences affect the UI and persist with their save @se
   const frame = freshGame.locator(".game-frame");
   await freshGame.locator("#tab-settings").click();
   const settings = freshGame.getByTestId("settings-pane");
+  await expect(settings.locator("#settings-notation")).toHaveValue("condensed");
+  await expect(settings.locator("#settings-notation option:checked")).toHaveText("Condensed");
 
   await expect(frame).toHaveAttribute("data-custom-pointer", "true");
   expect(await frame.evaluate((element) => getComputedStyle(element).cursor)).toContain(
@@ -66,6 +68,7 @@ test("visual and audio preferences affect the UI and persist with their save @se
     customPointerEnabled: false,
     pointerTrailEnabled: true,
     weatherEffectsEnabled: true,
+    notation: "condensed",
   });
   await expect(frame).toHaveAttribute("data-custom-pointer", "false");
 });

@@ -12,6 +12,7 @@ import {
 import { HOME_SYSTEM_NAME, createStarCatalogue } from "../content/starCatalogue";
 import { nextRandom } from "./random";
 import { canAfford, settleSpend } from "./precision";
+import { addLifetimeCount } from "./statistics";
 import type { GameState } from "./state";
 
 export const CosmicRipCommandType = "cosmic-rip." as const;
@@ -67,6 +68,19 @@ export interface CosmicRipTransition {
 
 const technologyForId = (id: CosmicRipTechnologyId) =>
   COSMIC_RIP_TECHNOLOGIES.find((technology) => technology.id === id)!;
+
+function recordGalacticPointsSpent(state: GameState, amount: number): GameState {
+  return {
+    ...state,
+    statistics: {
+      ...state.statistics,
+      lifetimeGalacticPointsSpent: addLifetimeCount(
+        state.statistics.lifetimeGalacticPointsSpent,
+        amount,
+      ),
+    },
+  };
+}
 
 export function isCosmicRipCommand(value: { readonly type: string }): value is CosmicRipCommand {
   return value.type.startsWith(CosmicRipCommandType);
@@ -181,19 +195,22 @@ export function applyCosmicRipCommand(
   if (command.type === "cosmic-rip.scanner.restore") {
     const draw = nextRandom(state.run.random);
     return {
-      state: {
-        ...state,
-        run: { ...state.run, random: draw.state },
-        permanent: {
-          ...state.permanent,
-          gloryPoints: state.permanent.gloryPoints - COSMIC_RIP_SCANNER_REPAIR_GP,
-          cosmicRip: {
-            ...progress,
-            scannerRestored: true,
-            ripLocationSectorIndex: Math.floor(draw.value * COSMIC_RIP_SECTOR_COUNT),
+      state: recordGalacticPointsSpent(
+        {
+          ...state,
+          run: { ...state.run, random: draw.state },
+          permanent: {
+            ...state.permanent,
+            gloryPoints: state.permanent.gloryPoints - COSMIC_RIP_SCANNER_REPAIR_GP,
+            cosmicRip: {
+              ...progress,
+              scannerRestored: true,
+              ripLocationSectorIndex: Math.floor(draw.value * COSMIC_RIP_SECTOR_COUNT),
+            },
           },
         },
-      },
+        COSMIC_RIP_SCANNER_REPAIR_GP,
+      ),
       events: [{ type: "cosmic-rip.scanner-restored" }],
     };
   }
@@ -201,14 +218,17 @@ export function applyCosmicRipCommand(
     const scannedSectorIndexes = [...progress.scannedSectorIndexes, command.sectorIndex];
     const found = command.sectorIndex === progress.ripLocationSectorIndex;
     return {
-      state: {
-        ...state,
-        permanent: {
-          ...state.permanent,
-          gloryPoints: state.permanent.gloryPoints - COSMIC_RIP_SCAN_GP,
-          cosmicRip: { ...progress, scannedSectorIndexes, ripFound: progress.ripFound || found },
+      state: recordGalacticPointsSpent(
+        {
+          ...state,
+          permanent: {
+            ...state.permanent,
+            gloryPoints: state.permanent.gloryPoints - COSMIC_RIP_SCAN_GP,
+            cosmicRip: { ...progress, scannedSectorIndexes, ripFound: progress.ripFound || found },
+          },
         },
-      },
+        COSMIC_RIP_SCAN_GP,
+      ),
       events: [{ type: "cosmic-rip.sector-scanned", sectorIndex: command.sectorIndex, found }],
     };
   }
@@ -240,31 +260,37 @@ export function applyCosmicRipCommand(
   if (command.type === "cosmic-rip.tech.start") {
     const technology = technologyForId(command.technologyId);
     return {
-      state: {
-        ...state,
-        permanent: {
-          ...state.permanent,
-          gloryPoints: state.permanent.gloryPoints - 1,
-          cosmicRip: {
-            ...progress,
-            telemetryData: progress.telemetryData - technology.telemetryCost,
-            activeResearchTechnologyId: command.technologyId,
-            researchElapsedMs: 0,
+      state: recordGalacticPointsSpent(
+        {
+          ...state,
+          permanent: {
+            ...state.permanent,
+            gloryPoints: state.permanent.gloryPoints - 1,
+            cosmicRip: {
+              ...progress,
+              telemetryData: progress.telemetryData - technology.telemetryCost,
+              activeResearchTechnologyId: command.technologyId,
+              researchElapsedMs: 0,
+            },
           },
         },
-      },
+        1,
+      ),
       events: [{ type: "cosmic-rip.research-started", technologyId: command.technologyId }],
     };
   }
   return {
-    state: {
-      ...state,
-      permanent: {
-        ...state.permanent,
-        gloryPoints: state.permanent.gloryPoints - COSMIC_RIP_CLOSURE_GP,
-        cosmicRip: { ...progress, closed: true },
+    state: recordGalacticPointsSpent(
+      {
+        ...state,
+        permanent: {
+          ...state.permanent,
+          gloryPoints: state.permanent.gloryPoints - COSMIC_RIP_CLOSURE_GP,
+          cosmicRip: { ...progress, closed: true },
+        },
       },
-    },
+      COSMIC_RIP_CLOSURE_GP,
+    ),
     events: [{ type: "cosmic-rip.closed" }],
   };
 }
@@ -290,15 +316,31 @@ export function advanceCosmicRip(state: GameState, elapsedMs: number): CosmicRip
   const progress = state.permanent.cosmicRip;
   const seconds = elapsedMs / 1000;
   const technologyId = progress.activeResearchTechnologyId;
+  const telemetryRate = cosmicRipTelemetryRate(state);
+  const telemetryData = Number((progress.telemetryData + telemetryRate * seconds).toFixed(8));
+  const telemetryEarned =
+    telemetryRate > 0 ? Math.max(0, telemetryData - progress.telemetryData) : 0;
+  const statistics =
+    telemetryEarned > 0
+      ? {
+          ...state.statistics,
+          lifetimeCosmicRipTelemetryDataEarned: Math.min(
+            Number.MAX_SAFE_INTEGER,
+            state.statistics.lifetimeCosmicRipTelemetryDataEarned + telemetryEarned,
+          ),
+        }
+      : state.statistics;
   let nextProgress = {
     ...progress,
-    telemetryData: Number(
-      (progress.telemetryData + cosmicRipTelemetryRate(state) * seconds).toFixed(8),
-    ),
+    telemetryData,
   };
   if (!technologyId) {
     return {
-      state: { ...state, permanent: { ...state.permanent, cosmicRip: nextProgress } },
+      state: {
+        ...state,
+        permanent: { ...state.permanent, cosmicRip: nextProgress },
+        statistics,
+      },
       events: [],
     };
   }
@@ -307,7 +349,11 @@ export function advanceCosmicRip(state: GameState, elapsedMs: number): CosmicRip
   if (researchElapsedMs < technology.durationMs) {
     nextProgress = { ...nextProgress, researchElapsedMs };
     return {
-      state: { ...state, permanent: { ...state.permanent, cosmicRip: nextProgress } },
+      state: {
+        ...state,
+        permanent: { ...state.permanent, cosmicRip: nextProgress },
+        statistics,
+      },
       events: [],
     };
   }
@@ -318,7 +364,11 @@ export function advanceCosmicRip(state: GameState, elapsedMs: number): CosmicRip
     researchElapsedMs: 0,
   };
   return {
-    state: { ...state, permanent: { ...state.permanent, cosmicRip: nextProgress } },
+    state: {
+      ...state,
+      permanent: { ...state.permanent, cosmicRip: nextProgress },
+      statistics,
+    },
     events: [{ type: "cosmic-rip.technology-researched", technologyId }],
   };
 }

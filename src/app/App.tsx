@@ -8,7 +8,7 @@ import {
   useState,
   type ComponentType,
 } from "react";
-import type { LocaleId } from "../content/ids";
+import type { EconomicGoodId, LocaleId } from "../content/ids";
 import { LOCALE_IDS, autobuyerUpgradeId } from "../content/ids";
 import {
   HYDROGEN_STORAGE_MULTIPLIER,
@@ -50,6 +50,7 @@ import {
   spaceMiningPaneItems,
   cosmicRipPaneItems,
   resourcePaneGroups,
+  compoundPaneGroups,
   energyPaneItems,
   researchPaneItems,
   settingsPaneItems,
@@ -59,7 +60,6 @@ import {
   type MiaplaediaPaneId,
   type SpaceMiningPaneId,
   type CosmicRipPaneId,
-  type ResourcePaneGroup,
 } from "./presentationNavigation";
 import {
   acquireSlotLock,
@@ -147,9 +147,9 @@ const SaveManager = lazy(() =>
 
 const GAME_TABS = [
   { id: "hydrogen", key: "tab.hydrogen" },
+  { id: "compounds", key: "tab.compounds" },
   { id: "energy", key: "tab.energy" },
   { id: "research", key: "tab.research" },
-  { id: "compounds", key: "tab.compounds" },
   { id: "interstellar", key: "tab.interstellar" },
   { id: "space-mining", key: "tab.spaceMining" },
   { id: "galaxy", key: "tab.galaxy" },
@@ -157,6 +157,8 @@ const GAME_TABS = [
   { id: "settings", key: "tab.settings" },
   { id: "miaplaedia", key: "tab.miaplaedia" },
 ] as const satisfies readonly { id: string; key: MessageKey }[];
+
+const DEBUG_ENABLED = true;
 
 type GameTabId = (typeof GAME_TABS)[number]["id"];
 
@@ -179,19 +181,31 @@ function isGameTabAvailable(tabId: GameTabId, state: GameState): boolean {
   );
 }
 
-function ResourceRail({
+function EconomyRail({
   groups,
   state,
   activePane,
   hidden,
   storageScope,
+  panePrefix,
+  label,
+  testId,
+  className,
   onSelect,
 }: {
-  readonly groups: readonly ResourcePaneGroup[];
+  readonly groups: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly goodIds: readonly EconomicGoodId[];
+  }[];
   readonly state: GameState;
   readonly activePane: string;
   readonly hidden: boolean;
   readonly storageScope: string;
+  readonly panePrefix: "resources" | "compounds";
+  readonly label: string;
+  readonly testId: string;
+  readonly className?: string;
   readonly onSelect: (paneId: string) => void;
 }) {
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<ReadonlySet<string>>(() =>
@@ -203,12 +217,14 @@ function ResourceRail({
 
   return (
     <aside
-      className="resource-rail"
-      aria-label={economyLabel(state.settings.locale, "resources")}
+      className={`resource-rail${className ? ` ${className}` : ""}`}
+      aria-label={label}
+      data-testid={testId}
       hidden={hidden}
     >
       {groups.map((group) => {
         const collapsed = collapsedGroupIds.has(group.id);
+        const groupPanelId = `${panePrefix}-rail-group-${group.id}`;
         return (
           <section className="resource-rail-group" key={group.id}>
             <button
@@ -216,7 +232,7 @@ function ResourceRail({
               type="button"
               data-testid={`resource-group-toggle-${group.id}`}
               aria-expanded={!collapsed}
-              aria-controls={`resource-group-${group.id}`}
+              aria-controls={groupPanelId}
               onClick={() =>
                 setCollapsedGroupIds((current) => {
                   const next = new Set(current);
@@ -229,17 +245,21 @@ function ResourceRail({
               {group.label}
               <span aria-hidden="true">{collapsed ? "›" : "⌄"}</span>
             </button>
-            <div id={`resource-group-${group.id}`} hidden={collapsed}>
+            <div id={groupPanelId} hidden={collapsed}>
               {group.goodIds.map((goodId) => {
                 const good = state.run.goods[goodId];
                 const rate = economyRatePerSecond(state, goodId);
-                const paneId = `resources-${goodId}`;
+                const paneId = `${panePrefix}-${goodId}`;
                 return (
                   <button
                     key={goodId}
                     className={`resource-item${activePane === paneId ? " is-current" : ""}`}
                     type="button"
-                    data-testid={`resource-rail-${goodId}`}
+                    data-testid={
+                      panePrefix === "resources"
+                        ? `resource-rail-${goodId}`
+                        : `compound-rail-${goodId}`
+                    }
                     onClick={() => onSelect(paneId)}
                   >
                     <EconomicGoodEmblem goodId={goodId} />
@@ -376,7 +396,7 @@ function localizedReason(
   locale: LocaleId,
   key: string | undefined,
   required?: number,
-  notation: GameState["settings"]["notation"] = "standard",
+  notation: GameState["settings"]["notation"] = "condensed",
 ): string {
   if (key === "ui.hydrogen.inventory-full") return translate(locale, "reason.inventory-full");
   if (key === "ui.hydrogen.no-stock") return translate(locale, "reason.no-stock");
@@ -562,6 +582,7 @@ function AppContent() {
               "storage-all",
               "water-storage",
               "water-storage-short",
+              "storage-production",
               "save",
               "bulk-hydrogen",
               "bulk-science",
@@ -572,6 +593,8 @@ function AppContent() {
               "multipliers",
               "space-telescope",
               "space-telescope-before-launch-pad",
+              "space-rocket-part-shortfall",
+              "space-rocket-part-exact",
               "space-starship",
               "space-starship-ready",
               "space-starship-scanning",
@@ -586,10 +609,14 @@ function AppContent() {
               "space-unoccupied",
               "meta-rebirth-ready",
               "meta-market-ready",
+              "meta-market-action-reasons",
               "meta-casino-ready",
-              "meta-rebirth-before-casino-unlock",
+              "meta-casino-timewarp",
+              "meta-post-rebirth-casino-access",
               "meta-black-hole-discovered",
+              "meta-black-hole-underfunded",
               "meta-megastructure-route",
+              "meta-megastructure-research-reasons",
               "meta-cosmic-rip-route",
               "meta-cosmic-rip-restore-affordance",
               "meta-cosmic-rip-action-affordances",
@@ -905,6 +932,7 @@ function GameSession({
   const [autoSaveInterval, setAutoSaveInterval] = useState<300 | 900 | 1800 | 3600>(
     repository?.readPreferences().autoSaveIntervalSeconds ?? 300,
   );
+  const [debugScenarioOpen, setDebugScenarioOpen] = useState(false);
   const [debugLabOpen, setDebugLabOpen] = useState(false);
   const currentLocaleRef = useRef(snapshot.locale);
   useEffect(() => {
@@ -917,7 +945,9 @@ function GameSession({
     store: GameStore;
     seed: number;
     open: boolean;
+    testLabOpen: boolean;
     onClose: () => void;
+    onTestLabClose: () => void;
     advanceBy: (milliseconds: number) => void;
     applyTestCheckpoint: (state: GameState) => boolean;
     readFrameMetrics: () => {
@@ -1159,9 +1189,10 @@ function GameSession({
   }, [store, testClock, frameMetrics, persistCurrent]);
 
   useEffect(() => {
-    if (!import.meta.env.DEV && MIAPLACIDUS_BUILD_MODE !== "test") return;
-    const toggleTestLab = (event: KeyboardEvent) => {
-      if (event.code !== "NumpadSubtract" || event.repeat) return;
+    if (!DEBUG_ENABLED || (!import.meta.env.DEV && MIAPLACIDUS_BUILD_MODE !== "test")) return;
+    const toggleDebugWindow = (event: KeyboardEvent) => {
+      if (event.code !== "NumpadSubtract" && event.code !== "NumpadAdd") return;
+      if (event.repeat) return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -1170,9 +1201,15 @@ function GameSession({
         return;
       }
       event.preventDefault();
-      setDebugLabOpen((isOpen) => !isOpen);
+      if (event.code === "NumpadSubtract") {
+        setDebugLabOpen(false);
+        setDebugScenarioOpen((isOpen) => !isOpen);
+      } else {
+        setDebugScenarioOpen(false);
+        setDebugLabOpen((isOpen) => !isOpen);
+      }
     };
-    window.addEventListener("keydown", toggleTestLab);
+    window.addEventListener("keydown", toggleDebugWindow);
     let removeGateway = () => {};
     let cancelled = false;
     void import("./testing/DebugTools").then((module) => {
@@ -1199,7 +1236,7 @@ function GameSession({
     return () => {
       cancelled = true;
       removeGateway();
-      window.removeEventListener("keydown", toggleTestLab);
+      window.removeEventListener("keydown", toggleDebugWindow);
     };
   }, [store, seed, frameMetrics, advanceTestClock, onApplyTestCheckpoint]);
 
@@ -1312,6 +1349,10 @@ function GameSession({
   const settingsPanels = settingsPaneItems(snapshot.locale);
   const resourceGroups = resourcePaneGroups(snapshot.locale, currentState.run.unlockedResources);
   const resourcePanels = resourceGroups.flatMap((group) => group.items);
+  const compoundGroups = compoundPaneGroups(
+    snapshot.locale,
+    currentState.run.economy.unlockedCompounds,
+  );
   const energyPanels = energyPaneItems(
     snapshot.locale,
     currentState.run.economy.researchedTechnologies,
@@ -1632,18 +1673,40 @@ function GameSession({
         </div>
       </nav>
 
-      <div className={`main-layout${selectedTabId === "hydrogen" ? " has-resource-rail" : ""}`}>
-        <ResourceRail
+      <div
+        className={`main-layout${selectedTabId === "hydrogen" || selectedTabId === "compounds" ? " has-economy-rail" : ""}`}
+      >
+        <EconomyRail
           groups={resourceGroups}
           state={currentState}
           activePane={selectedResourcePane}
           hidden={selectedTabId !== "hydrogen"}
+          panePrefix="resources"
+          label={economyLabel(snapshot.locale, "resources")}
+          testId="resource-rail"
           storageScope={`${slotId}:resource-rail`}
           onSelect={(paneId) => {
             clearAttention(paneId);
             activateTab("hydrogen");
             activatePane(paneId);
             setActiveResourcePane(paneId);
+          }}
+        />
+        <EconomyRail
+          groups={compoundGroups}
+          state={currentState}
+          activePane={selectedCompoundPane}
+          hidden={selectedTabId !== "compounds"}
+          panePrefix="compounds"
+          label={economyLabel(snapshot.locale, "compounds")}
+          testId="compound-rail"
+          className="compound-rail"
+          storageScope={`${slotId}:compound-rail`}
+          onSelect={(paneId) => {
+            clearAttention(paneId);
+            activateTab("compounds");
+            activatePane(paneId);
+            setActiveCompoundPane(paneId);
           }}
         />
 
@@ -1663,7 +1726,9 @@ function GameSession({
                 {(selectedTabId === tab.id || visitedTabs.has(tab.id)) && (
                   <Suspense fallback={<div className="pane-loading" aria-hidden="true" />}>
                     {tab.id === "hydrogen" ? (
-                      <div className="tab-section-layout">
+                      <div
+                        className={`tab-section-layout${selectedResourcePane !== "resources-hydrogen" ? " resource-page-selected" : ""}`}
+                      >
                         <PaneNavigation
                           items={resourcePanels}
                           selectedId={selectedResourcePane}
@@ -1689,7 +1754,6 @@ function GameSession({
                           <div className="pane-heading">
                             <div>
                               <h2>{t("hydrogen.title")}</h2>
-                              <p className="pane-intro">{t("hydrogen.description")}</p>
                             </div>
                           </div>
 
@@ -1757,6 +1821,17 @@ function GameSession({
                                   )}
                                   <small>{"H\u2082/s"}</small>
                                 </strong>
+                                {snapshot.hydrogenProductionBlockedByStorage && (
+                                  <p
+                                    className="red-disabled-text"
+                                    data-testid="production-blocked-hydrogen"
+                                  >
+                                    {economyLabel(
+                                      snapshot.locale,
+                                      "automaticProductionBlockedByStorage",
+                                    )}
+                                  </p>
+                                )}
                               </div>
                             </div>
 
@@ -2080,7 +2155,7 @@ function GameSession({
                     ) : tab.id === "compounds" &&
                       currentState.run.economy.researchedTechnologies.includes("compounds") &&
                       compoundPanels.length > 0 ? (
-                      <div className="tab-section-layout">
+                      <div className="tab-section-layout compound-page-selected">
                         <PaneNavigation
                           items={compoundPanels}
                           selectedId={selectedCompoundPane}
@@ -2287,6 +2362,42 @@ function GameSession({
                         attentionIds={attentionIds}
                         attentionLabel={t("nav.new")}
                         onPaneVisit={activatePane}
+                        onNavigateToPane={(paneId) => {
+                          activatePane(paneId);
+                          if (paneId.startsWith("resources-")) {
+                            clearAttention("hydrogen");
+                            setActiveResourcePane(paneId);
+                            activateTab("hydrogen");
+                          } else if (paneId.startsWith("energy-")) {
+                            clearAttention("energy");
+                            setActiveEnergyPane(paneId);
+                            activateTab("energy");
+                          } else if (paneId.startsWith("research-")) {
+                            clearAttention("research");
+                            setActiveResearchPane(paneId);
+                            activateTab("research");
+                          } else if (paneId.startsWith("interstellar-")) {
+                            clearAttention("interstellar");
+                            setActiveInterstellarPane(paneId as InterstellarPaneId);
+                            activateTab("interstellar");
+                          } else if (paneId.startsWith("galactic-")) {
+                            clearAttention("galaxy");
+                            setActiveGalacticPane(paneId as GalacticPaneId);
+                            activateTab("galaxy");
+                          } else if (paneId.startsWith("cosmic-rip-")) {
+                            clearAttention("cosmic-rip");
+                            setActiveCosmicRipPane(paneId as CosmicRipPaneId);
+                            activateTab("cosmic-rip");
+                          } else if (paneId.startsWith("compounds-")) {
+                            clearAttention("compounds");
+                            setActiveCompoundPane(paneId);
+                            activateTab("compounds");
+                          } else if (paneId.startsWith("space-mining-")) {
+                            clearAttention("space-mining");
+                            setActiveSpaceMiningPane(paneId as SpaceMiningPaneId);
+                            activateTab("space-mining");
+                          }
+                        }}
                         savePersistent={savePersistent}
                         saveStatus={
                           saveFailure ||
@@ -2369,8 +2480,10 @@ function GameSession({
         <DebugTools
           store={store}
           seed={seed}
-          open={debugLabOpen}
-          onClose={() => setDebugLabOpen(false)}
+          open={debugScenarioOpen}
+          testLabOpen={debugLabOpen}
+          onClose={() => setDebugScenarioOpen(false)}
+          onTestLabClose={() => setDebugLabOpen(false)}
           advanceBy={advanceTestClock}
           applyTestCheckpoint={onApplyTestCheckpoint}
           readFrameMetrics={() => {

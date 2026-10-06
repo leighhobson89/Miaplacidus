@@ -14,6 +14,13 @@ verifies that Galactic Casino is not a main tab and that the Galactic child
 tabs remain in source order: Rebirth, Galactic Market, Galactic Casino,
 Ascendency Perks, and Megastructures.
 
+The `@theme-tab-matrix` browser area unlocks a deterministic late-game route,
+then visits each of the ten visible top-level tabs through the real navigation
+controls at 1280px, 768px, 390px, and 320px in Terminal. It checks panel and
+document bounds on all 40 tab/viewport visits, and attaches four Miaplaedia
+screenshots, one per width. The Tech Tree, Galactic Casino, and save-error
+viewport checks separately cover all nine themes at wide and phone widths.
+
 Run it with:
 
 ```powershell
@@ -29,6 +36,16 @@ Run the late-game viewport matrix with:
 ```powershell
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
 $env:MIAPLACIDUS_TEST_AREA = "theme-matrix"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+npm.cmd run test:e2e:focused -- --workers=1 tests/e2e/theme-presentation/theme-presentation.spec.ts
+```
+
+Run the all-tabs responsive matrix with:
+
+```powershell
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
+$env:MIAPLACIDUS_TEST_AREA = "theme-tab-matrix"
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --workers=1 tests/e2e/theme-presentation/theme-presentation.spec.ts
@@ -70,3 +87,15 @@ passed. The late-game viewport and error-state matrix passed
 1280px and 390px under all nine themes with no document-level horizontal
 overflow. It also verified the five Galactic child tabs stay in source order
 with Casino between the Market and Ascendency Perks.
+
+6 October 2026: the initial 360-visit matrix across all nine themes exceeded
+its 180s timeout; the 120-visit Terminal/Light/Supernova attempt exceeded 120s,
+and the 60-visit reduced-theme attempt exceeded 90s. Those attempts were
+abandoned before producing valid results. The final 40-visit Chrome matrix
+passed 1/1 in 81.9 seconds, visiting all ten main tabs at 1280px, 768px, 390px,
+and 320px in Terminal. Every visit checked the active tab/pane and the pane,
+frame, and document bounds. I reviewed all four Miaplaedia screenshots: the
+article surface fills the available pane at every width; the narrow top-level
+navigation scrolls horizontally without document-level overflow. The Tech
+Tree, Galactic Casino, and save-error checks continue to cover all nine themes
+separately.

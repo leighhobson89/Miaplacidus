@@ -23,6 +23,7 @@ import { formatCurrency } from "./currencyFormatting";
 import { economyGoodName } from "./economyDisplay";
 import type { CosmicRipPaneId } from "./presentationNavigation";
 import { formatNumber } from "./numberFormatting";
+import { formatCountdown } from "./timeFormatting";
 import { CelestialIllustration } from "./CelestialIllustration";
 
 interface CosmicRipPaneProps {
@@ -79,6 +80,9 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
     technology,
     command: { type: "cosmic-rip.tech.start", technologyId: technology.id } as const,
   }));
+  const restoreScannerCommand: GameCommand = { type: "cosmic-rip.scanner.restore" };
+  const restoreScannerCheck = affordability(restoreScannerCommand);
+  const restoreScannerReasonId = "cosmic-rip-restore-reason";
 
   return (
     <section
@@ -126,8 +130,27 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                 ? progress.scannedSectorIndexes.length > 0
                   ? copy.ripMissing
                   : copy.scanInstruction
-                : copy.restoreScanner}
+                : copy.scannerArrayTitle}
         </p>
+        {!progress.scannerRestored ? (
+          <div className="cosmic-rip-control">
+            <button
+              className="primary-button"
+              type="button"
+              data-testid="cosmic-rip-restore-scanner"
+              disabled={!restoreScannerCheck.enabled}
+              aria-describedby={restoreScannerCheck.reason ? restoreScannerReasonId : undefined}
+              onClick={() => run(restoreScannerCommand)}
+            >
+              {copy.restoreScanner} · {number(state, COSMIC_RIP_SCANNER_REPAIR_GP)} {copy.gpShort}
+            </button>
+            {restoreScannerCheck.reason && (
+              <p className="control-reason" id={restoreScannerReasonId}>
+                {restoreScannerCheck.reason}
+              </p>
+            )}
+          </div>
+        ) : null}
       </section>
 
       <section
@@ -139,33 +162,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
         hidden={activePane !== "cosmic-rip-scanner-array"}
       >
         <h3 id="cosmic-rip-scan-title">{copy.scannerArrayTitle}</h3>
-        {!progress.scannerRestored ? (
-          (() => {
-            const command: GameCommand = { type: "cosmic-rip.scanner.restore" };
-            const check = affordability(command);
-            const reasonId = "cosmic-rip-restore-reason";
-            return (
-              <div className="cosmic-rip-control">
-                <button
-                  className="primary-button"
-                  type="button"
-                  data-testid="cosmic-rip-restore-scanner"
-                  disabled={!check.enabled}
-                  aria-describedby={check.reason ? reasonId : undefined}
-                  onClick={() => run(command)}
-                >
-                  {copy.restoreScanner} · {number(state, COSMIC_RIP_SCANNER_REPAIR_GP)}{" "}
-                  {copy.gpShort}
-                </button>
-                {check.reason && (
-                  <p className="control-reason" id={reasonId}>
-                    {check.reason}
-                  </p>
-                )}
-              </div>
-            );
-          })()
-        ) : (
+        {progress.scannerRestored ? (
           <>
             <p>{copy.scannerRestored}</p>
             <p>{copy.scanInstruction}</p>
@@ -216,7 +213,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                   : ""}
             </output>
           </>
-        )}
+        ) : null}
       </section>
 
       <section
@@ -312,11 +309,22 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                       ) : active ? (
                         <>
                           <p>{copy.researching}</p>
-                          <progress
-                            aria-label={`${copy.researching}: ${copy.technologyNames[technology.id]}`}
-                            value={progress.researchElapsedMs}
-                            max={technology.durationMs}
-                          />
+                          <div className="cosmic-rip-research-progress">
+                            <progress
+                              aria-label={`${copy.researching}: ${copy.technologyNames[technology.id]}`}
+                              value={progress.researchElapsedMs}
+                              max={technology.durationMs}
+                            />
+                            <small data-testid="cosmic-rip-research-remaining">
+                              {copy.remaining.replace(
+                                "{time}",
+                                formatCountdown(
+                                  locale,
+                                  technology.durationMs - progress.researchElapsedMs,
+                                ),
+                              )}
+                            </small>
+                          </div>
                         </>
                       ) : (
                         <>

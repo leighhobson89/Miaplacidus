@@ -39,6 +39,13 @@ type EconomyLabel =
   | "allocationHelp"
   | "retainedShare"
   | "energy"
+  | "generationMix"
+  | "generationTotal"
+  | "energyConsumption"
+  | "powerGridOff"
+  | "powerGridTripped"
+  | "infinitePowerAvailable"
+  | "generationChartSummary"
   | "generated"
   | "consumed"
   | "stored"
@@ -78,6 +85,7 @@ type EconomyLabel =
   | "unavailable"
   | "purchaseUnavailable"
   | "collectStorageFull"
+  | "automaticProductionBlockedByStorage"
   | "saleNoStock"
   | "needGoodAmount"
   | "needCashAmount"
@@ -134,6 +142,14 @@ const en: Record<EconomyLabel, string> = {
     "Drag either handle to change the split. With a handle focused, use the arrow keys to move it by 5%; Home and End move it to an endpoint.",
   retainedShare: "Retained share",
   energy: "Energy",
+  generationMix: "Power generation mix",
+  generationTotal: "Total generation",
+  energyConsumption: "Total consumption",
+  powerGridOff: "Power grid off: active generators are producing 0 kJ/s.",
+  powerGridTripped: "Power tripped: active generators are producing 0 kJ/s.",
+  infinitePowerAvailable: "Infinite power supply is active.",
+  generationChartSummary:
+    "{plant1}: {rate1} kJ/s; {plant2}: {rate2} kJ/s; {plant3}: {rate3} kJ/s. {totalLabel}: {total} kJ/s. {consumptionLabel}: {consumption} kJ/s.",
   generated: "Generated",
   consumed: "Consumed",
   stored: "Stored",
@@ -173,6 +189,7 @@ const en: Record<EconomyLabel, string> = {
   unavailable: "Unmet demand",
   purchaseUnavailable: "You do not yet have the resources required for this purchase.",
   collectStorageFull: "Storage is full. Increase capacity to collect or create more.",
+  automaticProductionBlockedByStorage: "Automatic production is blocked while storage is full.",
   saleNoStock: "No whole {good} units are available to sell.",
   needGoodAmount: "Need {amount} {good}.",
   needCashAmount: "Need {amount} cash.",
@@ -230,6 +247,14 @@ const es: Record<EconomyLabel, string> = {
     "Arrastra cualquiera de los controles para cambiar la distribución. Con uno enfocado, usa las flechas para moverlo en pasos del 5 %; Inicio y Fin lo llevan a un extremo.",
   retainedShare: "Parte retenida",
   energy: "Energía",
+  generationMix: "Mezcla de generación eléctrica",
+  generationTotal: "Generación total",
+  energyConsumption: "Consumo total",
+  powerGridOff: "Red eléctrica apagada: los generadores activos producen 0 kJ/s.",
+  powerGridTripped: "Corte eléctrico: los generadores activos producen 0 kJ/s.",
+  infinitePowerAvailable: "El suministro de energía infinita está activo.",
+  generationChartSummary:
+    "{plant1}: {rate1} kJ/s; {plant2}: {rate2} kJ/s; {plant3}: {rate3} kJ/s. {totalLabel}: {total} kJ/s. {consumptionLabel}: {consumption} kJ/s.",
   generated: "Generada",
   consumed: "Consumida",
   stored: "Almacenada",
@@ -270,6 +295,8 @@ const es: Record<EconomyLabel, string> = {
   purchaseUnavailable: "Aún no tienes los recursos necesarios para esta compra.",
   collectStorageFull:
     "El almacenamiento está lleno. Amplía la capacidad para recolectar o crear más.",
+  automaticProductionBlockedByStorage:
+    "La producción automática está bloqueada mientras el almacenamiento esté lleno.",
   saleNoStock: "No hay unidades enteras de {good} disponibles para vender.",
   needGoodAmount: "Se necesitan {amount} {good}.",
   needCashAmount: "Se necesita {amount} de dinero.",
@@ -327,6 +354,14 @@ const pt: Record<EconomyLabel, string> = {
     "Arraste qualquer alça para alterar a divisão. Com uma alça em foco, use as setas para movê-la em passos de 5%; Home e End levam a uma extremidade.",
   retainedShare: "Parcela retida",
   energy: "Energia",
+  generationMix: "Composição da geração de energia",
+  generationTotal: "Geração total",
+  energyConsumption: "Consumo total",
+  powerGridOff: "Rede elétrica desligada: os geradores ativos produzem 0 kJ/s.",
+  powerGridTripped: "Energia desarmada: os geradores ativos produzem 0 kJ/s.",
+  infinitePowerAvailable: "O fornecimento de energia infinita está ativo.",
+  generationChartSummary:
+    "{plant1}: {rate1} kJ/s; {plant2}: {rate2} kJ/s; {plant3}: {rate3} kJ/s. {totalLabel}: {total} kJ/s. {consumptionLabel}: {consumption} kJ/s.",
   generated: "Gerada",
   consumed: "Consumida",
   stored: "Armazenada",
@@ -367,6 +402,8 @@ const pt: Record<EconomyLabel, string> = {
   purchaseUnavailable: "Ainda não tens os recursos necessários para esta compra.",
   collectStorageFull:
     "O armazenamento está cheio. Aumente a capacidade para recolher ou criar mais.",
+  automaticProductionBlockedByStorage:
+    "A produção automática está bloqueada enquanto o armazenamento estiver cheio.",
   saleNoStock: "Não há unidades inteiras de {good} disponíveis para vender.",
   needGoodAmount: "São necessários {amount} {good}.",
   needCashAmount: "São necessários {amount} em dinheiro.",
@@ -424,6 +461,14 @@ const de: Record<EconomyLabel, string> = {
     "Ziehe einen der Griffe, um die Aufteilung zu ändern. Mit fokussiertem Griff bewegen die Pfeiltasten ihn in 5-%-Schritten; Pos1 und Ende setzen ihn an ein Ende.",
   retainedShare: "Lageranteil",
   energy: "Energie",
+  generationMix: "Stromerzeugungsmix",
+  generationTotal: "Gesamterzeugung",
+  energyConsumption: "Gesamtverbrauch",
+  powerGridOff: "Stromnetz aus: Aktive Generatoren erzeugen 0 kJ/s.",
+  powerGridTripped: "Stromausfall: Aktive Generatoren erzeugen 0 kJ/s.",
+  infinitePowerAvailable: "Unbegrenzte Stromversorgung ist aktiv.",
+  generationChartSummary:
+    "{plant1}: {rate1} kJ/s; {plant2}: {rate2} kJ/s; {plant3}: {rate3} kJ/s. {totalLabel}: {total} kJ/s. {consumptionLabel}: {consumption} kJ/s.",
   generated: "Erzeugt",
   consumed: "Verbraucht",
   stored: "Gespeichert",
@@ -464,6 +509,8 @@ const de: Record<EconomyLabel, string> = {
   purchaseUnavailable: "Du hast noch nicht genug Ressourcen für diesen Kauf.",
   collectStorageFull:
     "Der Speicher ist voll. Erweitere die Kapazität, um mehr zu sammeln oder herzustellen.",
+  automaticProductionBlockedByStorage:
+    "Die automatische Produktion ist blockiert, solange der Speicher voll ist.",
   saleNoStock: "Es sind keine ganzen {good}-Einheiten zum Verkauf verfügbar.",
   needGoodAmount: "Benötigt werden {amount} {good}.",
   needCashAmount: "Benötigt werden {amount} Bargeld.",
@@ -521,6 +568,14 @@ const it: Record<EconomyLabel, string> = {
     "Trascina una maniglia per modificare la ripartizione. Con una maniglia attiva, usa le frecce per spostarla a intervalli del 5%; Inizio e Fine la portano a un'estremità.",
   retainedShare: "Quota conservata",
   energy: "Energia",
+  generationMix: "Composizione della produzione elettrica",
+  generationTotal: "Produzione totale",
+  energyConsumption: "Consumo totale",
+  powerGridOff: "Rete elettrica spenta: i generatori attivi producono 0 kJ/s.",
+  powerGridTripped: "Interruzione elettrica: i generatori attivi producono 0 kJ/s.",
+  infinitePowerAvailable: "La fornitura di energia infinita è attiva.",
+  generationChartSummary:
+    "{plant1}: {rate1} kJ/s; {plant2}: {rate2} kJ/s; {plant3}: {rate3} kJ/s. {totalLabel}: {total} kJ/s. {consumptionLabel}: {consumption} kJ/s.",
   generated: "Generata",
   consumed: "Consumato",
   stored: "Immagazzinata",
@@ -560,6 +615,8 @@ const it: Record<EconomyLabel, string> = {
   unavailable: "Fabbisogno non coperto",
   purchaseUnavailable: "Non hai ancora risorse sufficienti per questo acquisto.",
   collectStorageFull: "Il deposito è pieno. Aumenta la capacità per raccogliere o creare altro.",
+  automaticProductionBlockedByStorage:
+    "La produzione automatica è bloccata finché lo stoccaggio è pieno.",
   saleNoStock: "Non ci sono unità intere di {good} da vendere.",
   needGoodAmount: "Servono {amount} {good}.",
   needCashAmount: "Servono {amount} in denaro.",
@@ -617,6 +674,14 @@ const fr: Record<EconomyLabel, string> = {
     "Faites glisser une poignée pour modifier la répartition. Une fois sélectionnée, utilisez les flèches pour la déplacer par pas de 5 % ; Début et Fin la placent à une extrémité.",
   retainedShare: "Part conservée",
   energy: "Énergie",
+  generationMix: "Répartition de la production électrique",
+  generationTotal: "Production totale",
+  energyConsumption: "Consommation totale",
+  powerGridOff: "Réseau électrique éteint : les générateurs actifs produisent 0 kJ/s.",
+  powerGridTripped: "Coupure électrique : les générateurs actifs produisent 0 kJ/s.",
+  infinitePowerAvailable: "L’alimentation électrique illimitée est active.",
+  generationChartSummary:
+    "{plant1} : {rate1} kJ/s ; {plant2} : {rate2} kJ/s ; {plant3} : {rate3} kJ/s. {totalLabel} : {total} kJ/s. {consumptionLabel} : {consumption} kJ/s.",
   generated: "Produite",
   consumed: "Consommée",
   stored: "Stockée",
@@ -657,6 +722,8 @@ const fr: Record<EconomyLabel, string> = {
   purchaseUnavailable: "Vous n’avez pas encore les ressources nécessaires à cet achat.",
   collectStorageFull:
     "Le stockage est plein. Augmentez sa capacité pour collecter ou créer davantage.",
+  automaticProductionBlockedByStorage:
+    "La production automatique est bloquée tant que le stockage est plein.",
   saleNoStock: "Aucune unité entière de {good} n’est disponible à la vente.",
   needGoodAmount: "Il faut {amount} {good}.",
   needCashAmount: "Il faut {amount} en argent.",

@@ -20,3 +20,5 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- tests/e2e/weather/weather-overlay.spec.ts --workers=1
 ```
+
+Source trajectories are pinned separately in `tests/unit/weather-particle-geometry.spec.ts`: rain crosses one viewport width diagonally and lava stays in its source column. That focused unit file passed 2/2 after a source comparison corrected the X paths on 5 October 2026.

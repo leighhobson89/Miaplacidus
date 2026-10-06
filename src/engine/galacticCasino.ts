@@ -105,7 +105,7 @@ export function isCasinoCommand(value: { readonly type: string }): value is Casi
 }
 
 export function casinoUnlocked(state: GameState): boolean {
-  return state.run.space.ascendencyAwardedThisRun;
+  return state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0;
 }
 
 function isGoodUnlocked(state: GameState, goodId: EconomicGoodId): boolean {

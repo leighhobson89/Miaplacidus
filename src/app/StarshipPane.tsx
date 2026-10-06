@@ -26,6 +26,7 @@ import type { GameStore } from "../engine/store";
 import { economyGoodName } from "./economyDisplay";
 import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
+import { formatDuration } from "./timeFormatting";
 import { spaceText } from "../i18n/spaceMessages";
 import { starshipText, type StarshipMessageKey } from "../i18n/starshipMessages";
 import { CelestialIllustration } from "./CelestialIllustration";
@@ -145,6 +146,10 @@ export function StarshipPane({
   const destinationSystemId = space.starship.destinationSystemId;
   const destination = catalogue.find((star) => star.id === destinationSystemId);
   const travelPlan = destinationSystemId ? starshipTravelPlan(state, destinationSystemId) : null;
+  const starshipTimer = space.starship.timerId ? state.run.timers[space.starship.timerId] : null;
+  const starshipRemainingMs = starshipTimer
+    ? Math.max(0, starshipTimer.durationMs - starshipTimer.elapsedMs)
+    : 0;
   const launchCommand = { type: "space.starship.launch" as const };
   const launchCheck = checkPreconditions(state, launchCommand);
   const scanCommand = { type: "space.starship.system.scan" as const };
@@ -540,6 +545,17 @@ export function StarshipPane({
                 seconds: number(state, Math.floor(travelPlan.durationMs / 1000)),
               })}
             </p>
+            {space.starship.phase === "travelling" && starshipTimer && (
+              <p
+                className="space-range-readout"
+                data-testid="starship-journey-countdown"
+                data-remaining-ms={starshipRemainingMs}
+              >
+                {starshipText(state.settings.locale, "journeyTimeRemaining", {
+                  time: formatDuration(state.settings.locale, starshipRemainingMs),
+                })}
+              </p>
+            )}
           </>
         ) : (
           <p>{starshipText(state.settings.locale, "noDestination")}</p>

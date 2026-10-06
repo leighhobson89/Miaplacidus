@@ -1,10 +1,15 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from "react";
 import {
   COMPOUND_CATALOG,
   ENERGY_BUILDINGS,
   MATERIAL_CATALOG,
   SCIENCE_BUILDINGS,
+  BASE_STORAGE_MULTIPLIER,
   type MaterialDefinition,
 } from "../content/economy";
 import {
@@ -16,11 +21,13 @@ import {
 import {
   repeatedPerkMultiplier,
   scaledPriceAfterPurchases,
+  permanentPerkPurchaseCount,
+  storageCapacityAfterPurchase,
   storagePurchaseCost,
   type SaleSelection,
 } from "../content/economyRules";
 import { displayCurrency } from "../engine/precision";
-import { createEconomyTickPlan } from "../engine/economySimulation";
+import { createEconomyTickPlan, type EconomyTickPlan } from "../engine/economySimulation";
 import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
 import type { GameState } from "../engine/state";
@@ -30,6 +37,7 @@ import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import { TECHNOLOGY_DESCRIPTIONS } from "../content/technologyDescriptions";
 import { economyLabel, formatEconomyMessage } from "../i18n/economyMessages";
+import { translate } from "../i18n/messages";
 import { checkPreconditions, type CommandFailure } from "../engine/commands";
 import {
   selectAutobuyerBuyMax,
@@ -43,7 +51,7 @@ import { philosophyCompoundRecipe, philosophyRepeatableRank } from "../engine/ph
 import { PhilosophyPane } from "./PhilosophyPane";
 import { EconomicGoodEmblem } from "./EconomicGoodEmblem";
 import { EconomyStructureEmblem } from "./EconomyStructureEmblem";
-import { economyGoodName, economyRatePerSecond } from "./economyDisplay";
+import { economyGoodName } from "./economyDisplay";
 import { RESOURCE_PANE_ORDER } from "./presentationNavigation";
 import { useGameNotifications } from "./NotificationStack";
 
@@ -141,6 +149,145 @@ function buyMaxPreview(state: GameState, count: number, costs: string, result: s
   });
 }
 
+function EconomicGoodHero({
+  id,
+  state,
+  rate,
+  blocked,
+  children,
+}: {
+  readonly id: EconomicGoodId;
+  readonly state: GameState;
+  readonly rate: number;
+  readonly blocked: boolean;
+  readonly children: ReactNode;
+}) {
+  const locale = state.settings.locale;
+  const good = state.run.goods[id];
+  const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const hydrogenHeading = (
+    key: "hydrogen.quantity" | "hydrogen.capacity" | "hydrogen.production",
+  ) => translate(locale, key);
+  return (
+    <div className="hydrogen-hero economy-good-hero">
+      <div className="hydrogen-overview">
+        <div className="atom-art economy-good-art" aria-hidden="true">
+          <span className="orbit orbit-one" />
+          <span className="orbit orbit-two" />
+          <span className="atom-core economy-good-art-core">
+            <EconomicGoodEmblem goodId={id} />
+          </span>
+          <span className="atom-spark">{"\u2726"}</span>
+        </div>
+        <div className="stock-readout">
+          <span className="eyebrow">{hydrogenHeading("hydrogen.quantity")}</span>
+          <strong data-testid={`economy-good-quantity-${id}`}>
+            {format(state, good.quantity)} <small>{SYMBOL[id]}</small>
+          </strong>
+          <span className="capacity-line">
+            {hydrogenHeading("hydrogen.capacity")}{" "}
+            <b data-testid={`economy-good-capacity-${id}`}>
+              {format(state, good.storageCapacity, 0)}
+            </b>
+          </span>
+          <meter
+            className="capacity-track"
+            aria-label={`${name(locale, id)} ${t("capacity")}`}
+            min={0}
+            max={good.storageCapacity}
+            value={Math.min(good.quantity, good.storageCapacity)}
+          >
+            {format(state, good.quantity, 0)} / {format(state, good.storageCapacity, 0)}
+          </meter>
+        </div>
+        <div className="rate-readout">
+          <span className="eyebrow">{hydrogenHeading("hydrogen.production")}</span>
+          <strong data-testid={`economy-good-rate-${id}`}>
+            {rate >= 0 ? "+" : "−"}
+            {format(state, Math.abs(rate), 2)}
+            <small>{SYMBOL[id]}/s</small>
+          </strong>
+          {blocked && (
+            <p className="red-disabled-text" data-testid={`production-blocked-${id}`}>
+              {t("automaticProductionBlockedByStorage")}
+            </p>
+          )}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function GoodStorageCard({
+  id,
+  state,
+  store,
+}: {
+  readonly id: EconomicGoodId;
+  readonly state: GameState;
+  readonly store: GameStore;
+}) {
+  const locale = state.settings.locale;
+  const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const good = state.run.goods[id];
+  const storage = selectEconomyAction(state, { type: "storage.purchase", goodId: id });
+  const storageReason = economyActionReason(state, storage.failure);
+  const efficientStoragePurchases = permanentPerkPurchaseCount(
+    state.permanent.acquiredPerks,
+    "efficientStorage",
+  );
+  const nextCapacity = storageCapacityAfterPurchase(
+    good.storageCapacity,
+    efficientStoragePurchases,
+    state.permanent.philosophyId === "constructor" && state.run.philosophyAbilityActive
+      ? 5
+      : BASE_STORAGE_MULTIPLIER,
+  );
+  const waterCost = id === "water" ? good.storageCapacity * 0.3 : 0;
+  return (
+    <article className="upgrade-card hydrogen-storage-card" data-testid={`storage-card-${id}`}>
+      <div className="card-icon storage-icon" aria-hidden="true">
+        {"\u25c8"}
+      </div>
+      <div className="card-copy">
+        <h3>{t("storage")}</h3>
+        <p>
+          {t("capacity")}: {format(state, good.storageCapacity, 0)} {"\u2192"}{" "}
+          {format(state, nextCapacity, 0)}
+        </p>
+        <span className="cost-line">
+          <strong>
+            {format(state, storagePurchaseCost(good.storageCapacity))} {SYMBOL[id]}
+          </strong>
+          {waterCost > 0 && (
+            <>
+              {" + "}
+              <strong>
+                {format(state, waterCost)} {name(locale, "concrete")}
+              </strong>
+            </>
+          )}
+        </span>
+      </div>
+      <div className="card-controls">
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={!storage.enabled}
+          aria-describedby={storageReason ? `good-${id}-storage-reason` : undefined}
+          onClick={() => store.dispatch({ type: "storage.purchase", goodId: id })}
+        >
+          {t("increaseStorage")}
+        </button>
+        <span className="control-reason" id={`good-${id}-storage-reason`}>
+          {storageReason ?? ""}
+        </span>
+      </div>
+    </article>
+  );
+}
+
 export function EconomyPanes({ tabId, activePane, state, store }: EconomyPanesProps) {
   if (tabId === "resources")
     return <ResourceCatalogue activePane={activePane} state={state} store={store} />;
@@ -156,6 +303,7 @@ export function EconomyPanes({ tabId, activePane, state, store }: EconomyPanesPr
 function ResourceCatalogue({ activePane, state, store }: Omit<EconomyPanesProps, "tabId">) {
   const locale = state.settings.locale;
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const economyTick = createEconomyTickPlan(state);
   return (
     <section
       className="economy-section"
@@ -174,9 +322,13 @@ function ResourceCatalogue({ activePane, state, store }: Omit<EconomyPanesProps,
             tabIndex={0}
             hidden={activePane !== `resources-${id}`}
           >
-            <div className="economy-card-grid">
-              <ResourceCard id={id} state={state} store={store} />
-            </div>
+            {state.run.unlockedResources.includes(id) ? (
+              <ResourceHeroCard id={id} state={state} store={store} economyTick={economyTick} />
+            ) : (
+              <div className="economy-card-grid">
+                <ResourceCard id={id} state={state} store={store} economyTick={economyTick} />
+              </div>
+            )}
           </section>
         ))}
       </div>
@@ -188,10 +340,12 @@ function ResourceCard({
   id,
   state,
   store,
+  economyTick,
 }: {
   id: MaterialId;
   state: GameState;
   store: GameStore;
+  economyTick: EconomyTickPlan;
 }) {
   const locale = state.settings.locale;
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
@@ -233,8 +387,13 @@ function ResourceCard({
             value={Math.min(stock.quantity, stock.storageCapacity)}
           />
           <p className="economy-rate">
-            {format(state, economyRatePerSecond(state, id), 2)} {t("perSecond")}
+            {format(state, economyTick.netRatesPerSecond[id] ?? 0, 2)} {t("perSecond")}
           </p>
+          {economyTick.capacityBlockedGoodIds.includes(id) && (
+            <p className="red-disabled-text" data-testid={`production-blocked-${id}`}>
+              {t("automaticProductionBlockedByStorage")}
+            </p>
+          )}
           {id !== "hydrogen" && (
             <div className="economy-controls">
               <button
@@ -269,45 +428,47 @@ function ResourceCard({
           )}
           <ResourceAutobuyerDetails id={id} state={state} store={store} />
           <AllocationControls id={id} state={state} store={store} />
-          <ResourceFusionDetails id={id} state={state} store={store} />
-          <div className="economy-sale-controls">
-            <label>
-              {t("saleAmount")}
-              <select
-                aria-label={`${t("saleAmount")} ${name(locale, id)}`}
-                value={saleChoice}
-                onChange={(event) => setSaleChoice(event.currentTarget.value)}
-              >
-                <option value="all">{t("sellAll")}</option>
-                <option value="threeQuarters">75%</option>
-                <option value="twoThirds">⅔</option>
-                <option value="half">50%</option>
-                <option value="oneThird">⅓</option>
-                <option value="1000">1,000</option>
-                <option value="100">100</option>
-                <option value="10">10</option>
-                <option value="1">1</option>
-              </select>
-            </label>
-            <p>
-              {t("salePreview")}: <strong>{money(state, sale.proceeds)}</strong>
-            </p>
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={!sale.enabled}
-              aria-describedby={saleReason ? `resource-${id}-sell-reason` : undefined}
-              onClick={() =>
-                store.dispatch({ type: "resource.sell", goodId: id, amount: selection })
-              }
-            >
-              {t("sell")} {name(locale, id)} · {money(state, sale.proceeds)}
-            </button>
-            {saleReason && (
-              <p className="control-reason" id={`resource-${id}-sell-reason`}>
-                {saleReason}
+          <div className="economy-good-footer">
+            <div className="economy-sale-controls">
+              <label>
+                {t("saleAmount")}
+                <select
+                  aria-label={`${t("saleAmount")} ${name(locale, id)}`}
+                  value={saleChoice}
+                  onChange={(event) => setSaleChoice(event.currentTarget.value)}
+                >
+                  <option value="all">{t("sellAll")}</option>
+                  <option value="threeQuarters">75%</option>
+                  <option value="twoThirds">⅔</option>
+                  <option value="half">50%</option>
+                  <option value="oneThird">⅓</option>
+                  <option value="1000">1,000</option>
+                  <option value="100">100</option>
+                  <option value="10">10</option>
+                  <option value="1">1</option>
+                </select>
+              </label>
+              <p>
+                {t("salePreview")}: <strong>{money(state, sale.proceeds)}</strong>
               </p>
-            )}
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!sale.enabled}
+                aria-describedby={saleReason ? `resource-${id}-sell-reason` : undefined}
+                onClick={() =>
+                  store.dispatch({ type: "resource.sell", goodId: id, amount: selection })
+                }
+              >
+                {t("sell")} {name(locale, id)} · {money(state, sale.proceeds)}
+              </button>
+              {saleReason && (
+                <p className="control-reason" id={`resource-${id}-sell-reason`}>
+                  {saleReason}
+                </p>
+              )}
+            </div>
+            <ResourceFusionDetails id={id} state={state} store={store} alwaysOpen />
           </div>
         </>
       ) : (
@@ -315,6 +476,110 @@ function ResourceCard({
           {t("lockedBy")}: {techName(locale, material.fusionTechId ?? "hydrogenFusion")}
         </p>
       )}
+    </article>
+  );
+}
+
+function ResourceHeroCard({
+  id,
+  state,
+  store,
+  economyTick,
+}: {
+  readonly id: MaterialId;
+  readonly state: GameState;
+  readonly store: GameStore;
+  readonly economyTick: EconomyTickPlan;
+}) {
+  const locale = state.settings.locale;
+  const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const [saleChoice, setSaleChoice] = useState("all");
+  const selection =
+    saleChoice === "all" || ["threeQuarters", "twoThirds", "half", "oneThird"].includes(saleChoice)
+      ? (saleChoice as "all" | "threeQuarters" | "twoThirds" | "half" | "oneThird")
+      : Number(saleChoice);
+  const sale = selectGoodSale(state, id, selection);
+  const saleReason = economyActionReason(state, sale.failure);
+  const collect = selectEconomyAction(state, { type: "resource.collect", goodId: id });
+  const collectReason = economyActionReason(state, collect.failure);
+  const rate = economyTick.netRatesPerSecond[id] ?? 0;
+  return (
+    <article className="resource-good-page" data-resource-id={id}>
+      <div className="pane-heading">
+        <div>
+          <h2>{name(locale, id)}</h2>
+        </div>
+      </div>
+      <EconomicGoodHero
+        id={id}
+        state={state}
+        rate={rate}
+        blocked={economyTick.capacityBlockedGoodIds.includes(id)}
+      >
+        <button
+          type="button"
+          className="primary-button collect-button"
+          disabled={!collect.enabled}
+          aria-describedby={collectReason ? `resource-${id}-collect-reason` : undefined}
+          onClick={() => store.dispatch({ type: "resource.collect", goodId: id })}
+        >
+          {t("collect")} {name(locale, id)}
+        </button>
+        {collectReason && (
+          <p className="control-reason" id={`resource-${id}-collect-reason`}>
+            {collectReason}
+          </p>
+        )}
+        <div className="hydrogen-sale-grid">
+          <article className="sale-card hydrogen-sale-controls">
+            <div className="card-copy">
+              <h3>{t("sell")}</h3>
+              <p>
+                {t("salePreview")}: <strong>{money(state, sale.proceeds)}</strong>
+              </p>
+            </div>
+            <div className="card-controls">
+              <label htmlFor={`resource-${id}-sell-amount`}>{t("saleAmount")}</label>
+              <select
+                id={`resource-${id}-sell-amount`}
+                aria-label={`${t("saleAmount")} ${name(locale, id)}`}
+                value={saleChoice}
+                onChange={(event) => setSaleChoice(event.currentTarget.value)}
+              >
+                <option value="all">{t("sellAll")}</option>
+                <option value="threeQuarters">75%</option>
+                <option value="twoThirds">â…”</option>
+                <option value="half">50%</option>
+                <option value="oneThird">â…“</option>
+                <option value="1000">1,000</option>
+                <option value="100">100</option>
+                <option value="10">10</option>
+                <option value="1">1</option>
+              </select>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!sale.enabled}
+                aria-describedby={saleReason ? `resource-${id}-sell-reason` : undefined}
+                onClick={() =>
+                  store.dispatch({ type: "resource.sell", goodId: id, amount: selection })
+                }
+              >
+                {t("sell")} {name(locale, id)}
+              </button>
+              {saleReason && (
+                <span className="control-reason" id={`resource-${id}-sell-reason`}>
+                  {saleReason}
+                </span>
+              )}
+            </div>
+            <ResourceFusionDetails id={id} state={state} store={store} alwaysOpen />
+          </article>
+        </div>
+      </EconomicGoodHero>
+      <GoodStorageCard id={id} state={state} store={store} />
+      <ResourceAutobuyerDetails id={id} state={state} store={store} />
+      <AllocationControls id={id} state={state} store={store} />
     </article>
   );
 }
@@ -517,7 +782,7 @@ function ResourceFusionDetails({
   const FusionContainer = alwaysOpen ? "section" : "details";
   return (
     <FusionContainer
-      className={`economy-details resource-fusion-details${alwaysOpen ? " hydrogen-fusion-panel" : ""}`}
+      className={`economy-details resource-fusion-details${alwaysOpen ? " resource-fusion-panel" : ""}${alwaysOpen && id === "hydrogen" ? " hydrogen-fusion-panel" : ""}`}
     >
       {alwaysOpen ? <h4>{t("fuse")}</h4> : <summary>{t("fuse")}</summary>}
       <div className="economy-controls">
@@ -820,10 +1085,11 @@ function AllocationControls({
 }
 /* oxlint-enable jsx-a11y/prefer-tag-over-role */
 
-function CompoundPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabId">) {
+function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabId">) {
   const locale = state.settings.locale;
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
   const compoundsAvailable = state.run.economy.researchedTechnologies.includes("compounds");
+  const economyTick = createEconomyTickPlan(state);
   const [amounts, setAmounts] = useState<Record<string, number>>({});
   const [saleChoices, setSaleChoices] = useState<Record<string, string>>({});
   if (!compoundsAvailable)
@@ -895,8 +1161,13 @@ function CompoundPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
                         {t("recipe")}: {recipeText}
                       </p>
                       <p className="economy-rate">
-                        {format(state, economyRatePerSecond(state, id), 2)} {t("perSecond")}
+                        {format(state, economyTick.netRatesPerSecond[id] ?? 0, 2)} {t("perSecond")}
                       </p>
+                      {economyTick.capacityBlockedGoodIds.includes(id) && (
+                        <p className="red-disabled-text" data-testid={`production-blocked-${id}`}>
+                          {t("automaticProductionBlockedByStorage")}
+                        </p>
+                      )}
                       <label>
                         {t("amount")}
                         <input
@@ -1098,45 +1369,47 @@ function CompoundPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
                           )}
                         </label>
                       </details>
-                      <div className="economy-sale-controls">
-                        <p>
-                          {t("salePreview")}: {money(state, sale.proceeds)}
-                        </p>
-                        <label>
-                          {t("saleAmount")}
-                          <select
-                            aria-label={`${t("saleAmount")} ${name(locale, id)}`}
-                            value={saleChoice}
-                            onChange={(event) =>
-                              setSaleChoices({ ...saleChoices, [id]: event.currentTarget.value })
+                      <div className="economy-good-footer">
+                        <div className="economy-sale-controls">
+                          <p>
+                            {t("salePreview")}: {money(state, sale.proceeds)}
+                          </p>
+                          <label>
+                            {t("saleAmount")}
+                            <select
+                              aria-label={`${t("saleAmount")} ${name(locale, id)}`}
+                              value={saleChoice}
+                              onChange={(event) =>
+                                setSaleChoices({ ...saleChoices, [id]: event.currentTarget.value })
+                              }
+                            >
+                              <option value="all">{t("sellAll")}</option>
+                              <option value="100">100</option>
+                              <option value="10">10</option>
+                              <option value="1">1</option>
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={!sale.enabled}
+                            aria-describedby={saleReason ? `compound-${id}-sell-reason` : undefined}
+                            onClick={() =>
+                              store.dispatch({
+                                type: "resource.sell",
+                                goodId: id,
+                                amount: saleSelection,
+                              })
                             }
                           >
-                            <option value="all">{t("sellAll")}</option>
-                            <option value="100">100</option>
-                            <option value="10">10</option>
-                            <option value="1">1</option>
-                          </select>
-                        </label>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={!sale.enabled}
-                          aria-describedby={saleReason ? `compound-${id}-sell-reason` : undefined}
-                          onClick={() =>
-                            store.dispatch({
-                              type: "resource.sell",
-                              goodId: id,
-                              amount: saleSelection,
-                            })
-                          }
-                        >
-                          {t("sell")} {name(locale, id)}
-                        </button>
-                        {saleReason && (
-                          <p className="control-reason" id={`compound-${id}-sell-reason`}>
-                            {saleReason}
-                          </p>
-                        )}
+                            {t("sell")} {name(locale, id)}
+                          </button>
+                          {saleReason && (
+                            <p className="control-reason" id={`compound-${id}-sell-reason`}>
+                              {saleReason}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -1151,6 +1424,337 @@ function CompoundPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
         })}
       </div>
     </section>
+  );
+}
+
+function CompoundPanel(props: Omit<EconomyPanesProps, "tabId">) {
+  if (!props.state.run.economy.researchedTechnologies.includes("compounds")) {
+    return <LegacyCompoundPanel {...props} />;
+  }
+  return <CompoundCatalogue {...props} />;
+}
+
+function CompoundCatalogue({ activePane, state, store }: Omit<EconomyPanesProps, "tabId">) {
+  const economyTick = createEconomyTickPlan(state);
+  return (
+    <section className="economy-section" data-testid="economy-compounds">
+      <div className="compound-subpanes">
+        {Object.keys(COMPOUND_CATALOG).map((rawId) => {
+          const id = rawId as keyof typeof COMPOUND_CATALOG;
+          const unlocked = state.run.economy.unlockedCompounds.includes(id);
+          const rate = economyTick.netRatesPerSecond[id] ?? 0;
+          return (
+            <CompoundGoodPane
+              key={id}
+              id={id}
+              active={activePane === `compounds-${id}`}
+              unlocked={unlocked}
+              rate={rate}
+              blocked={economyTick.capacityBlockedGoodIds.includes(id)}
+              state={state}
+              store={store}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function CompoundGoodPane({
+  id,
+  active,
+  unlocked,
+  rate,
+  blocked,
+  state,
+  store,
+}: {
+  readonly id: keyof typeof COMPOUND_CATALOG;
+  readonly active: boolean;
+  readonly unlocked: boolean;
+  readonly rate: number;
+  readonly blocked: boolean;
+  readonly state: GameState;
+  readonly store: GameStore;
+}) {
+  const locale = state.settings.locale;
+  const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const definition = COMPOUND_CATALOG[id];
+  const [amount, setAmount] = useState(1);
+  const [saleChoice, setSaleChoice] = useState("all");
+  const saleSelection: SaleSelection = saleChoice === "all" ? "all" : Number(saleChoice);
+  const sale = selectGoodSale(state, id, saleSelection);
+  const saleReason = economyActionReason(state, sale.failure);
+  const recipeText = philosophyCompoundRecipe(state, id)
+    .map((input) => `${input.amount} ${name(locale, input.goodId)}`)
+    .join(" + ");
+  const creation = selectCompoundCreation(state, id, amount);
+  const creationReason = economyActionReason(state, creation.failure);
+  const requiredInputs = creation.requiredInputs
+    .map((input) => `${format(state, input.amount)} ${name(locale, input.goodId)}`)
+    .join(" + ");
+  const creationPreview = formatEconomyMessage(locale, "compoundPreview", {
+    amount: format(state, creation.outputAmount),
+    good: name(locale, id),
+    inputs: requiredInputs,
+  });
+  return (
+    <section
+      id={`panel-compounds-${id}`}
+      className="subpane-panel compound-subpane"
+      role="tabpanel"
+      aria-labelledby={`tab-compounds-${id}`}
+      tabIndex={0}
+      hidden={!active}
+    >
+      <article
+        className={`compound-good-page${unlocked ? "" : " is-locked"}`}
+        data-compound-id={id}
+      >
+        <div className="pane-heading">
+          <div>
+            <h2>{name(locale, id)}</h2>
+          </div>
+        </div>
+        {unlocked ? (
+          <>
+            <EconomicGoodHero id={id} state={state} rate={rate} blocked={blocked}>
+              <p className="compound-recipe">
+                {t("recipe")}: <strong>{recipeText}</strong>
+              </p>
+              <div className="compound-create-controls">
+                <label htmlFor={`compound-${id}-amount`}>{t("amount")}</label>
+                <div className="compound-create-row">
+                  <input
+                    id={`compound-${id}-amount`}
+                    aria-label={`${t("amount")} ${name(locale, id)}`}
+                    type="number"
+                    min={1}
+                    value={amount}
+                    onChange={(event) =>
+                      setAmount(Math.max(1, Math.floor(Number(event.currentTarget.value))))
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={!creation.enabled}
+                    aria-describedby={creationReason ? `compound-${id}-create-reason` : undefined}
+                    onClick={() =>
+                      store.dispatch({ type: "economy.compound.create", goodId: id, amount })
+                    }
+                  >
+                    {t("create")} {name(locale, id)}
+                  </button>
+                </div>
+                <p className="economy-rate" data-testid={`compound-${id}-preview`}>
+                  {creationPreview}
+                </p>
+                {creationReason && (
+                  <p className="control-reason" id={`compound-${id}-create-reason`}>
+                    {creationReason}
+                  </p>
+                )}
+              </div>
+              <div className="hydrogen-sale-grid">
+                <article className="sale-card hydrogen-sale-controls">
+                  <div className="card-copy">
+                    <h3>{t("sell")}</h3>
+                    <p>
+                      {t("salePreview")}: <strong>{money(state, sale.proceeds)}</strong>
+                    </p>
+                  </div>
+                  <div className="card-controls">
+                    <label htmlFor={`compound-${id}-sell-amount`}>{t("saleAmount")}</label>
+                    <select
+                      id={`compound-${id}-sell-amount`}
+                      aria-label={`${t("saleAmount")} ${name(locale, id)}`}
+                      value={saleChoice}
+                      onChange={(event) => setSaleChoice(event.currentTarget.value)}
+                    >
+                      <option value="all">{t("sellAll")}</option>
+                      <option value="100">100</option>
+                      <option value="10">10</option>
+                      <option value="1">1</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={!sale.enabled}
+                      aria-describedby={saleReason ? `compound-${id}-sell-reason` : undefined}
+                      onClick={() =>
+                        store.dispatch({
+                          type: "resource.sell",
+                          goodId: id,
+                          amount: saleSelection,
+                        })
+                      }
+                    >
+                      {t("sell")} {name(locale, id)}
+                    </button>
+                    {saleReason && (
+                      <span className="control-reason" id={`compound-${id}-sell-reason`}>
+                        {saleReason}
+                      </span>
+                    )}
+                  </div>
+                </article>
+              </div>
+            </EconomicGoodHero>
+            <GoodStorageCard id={id} state={state} store={store} />
+            <CompoundAutobuyerDetails id={id} state={state} store={store} />
+          </>
+        ) : (
+          <p>
+            {t("lockedBy")}: {techName(locale, definition.unlockTechId)}
+          </p>
+        )}
+      </article>
+    </section>
+  );
+}
+
+function CompoundAutobuyerDetails({
+  id,
+  state,
+  store,
+}: {
+  readonly id: keyof typeof COMPOUND_CATALOG;
+  readonly state: GameState;
+  readonly store: GameStore;
+}) {
+  const locale = state.settings.locale;
+  const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const definition = COMPOUND_CATALOG[id];
+  return (
+    <details className="economy-details compound-autobuyer-section">
+      <summary>{t("autobuyers")}</summary>
+      {[1, 2, 3, 4].map((tier) => {
+        const buyer = definition.buyerTiers[tier - 1]!;
+        const tierNumber = tier as 1 | 2 | 3 | 4;
+        const key = autobuyerUpgradeId(id, tierNumber);
+        const owned = count(state, key);
+        const requiredTech = availableTier(tier);
+        const compoundGate = isPerkAvailable(state, 3);
+        const gateMet =
+          compoundGate &&
+          (!requiredTech || state.run.economy.researchedTechnologies.includes(requiredTech));
+        const tierPrice = scaledPriceAfterPurchases(buyer.price, owned);
+        const effectiveRate =
+          buyer.ratePerSecond *
+          repeatedPerkMultiplier(state.permanent.acquiredPerks, "smartAutoBuyers", 1.5);
+        const purchaseCommand = {
+          type: "economy.autobuyer.purchase" as const,
+          goodId: id,
+          tier: tierNumber,
+        };
+        const purchase = selectEconomyAction(state, purchaseCommand);
+        const buyMax = selectAutobuyerBuyMax(state, id, tierNumber);
+        const reason = economyActionReason(state, purchase.failure ?? buyMax.failure);
+        const maxPreview = buyMaxPreview(
+          state,
+          buyMax.count,
+          `${format(state, buyMax.totalCost)} ${name(locale, id)}`,
+          `+${format(state, buyMax.count * effectiveRate, 2)} ${t("perSecond")}`,
+        );
+        return (
+          <div className="economy-tier" key={tier}>
+            <span>
+              {t("buyTier")} {tier}: {format(state, owned)} · +{format(state, effectiveRate, 2)}/s ·{" "}
+              {format(state, buyer.energyPerSecond)} kJ/s
+            </span>
+            {gateMet ? (
+              <>
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={!purchase.enabled}
+                  aria-describedby={reason ? `compound-${id}-autobuyer-${tier}-reason` : undefined}
+                  onClick={() => store.dispatch(purchaseCommand)}
+                >
+                  {t("buy")} · {format(state, tierPrice)} {SYMBOL[id]}
+                </button>
+                {isBulkPurchasingAvailable(state) && (
+                  <>
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={!buyMax.enabled}
+                      aria-describedby={
+                        reason ? `compound-${id}-autobuyer-${tier}-reason` : undefined
+                      }
+                      onClick={() =>
+                        store.dispatch({
+                          type: "economy.autobuyer.buyMax",
+                          goodId: id,
+                          tier: tierNumber,
+                        })
+                      }
+                    >
+                      {t("buyMax")}
+                    </button>
+                    <p className="economy-rate">{maxPreview}</p>
+                  </>
+                )}
+                {reason && (
+                  <p className="control-reason" id={`compound-${id}-autobuyer-${tier}-reason`}>
+                    {reason}
+                  </p>
+                )}
+                {owned > 0 && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    aria-pressed={state.run.economy.autobuyerEnabled[key]}
+                    onClick={() =>
+                      store.dispatch({
+                        type: "economy.autobuyer.toggle",
+                        goodId: id,
+                        tier: tierNumber,
+                        enabled: !state.run.economy.autobuyerEnabled[key],
+                      })
+                    }
+                  >
+                    {state.run.economy.autobuyerEnabled[key] ? t("pause") : t("resume")}
+                  </button>
+                )}
+              </>
+            ) : (
+              <span>
+                {t("lockedBy")}:{" "}
+                {!compoundGate
+                  ? t("nanoBrokersRequirement").replace("{level}", "III")
+                  : techName(locale, requiredTech ?? "")}
+              </span>
+            )}
+          </div>
+        );
+      })}
+      <label className="economy-toggle">
+        <input
+          type="checkbox"
+          checked={state.run.economy.autoCreateEnabled[id]}
+          disabled={!isPerkAvailable(state, 2)}
+          aria-describedby={
+            !isPerkAvailable(state, 2) ? `compound-${id}-auto-create-reason` : undefined
+          }
+          onChange={(event) =>
+            store.dispatch({
+              type: "economy.autoCreate.toggle",
+              goodId: id,
+              enabled: event.currentTarget.checked,
+            })
+          }
+        />
+        {t("automaticCreation")}
+        {!isPerkAvailable(state, 2) && (
+          <span id={`compound-${id}-auto-create-reason`}>
+            {` · ${t("lockedBy")}: ${t("nanoBrokersRequirement").replace("{level}", "II")}`}
+          </span>
+        )}
+      </label>
+    </details>
   );
 }
 
@@ -1764,6 +2368,12 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
           </p>
         )}
       </div>
+      <EnergyGenerationChart
+        state={state}
+        generation={tick.generationByPlantPerSecond}
+        totalGeneration={tick.generationPerSecond}
+        consumption={tick.demandPerSecond}
+      />
       <section
         id="panel-energy"
         className="subpane-panel"
@@ -2055,6 +2665,97 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
         )}
       </section>
     </section>
+  );
+}
+
+function EnergyGenerationChart({
+  state,
+  generation,
+  totalGeneration,
+  consumption,
+}: {
+  readonly state: GameState;
+  readonly generation: Readonly<Record<"powerPlant1" | "powerPlant2" | "powerPlant3", number>>;
+  readonly totalGeneration: number;
+  readonly consumption: number;
+}) {
+  const locale = state.settings.locale;
+  const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const plantIds = ["powerPlant1", "powerPlant2", "powerPlant3"] as const;
+  const plantNames = plantIds.map((id) => techName(locale, id));
+  const scale = Math.max(totalGeneration, consumption, 1);
+  const descriptionId = "energy-generation-chart-description";
+  const values = {
+    plant1: plantNames[0] ?? "",
+    rate1: format(state, generation.powerPlant1),
+    plant2: plantNames[1] ?? "",
+    rate2: format(state, generation.powerPlant2),
+    plant3: plantNames[2] ?? "",
+    rate3: format(state, generation.powerPlant3),
+    totalLabel: t("generationTotal"),
+    total: format(state, totalGeneration),
+    consumptionLabel: t("energyConsumption"),
+    consumption: format(state, consumption),
+  };
+  const power = state.run.economy.power;
+  const powerStateMessage = power.tripped
+    ? t("powerGridTripped")
+    : !power.gridEnabled
+      ? t("powerGridOff")
+      : power.infinitePower
+        ? t("infinitePowerAvailable")
+        : null;
+
+  return (
+    <figure className="energy-generation-chart" aria-describedby={descriptionId}>
+      <figcaption>{t("generationMix")}</figcaption>
+      <p className="sr-only" id={descriptionId}>
+        {formatEconomyMessage(locale, "generationChartSummary", values)}
+      </p>
+      <div className="energy-generation-chart-bars" aria-hidden="true">
+        <div className="energy-generation-chart-row">
+          <div className="energy-generation-chart-label">
+            <span>{t("generationTotal")}</span>
+            <strong data-testid="energy-generation-total">{values.total} kJ/s</strong>
+          </div>
+          <div className="energy-generation-chart-track">
+            {plantIds.map((id, index) => (
+              <span
+                className={`energy-generation-segment energy-generation-segment-${index + 1}`}
+                key={id}
+                style={{ width: `${Math.min(100, (generation[id] / scale) * 100)}%` }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="energy-generation-chart-row">
+          <div className="energy-generation-chart-label">
+            <span>{t("energyConsumption")}</span>
+            <strong data-testid="energy-consumption-total">{values.consumption} kJ/s</strong>
+          </div>
+          <div className="energy-generation-chart-track">
+            <span
+              className="energy-consumption-segment"
+              style={{ width: `${Math.min(100, (consumption / scale) * 100)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+      <ul className="energy-generation-legend">
+        {plantIds.map((id, index) => (
+          <li key={id}>
+            <span
+              className={`energy-generation-legend-swatch energy-generation-segment-${index + 1}`}
+              aria-hidden="true"
+            />
+            <span>{plantNames[index]}</span>
+            <strong data-testid={`energy-generation-${id}`}>{format(state, generation[id])}</strong>
+            <span>kJ/s</span>
+          </li>
+        ))}
+      </ul>
+      {powerStateMessage && <p className="energy-generation-state">{powerStateMessage}</p>}
+    </figure>
   );
 }
 

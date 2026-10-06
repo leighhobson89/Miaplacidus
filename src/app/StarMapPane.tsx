@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createStarCatalogue, GALAXY_SEED_DEFAULT } from "../content";
@@ -170,91 +171,101 @@ function StarDataTable({
       {filteredRows.length === 0 ? (
         <p className="star-data-empty">{starMapText(locale, "noData")}</p>
       ) : (
-        <div className="star-data-table-scroll">
-          <table className="star-data-table" data-testid="star-data-table">
-            <thead>
-              <tr>
-                <th scope="col">{starMapText(locale, "sortName")}</th>
-                <th scope="col">{starMapText(locale, "distance")}</th>
-                <th scope="col">{starMapText(locale, "starType")}</th>
-                <th scope="col">{starMapText(locale, "weather")}</th>
-                <th scope="col">{starMapText(locale, "precipitation")}</th>
-                <th scope="col">{starMapText(locale, "fuel")}</th>
-                <th scope="col">{starMapText(locale, "ascendency")}</th>
-                <th scope="col">{starMapText(locale, "mapTarget")}</th>
-                <th scope="col">{starshipText(locale, "setDestination")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((row) => {
-                const destination = selectDestination(row.systemId);
-                const failureText = destinationFailureText(locale, destination.failure);
-                const reasonId = `star-data-destination-reason-${row.systemId}`;
-                return (
-                  <tr key={row.systemId}>
-                    <th scope="row">
-                      {row.name}
-                      {row.revealedFactory && (
-                        <span
-                          className="star-data-factory-marker"
-                          data-testid={`factory-system-${row.systemId}`}
-                          aria-label={starMapText(locale, "factorySystem")}
-                          title={starMapText(locale, "factorySystem")}
+        <>
+          <p className="star-data-scroll-hint" data-testid="star-data-scroll-hint">
+            {starMapText(locale, "tableScrollHint")}
+          </p>
+          <div
+            className="star-data-table-scroll"
+            role="region"
+            aria-label={starMapText(locale, "dataView")}
+            tabIndex={0}
+          >
+            <table className="star-data-table" data-testid="star-data-table">
+              <thead>
+                <tr>
+                  <th scope="col">{starMapText(locale, "sortName")}</th>
+                  <th scope="col">{starMapText(locale, "distance")}</th>
+                  <th scope="col">{starMapText(locale, "starType")}</th>
+                  <th scope="col">{starMapText(locale, "weather")}</th>
+                  <th scope="col">{starMapText(locale, "precipitation")}</th>
+                  <th scope="col">{starMapText(locale, "fuel")}</th>
+                  <th scope="col">{starMapText(locale, "ascendency")}</th>
+                  <th scope="col">{starMapText(locale, "mapTarget")}</th>
+                  <th scope="col">{starshipText(locale, "setDestination")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => {
+                  const destination = selectDestination(row.systemId);
+                  const failureText = destinationFailureText(locale, destination.failure);
+                  const reasonId = `star-data-destination-reason-${row.systemId}`;
+                  return (
+                    <tr key={row.systemId}>
+                      <th scope="row">
+                        {row.name}
+                        {row.revealedFactory && (
+                          <span
+                            className="star-data-factory-marker"
+                            data-testid={`factory-system-${row.systemId}`}
+                            aria-label={starMapText(locale, "factorySystem")}
+                            title={starMapText(locale, "factorySystem")}
+                          >
+                            {" "}
+                            &#9881;
+                          </span>
+                        )}
+                      </th>
+                      <td>{formatDistance(locale, row.distanceLy, notation)}</td>
+                      <td>{row.starType}</td>
+                      <td>
+                        {starMapText(locale, row.weatherType)} {number(row.weatherChance)}%
+                      </td>
+                      <td>{economyGoodName(locale, row.precipitationGoodId)}</td>
+                      <td>
+                        {number(destination.route?.antimatterRequired ?? row.antimatterRequired)}
+                      </td>
+                      <td>{number(destination.route?.ascendencyPoints ?? row.ascendencyPoints)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          aria-label={`${starMapText(locale, "mapTarget")}: ${row.name}`}
+                          onClick={() => onShowOnMap(row.systemId)}
                         >
-                          {" "}
-                          &#9881;
-                        </span>
-                      )}
-                    </th>
-                    <td>{formatDistance(locale, row.distanceLy, notation)}</td>
-                    <td>{row.starType}</td>
-                    <td>
-                      {starMapText(locale, row.weatherType)} {number(row.weatherChance)}%
-                    </td>
-                    <td>{economyGoodName(locale, row.precipitationGoodId)}</td>
-                    <td>
-                      {number(destination.route?.antimatterRequired ?? row.antimatterRequired)}
-                    </td>
-                    <td>{number(destination.route?.ascendencyPoints ?? row.ascendencyPoints)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        aria-label={`${starMapText(locale, "mapTarget")}: ${row.name}`}
-                        onClick={() => onShowOnMap(row.systemId)}
-                      >
-                        {starMapText(locale, "mapTarget")}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        disabled={!destination.enabled}
-                        aria-pressed={destinationSystemId === row.systemId}
-                        aria-label={`${starshipText(
-                          locale,
-                          destinationSystemId === row.systemId
-                            ? "destinationSelected"
-                            : "setDestination",
-                        )}: ${row.name}`}
-                        aria-describedby={!destination.enabled ? reasonId : undefined}
-                        onClick={() => onSetDestination(row.systemId)}
-                      >
-                        {destinationSystemId === row.systemId
-                          ? starshipText(locale, "destinationSelected")
-                          : starshipText(locale, "setDestination")}
-                      </button>
-                      {!destination.enabled && (
-                        <span className="control-reason" id={reasonId}>
-                          {failureText}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          {starMapText(locale, "mapTarget")}
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          disabled={!destination.enabled}
+                          aria-pressed={destinationSystemId === row.systemId}
+                          aria-label={`${starshipText(
+                            locale,
+                            destinationSystemId === row.systemId
+                              ? "destinationSelected"
+                              : "setDestination",
+                          )}: ${row.name}`}
+                          aria-describedby={!destination.enabled ? reasonId : undefined}
+                          onClick={() => onSetDestination(row.systemId)}
+                        >
+                          {destinationSystemId === row.systemId
+                            ? starshipText(locale, "destinationSelected")
+                            : starshipText(locale, "setDestination")}
+                        </button>
+                        {!destination.enabled && (
+                          <span className="control-reason" id={reasonId}>
+                            {failureText}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -352,6 +363,33 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
     }
     setSelection({ origin: currentSystemIdentity, id: node.id });
     setSelectionFeedback("");
+  }
+
+  function selectNodeAtPointer(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    fallbackSystemId: SystemId,
+  ): void {
+    if (event.detail === 0) {
+      selectNode(fallbackSystemId);
+      return;
+    }
+    const overlay = event.currentTarget.closest(".star-map-marker-overlay");
+    const markers = overlay?.querySelectorAll<HTMLButtonElement>(".star-map-hit-target") ?? [];
+    let closestSystemId = fallbackSystemId;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (const marker of markers) {
+      const systemId = marker.dataset["systemId"] as SystemId | undefined;
+      if (!systemId) continue;
+      const bounds = marker.getBoundingClientRect();
+      const deltaX = event.clientX - (bounds.left + bounds.width / 2);
+      const deltaY = event.clientY - (bounds.top + bounds.height / 2);
+      const distance = deltaX * deltaX + deltaY * deltaY;
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestSystemId = systemId;
+      }
+    }
+    selectNode(closestSystemId);
   }
 
   function handlePointerDown(event: ReactPointerEvent<SVGSVGElement>): void {
@@ -618,7 +656,7 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
                         aria-disabled={markerDisabled}
                         aria-describedby={markerDisabled ? markerReasonId : undefined}
                         onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => selectNode(node.id)}
+                        onClick={(event) => selectNodeAtPointer(event, node.id)}
                       />
                       {markerDisabled && (
                         <span id={markerReasonId} className="sr-only">

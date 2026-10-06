@@ -93,9 +93,13 @@ function setAmbienceTrack(
   }
 }
 
-function updateAmbience(state: GameState): void {
+function updateAmbience(state: GameState, focused = true): void {
   const enabled = state.settings.backgroundAudioEnabled ?? state.settings.soundEnabled;
   if (!(state.settings.soundEffectsEnabled ?? state.settings.soundEnabled)) stopEffects();
+  if (!focused) {
+    for (const audio of ambienceTracks.values()) audio.pause();
+    return;
+  }
   if (!enabled) {
     for (const audio of ambienceTracks.values()) audio.pause();
     return;
@@ -144,15 +148,16 @@ function cueForEvent(event: EngineEvent): AudioCue | null {
       return event.enabled ? "fuelRocket" : "clickSwitch";
     case "space.rocket.launched":
       return "rocketLaunch";
+    case "space.rocket.travel-started":
+      return event.direction === "returning" ? "rocketLaunch" : null;
     case "space.rocket.returned":
-    case "space.rocket.arrived":
       return "rocketLand";
     case "space.starship.launched":
       return "starShipLaunch";
     case "space.starship.arrived":
       return "starShipArrive";
     case "space.antimatter-boost.changed":
-      return event.active ? "boostAntimatter" : "clickSwitch";
+      return event.active ? null : "clickSwitch";
     case "space.battle.round":
       return event.round % 2 === 0 ? "laserGun2" : "laserGun1";
     case "space.battle.finished":
@@ -171,13 +176,84 @@ function cueForEvent(event: EngineEvent): AudioCue | null {
   }
 }
 
-function handleResult(command: GameCommand, result: EngineResult): void {
+function cuesForEvent(event: EngineEvent): readonly AudioCue[] {
+  if (event.type === "economy.power.tripped") return ["powerOff", "powerTripped"];
+  const cue = cueForEvent(event);
+  return cue ? [cue] : [];
+}
+
+function createBoostSoundLoop(getState: () => GameState) {
+  let interval: ReturnType<typeof setInterval> | null = null;
+  const effects = new Set<HTMLAudioElement>();
+
+  const play = (state: GameState) => {
+    const volume = state.settings.soundEffectsVolume ?? 0.5;
+    if (volume <= 0) return;
+    const audio = createAudio("boostAntimatter", false, volume);
+    if (!audio) return;
+    effects.add(audio);
+    const forget = () => {
+      effects.delete(audio);
+    };
+    audio.addEventListener("ended", forget, { once: true });
+    void audio.play().catch(forget);
+  };
+
+  const stop = () => {
+    if (interval !== null) clearInterval(interval);
+    interval = null;
+    for (const audio of effects) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    effects.clear();
+  };
+
+  return {
+    update(state: GameState, events: readonly EngineEvent[], canPlay: boolean): boolean {
+      const activated = events.some(
+        (event) => event.type === "space.antimatter-boost.changed" && event.active,
+      );
+      if (!canPlay || !state.run.space.antimatterBoostActive) {
+        stop();
+        return activated;
+      }
+      if (activated && interval === null) {
+        play(state);
+        interval = setInterval(() => {
+          const currentState = getState();
+          const effectsEnabled =
+            currentState.settings.soundEffectsEnabled ?? currentState.settings.soundEnabled;
+          if (!effectsEnabled || !currentState.run.space.antimatterBoostActive) {
+            stop();
+            return;
+          }
+          play(currentState);
+        }, 500);
+      }
+      return activated;
+    },
+    dispose: stop,
+  };
+}
+
+function handleResult(
+  command: GameCommand,
+  result: EngineResult,
+  boostSoundLoop: ReturnType<typeof createBoostSoundLoop>,
+  isAudioFocused: () => boolean,
+): void {
   if (!result.accepted) return;
   if (command.type !== "clock.advance") audioUnlocked = true;
-  updateAmbience(result.state);
+  updateAmbience(result.state, isAudioFocused());
   const effectsEnabled =
     result.state.settings.soundEffectsEnabled ?? result.state.settings.soundEnabled;
-  if (!effectsEnabled || !audioUnlocked) return;
+  const boostActivated = boostSoundLoop.update(
+    result.state,
+    result.events,
+    effectsEnabled && audioUnlocked,
+  );
+  if (!effectsEnabled || !audioUnlocked || !isAudioFocused()) return;
 
   const cues = new Set<AudioCue>();
   if (command.type === "economy.power.toggle") {
@@ -185,10 +261,19 @@ function handleResult(command: GameCommand, result: EngineResult): void {
   }
   for (const event of result.events) {
     if (command.type === "clock.advance" && event.type === "resource.sold") continue;
-    const cue = cueForEvent(event);
-    if (cue) cues.add(cue);
+    for (const cue of cuesForEvent(event)) cues.add(cue);
   }
-  if (cues.size === 0 && command.type !== "clock.advance") {
+  const silentRocketProgress = result.events.some(
+    (event) =>
+      event.type === "space.rocket.arrived" ||
+      (event.type === "space.rocket.travel-started" && event.direction === "outbound"),
+  );
+  if (
+    cues.size === 0 &&
+    command.type !== "clock.advance" &&
+    !silentRocketProgress &&
+    !boostActivated
+  ) {
     cues.add(
       command.type === "settings.update" || command.type.endsWith("toggle")
         ? "clickSwitch"
@@ -205,6 +290,44 @@ export interface AudioGameStore extends GameStore {
 }
 
 export function withGameAudio(store: GameStore): AudioGameStore {
+  const boostSoundLoop = createBoostSoundLoop(() => store.getState());
+  let windowFocused =
+    typeof document === "undefined" ||
+    typeof document.hasFocus !== "function" ||
+    document.hasFocus();
+  let documentVisible = typeof document === "undefined" || document.visibilityState !== "hidden";
+  let audioFocused = windowFocused && documentVisible;
+  const isAudioFocused = () => audioFocused;
+  const syncAudioFocus = () => {
+    const nextAudioFocused = windowFocused && documentVisible;
+    if (audioFocused === nextAudioFocused) return;
+    audioFocused = nextAudioFocused;
+    if (audioFocused) {
+      updateAmbience(store.getState(), true);
+    } else {
+      stopEffects();
+      for (const audio of ambienceTracks.values()) audio.pause();
+    }
+  };
+  const handleWindowBlur = () => {
+    windowFocused = false;
+    syncAudioFocus();
+  };
+  const handleWindowFocus = () => {
+    windowFocused = true;
+    syncAudioFocus();
+  };
+  const handleVisibilityChange = () => {
+    documentVisible = document.visibilityState !== "hidden";
+    syncAudioFocus();
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  }
   const eventListeners = new Set<(events: readonly EngineEvent[]) => void>();
   const publishEvents = (events: readonly EngineEvent[]) => {
     if (events.length === 0) return;
@@ -226,7 +349,7 @@ export function withGameAudio(store: GameStore): AudioGameStore {
     },
     dispatch(command) {
       const result = store.dispatch(command);
-      handleResult(command, result);
+      handleResult(command, result, boostSoundLoop, isAudioFocused);
       if (result.accepted) publishEvents(result.events);
       return result;
     },
@@ -234,7 +357,7 @@ export function withGameAudio(store: GameStore): AudioGameStore {
       const results = store.dispatchBatch(commands);
       commands.forEach((command, index) => {
         const result = results[index];
-        if (result) handleResult(command, result);
+        if (result) handleResult(command, result, boostSoundLoop, isAudioFocused);
       });
       publishEvents(results.flatMap((result) => (result.accepted ? result.events : [])));
       return results;
@@ -243,10 +366,21 @@ export function withGameAudio(store: GameStore): AudioGameStore {
     publishNow: () => store.publishNow(),
     recover() {
       store.recover();
-      updateAmbience(store.getState());
+      const state = store.getState();
+      updateAmbience(state, isAudioFocused());
+      const effectsEnabled = state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
+      boostSoundLoop.update(state, [], effectsEnabled && audioUnlocked);
     },
     dispose() {
       eventListeners.clear();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("blur", handleWindowBlur);
+        window.removeEventListener("focus", handleWindowFocus);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      }
+      boostSoundLoop.dispose();
       stopEffects();
       for (const audio of ambienceTracks.values()) {
         audio.pause();

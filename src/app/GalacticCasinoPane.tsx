@@ -146,6 +146,13 @@ export function GalacticCasinoPane({ state, store }: Props) {
   });
   const voidCommand: CasinoCommand = { type: "casino.void-seer.play", tier: voidTier };
   const voidCheck = selectEconomyAction(state, voidCommand);
+  const donEntryCost = selectCasinoEntryCost(donCommand) ?? 0;
+  const wheelEntryCost = selectCasinoEntryCost({ type: "casino.wheel.spin" }) ?? 0;
+  const higherLowerEntryCost = selectCasinoEntryCost({ type: "casino.higher-lower.start" }) ?? 0;
+  const casinoAmountPreview = (
+    key: "entryCostPreview" | "currentStakePreview" | "doubledWinPreview",
+    value: number,
+  ) => casinoText(locale, key).replace("{amount}", quantity(locale, value));
   const actionReason = (
     check: { readonly enabled: boolean; readonly failure?: { readonly code: string } },
     required?: number,
@@ -167,12 +174,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
         payment:
           paymentId === "cash" ? casinoText(locale, "cash") : economyGoodName(locale, paymentId),
       });
-  const donReason = actionReason(
-    donCheck,
-    selectCasinoEntryCost(donCommand) ?? undefined,
-    undefined,
-    casino.casinoPoints,
-  );
+  const donReason = actionReason(donCheck, donEntryCost, undefined, casino.casinoPoints);
   const spinReason = actionReason(spinCheck, 1, undefined, casino.casinoPoints);
   const claimReason = actionReason(claimCheck);
   const startReason = actionReason(startCheck, 5, undefined, casino.casinoPoints);
@@ -345,6 +347,12 @@ export function GalacticCasinoPane({ state, store }: Props) {
                 onChange={(event) => setStake(event.currentTarget.value)}
               />
             </label>
+            <p data-testid="casino-don-stake-preview">
+              {casinoAmountPreview("currentStakePreview", donEntryCost)}
+            </p>
+            <p data-testid="casino-don-win-preview">
+              {casinoAmountPreview("doubledWinPreview", donEntryCost * 2)}
+            </p>
             <p>
               {casinoText(locale, "runStats")}:{" "}
               {quantity(locale, state.run.casinoStats.doubleOrNothingPlayed)}{" "}
@@ -383,6 +391,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
         <article className="upgrade-card">
           <div className="card-copy">
             <h3>{casinoText(locale, "wheel")}</h3>
+            <p data-testid="casino-wheel-entry-cost">
+              {casinoAmountPreview("entryCostPreview", wheelEntryCost)}
+            </p>
             <div className="casino-wheel-stage">
               <div
                 className="casino-wheel"
@@ -481,6 +492,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
         <article className="upgrade-card">
           <div className="card-copy">
             <h3>{casinoText(locale, "higherLower")}</h3>
+            <p data-testid="casino-hilo-entry-cost">
+              {casinoAmountPreview("entryCostPreview", higherLowerEntryCost)}
+            </p>
             <p>
               {casinoText(locale, "runStats")}:{" "}
               {quantity(locale, state.run.casinoStats.higherLowerPlayed)}{" "}

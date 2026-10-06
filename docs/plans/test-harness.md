@@ -29,7 +29,7 @@ For the recorded Windows run, Vite was started in a separate terminal with `npm 
 
 `tests/e2e/_harness/fixtures.ts` starts a new browser context, clears local/session storage before navigation, fixes seed `314159` and locale `en`, starts a named run through the form, waits for the Hydrogen pane and captures page, console and external-request errors. The `window.miaplacidusTest` gateway exists only in development/test builds.
 
-The Test Lab prepares deterministic fixtures through the engine store, advances the injected clock with normal `clock.advance` commands, and reports seed, clock and replayable command log. Its variable inspector is searchable and read-only. It is a dedicated closable dialog, outside page flow and normal navigation, opened or closed by NumpadSubtract (`-`) only in development/test builds; production builds exclude the module.
+The Test Lab prepares deterministic fixtures through the engine store, advances the injected clock with normal `clock.advance` commands, and reports seed, clock and replayable command log. Its variable inspector is searchable and read-only. It is a dedicated closable dialog, outside page flow and normal navigation, opened or closed by NumpadAdd (`+`) only in development/test builds; the scenario cheat menu uses NumpadSubtract (`-`). Production builds exclude both tools.
 
 Initial focused M-01 results on 2 October 2026:
 

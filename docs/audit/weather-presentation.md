@@ -10,7 +10,8 @@ The fixed `#weatherEffectOverlay` is in [`index.html`](../../../cosmicForge/cosm
 
 [`WeatherEffectsOverlay.tsx`](../../src/app/WeatherEffectsOverlay.tsx) draws the same bounded particle count, drop sizes, colors, opacity, and motion vectors into one full-viewport canvas. The fixed pool avoids per-particle DOM creation and removal. The canvas is capped at eight million backing pixels, runs only for enabled rain/heavy rain/volcano, pauses while the page is hidden, and clears when the effect stops or reduced motion is enabled. Rain color follows the active theme. The existing Settings weather-effects preference still gates the overlay.
 
-## Verification still required
+## Verification
 
-- Force rain and volcano in the browser, confirm visible drops use the source colors and paths, and confirm the canvas clears when weather effects are disabled or weather changes.
-- Confirm the overlay remains pointer-ignoring and visually legible across the theme and viewport matrix; reduced motion should stop particle animation.
+- `tests/unit/weather-particle-geometry.spec.ts` pins source-compatible trajectories: rain travels diagonally from `sourceX - viewport width` to `sourceX + viewport width`; lava keeps its source X while falling vertically. A 5 October source comparison corrected both horizontal paths.
+- `tests/e2e/weather/weather-overlay.spec.ts` passed 2/2 in system Chrome, confirming source-colored rain/lava pixels in the fixed viewport canvas and cleanup when weather effects are disabled, weather changes, or reduced motion is enabled.
+- Broader visual review of particle legibility across themes and viewport sizes remains open under P-56.

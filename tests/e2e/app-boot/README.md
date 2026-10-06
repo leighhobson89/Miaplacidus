@@ -12,7 +12,7 @@
 
 ## Deterministic setup and debug commands
 
-The shared fixture clears local/session storage, uses seed `314159` and English, enters `Hydrogen Pioneer`, and starts through the real form. The explicit Spanish first-run test uses seed `90210` and verifies the first Hydrogen screen and the removed Miaplaedia replay control. Test Lab commands require the NumpadSubtract (`-`) shortcut to open the dedicated dialog; scenario controls are documented in the [autobuyer](../autobuyers/README.md) and [resource](../resources/README.md) READMEs.
+The shared fixture clears local/session storage, uses seed `314159` and English, enters `Hydrogen Pioneer`, and starts through the real form. The explicit Spanish first-run test uses seed `90210` and verifies the first Hydrogen screen and the removed Miaplaedia replay control. The Cosmic Forge scenario menu opens with NumpadSubtract (`-`); the Test Lab keeps its separate dialog on NumpadAdd (`+`). Scenario controls are documented in the [debug menu area](../debug-menu/README.md), [autobuyer](../autobuyers/README.md), and [resource](../resources/README.md) READMEs.
 
 Run with `npm run test:e2e:focused -- tests/e2e/app-boot/hydrogen-boot.spec.ts`. Add `MIAPLACIDUS_BROWSER_CHANNEL=chrome` when using an installed Chrome instead of Playwright's bundled browser.
 

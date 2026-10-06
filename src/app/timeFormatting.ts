@@ -19,3 +19,8 @@ export function formatDuration(locale: LocaleId, milliseconds: number): string {
   parts.push(`${formatNumber(locale, seconds)}${topStatusText(locale, "second")}`);
   return parts.join(" ");
 }
+
+export function formatCountdown(locale: LocaleId, milliseconds: number): string {
+  const roundedUpToSecond = Math.ceil(Math.max(0, milliseconds) / 1000) * 1000;
+  return formatDuration(locale, roundedUpToSecond);
+}

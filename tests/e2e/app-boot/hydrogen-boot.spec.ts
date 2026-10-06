@@ -72,17 +72,17 @@ test("keyboard navigation follows the visible main-tab order @app-boot @keyboard
   await expect(freshGame.getByRole("tab", { name: "Energy", exact: true })).toHaveCount(0);
 });
 
-test("the Test Lab opens and closes only through the keypad minus toggle @app-boot @test-lab", async ({
+test("the Test Lab opens and closes with the keypad plus toggle @app-boot @test-lab", async ({
   page,
   freshGame,
 }) => {
-  const lab = page.locator("dialog.debug-tools");
-  await expect(freshGame.locator("dialog.debug-tools")).toHaveCount(1);
+  const lab = page.locator("dialog.debug-tools:not(.debug-scenario-menu)");
+  await expect(freshGame.locator("dialog.debug-tools:not(.debug-scenario-menu)")).toHaveCount(1);
   await expect(lab).not.toBeVisible();
-  await page.keyboard.press("NumpadSubtract");
+  await page.keyboard.press("NumpadAdd");
   await expect(lab).toBeVisible();
   await expect(lab.getByRole("button", { name: "Close", exact: true })).toBeVisible();
-  await page.keyboard.press("NumpadSubtract");
+  await page.keyboard.press("NumpadAdd");
   await expect(lab).not.toBeVisible();
 });
 

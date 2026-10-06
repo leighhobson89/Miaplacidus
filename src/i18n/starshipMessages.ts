@@ -29,6 +29,7 @@ const en = {
   pointOfNoReturn:
     "Once launched, the starship cannot be recovered in this run. Check the destination and fuel cost before confirming.",
   travelling: "Travelling to {name}",
+  journeyTimeRemaining: "Journey time remaining: {time}",
   orbiting: "Orbiting {name}",
   noDestination: "Select a studied destination on the star map first.",
   ftlRequired: "Research FTL Travel Theory first.",
@@ -77,7 +78,7 @@ const en = {
   engageBattle: "Begin battle",
   settleSystem: "Settle this system",
   alreadySettled: "This system is already part of your settled territory.",
-  settlementComplete: "System settled. Ascendency and glory rewards have been recorded.",
+  settlementComplete: "System settled. Ascendency and Galactic Point rewards have been recorded.",
   messageReceptive: "The race welcomes your Envoy. Its impression of you has improved.",
   messageNeutral: "The race exchanges cautious greetings. Its impression of you has shifted.",
   messageReserved: "The race remains reserved. Your Envoy has made little progress.",
@@ -150,6 +151,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       pointOfNoReturn:
         "Una vez lanzada, la nave estelar no se puede recuperar en esta partida. Comprueba el destino y el coste de combustible antes de confirmar.",
       travelling: "Viajando a {name}",
+      journeyTimeRemaining: "Tiempo de viaje restante: {time}",
       orbiting: "En órbita de {name}",
       noDestination: "Selecciona primero un destino estudiado en el mapa estelar.",
       ftlRequired: "Investiga primero la teoría de viajes FTL.",
@@ -201,7 +203,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       settleSystem: "Asentar este sistema",
       alreadySettled: "Este sistema ya forma parte de tu territorio asentado.",
       settlementComplete:
-        "Sistema asentado. Se han registrado las recompensas de Ascendencia y Gloria.",
+        "Sistema asentado. Se han registrado las recompensas de Ascendencia y Puntos Galácticos.",
       messageReceptive: "La raza recibe bien a tu Enviado. Su impresión de ti ha mejorado.",
       messageNeutral: "La raza intercambia saludos cautelosos. Su impresión de ti ha cambiado.",
       messageReserved: "La raza se mantiene reservada. Tu Enviado ha avanzado poco.",
@@ -273,6 +275,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       pointOfNoReturn:
         "Depois de lançada, a nave estelar não pode ser recuperada nesta partida. Confirme o destino e o custo de combustível.",
       travelling: "A viajar para {name}",
+      journeyTimeRemaining: "Tempo de viagem restante: {time}",
       orbiting: "Em órbita de {name}",
       noDestination: "Selecione primeiro um destino estudado no mapa estelar.",
       ftlRequired: "Pesquise primeiro a teoria de viagens FTL.",
@@ -323,7 +326,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       settleSystem: "Estabelecer neste sistema",
       alreadySettled: "Este sistema já faz parte do teu território estabelecido.",
       settlementComplete:
-        "Sistema estabelecido. As recompensas de Ascendência e Glória foram registadas.",
+        "Sistema estabelecido. As recompensas de Ascendência e Pontos Galácticos foram registadas.",
       messageReceptive: "A raça recebe bem o teu Emissário. A sua impressão de ti melhorou.",
       messageNeutral: "A raça troca saudações cautelosas. A sua impressão de ti mudou.",
       messageReserved: "A raça mantém-se reservada. O teu Emissário teve pouco progresso.",
@@ -394,6 +397,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       pointOfNoReturn:
         "Nach dem Start kann das Raumschiff in diesem Durchlauf nicht zurückgeholt werden. Prüfe Ziel und Treibstoffkosten.",
       travelling: "Unterwegs nach {name}",
+      journeyTimeRemaining: "Verbleibende Reisezeit: {time}",
       orbiting: "Im Orbit von {name}",
       noDestination: "Wähle zuerst ein erforschtes Ziel auf der Sternkarte.",
       ftlRequired: "Erforsche zuerst die FTL-Reisetheorie.",
@@ -443,7 +447,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       engageBattle: "Schlacht beginnen",
       settleSystem: "System besiedeln",
       alreadySettled: "Dieses System gehört bereits zu deinem besiedelten Gebiet.",
-      settlementComplete: "System besiedelt. Belohnungen für Aszendenz und Ruhm wurden verbucht.",
+      settlementComplete:
+        "System besiedelt. Belohnungen für Aszendenz und galaktische Punkte wurden verbucht.",
       messageReceptive:
         "Die Spezies begrüßt deinen Gesandten. Ihr Eindruck von dir hat sich verbessert.",
       messageNeutral:
@@ -519,6 +524,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       pointOfNoReturn:
         "Dopo il lancio, l'astronave non può essere recuperata in questa partita. Controlla destinazione e costo del carburante.",
       travelling: "In viaggio verso {name}",
+      journeyTimeRemaining: "Tempo di viaggio rimanente: {time}",
       orbiting: "In orbita attorno a {name}",
       noDestination: "Seleziona prima una destinazione studiata sulla mappa stellare.",
       ftlRequired: "Ricerca prima la teoria dei viaggi FTL.",
@@ -570,7 +576,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       settleSystem: "Insedia questo sistema",
       alreadySettled: "Questo sistema fa già parte del tuo territorio.",
       settlementComplete:
-        "Sistema insediato. Le ricompense di Ascendenza e Gloria sono state registrate.",
+        "Sistema insediato. Le ricompense di Ascendenza e Punti galattici sono state registrate.",
       messageReceptive: "La specie accoglie il tuo Inviato. La sua impressione di te è migliorata.",
       messageNeutral: "La specie si scambia saluti prudenti. La sua impressione di te è cambiata.",
       messageReserved: "La specie resta riservata. Il tuo Inviato ha ottenuto pochi progressi.",
@@ -642,6 +648,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       pointOfNoReturn:
         "Après le lancement, le vaisseau ne peut pas être récupéré pendant cette partie. Vérifiez la destination et le coût en carburant.",
       travelling: "En route vers {name}",
+      journeyTimeRemaining: "Temps de voyage restant : {time}",
       orbiting: "En orbite autour de {name}",
       noDestination: "Choisissez d'abord une destination étudiée sur la carte stellaire.",
       ftlRequired: "Recherchez d'abord la théorie du voyage FTL.",
@@ -693,7 +700,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       settleSystem: "Coloniser ce système",
       alreadySettled: "Ce système fait déjà partie de votre territoire colonisé.",
       settlementComplete:
-        "Système colonisé. Les récompenses d'Ascendance et de Gloire ont été enregistrées.",
+        "Système colonisé. Les récompenses d'Ascendance et de points galactiques ont été enregistrées.",
       messageReceptive: "L'espèce accueille votre Émissaire. Son opinion de vous s'est améliorée.",
       messageNeutral: "L'espèce échange des salutations prudentes. Son opinion de vous a changé.",
       messageReserved: "L'espèce reste réservée. Votre Émissaire a peu progressé.",

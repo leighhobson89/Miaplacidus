@@ -17,6 +17,7 @@ interface MetaCopy {
   readonly maxed: string;
   readonly level: string;
   readonly cost: string;
+  readonly perkInsufficient: string;
   readonly perks: Readonly<Record<AscendencyPerkId, readonly [string, string]>>;
 }
 
@@ -50,7 +51,7 @@ const PACKS: Record<
     title: "Ascendency",
     perksTitle: "Ascendency Perks",
     ap: "Ascendency Points",
-    gp: "Glory Points",
+    gp: "Galactic Points",
     rebirths: "Rebirths",
     rebirthTitle: "Begin a new run?",
     rebirthBody:
@@ -63,6 +64,7 @@ const PACKS: Record<
     maxed: "Maxed",
     level: "Level",
     cost: "Cost",
+    perkInsufficient: "Requires {required} AP; you have {available}.",
     perkNames: [
       "Little Bag of Hydrogen",
       "Non-Exhaustive Resources",
@@ -104,7 +106,7 @@ const PACKS: Record<
     title: "Ascendencia",
     perksTitle: "Ventajas de Ascendencia",
     ap: "Puntos de Ascendencia",
-    gp: "Puntos de Gloria",
+    gp: "Puntos galácticos",
     rebirths: "Renacimientos",
     rebirthTitle: "¿Comenzar una nueva partida?",
     rebirthBody:
@@ -117,6 +119,7 @@ const PACKS: Record<
     maxed: "Al máximo",
     level: "Nivel",
     cost: "Coste",
+    perkInsufficient: "Requiere {required} PA; tienes {available}.",
     perkNames: [
       "Pequeña bolsa de hidrógeno",
       "Recursos inagotables",
@@ -158,7 +161,7 @@ const PACKS: Record<
     title: "Ascendência",
     perksTitle: "Vantagens de Ascendência",
     ap: "Pontos de Ascendência",
-    gp: "Pontos de Glória",
+    gp: "Pontos galácticos",
     rebirths: "Renascimentos",
     rebirthTitle: "Começar uma nova jornada?",
     rebirthBody:
@@ -171,6 +174,7 @@ const PACKS: Record<
     maxed: "No máximo",
     level: "Nível",
     cost: "Custo",
+    perkInsufficient: "Requer {required} PA; você tem {available}.",
     perkNames: [
       "Pequena bolsa de hidrogénio",
       "Recursos não exaustivos",
@@ -212,7 +216,7 @@ const PACKS: Record<
     title: "Aszendenz",
     perksTitle: "Aufstiegsperks",
     ap: "Aszendenzpunkte",
-    gp: "Ruhmpunkte",
+    gp: "Galaktische Punkte",
     rebirths: "Wiedergeburten",
     rebirthTitle: "Einen neuen Durchlauf beginnen?",
     rebirthBody:
@@ -225,6 +229,7 @@ const PACKS: Record<
     maxed: "Maximum",
     level: "Stufe",
     cost: "Kosten",
+    perkInsufficient: "Benötigt {required} AP; du hast {available}.",
     perkNames: [
       "Kleine Wasserstofftasche",
       "Unerschöpfliche Ressourcen",
@@ -266,7 +271,7 @@ const PACKS: Record<
     title: "Ascendenza",
     perksTitle: "Perk di ascendenza",
     ap: "Punti Ascendenza",
-    gp: "Punti Gloria",
+    gp: "Punti galattici",
     rebirths: "Rinascite",
     rebirthTitle: "Iniziare una nuova partita?",
     rebirthBody:
@@ -279,6 +284,7 @@ const PACKS: Record<
     maxed: "Massimo",
     level: "Livello",
     cost: "Costo",
+    perkInsufficient: "Richiede {required} PA; ne hai {available}.",
     perkNames: [
       "Piccola scorta di idrogeno",
       "Risorse inesauribili",
@@ -320,7 +326,7 @@ const PACKS: Record<
     title: "Ascendance",
     perksTitle: "Avantages d'ascendance",
     ap: "Points d’ascendance",
-    gp: "Points de gloire",
+    gp: "Points galactiques",
     rebirths: "Renaissances",
     rebirthTitle: "Commencer une nouvelle partie ?",
     rebirthBody:
@@ -333,6 +339,7 @@ const PACKS: Record<
     maxed: "Maximum",
     level: "Niveau",
     cost: "Coût",
+    perkInsufficient: "Nécessite {required} PA ; vous en avez {available}.",
     perkNames: [
       "Petite réserve d’hydrogène",
       "Ressources inépuisables",
@@ -496,18 +503,8 @@ export function rebirthText(
   return REBIRTH_TEXT[locale][key];
 }
 
-export function rebirthCarryText(
-  locale: LocaleId,
-  points: number,
-  notation: "standard" | "scientific" = "standard",
-): string {
-  const amount = new Intl.NumberFormat(
-    locale,
-    notation === "scientific"
-      ? { notation, maximumSignificantDigits: 1 }
-      : { maximumFractionDigits: 0 },
-  ).format(points);
-  return REBIRTH_TEXT[locale].carry.replace("{ap}", amount);
+export function rebirthCarryText(locale: LocaleId, formattedPoints: string): string {
+  return REBIRTH_TEXT[locale].carry.replace("{ap}", formattedPoints);
 }
 
 export function rebirthLockText(locale: LocaleId, reason: RebirthLockReason | undefined): string {
@@ -593,11 +590,13 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     lockedCountdown: "Time until the Galactic Market reopens: {minutes} min.",
     invalidTrade: "Choose two different goods and a positive whole quantity with a nonzero return.",
     goodLocked: "Both goods must be unlocked before they can be traded.",
-    insufficientStock: "You do not have enough stock for this trade.",
-    capacity: "Increase storage before receiving this amount.",
-    insufficientAp: "You do not have enough AP for that sale.",
+    insufficientStock: "You have {available} {good}, but this trade needs {required}.",
+    capacity:
+      "This trade would add {required} {good}, but only {available} storage is free (limit {capacity}).",
+    insufficientAp: "This sale needs {required} AP; you have {available}.",
     liquidated: "Assets have already been liquidated this run.",
-    noLiquidation: "Current assets are worth less than one AP at the current price.",
+    noLiquidation:
+      "Liquidation is worth {value}; at least {minimum} is needed for 1 AP at the current price.",
   },
   es: {
     heading: "Mercado galáctico",
@@ -632,11 +631,13 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     invalidTrade:
       "Elige dos recursos distintos y una cantidad entera positiva que produzca una ganancia.",
     goodLocked: "Debes desbloquear ambos recursos antes de intercambiarlos.",
-    insufficientStock: "No tienes existencias suficientes para este intercambio.",
-    capacity: "Aumenta el almacenamiento antes de recibir esta cantidad.",
-    insufficientAp: "No tienes suficientes PA para esa venta.",
+    insufficientStock: "Tienes {available} {good}, pero este intercambio necesita {required}.",
+    capacity:
+      "Este intercambio añadiría {required} {good}, pero solo queda espacio para {available} (límite: {capacity}).",
+    insufficientAp: "Esta venta necesita {required} PA; tienes {available}.",
     liquidated: "Los activos ya se liquidaron en esta partida.",
-    noLiquidation: "Al precio actual, los activos valen menos de un PA.",
+    noLiquidation:
+      "La liquidación vale {value}; se necesitan al menos {minimum} para obtener 1 PA al precio actual.",
   },
   pt: {
     heading: "Mercado galáctico",
@@ -670,11 +671,13 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     lockedCountdown: "Tempo até o Mercado galáctico reabrir: {minutes} min.",
     invalidTrade: "Escolhe dois bens diferentes e uma quantidade inteira positiva que dê retorno.",
     goodLocked: "Desbloqueia ambos os bens antes de os trocar.",
-    insufficientStock: "Não tens stock suficiente para esta troca.",
-    capacity: "Aumenta o armazenamento antes de receber esta quantidade.",
-    insufficientAp: "Não tens PA suficientes para essa venda.",
+    insufficientStock: "Tens {available} {good}, mas esta troca precisa de {required}.",
+    capacity:
+      "Esta troca acrescentaria {required} {good}, mas só há espaço para {available} (limite: {capacity}).",
+    insufficientAp: "Esta venda precisa de {required} PA; tens {available}.",
     liquidated: "Os ativos já foram liquidados nesta jornada.",
-    noLiquidation: "Ao preço atual, os ativos valem menos de um PA.",
+    noLiquidation:
+      "A liquidação vale {value}; são necessários pelo menos {minimum} para obter 1 PA ao preço atual.",
   },
   de: {
     heading: "Galaktischer Markt",
@@ -709,11 +712,14 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     invalidTrade:
       "Wähle zwei verschiedene Güter und eine positive ganze Menge mit einem Ergebnis größer null.",
     goodLocked: "Beide Güter müssen vor dem Handel freigeschaltet sein.",
-    insufficientStock: "Dein Vorrat reicht für diesen Handel nicht aus.",
-    capacity: "Erhöhe den Speicherplatz, bevor du diese Menge erhältst.",
-    insufficientAp: "Du hast nicht genug AP für diesen Verkauf.",
+    insufficientStock:
+      "Du hast {available} {good}, aber für diesen Handel werden {required} benötigt.",
+    capacity:
+      "Dieser Handel würde {required} {good} hinzufügen, aber es sind nur {available} Lagerplätze frei (Limit: {capacity}).",
+    insufficientAp: "Für diesen Verkauf werden {required} AP benötigt; du hast {available}.",
     liquidated: "Das Vermögen wurde in diesem Durchlauf bereits liquidiert.",
-    noLiquidation: "Das aktuelle Vermögen ist beim derzeitigen Preis weniger als einen AP wert.",
+    noLiquidation:
+      "Die Liquidation ist {value} wert; für 1 AP werden zum aktuellen Kurs mindestens {minimum} benötigt.",
   },
   it: {
     heading: "Mercato galattico",
@@ -748,11 +754,13 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     invalidTrade:
       "Scegli due beni diversi e una quantità intera positiva con un ricavo maggiore di zero.",
     goodLocked: "Sblocca entrambi i beni prima di scambiarli.",
-    insufficientStock: "Le scorte non bastano per questo scambio.",
-    capacity: "Aumenta il deposito prima di ricevere questa quantità.",
-    insufficientAp: "Non hai abbastanza PA per questa vendita.",
+    insufficientStock: "Hai {available} {good}, ma questo scambio richiede {required}.",
+    capacity:
+      "Questo scambio aggiungerebbe {required} {good}, ma resta spazio solo per {available} (limite: {capacity}).",
+    insufficientAp: "Questa vendita richiede {required} PA; ne hai {available}.",
     liquidated: "Gli asset sono già stati liquidati in questa partita.",
-    noLiquidation: "Al prezzo attuale gli asset valgono meno di un PA.",
+    noLiquidation:
+      "La liquidazione vale {value}; per 1 PA servono almeno {minimum} al prezzo attuale.",
   },
   fr: {
     heading: "Marché galactique",
@@ -787,11 +795,13 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     invalidTrade:
       "Choisissez deux biens différents et une quantité entière positive donnant un résultat supérieur à zéro.",
     goodLocked: "Les deux biens doivent être débloqués avant l'échange.",
-    insufficientStock: "Votre stock est insuffisant pour cet échange.",
-    capacity: "Augmentez le stockage avant de recevoir cette quantité.",
-    insufficientAp: "Vous n'avez pas assez de PA pour cette vente.",
+    insufficientStock: "Vous avez {available} {good}, mais cet échange en demande {required}.",
+    capacity:
+      "Cet échange ajouterait {required} {good}, mais il ne reste que {available} places (limite : {capacity}).",
+    insufficientAp: "Cette vente demande {required} PA ; vous en avez {available}.",
     liquidated: "Les actifs ont déjà été liquidés pendant cette partie.",
-    noLiquidation: "Au cours actuel, les actifs valent moins d'un PA.",
+    noLiquidation:
+      "La liquidation vaut {value} ; il faut au moins {minimum} au cours actuel pour obtenir 1 PA.",
   },
 };
 
@@ -807,7 +817,13 @@ export function marketLockCountdownText(locale: LocaleId, remainingMs: number): 
   );
 }
 
-export function marketFailureText(locale: LocaleId, code: string): string {
+export function marketFailureText(
+  locale: LocaleId,
+  code: string,
+  details: Readonly<
+    Partial<Record<"required" | "available" | "good" | "capacity" | "value" | "minimum", string>>
+  > = {},
+): string {
   const keys: Record<string, MarketMessageKey> = {
     "market-not-unlocked": "notUnlocked",
     "market-locked": "locked",
@@ -820,7 +836,13 @@ export function marketFailureText(locale: LocaleId, code: string): string {
     "market-no-liquidation": "noLiquidation",
   };
   const key = keys[code];
-  return key ? MARKET_COPY[locale][key] : MARKET_COPY[locale].locked;
+  const text = key ? MARKET_COPY[locale][key] : MARKET_COPY[locale].locked;
+  return text.replace(
+    /\{(required|available|good|capacity|value|minimum)\}/g,
+    (_match, name: string) => {
+      return details[name as keyof typeof details] ?? "0";
+    },
+  );
 }
 
 export function metaText(locale: LocaleId, key: Exclude<keyof MetaCopy, "perks">): string {

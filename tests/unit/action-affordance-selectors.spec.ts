@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CASINO_CP_BASE_COST, CASINO_CP_VALUES } from "../../src/content/galacticCasino";
 import { LOCALE_IDS } from "../../src/content/ids";
 import { casinoFailureText } from "../../src/i18n/casinoMessages";
+import { marketFailureText, marketLockCountdownText } from "../../src/i18n/metaMessages";
 import { createInitialGameState } from "../../src/engine/state";
 import { selectCasinoEntryCost, selectCasinoPointPurchase } from "../../src/engine/selectors";
 
@@ -58,6 +59,53 @@ describe("selector-backed Casino action affordances", () => {
       expect(paymentReason).toContain("10");
       expect(paymentReason).toContain("Hydrogen");
       expect(paymentReason).not.toMatch(/\{(?:required|available|payment)\}/);
+    }
+  });
+
+  it("localizes Galactic Market selector reasons and fills live-value placeholders in every locale", () => {
+    for (const locale of LOCALE_IDS) {
+      const stockReason = marketFailureText(locale, "market-insufficient-stock", {
+        required: "101",
+        available: "100",
+        good: "Hydrogen",
+      });
+      const capacityReason = marketFailureText(locale, "market-capacity", {
+        required: "18",
+        available: "1",
+        capacity: "120",
+        good: "Helium",
+      });
+      const apReason = marketFailureText(locale, "market-insufficient-ap", {
+        required: "10",
+        available: "3",
+      });
+      const liquidationReason = marketFailureText(locale, "market-no-liquidation", {
+        value: "$2",
+        minimum: "$1,000,000",
+      });
+      const reasonTexts = [
+        stockReason,
+        capacityReason,
+        apReason,
+        liquidationReason,
+        marketFailureText(locale, "market-liquidated"),
+        marketFailureText(locale, "market-locked"),
+        marketFailureText(locale, "market-not-unlocked"),
+        marketLockCountdownText(locale, 61_000),
+      ];
+
+      expect(stockReason).toContain("101");
+      expect(stockReason).toContain("100");
+      expect(stockReason).toContain("Hydrogen");
+      expect(capacityReason).toContain("18");
+      expect(capacityReason).toContain("1");
+      expect(capacityReason).toContain("120");
+      expect(capacityReason).toContain("Helium");
+      expect(apReason).toContain("10");
+      expect(apReason).toContain("3");
+      expect(liquidationReason).toContain("$2");
+      expect(liquidationReason).toContain("$1,000,000");
+      for (const reason of reasonTexts) expect(reason).not.toMatch(/\{[^}]+\}/);
     }
   });
 });

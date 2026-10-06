@@ -31,9 +31,19 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
   const text = entry ? newsEntryText(locale, entry, copy ?? undefined) : "";
   const [activatedMessage, setActivatedMessage] = useState("");
   const [wackyEffect, setWackyEffect] = useState("");
+  const [systemReducedMotion, setSystemReducedMotion] = useState(false);
+  const reducedMotion = state.settings.reducedMotion || systemReducedMotion;
 
   useEffect(() => {
-    if (state.settings.reducedMotion) {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setSystemReducedMotion(preference.matches);
+    updatePreference();
+    preference.addEventListener("change", updatePreference);
+    return () => preference.removeEventListener("change", updatePreference);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) {
       latestKeyRef.current = tickerEntryKey(latestEntry);
       setEntry(latestEntry);
       queuedEntriesRef.current = [];
@@ -47,7 +57,7 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
     } else {
       queuedEntriesRef.current = [...queuedEntriesRef.current, latestEntry];
     }
-  }, [entry, latestEntry, state.settings.reducedMotion]);
+  }, [entry, latestEntry, reducedMotion]);
 
   function advanceMessage(event: AnimationEvent<HTMLDivElement>): void {
     if (event.target !== event.currentTarget || event.animationName !== "news-ticker-scroll")

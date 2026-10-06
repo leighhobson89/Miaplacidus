@@ -27,6 +27,7 @@ export interface CosmicRipMessages {
   readonly technologyNames: Readonly<Record<CosmicRipTechnologyId, string>>;
   readonly research: string;
   readonly researching: string;
+  readonly remaining: string;
   readonly researched: string;
   readonly hidden: string;
   readonly requires: string;
@@ -178,6 +179,7 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     },
     research: "Begin research",
     researching: "Researching",
+    remaining: "Time remaining: {time}",
     researched: "Researched",
     hidden: "Appears at {amount} telemetry",
     requires: "Requires {name}",
@@ -221,6 +223,7 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     },
     research: "Iniciar investigación",
     researching: "Investigando",
+    remaining: "Tiempo restante: {time}",
     researched: "Investigada",
     hidden: "Aparece con {amount} de telemetría",
     requires: "Requiere {name}",
@@ -263,6 +266,7 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     },
     research: "Iniciar pesquisa",
     researching: "Pesquisando",
+    remaining: "Tempo restante: {time}",
     researched: "Pesquisada",
     hidden: "Surge com {amount} de telemetria",
     requires: "Requer {name}",
@@ -303,6 +307,7 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     },
     research: "Forschung beginnen",
     researching: "Forschung läuft",
+    remaining: "Verbleibend: {time}",
     researched: "Erforscht",
     hidden: "Erscheint bei {amount} Telemetrie",
     requires: "Benötigt {name}",
@@ -345,6 +350,7 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     },
     research: "Avvia ricerca",
     researching: "Ricerca in corso",
+    remaining: "Tempo rimanente: {time}",
     researched: "Ricercata",
     hidden: "Appare con {amount} di telemetria",
     requires: "Richiede {name}",
@@ -387,6 +393,7 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     },
     research: "Lancer la recherche",
     researching: "Recherche en cours",
+    remaining: "Temps restant : {time}",
     researched: "Recherchée",
     hidden: "Apparaît à {amount} de télémétrie",
     requires: "Nécessite {name}",

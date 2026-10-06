@@ -10,7 +10,14 @@ import {
   type LocaleId,
 } from "../../../src/content/ids";
 import { ECONOMY_BUILDING_NAMES } from "../../../src/content/economyBuildingNames";
-import { ENERGY_BUILDINGS, SCIENCE_BUILDINGS } from "../../../src/content/economy";
+import { createEconomyTickPlan } from "../../../src/engine/economySimulation";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import {
+  COMPOUND_CATALOG,
+  ENERGY_BUILDINGS,
+  MATERIAL_CATALOG,
+  SCIENCE_BUILDINGS,
+} from "../../../src/content/economy";
 import { MEGASTRUCTURE_TECHNOLOGY_IDS, TECHNOLOGY_CATALOG } from "../../../src/content/technology";
 import { TECHNOLOGY_NAMES } from "../../../src/content/technologyNames";
 import { technologyNotificationText } from "../../../src/i18n/technologyNotificationMessages";
@@ -27,6 +34,76 @@ async function expandAllDetails(container: Locator): Promise<void> {
 async function collapseAllDetails(container: Locator): Promise<void> {
   const openDetails = container.locator("details[open] > summary:visible");
   while ((await openDetails.count()) > 0) await openDetails.first().press("Enter");
+}
+
+async function expectHydrogenStyleGoodLayout(
+  card: Locator,
+  options: { readonly hasFusion: boolean; readonly compound?: boolean },
+): Promise<void> {
+  await expect(card.locator(".economy-card-heading")).toHaveCount(0);
+  await expect(card.locator(".pane-intro")).toHaveCount(0);
+  const hero = card.locator(".hydrogen-hero");
+  const stock = hero.locator(".stock-readout > strong");
+  const storage = card.locator(".hydrogen-storage-card");
+  const sale = hero.locator(".sale-card");
+  await expect(hero).toBeVisible();
+  await expect(stock).toBeVisible();
+  await expect(storage).toBeVisible();
+  await expect(sale).toBeVisible();
+
+  const panelOrder = await card.evaluate((node) =>
+    Array.from(node.children)
+      .filter((child) => !child.matches(".live-feedback"))
+      .map((child) => {
+        if (child.matches(".pane-heading")) return "heading";
+        if (child.matches(".hydrogen-hero")) return "hero";
+        if (child.matches(".hydrogen-storage-card")) return "storage";
+        if (child.matches(".economy-details")) {
+          const label = child.querySelector("summary")?.textContent?.trim() ?? "";
+          return label.toLocaleLowerCase();
+        }
+        return child.className.toString();
+      }),
+  );
+  expect(panelOrder).toEqual(
+    options.compound
+      ? ["heading", "hero", "storage", "autobuyers"]
+      : ["heading", "hero", "storage", "autobuyers", "production allocation"],
+  );
+
+  const [heroBounds, storageBounds, saleBounds] = await Promise.all([
+    hero.boundingBox(),
+    storage.boundingBox(),
+    sale.boundingBox(),
+  ]);
+  expect(heroBounds).not.toBeNull();
+  expect(storageBounds).not.toBeNull();
+  expect(saleBounds).not.toBeNull();
+  expect(saleBounds!.y).toBeGreaterThanOrEqual(heroBounds!.y);
+  expect(saleBounds!.y + saleBounds!.height).toBeLessThanOrEqual(
+    heroBounds!.y + heroBounds!.height + 1,
+  );
+  expect(heroBounds!.y + heroBounds!.height).toBeLessThanOrEqual(storageBounds!.y + 1);
+  expect(Math.abs(heroBounds!.x - storageBounds!.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(heroBounds!.width - storageBounds!.width)).toBeLessThanOrEqual(2);
+
+  const fusion = sale.locator(".resource-fusion-panel");
+  if (options.hasFusion) {
+    await expect(fusion).toBeVisible();
+    await expect(fusion.locator("summary")).toHaveCount(0);
+    const fusionBounds = await fusion.boundingBox();
+    expect(fusionBounds).not.toBeNull();
+    expect(fusionBounds!.y).toBeGreaterThanOrEqual(saleBounds!.y);
+    expect(fusionBounds!.x).toBeCloseTo(saleBounds!.x, 0);
+    expect(fusionBounds!.width).toBeCloseTo(saleBounds!.width, 0);
+  } else {
+    await expect(fusion).toHaveCount(0);
+  }
+}
+
+async function expectGoodStock(card: Locator, quantity: string, capacity?: string): Promise<void> {
+  await expect(card.locator(".stock-readout > strong")).toContainText(quantity);
+  if (capacity !== undefined) await expect(card.locator(".capacity-line")).toContainText(capacity);
 }
 
 async function expandHydrogenAutobuyers(container: Locator): Promise<void> {
@@ -69,6 +146,7 @@ async function startEconomyFixture(
     | "storage-all"
     | "water-storage"
     | "water-storage-short"
+    | "storage-production"
     | "save"
     | "bulk-hydrogen"
     | "bulk-science"
@@ -111,12 +189,12 @@ test("resource catalogue controls collect, preview, sell, store, and fuse throug
   await page.locator("#tab-resources-carbon").click();
   const carbon = page.locator('[data-resource-id="carbon"]');
   await carbon.getByRole("button", { name: "Collect +1 Carbon" }).click();
-  await expect(carbon).toContainText("2,001 / 100,000");
+  await expectGoodStock(carbon, "2,001", "100,000");
   await carbon.getByLabel("Sale amount Carbon").selectOption("half");
   await expect(carbon.getByText(/Sale preview:/)).toContainText("$");
   await captureVisualCheckpoint(page, testInfo, "economy-resource-catalogue");
   await carbon.getByRole("button", { name: /Sell Carbon/ }).click();
-  await expect(carbon).toContainText("1,001 / 100,000");
+  await expectGoodStock(carbon, "1,001", "100,000");
   await carbon.getByText("Fuse", { exact: true }).click();
   await carbon.getByLabel("Output Carbon").selectOption("neon");
   await carbon.getByLabel("Fusion Amount Carbon").fill("100");
@@ -138,7 +216,7 @@ test("resource catalogue controls collect, preview, sell, store, and fuse throug
 
 test("first fusion discovery reports stored yield before later fusions report efficiency loss @resources @fusion @notifications", async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(120_000);
   await startEconomyFixture(page, "research");
   await page.getByRole("tab", { name: /^Research/ }).click();
@@ -180,6 +258,21 @@ test("first fusion discovery reports stored yield before later fusions report ef
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.goods.helium.quantity))
     .toBe(13);
+
+  const hydrogenHero = page.locator('[data-resource-id="hydrogen"] .hydrogen-hero');
+  const saleCard = hydrogenHero.locator(".sale-card");
+  const fusionPanel = saleCard.locator(".hydrogen-fusion-panel");
+  await expect(fusionPanel).toBeVisible();
+  await expect(fusionPanel.locator("summary")).toHaveCount(0);
+  const [saleBounds, fusionBounds] = await Promise.all([
+    saleCard.boundingBox(),
+    fusionPanel.boundingBox(),
+  ]);
+  expect(saleBounds).not.toBeNull();
+  expect(fusionBounds).not.toBeNull();
+  expect(fusionBounds!.x).toBeCloseTo(saleBounds!.x, 0);
+  expect(fusionBounds!.width).toBeCloseTo(saleBounds!.width, 0);
+  await captureVisualCheckpoint(page, testInfo, "economy-hydrogen-fusion-open");
 
   await collectUntilFusionReady();
   await page.getByRole("button", { name: "Fuse Hydrogen", exact: true }).click();
@@ -261,6 +354,7 @@ test("fresh Hydrogen progression reaches its first research through player contr
   await game.getByRole("button", { name: "Buy compressor", exact: true }).click();
   await expect(game.getByTestId("hydrogen-autobuyer-count")).toHaveText("1");
   await expect(game.getByTestId("hydrogen-quantity")).toContainText("0");
+  await expect(hydrogenCard).not.toContainText("Compressor purchase complete.");
   await hydrogenCard.locator(".hydrogen-autobuyer-section > summary").click();
   await captureVisualCheckpoint(game, testInfo, "economy-fresh-hydrogen-compressor");
 
@@ -287,6 +381,33 @@ test("fresh Hydrogen progression reaches its first research through player contr
   expect(
     await game.evaluate(() => window.miaplacidusTest!.getState().run.upgrades.scienceKit),
   ).toBe(1);
+
+  await game.locator("#tab-settings").click();
+  const settings = game.getByTestId("settings-pane");
+  await settings.locator("#tab-settings-statistics").click();
+  const researchStatistics = settings
+    .getByTestId("settings-statistics")
+    .getByRole("heading", { name: "Research", level: 4, exact: true })
+    .locator("xpath=..");
+  const researchPointsCard = researchStatistics
+    .getByText("Research points earned", { exact: true })
+    .locator("xpath=..");
+  await expect(researchPointsCard.locator(".settings-stat-pair-values strong")).toHaveText([
+    "100",
+    "100",
+  ]);
+  const scienceKitsCard = researchStatistics
+    .getByText("Science kits built", { exact: true })
+    .locator("xpath=..");
+  await expect(scienceKitsCard.locator(".settings-stat-pair-values strong")).toHaveText(["1", "1"]);
+  for (const label of ["Science clubs built", "Science labs built"]) {
+    await expect(
+      researchStatistics
+        .getByText(label, { exact: true })
+        .locator("xpath=..")
+        .locator(".settings-stat-pair-values strong"),
+    ).toHaveText(["0", "0"]);
+  }
 });
 
 test("fresh Hydrogen progression unlocks Energy and Compounds in source tab order through player actions @resources @energy @research @compounds @ui-navigation @progression", async ({
@@ -388,8 +509,9 @@ test("fresh Hydrogen progression unlocks Energy and Compounds in source tab orde
 
   await game.getByRole("tab", { name: /Resources/ }).click();
   const hydrogen = game.locator('[data-resource-id="hydrogen"]');
-  const hydrogenFusion = hydrogen.locator("details").filter({ hasText: "Fuse" });
-  await hydrogenFusion.locator("summary").click();
+  const hydrogenFusion = hydrogen.locator(".resource-fusion-panel");
+  await expect(hydrogenFusion.locator("summary")).toHaveCount(0);
+  await expect(hydrogenFusion.locator("h4")).toBeVisible();
   await hydrogenFusion.getByLabel("Output Hydrogen").selectOption("helium");
   await hydrogenFusion.getByLabel("Fusion Amount Hydrogen").fill("50");
   await hydrogenFusion.getByRole("button", { name: "Fuse Hydrogen", exact: true }).click();
@@ -404,8 +526,9 @@ test("fresh Hydrogen progression unlocks Energy and Compounds in source tab orde
   await expect(helium).toBeVisible();
   await expect(heliumPaneTab.locator(".attention-badge")).toHaveCount(0);
   await expect(resourcesTab.locator(".attention-badge")).toHaveCount(0);
-  const heliumFusion = helium.locator("details").filter({ hasText: "Fuse" });
-  await heliumFusion.locator("summary").click();
+  const heliumFusion = helium.locator(".resource-fusion-panel");
+  await expect(heliumFusion.locator("summary")).toHaveCount(0);
+  await expect(heliumFusion.locator("h4")).toBeVisible();
   await heliumFusion.getByLabel("Fusion Amount Helium").fill("7");
   await heliumFusion.getByRole("button", { name: "Fuse Helium", exact: true }).click();
   const carbon = game.locator('[data-resource-id="carbon"]');
@@ -494,12 +617,12 @@ test("all eight material cards and six compounds are usable through player contr
     const materialName = id[0]!.toUpperCase() + id.slice(1);
     const startingQuantity = id === "carbon" ? 2_000 : 1_500;
     await card.getByRole("button", { name: `Collect +1 ${materialName}` }).click();
-    await expect(card).toContainText(`${(startingQuantity + 1).toLocaleString("en-US")} / 100,000`);
+    await expectGoodStock(card, (startingQuantity + 1).toLocaleString("en-US"), "100,000");
     await card.getByLabel(`Sale amount ${materialName}`).selectOption("half");
     await expect(card.getByText(/Sale preview:/)).toContainText("$");
     await card.getByRole("button", { name: new RegExp(`Sell ${materialName}`) }).click();
     const afterSale = startingQuantity + 1 - Math.floor((startingQuantity + 1) / 2);
-    await expect(card).toContainText(`${afterSale.toLocaleString("en-US")} / 100,000`);
+    await expectGoodStock(card, afterSale.toLocaleString("en-US"), "100,000");
 
     const autobuyers = card.locator("details").filter({ hasText: "Buy tier 1" }).first();
     await autobuyers.locator("summary").click();
@@ -520,14 +643,14 @@ test("all eight material cards and six compounds are usable through player contr
     const heading = id[0]!.toUpperCase() + id.slice(1);
     await expect(card.getByRole("button", { name: `Create ${heading}` })).toBeEnabled();
     await card.getByRole("button", { name: `Create ${heading}` }).click();
-    await expect(card.locator("header strong")).toContainText("1,501");
+    await expectGoodStock(card, "1,501");
     await card.getByLabel(`Sale amount ${heading}`).selectOption("1");
     await card.getByRole("button", { name: new RegExp(`Sell ${heading}`) }).click();
-    await expect(card.locator("header strong")).toContainText("1,500");
+    await expectGoodStock(card, "1,500");
     if (id === "glass") {
       await card.getByLabel(`Sale amount ${heading}`).selectOption("all");
       await card.getByRole("button", { name: new RegExp(`Sell ${heading}`) }).click();
-      await expect(card.locator("header strong")).toContainText("0 / 100,000");
+      await expectGoodStock(card, "0", "100,000");
     }
     await expect(card.getByRole("button", { name: "Increase storage" })).toBeDisabled();
   }
@@ -553,6 +676,101 @@ test("all eight material cards and six compounds are usable through player contr
   ).toBeVisible();
 });
 
+test("material and compound pages share the Hydrogen layout and compounds have a left rail @resources @compounds @ui", async ({
+  page,
+}, testInfo) => {
+  await startEconomyFixture(page, "full");
+
+  await page.locator("#tab-hydrogen").click();
+  const resourceRail = page.getByTestId("resource-rail");
+  await expect(resourceRail).toBeVisible();
+  let hydrogenHeaderGap = 0;
+  for (const id of MATERIAL_IDS) {
+    if (id !== "hydrogen") await page.getByTestId(`resource-rail-${id}`).click();
+    const card = page.locator(`[data-resource-id="${id}"]`);
+    await expect(card).toBeVisible();
+    {
+      const layout = page.locator(
+        id === "hydrogen"
+          ? ".tab-section-layout:not(.resource-page-selected)"
+          : ".tab-section-layout.resource-page-selected",
+      );
+      if (id !== "hydrogen")
+        await expect(layout.locator(".economy-section")).toHaveCSS("border-top-width", "0px");
+      const [navBounds, headingBounds] = await Promise.all([
+        layout.locator(".pane-nav-scroll").boundingBox(),
+        card.locator(".pane-heading h2").boundingBox(),
+      ]);
+      expect(navBounds).not.toBeNull();
+      expect(headingBounds).not.toBeNull();
+      const headingGap = headingBounds!.y - (navBounds!.y + navBounds!.height);
+      if (id === "hydrogen") hydrogenHeaderGap = headingGap;
+      else expect(Math.abs(headingGap - hydrogenHeaderGap)).toBeLessThanOrEqual(2);
+    }
+    await expectHydrogenStyleGoodLayout(card, {
+      hasFusion: MATERIAL_CATALOG[id].fusionOutputs !== undefined,
+    });
+  }
+  await captureVisualCheckpoint(page, testInfo, "economy-hydrogen-style-material-layouts");
+
+  await page.locator("#tab-compounds").click();
+  const compoundRail = page.getByTestId("compound-rail");
+  await expect(compoundRail).toBeVisible();
+  for (const id of COMPOUND_IDS) {
+    await page.getByTestId(`compound-rail-${id}`).click();
+    const card = page.locator(`[data-compound-id="${id}"]`);
+    await expect(card).toBeVisible();
+    const compoundLayout = page.locator(".tab-section-layout.compound-page-selected");
+    await expect(compoundLayout.locator(".economy-section")).toHaveCSS("border-top-width", "0px");
+    const [navBounds, headingBounds] = await Promise.all([
+      compoundLayout.locator(".pane-nav-scroll").boundingBox(),
+      card.locator(".pane-heading h2").boundingBox(),
+    ]);
+    expect(navBounds).not.toBeNull();
+    expect(headingBounds).not.toBeNull();
+    const headingGap = headingBounds!.y - (navBounds!.y + navBounds!.height);
+    expect(Math.abs(headingGap - hydrogenHeaderGap)).toBeLessThanOrEqual(2);
+    await expectHydrogenStyleGoodLayout(card, { hasFusion: false, compound: true });
+
+    const [railBounds, cardBounds] = await Promise.all([
+      compoundRail.boundingBox(),
+      card.boundingBox(),
+    ]);
+    expect(railBounds).not.toBeNull();
+    expect(cardBounds).not.toBeNull();
+    expect(railBounds!.x + railBounds!.width).toBeLessThanOrEqual(cardBounds!.x + 1);
+  }
+  await captureVisualCheckpoint(page, testInfo, "economy-hydrogen-style-compound-layouts");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const expectPhoneLayout = async (card: Locator) => {
+    await expect(card).toBeVisible();
+    const [scrollWidth, viewportWidth, heroBounds, storageBounds] = await Promise.all([
+      page.evaluate(() => document.documentElement.scrollWidth),
+      page.evaluate(() => document.documentElement.clientWidth),
+      card.locator(".hydrogen-hero").boundingBox(),
+      card.locator(".hydrogen-storage-card").boundingBox(),
+    ]);
+    expect(scrollWidth).toBeLessThanOrEqual(viewportWidth);
+    expect(heroBounds).not.toBeNull();
+    expect(storageBounds).not.toBeNull();
+    expect(Math.abs(heroBounds!.x - storageBounds!.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(heroBounds!.width - storageBounds!.width)).toBeLessThanOrEqual(2);
+  };
+
+  await page.locator("#tab-hydrogen").click();
+  for (const id of MATERIAL_IDS) {
+    await page.getByTestId(`resource-rail-${id}`).click();
+    await expectPhoneLayout(page.locator(`[data-resource-id="${id}"]`));
+  }
+  await page.locator("#tab-compounds").click();
+  for (const id of COMPOUND_IDS) {
+    await page.getByTestId(`compound-rail-${id}`).click();
+    await expectPhoneLayout(page.locator(`[data-compound-id="${id}"]`));
+  }
+  await captureVisualCheckpoint(page, testInfo, "economy-hydrogen-style-mobile-compounds");
+});
+
 test("storage purchase consumes the displayed Hydrogen cost and doubles its capacity @resources", async ({
   page,
 }, testInfo) => {
@@ -561,6 +779,33 @@ test("storage purchase consumes the displayed Hydrogen cost and doubles its capa
   await expect(page.getByTestId("hydrogen-capacity")).toHaveText("300");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("0");
   await captureVisualCheckpoint(page, testInfo, "economy-storage-expanded");
+});
+
+test("full storage identifies active automatic production and clears when paused @resources @accessibility", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "storage-production");
+
+  const hydrogenPanel = page.locator("#panel-resources-hydrogen");
+  await expect(hydrogenPanel.getByTestId("production-blocked-hydrogen")).toHaveText(
+    economyLabel("en", "automaticProductionBlockedByStorage"),
+  );
+  await hydrogenPanel.locator(".hydrogen-autobuyer-section > summary").click();
+  await hydrogenPanel.getByRole("button", { name: "Pause compressor" }).click();
+  await expect(hydrogenPanel.getByTestId("production-blocked-hydrogen")).toHaveCount(0);
+
+  await page.locator("#tab-compounds").click();
+  await page.locator("#tab-compounds-water").click();
+  const waterPanel = page.locator("#panel-compounds-water");
+  await expect(waterPanel.getByTestId("production-blocked-water")).toHaveText(
+    economyLabel("en", "automaticProductionBlockedByStorage"),
+  );
+  await waterPanel.locator(".economy-details > summary").click();
+  await waterPanel
+    .locator(".economy-details")
+    .getByRole("button", { name: "Pause", exact: true })
+    .click();
+  await expect(waterPanel.getByTestId("production-blocked-water")).toHaveCount(0);
 });
 
 test("all eight material storage upgrades are individually usable through clicks @resources @precision", async ({
@@ -579,8 +824,8 @@ test("all eight material storage upgrades are individually usable through clicks
       return state.run.goods[goodId].storageCapacity;
     }, id);
     await card.getByRole("button", { name: "Increase storage" }).click();
-    await expect(card.locator("header strong")).toContainText(
-      `/ ${(startingCapacity * 2).toLocaleString("en-US")}`,
+    await expect(card.locator(".capacity-line")).toContainText(
+      (startingCapacity * 2).toLocaleString("en-US"),
     );
   }
   await captureVisualCheckpoint(page, testInfo, "economy-each-material-storage");
@@ -602,19 +847,17 @@ test("all six compound storage upgrades are usable, including shared Water input
     const storage = card.getByRole("button", { name: "Increase storage" });
     await expect(storage).toBeEnabled();
     await storage.click();
-    await expect(card.locator("header strong")).toContainText(
-      `/ ${(startingCapacity * 2).toLocaleString("en-US")}`,
+    await expect(card.locator(".capacity-line")).toContainText(
+      (startingCapacity * 2).toLocaleString("en-US"),
     );
     if (id === "concrete") {
       await card.getByRole("spinbutton", { name: "Amount Concrete" }).fill("30");
       await card.getByRole("button", { name: "Create Concrete" }).click();
-      await expect(card.locator("header strong")).toContainText("30 / 100");
+      await expectGoodStock(card, "30", "100");
     }
   }
-  await expect(page.locator('[data-compound-id="water"] header strong')).toContainText("0 / 200");
-  await expect(page.locator('[data-compound-id="concrete"] header strong')).toContainText(
-    "0 / 100",
-  );
+  await expectGoodStock(page.locator('[data-compound-id="water"]'), "0", "200");
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "0", "100");
   await captureVisualCheckpoint(page, testInfo, "economy-all-compound-storage");
 });
 
@@ -709,8 +952,8 @@ test("Water storage explains and charges its Water and Concrete costs @resources
   await expect(storage).toBeEnabled();
   await expect(storage).toContainText("99 H₂O + 30 Concrete");
   await storage.click();
-  await expect(water.locator("header strong")).toContainText("0 / 200");
-  await expect(page.locator('[data-compound-id="concrete"] header strong')).toContainText("0 / 50");
+  await expectGoodStock(water, "0", "200");
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "0", "50");
   await captureVisualCheckpoint(page, testInfo, "economy-water-storage-expanded");
 });
 
@@ -724,9 +967,7 @@ test("Water storage stays disabled until both displayed inputs are affordable @r
   const storage = water.getByRole("button", { name: "Increase storage" });
   await expect(storage).toBeDisabled();
   await expect(storage).toContainText("99 H₂O + 30 Concrete");
-  await expect(page.locator('[data-compound-id="concrete"] header strong')).toContainText(
-    "29 / 50",
-  );
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "29", "50");
   await captureVisualCheckpoint(page, testInfo, "economy-water-storage-blocked");
 });
 
@@ -746,12 +987,8 @@ test("individual storage controls replace the bulk storage action @resources @co
     .locator('[data-compound-id="water"]')
     .getByRole("button", { name: /^Increase storage/ })
     .click();
-  await expect(page.locator('[data-compound-id="water"] header strong')).toContainText(
-    "0 / 200,000",
-  );
-  await expect(page.locator('[data-compound-id="concrete"] header strong')).toContainText(
-    "0 / 100,000",
-  );
+  await expectGoodStock(page.locator('[data-compound-id="water"]'), "0", "200,000");
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "0", "100,000");
   await captureVisualCheckpoint(page, testInfo, "economy-increase-all-storage");
 });
 
@@ -797,6 +1034,69 @@ test("Bulk Purchasing buys the affordable power plants and spends only their exa
   await page.getByRole("button", { name: "Power all plants" }).click();
   await expect(powerPlant.getByRole("checkbox", { name: "Power Plant" })).toBeChecked();
   await captureVisualCheckpoint(page, testInfo, "economy-bulk-power-building");
+});
+
+test("Energy compares live generator mix with consumption accessibly @energy @accessibility", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "power-buildings");
+  await page.locator("#tab-energy").click();
+  for (const [paneId, buildingId] of [
+    ["energy-power-plant", "powerPlant1"],
+    ["energy-solar-power-plant", "powerPlant2"],
+    ["energy-advanced-power-plant", "powerPlant3"],
+  ] as const) {
+    await page.locator(`#tab-${paneId}`).click();
+    await page
+      .locator(`[data-building-id="${buildingId}"]`)
+      .getByRole("button", { name: "Buy", exact: true })
+      .click();
+  }
+  await page.locator("#tab-research").click();
+  await expandResearchProduction(page);
+  await page
+    .locator('[data-building-id="scienceLab"]')
+    .getByRole("button", { name: "Buy", exact: true })
+    .click();
+  await page.locator("#tab-energy").click();
+
+  const chart = page.getByRole("figure", { name: "Power generation mix" });
+  await expect(chart).toBeVisible();
+  const liveState = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const livePower = createEconomyTickPlan(liveState);
+  const localizeRate = (rate: number) =>
+    formatNumber(liveState.settings.locale, rate, 2, liveState.settings.notation);
+  for (const id of ["powerPlant1", "powerPlant2", "powerPlant3"] as const) {
+    await expect(chart.getByTestId(`energy-generation-${id}`)).toHaveText(
+      localizeRate(livePower.generationByPlantPerSecond[id]),
+    );
+  }
+  await expect(chart.getByTestId("energy-generation-total")).toHaveText(
+    `${localizeRate(livePower.generationPerSecond)} kJ/s`,
+  );
+  await expect(chart.getByTestId("energy-consumption-total")).toHaveText(
+    `${localizeRate(livePower.demandPerSecond)} kJ/s`,
+  );
+  const expectedPlantDescription = (["powerPlant1", "powerPlant2", "powerPlant3"] as const)
+    .map(
+      (id) =>
+        `${ECONOMY_BUILDING_NAMES[id].en}: ${localizeRate(livePower.generationByPlantPerSecond[id])} kJ/s`,
+    )
+    .join("; ");
+  const expectedDescription = `${expectedPlantDescription}. Total generation: ${localizeRate(livePower.generationPerSecond)} kJ/s. Total consumption: ${localizeRate(livePower.demandPerSecond)} kJ/s.`;
+  await expect(chart).toHaveAccessibleDescription(expectedDescription);
+
+  await page.locator("#tab-energy-storage").click();
+  await page
+    .getByRole("tabpanel", { name: "Energy Storage" })
+    .getByRole("checkbox", { name: "Power grid" })
+    .uncheck();
+  await expect(chart.getByTestId("energy-generation-powerPlant1")).toHaveText("0");
+  await expect(chart.getByTestId("energy-generation-powerPlant2")).toHaveText("0");
+  await expect(chart.getByTestId("energy-generation-powerPlant3")).toHaveText("0");
+  await expect(chart.getByTestId("energy-generation-total")).toHaveText("0 kJ/s");
+  await expect(chart.getByTestId("energy-consumption-total")).toHaveText("0 kJ/s");
+  await expect(chart).toContainText("Power grid off: active generators are producing 0 kJ/s.");
 });
 
 test("all power plant and battery tiers can be bought and controlled @energy @precision", async ({
@@ -1306,13 +1606,18 @@ test("the Dyson power research gate grants infinite power and restores a full gr
 test("notation and language controls update live economy and technology readouts @precision @ui @locale", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
   const desktopViewport = page.viewportSize();
   await startEconomyFixture(page, "full");
-  await expect(page.getByTestId("hydrogen-quantity")).toContainText("2,000");
+  await expect(page.getByTestId("hydrogen-quantity")).toContainText("2K");
   await setNumberNotation(page, "scientific");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("2E3");
   await captureVisualCheckpoint(page, testInfo, "economy-scientific-notation");
+  await setNumberNotation(page, "standard");
+  await expect(page.getByTestId("hydrogen-quantity")).toContainText("2,000");
+  await setNumberNotation(page, "condensed");
+  await expect(page.getByTestId("hydrogen-quantity")).toContainText("2K");
+  await setNumberNotation(page, "scientific");
   const locales = [
     {
       id: "en",
@@ -1377,12 +1682,9 @@ test("notation and language controls update live economy and technology readouts
     await expect(resources).toHaveCount(MATERIAL_IDS.length);
     for (const id of MATERIAL_IDS) {
       const resource = page.locator(`#pane-hydrogen [data-resource-id="${id}"]`);
-      if (id === "hydrogen") {
-        await expect(resource.locator(".economy-card-heading")).toHaveCount(0);
-        await expect(resource.locator(".hydrogen-hero")).toHaveCount(1);
-      } else {
-        await expect(resource.locator("h3")).toHaveText(economyGoodName(locale.id, id));
-      }
+      await expect(resource.locator(".pane-heading h2")).toHaveText(economyGoodName(locale.id, id));
+      await expect(resource.locator(".economy-card-heading")).toHaveCount(0);
+      await expect(resource.locator(".hydrogen-hero")).toHaveCount(1);
     }
     await expandAllDetails(page.locator("#pane-hydrogen"));
     await expect(page.locator("#pane-hydrogen")).not.toContainText("???");
@@ -1452,7 +1754,8 @@ test("notation and language controls update live economy and technology readouts
       await page.locator(`#tab-compounds-${id}`).click();
       const compound = page.locator(`#pane-compounds [data-compound-id="${id}"]`);
       await expect(compound).toBeVisible();
-      await expect(compound.locator("h3")).toHaveText(economyGoodName(locale.id, id));
+      await expect(compound.locator(".pane-heading h2")).toHaveText(economyGoodName(locale.id, id));
+      await expect(compound.locator(".hydrogen-hero")).toHaveCount(1);
     }
     await page.locator("#tab-compounds-diesel").click();
     const diesel = page.locator('[data-compound-id="diesel"]');
@@ -1486,10 +1789,13 @@ test("energy, technology, and compound panels render and accept player actions @
   await expect(page.getByTestId("economy-energy")).toBeVisible();
   await expect(page.getByTestId("economy-energy").getByText(/Generated: .* kJ\/s/)).toBeVisible();
   await captureVisualCheckpoint(page, testInfo, "economy-energy-panel");
-  await page.getByLabel("Power grid").uncheck();
-  await page.getByLabel("Power grid").check();
+  await page.getByRole("checkbox", { name: "Power grid" }).uncheck();
+  await page.getByRole("checkbox", { name: "Power grid" }).check();
   await page.getByRole("tab", { name: /Research/ }).click();
   await expect(page.getByTestId("economy-research")).toBeVisible();
+  await captureVisualCheckpoint(page, testInfo, "economy-research-buildings-panel");
+  await page.locator("#tab-research-tech-tree").click();
+  await expect(page.locator("#panel-research-tech-tree")).toBeVisible();
   await expect(page.locator("[data-technology-id]").first()).toBeVisible();
   await captureVisualCheckpoint(page, testInfo, "economy-technology-panel");
   await page.getByRole("tab", { name: /Compounds/ }).click();
@@ -1497,7 +1803,7 @@ test("energy, technology, and compound panels render and accept player actions @
   await expect(diesel).toBeVisible();
   await expect(diesel).toContainText("26 Hydrogen + 12 Carbon");
   await diesel.getByRole("button", { name: "Create Diesel" }).click();
-  await expect(diesel).toContainText("1,501 / 100,000");
+  await expectGoodStock(diesel, "1,501", "100,000");
   await captureVisualCheckpoint(page, testInfo, "economy-compound-panel");
 });
 
@@ -1570,7 +1876,7 @@ test("resource, research, power, compound, language and notation changes survive
   await hydrogenAutobuyer.click();
   const iron = page.locator('[data-resource-id="iron"]');
   await iron.getByRole("button", { name: /Increase storage/ }).click();
-  await expect(iron.locator("header strong")).toHaveText("0 / 3,002");
+  await expectGoodStock(iron, "0", "3,002");
   await page.getByRole("tab", { name: /Research/ }).click();
   await expandResearchProduction(page);
   const scienceKit = page.locator('[data-building-id="scienceKit"]');

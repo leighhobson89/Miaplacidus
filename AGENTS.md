@@ -32,7 +32,7 @@ No edits may be made to the codebase outside the IncrementalGame project folder,
 - Inject clock and randomness; scenario/debug commands should use the normal engine boundary. The production build must omit edit/cheat access. Never reproduce the old pioneer-name debug backdoor.
 - Use stable IDs, semantic HTML, keyboard interaction, responsive CSS and reduced-motion behavior. React renders derived view state; it must not advance the game clock.
 - Localize every player-facing string for `en`, `es`, `pt`, `de`, `it`, `fr`. Keep identifiers and save fields language-independent. Validate key/placeholder parity and check long translations in the browser.
-- Implement save-slot selection by the name confirmed at startup, then load it when Start is pressed. The prefilled last pioneer is only a suggestion. Never overwrite another slot silently. Use versioned, validated, compressed local saves and portable exports.
+- At startup, prefill and select the most recently started ready local save so the primary action immediately reads `RESUME GAME <Pioneer Name>`. Editing the name clears that selection; the player must choose a matching saved pioneer from the filtered suggestions to resume it. Otherwise Start creates a new game. Never overwrite another slot silently. Use versioned, validated, compressed local saves and portable exports.
 - Do not implement cloud-save reads, writes, accounts, sync or analytics. Cosmic Rip telemetry is an in-game resource and stays. No test may call Cosmic Forge production services.
 
 ## Tests and documentation

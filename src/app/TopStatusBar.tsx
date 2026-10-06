@@ -16,7 +16,7 @@ import { topStatusText } from "../i18n/topStatusMessages";
 import { randomEventName } from "../i18n/metaSignalMessages";
 import { economyGoodName } from "./economyDisplay";
 import { formatNumber } from "./numberFormatting";
-import { formatDuration } from "./timeFormatting";
+import { formatCountdown, formatDuration } from "./timeFormatting";
 
 interface Props {
   readonly state: GameState;
@@ -130,12 +130,8 @@ export function ResearchBalance({ state, locale }: Pick<Props, "state" | "locale
       </strong>
       <span className="top-stat-tooltip" id={tooltipId} role="tooltip">
         <div>
-          {translated(locale, "researchPointsName")}: {formatNumber(
-            locale,
-            state.run.researchPoints,
-            0,
-            state.settings.notation,
-          )}
+          {translated(locale, "researchPointsName")}:{" "}
+          {formatNumber(locale, state.run.researchPoints, 0, state.settings.notation)}
         </div>
         <strong>{translated(locale, "researchProduction")}</strong>
         <div>
@@ -148,9 +144,8 @@ export function ResearchBalance({ state, locale }: Pick<Props, "state" | "locale
           {translated(locale, "researchScienceLabs")}: {perSecond(production.poweredScienceLabs)}
         </div>
         <div>
-          {translated(locale, "researchMegastructureOther")}: {perSecond(
-            production.megastructureOtherBonus,
-          )}
+          {translated(locale, "researchMegastructureOther")}:{" "}
+          {perSecond(production.megastructureOtherBonus)}
         </div>
         <div>
           {translated(locale, "researchTotalRate")}: {perSecond(production.total)}
@@ -231,6 +226,7 @@ export function LocationStatus({ state, locale }: Pick<Props, "state" | "locale"
   const precipitationName = precipitation
     ? economyGoodName(locale, precipitation.goodId)
     : translated(locale, "unavailable");
+  const precipitationRate = precipitation?.unitsPerSecond ?? 0;
   const weatherLabels = {
     clear: translated(locale, "weatherClear"),
     cloudy: translated(locale, "weatherCloudy"),
@@ -269,11 +265,13 @@ export function LocationStatus({ state, locale }: Pick<Props, "state" | "locale"
         <div>
           {translated(locale, "precipitation")}: {precipitationName}
         </div>
-        {precipitation && (
-          <div>
-            {translated(locale, "precipitationRate")}: {perSecond(precipitation.unitsPerSecond)}
-          </div>
-        )}
+        <div data-testid="location-precipitation-rate">
+          {translated(locale, "precipitationRate")}: {perSecond(precipitationRate)}
+        </div>
+        <div data-testid="location-precipitation-this-run">
+          {translated(locale, "precipitationThisRun")}:{" "}
+          {number(state.run.space.precipitationCollectedThisRun, 1)}
+        </div>
       </span>
     </div>
   );
@@ -497,6 +495,21 @@ export function TopStatusBar({ state, store, locale }: Props) {
   ) : (
     <div>{translated(locale, "eventNone")}</div>
   );
+  const timeWarp = state.run.timeWarp;
+  const timeWarpActive = timeWarp.multiplier > 1 && timeWarp.remainingMs > 0;
+  const timeWarpRemaining = timeWarpActive ? formatCountdown(locale, timeWarp.remainingMs) : null;
+  const timeWarpValue = timeWarpRemaining
+    ? translated(locale, "timeWarpValue", {
+        multiplier: number(timeWarp.multiplier),
+        time: timeWarpRemaining,
+      })
+    : null;
+  const timeWarpTooltip = timeWarpRemaining
+    ? translated(locale, "timeWarpTooltip", {
+        multiplier: number(timeWarp.multiplier),
+        time: timeWarpRemaining,
+      })
+    : null;
 
   return (
     <section className="top-status-bar" aria-label={translated(locale, "region")}>
@@ -512,6 +525,14 @@ export function TopStatusBar({ state, store, locale }: Props) {
         value={eventValue}
         tooltip={eventTooltip}
       />
+      {timeWarpActive && timeWarpValue && timeWarpTooltip && (
+        <TopStat
+          id="time-warp"
+          label={translated(locale, "timeWarpLabel")}
+          value={timeWarpValue}
+          tooltip={<div>{timeWarpTooltip}</div>}
+        />
+      )}
       {powerUnlocked && (
         <TopStat
           id="energy"

@@ -11,6 +11,7 @@ import { rocketText } from "../i18n/rocketMessages";
 import { cosmicRipText } from "../i18n/cosmicRipMessages";
 import { economyLabel } from "../i18n/economyMessages";
 import { philosophyText } from "../i18n/philosophyMessages";
+import { casinoUnlocked } from "../engine/galacticCasino";
 import type { CosmicopediaSectionId } from "../i18n/cosmicopediaMessages";
 import { type CompoundId, type MaterialId } from "../content/ids";
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
@@ -242,19 +243,20 @@ export function galacticPaneItems(
   locale: LocaleId,
   state: GameState,
 ): readonly PaneNavigationItem[] {
-  const items: PaneNavigationItem[] = [
-    {
+  const items: PaneNavigationItem[] = [];
+  if (state.run.space.systemEncounters.length > 0) {
+    items.push({
       id: "galactic-rebirth",
       label: metaText(locale, "rebirthAction"),
       sourceOptionId: "option1",
-    },
-    {
-      id: "galactic-market",
-      label: marketText(locale, "heading"),
-      sourceOptionId: "option2",
-    },
-  ];
-  if (state.run.space.ascendencyAwardedThisRun) {
+    });
+  }
+  items.push({
+    id: "galactic-market",
+    label: marketText(locale, "heading"),
+    sourceOptionId: "option2",
+  });
+  if (casinoUnlocked(state)) {
     items.push({
       id: "galactic-casino",
       label: casinoText(locale, "title"),

@@ -78,11 +78,47 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
             const nextStage = track.find((id) => !progress.researchedTechnologyIds.includes(id));
             const atFactory = state.run.space.currentSystemId === record.factorySystemId;
             const settled = state.permanent.settledSystemIds.includes(record.factorySystemId);
+            const researchCommand = nextStage
+              ? { type: "economy.research" as const, technologyId: nextStage }
+              : undefined;
+            const preconditions = researchCommand
+              ? checkPreconditions(state, researchCommand)
+              : undefined;
             const available =
               nextStage !== undefined &&
               megastructureResearchAvailable(state, nextStage) &&
-              checkPreconditions(state, { type: "economy.research", technologyId: nextStage }).ok;
+              preconditions?.ok === true;
             const stageDefinition = nextStage ? TECHNOLOGY_BY_ID[nextStage] : undefined;
+            const researchReasonId = `megastructure-research-reason-${record.megastructureId}`;
+            const missingPrerequisites = stageDefinition?.requires.filter(
+              (technologyId) => !state.run.economy.researchedTechnologies.includes(technologyId),
+            );
+            let researchReason: string | undefined;
+            if (!settled) {
+              researchReason = text.notSettled.replace(
+                "{factory}",
+                starName(record.factorySystemId),
+              );
+            } else if (!atFactory) {
+              researchReason = text.notAtFactory;
+            } else if (!available && preconditions?.ok === false) {
+              if (preconditions.failure.code === "insufficient-cash" && stageDefinition) {
+                const required = preconditions.failure.required ?? stageDefinition.price;
+                const shortfall = Math.ceil(Math.max(0, required - state.run.researchPoints));
+                researchReason = text.insufficientResearch
+                  .replace("{required}", number(required))
+                  .replace("{shortfall}", number(shortfall));
+              } else if (missingPrerequisites?.length) {
+                researchReason = text.missingPrerequisites.replace(
+                  "{technologies}",
+                  missingPrerequisites
+                    .map((technologyId) => TECHNOLOGY_NAMES[technologyId][locale])
+                    .join(", "),
+                );
+              } else {
+                researchReason = text.researchUnavailable;
+              }
+            }
             return (
               <article
                 className="economy-card megastructure-track"
@@ -107,13 +143,7 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
                 </ol>
                 {nextStage && stageDefinition ? (
                   <>
-                    {!settled ? (
-                      <p className="control-reason">
-                        {text.notSettled.replace("{factory}", starName(record.factorySystemId))}
-                      </p>
-                    ) : !atFactory ? (
-                      <p className="control-reason">{text.notAtFactory}</p>
-                    ) : (
+                    {settled && atFactory && (
                       <p
                         className="megastructure-next-stage"
                         data-testid="megastructure-next-stage"
@@ -124,10 +154,20 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
                         {text.researchCost.replace("{cost}", number(stageDefinition.price))}
                       </p>
                     )}
+                    {researchReason && (
+                      <p
+                        className="control-reason"
+                        id={researchReasonId}
+                        data-testid={`megastructure-research-reason-${record.megastructureId}`}
+                      >
+                        {researchReason}
+                      </p>
+                    )}
                     <button
                       type="button"
                       className="secondary-button"
                       disabled={!available}
+                      aria-describedby={researchReason && !available ? researchReasonId : undefined}
                       onClick={() =>
                         store.dispatch({ type: "economy.research", technologyId: nextStage })
                       }

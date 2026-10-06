@@ -7,12 +7,23 @@ import { createInitialGameState } from "../../../src/engine/state";
 import {
   canonicalJson,
   checksumFor,
+  isSaveEnvelope,
   makeEnvelope,
   SAVE_SCHEMA_VERSION,
 } from "../../../src/persistence/schema";
 
 const { compressToEncodedURIComponent, decompressFromEncodedURIComponent, decompressFromUTF16 } =
   createRequire(import.meta.url)("lz-string") as typeof import("lz-string");
+
+function decodePortableFixture(code: string) {
+  expect(code).toMatch(/^MIA1:/);
+  const json = decompressFromEncodedURIComponent(code.slice("MIA1:".length));
+  expect(json).not.toBeNull();
+  const envelope: unknown = JSON.parse(json ?? "null");
+  expect(isSaveEnvelope(envelope)).toBe(true);
+  if (!isSaveEnvelope(envelope)) throw new Error("Portable save envelope is invalid");
+  return envelope;
+}
 
 function rebirthFixtureCode(rebirthCount: 1 | 2, name: string): string {
   const state = createInitialGameState({ pioneerName: name, seed: 80 + rebirthCount });
@@ -69,7 +80,7 @@ async function resumePioneer(page: Page, name: string): Promise<void> {
   await page.getByTestId("start-game").click();
 }
 
-test("Start creates a slot directly and saved pioneers require explicit selection to resume @save-slots @lifecycle", async ({
+test("Start creates a slot directly and preselects the last started save for resume @save-slots @lifecycle", async ({
   page,
   browserErrors,
 }, testInfo) => {
@@ -94,11 +105,9 @@ test("Start creates a slot directly and saved pioneers require explicit selectio
     .toBe(1);
   expect(await page.evaluate(() => localStorage.getItem("another-game:keep"))).toBe("untouched");
   await page.reload();
-  await page.getByLabel("Pioneer name").click();
-  await expect(page.getByTestId("start-game")).toHaveText("START NEW GAME");
-  await page.getByRole("option", { name: /Ada Lovelace/ }).click();
+  await expect(page.getByLabel("Pioneer name")).toHaveValue("Ada Lovelace");
   await expect(page.getByTestId("start-game")).toHaveText("RESUME GAME Ada Lovelace");
-  await captureVisualCheckpoint(page, testInfo, "explicit-local-save-selection");
+  await captureVisualCheckpoint(page, testInfo, "last-started-save-preselected");
   await page.getByTestId("start-game").click();
   await expect(page.locator(".run-name")).toHaveText("Ada Lovelace");
   await expect
@@ -150,6 +159,123 @@ test("a fresh pioneer starts directly and Miaplaedia has no replay control @save
   await page.getByRole("option", { name: /Direct Start Pioneer/ }).click();
   await page.getByTestId("start-game").click();
   await expect(page.locator(".hydrogen-briefing")).toHaveCount(0);
+});
+
+test("keyboard can create a pioneer and search and resume a saved pioneer @save-slots @keyboard @accessibility", async ({
+  page,
+}) => {
+  await page.goto("/?testSeed=74&testLocale=en");
+  const pioneerName = page.getByLabel("Pioneer name");
+  const startButton = page.getByTestId("start-game");
+
+  await page.keyboard.press("Tab");
+  await expect(pioneerName).toBeFocused();
+  await page.keyboard.type("Ada Lovelace");
+  await expect(startButton).toHaveText("START NEW GAME");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(startButton).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".run-name")).toHaveText("Ada Lovelace");
+
+  await page.reload();
+  await page.keyboard.press("Tab");
+  await expect(pioneerName).toBeFocused();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("Grace Hopper");
+  await expect(startButton).toHaveText("START NEW GAME");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(startButton).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".run-name")).toHaveText("Grace Hopper");
+
+  await page.reload();
+  await page.keyboard.press("Tab");
+  await expect(pioneerName).toBeFocused();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("Ada");
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("ArrowDown");
+  await expect(pioneerName).toHaveAttribute("aria-activedescendant", "pioneer-save-option-0");
+  await page.keyboard.press("Enter");
+  await expect(pioneerName).toHaveValue("Ada Lovelace");
+  await expect(pioneerName).toHaveAttribute("aria-expanded", "false");
+  await expect(startButton).toHaveText("RESUME GAME Ada Lovelace");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(startButton).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".run-name")).toHaveText("Ada Lovelace");
+});
+
+test("touch users can start and resume a saved pioneer from the picker @save-slots @touch @p21", async ({
+  browser,
+  baseURL,
+  browserErrors,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  const localOrigin = new URL(baseURL ?? "http://127.0.0.1:4173").origin;
+  page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(`console: ${message.text()}`);
+  });
+  page.on("request", (request) => {
+    if (new URL(request.url()).origin !== localOrigin) {
+      browserErrors.push(`external request: ${request.url()}`);
+    }
+  });
+
+  try {
+    await page.goto(`${localOrigin}/?testSeed=79&testLocale=en`);
+    expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
+
+    const pioneerName = page.getByRole("combobox", { name: "Pioneer name" });
+    const startButton = page.getByTestId("start-game");
+    await pioneerName.tap();
+    await pioneerName.fill("Touch Pioneer");
+    await expect(startButton).toHaveText("START NEW GAME");
+    await startButton.tap();
+    await expect(page.locator(".run-name")).toHaveText("Touch Pioneer");
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            Object.keys(localStorage).filter((key) => key.startsWith("miaplacidus:v1:head:"))
+              .length,
+        ),
+      )
+      .toBe(1);
+
+    await page.reload();
+    const resumedName = page.getByRole("combobox", { name: "Pioneer name" });
+    await resumedName.tap();
+    const savedPioneer = page.getByRole("option", { name: /Touch Pioneer/ });
+    await expect(savedPioneer).toBeVisible();
+    await savedPioneer.tap();
+    await expect(resumedName).toHaveValue("Touch Pioneer");
+    await expect(startButton).toHaveText("RESUME GAME Touch Pioneer");
+    await startButton.tap();
+    await expect(page.locator(".run-name")).toHaveText("Touch Pioneer");
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            Object.keys(localStorage).filter((key) => key.startsWith("miaplacidus:v1:head:"))
+              .length,
+        ),
+      )
+      .toBe(1);
+    expect(browserErrors).toEqual([]);
+  } finally {
+    await context.close();
+  }
 });
 
 test("Escape closes Save Manager and restores focus to its opener @save-slots @keyboard @ui-navigation", async ({
@@ -407,13 +533,17 @@ test("portable save preview offers replace, new pioneer, and cancel before impor
   await expect(manager.getByText(/Estimated space left after this save/)).toBeVisible();
   const exportBox = manager.getByLabel("Portable save code");
   const portableCode = await exportBox.inputValue();
-  expect(portableCode).toMatch(/^MIA1:/);
+  const portableEnvelope = decodePortableFixture(portableCode);
+  expect(portableEnvelope.state.run.goods.hydrogen.quantity).toBe(2);
 
   await freshGame.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await manager.getByRole("button", { name: "Copy code" }).click();
-  expect(await freshGame.evaluate(() => navigator.clipboard.readText())).toBe(portableCode);
+  const copiedCode = await freshGame.evaluate(() => navigator.clipboard.readText());
+  const copiedEnvelope = decodePortableFixture(copiedCode);
+  expect(copiedEnvelope.pioneerName).toBe(portableEnvelope.pioneerName);
+  expect(copiedEnvelope.state.run.goods.hydrogen.quantity).toBe(2);
   await manager.getByRole("button", { name: "Paste", exact: true }).click();
-  await expect(manager.getByLabel("Paste a MIAPLACIDUS save code")).toHaveValue(portableCode);
+  await expect(manager.getByLabel("Paste a MIAPLACIDUS save code")).toHaveValue(copiedCode);
   await manager.getByLabel("Choose .txt save file").setInputFiles({
     name: "hydrogen-save.txt",
     mimeType: "text/plain",
@@ -427,7 +557,9 @@ test("portable save preview offers replace, new pioneer, and cancel before impor
   const stream = await download.createReadStream();
   let downloadedText = "";
   for await (const chunk of stream ?? []) downloadedText += chunk.toString();
-  expect(downloadedText).toBe(portableCode);
+  const downloadedEnvelope = decodePortableFixture(downloadedText);
+  expect(downloadedEnvelope.pioneerName).toBe("Hydrogen Pioneer");
+  expect(downloadedEnvelope.state.run.goods.hydrogen.quantity).toBe(2);
 
   await manager.getByLabel("Paste a MIAPLACIDUS save code").fill(portableCode);
   await manager.getByRole("button", { name: "Preview import" }).click();

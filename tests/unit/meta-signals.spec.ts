@@ -1,15 +1,63 @@
 import { describe, expect, it } from "vitest";
 import { ACHIEVEMENT_CATALOGUE, achievementName } from "../../src/content/achievements";
-import { LOCALE_IDS } from "../../src/content/ids";
+import { LOCALE_IDS, systemIdForStar, type SystemId } from "../../src/content/ids";
+import { MANUSCRIPT_CLUE_NEWS_IDS } from "../../src/content/metaSignals";
 import { THEME_IDS } from "../../src/content/themes";
 import { starTypeForSystem } from "../../src/content/starCatalogue";
 import { transition } from "../../src/engine/commands";
+import {
+  advanceNewsTicker,
+  checkNewsPrizeClaim,
+  forceNewsTicker,
+} from "../../src/engine/newsTicker";
 import { advanceRandomEvents } from "../../src/engine/randomEvents";
 import { STAR_WEATHER_TIMER_ID } from "../../src/engine/weather";
-import { createInitialGameState, isValidGameState } from "../../src/engine/state";
+import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
 import { makeEnvelope } from "../../src/persistence/schema";
 import { decodeLocal, encodeLocal } from "../../src/persistence/codec";
 import { metaSignalText, newsEntryText } from "../../src/i18n/metaSignalMessages";
+
+function withManuscripts(
+  state: ReturnType<typeof createInitialGameState>,
+  records: readonly ReturnType<
+    typeof createInitialGameState
+  >["permanent"]["megastructures"]["ancientManuscripts"][number][],
+  manuscriptCluesShown: ReturnType<
+    typeof createInitialGameState
+  >["permanent"]["megastructures"]["manuscriptCluesShown"] = {},
+  seenIds: readonly number[] = [],
+) {
+  return {
+    ...state,
+    run: {
+      ...state.run,
+      newsTicker: { ...state.run.newsTicker, seenIds },
+    },
+    permanent: {
+      ...state.permanent,
+      megastructures: {
+        ...state.permanent.megastructures,
+        ancientManuscripts: records,
+        manuscriptCluesShown,
+      },
+    },
+  };
+}
+
+function manuscriptRecord(
+  position: 1 | 2 | 3 | 4,
+  manuscriptSystemId: SystemId,
+  factorySystemId: SystemId,
+  reported = false,
+) {
+  return {
+    position,
+    manuscriptSystemId,
+    factorySystemId,
+    megastructureId: "dysonSphere" as const,
+    reported,
+  };
+}
 
 describe("meta achievements, events, and ticker", () => {
   it("ships all stable achievements with localized names for every supported locale", () => {
@@ -114,6 +162,35 @@ describe("meta achievements, events, and ticker", () => {
     }
   });
 
+  it("waits for one full ticker scroll and its randomized delay before the next message", () => {
+    const start = createInitialGameState({ pioneerName: "Ticker timing", seed: 515 });
+    const firstDelay = start.run.newsTicker.remainingMs;
+    const first = advanceNewsTicker(start, firstDelay);
+    expect(first.state.run.newsTicker.entries).toHaveLength(1);
+    expect(first.events).toHaveLength(1);
+    expect(first.state.run.newsTicker.remainingMs).toBeGreaterThanOrEqual(60_000);
+    expect(first.state.run.newsTicker.remainingMs).toBeLessThanOrEqual(75_000);
+
+    const afterScroll = advanceNewsTicker(first.state, 40_000);
+    expect(afterScroll.state.run.newsTicker.entries).toHaveLength(1);
+    expect(afterScroll.state.run.newsTicker.remainingMs).toBeGreaterThanOrEqual(20_000);
+    expect(afterScroll.state.run.newsTicker.remainingMs).toBeLessThanOrEqual(35_000);
+
+    const oneMillisecondEarly = advanceNewsTicker(
+      afterScroll.state,
+      afterScroll.state.run.newsTicker.remainingMs - 1,
+    );
+    expect(oneMillisecondEarly.state.run.newsTicker.entries).toHaveLength(1);
+    const next = advanceNewsTicker(oneMillisecondEarly.state, 1);
+    expect(next.state.run.newsTicker.entries).toHaveLength(2);
+    expect(next.state.run.newsTicker.remainingMs).toBeGreaterThanOrEqual(60_000);
+    expect(next.state.run.newsTicker.remainingMs).toBeLessThanOrEqual(75_000);
+
+    const catchUp = advanceNewsTicker(next.state, 5 * 60_000);
+    expect(catchUp.state.run.newsTicker.entries).toHaveLength(3);
+    expect(catchUp.events).toHaveLength(1);
+  });
+
   it("applies a one-off bulletin exactly once and tracks distinct visual effects", () => {
     let state = createInitialGameState({ pioneerName: "Ticker", seed: 513 });
     const bulletin = transition(state, { type: "news.ticker.force", category: "oneOff", id: 3013 });
@@ -139,6 +216,199 @@ describe("meta achievements, events, and ticker", () => {
     expect(repeatedWacky.state.run.newsTicker.activatedWackyIds).toEqual([1000]);
     expect(state.run.newsTicker.seenIds.filter((id) => id === 1000)).toHaveLength(1);
     expect(state.run.newsTicker.activatedWackyIds).toEqual([1000]);
+  });
+
+  it("persists a consumed unclaimed one-off offer without treating it as claimed", () => {
+    const start = createInitialGameState({ pioneerName: "Offer History", seed: 516 });
+    const offer = transition(start, {
+      type: "news.ticker.force",
+      category: "oneOff",
+      id: 3013,
+    });
+    expect(offer.accepted).toBe(true);
+    expect(offer.state.permanent.ascendencyPoints).toBe(0);
+    expect(offer.state.run.newsTicker.offeredOneOffIds).toEqual([3013]);
+    expect(offer.state.run.newsTicker.claimedPrizeIds).not.toContain(3013);
+    expect(offer.state.run.newsTicker.entries.at(-1)).toMatchObject({
+      id: 3013,
+      category: "oneOff",
+      claimed: false,
+    });
+
+    const envelope = makeEnvelope({
+      slotId: "00000000-0000-4000-8000-000000000516",
+      pioneerName: offer.state.run.pioneerName,
+      createdAt: 0,
+      savedAt: 1,
+      revision: 1,
+      state: offer.state,
+    });
+    const restored = decodeLocal(encodeLocal(envelope)).state;
+    expect(restored.run.newsTicker.offeredOneOffIds).toEqual([3013]);
+    expect(restored.run.newsTicker.claimedPrizeIds).not.toContain(3013);
+    expect(checkNewsPrizeClaim(restored, 3013)).toBe(true);
+    expect(
+      transition(restored, { type: "news.ticker.force", category: "oneOff", id: 3013 }).accepted,
+    ).toBe(false);
+    expect(
+      isValidGameState({
+        ...restored,
+        run: {
+          ...restored.run,
+          newsTicker: { ...restored.run.newsTicker, offeredOneOffIds: [3013, 3013] },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isValidGameState({
+        ...restored,
+        run: {
+          ...restored.run,
+          newsTicker: { ...restored.run.newsTicker, offeredOneOffIds: [3014] },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isValidGameState({
+        ...restored,
+        run: {
+          ...restored.run,
+          newsTicker: { ...restored.run.newsTicker, offeredOneOffIds: [3013.5] },
+        },
+      }),
+    ).toBe(false);
+
+    const claim = transition(restored, { type: "news.prize.claim", id: 3013 });
+    expect(claim.accepted).toBe(true);
+    expect(claim.state.permanent.ascendencyPoints).toBe(1);
+    expect(claim.state.run.newsTicker.offeredOneOffIds).toEqual([3013]);
+    expect(claim.state.run.newsTicker.claimedPrizeIds).toContain(3013);
+    expect(claim.state.run.newsTicker.entries.at(-1)?.claimed).toBe(true);
+    expect(transition(claim.state, { type: "news.prize.claim", id: 3013 }).accepted).toBe(false);
+  });
+
+  it("selects a least-used eligible manuscript, records its clue, and reloads the history", () => {
+    const first = systemIdForStar(91, 1);
+    const second = systemIdForStar(91, 2);
+    const third = systemIdForStar(91, 3);
+    const reported = systemIdForStar(91, 4);
+    const allTemplates = [...MANUSCRIPT_CLUE_NEWS_IDS];
+    const start = withManuscripts(
+      createInitialGameState({ pioneerName: "Clue History", seed: 618 }),
+      [
+        manuscriptRecord(1, first, systemIdForStar(91, 11)),
+        manuscriptRecord(2, second, systemIdForStar(91, 12)),
+        manuscriptRecord(3, third, systemIdForStar(91, 13)),
+        manuscriptRecord(4, reported, systemIdForStar(91, 14), true),
+      ],
+      {
+        [first]: [4000, 4001],
+        [second]: [4000],
+        [third]: [4000, 4001, 4002],
+      },
+      allTemplates,
+    );
+    expect(isValidGameState(start)).toBe(true);
+
+    const result = transition(start, { type: "news.ticker.force", category: "manuscriptClue" });
+    expect(result.accepted).toBe(true);
+    const entry = result.state.run.newsTicker.entries.at(-1)!;
+    expect(entry.clueSystemId).toBe(second);
+    expect(entry.id).not.toBe(4000);
+    expect(result.state.permanent.megastructures.manuscriptCluesShown[second]).toEqual([
+      4000,
+      entry.id,
+    ]);
+    expect(result.state.permanent.megastructures.manuscriptCluesShown[reported]).toBeUndefined();
+    expect(
+      isValidGameState({
+        ...result.state,
+        permanent: {
+          ...result.state.permanent,
+          megastructures: {
+            ...result.state.permanent.megastructures,
+            manuscriptCluesShown: { [second]: [entry.id, entry.id] },
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isValidGameState({
+        ...result.state,
+        permanent: {
+          ...result.state.permanent,
+          megastructures: {
+            ...result.state.permanent.megastructures,
+            manuscriptCluesShown: { [second]: [4999] },
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isValidGameState({
+        ...result.state,
+        permanent: {
+          ...result.state.permanent,
+          megastructures: {
+            ...result.state.permanent.megastructures,
+            manuscriptCluesShown: { [systemIdForStar(91, 90)]: [entry.id] },
+          },
+        },
+      }),
+    ).toBe(false);
+
+    const envelope = makeEnvelope({
+      slotId: "00000000-0000-4000-8000-000000000618",
+      pioneerName: result.state.run.pioneerName,
+      createdAt: 0,
+      savedAt: 1,
+      revision: 1,
+      state: result.state,
+    });
+    const reloaded = decodeLocal(encodeLocal(envelope)).state;
+    expect(reloaded.permanent.megastructures.manuscriptCluesShown[second]).toEqual([
+      4000,
+      entry.id,
+    ]);
+  });
+
+  it("filters reported, invalid, and exhausted manuscripts without globally blocking clue templates", () => {
+    const invalidFactory = "not-a-system-id" as SystemId;
+    const active = systemIdForStar(92, 1);
+    const exhausted = systemIdForStar(92, 2);
+    const reported = systemIdForStar(92, 3);
+    const activeShown = MANUSCRIPT_CLUE_NEWS_IDS.slice(1);
+    const invalidState = withManuscripts(
+      createInitialGameState({ pioneerName: "Clue Eligibility", seed: 619 }),
+      [
+        manuscriptRecord(1, systemIdForStar(92, 4), invalidFactory),
+        manuscriptRecord(2, active, systemIdForStar(92, 12)),
+        manuscriptRecord(3, exhausted, systemIdForStar(92, 13)),
+        manuscriptRecord(4, reported, systemIdForStar(92, 14), true),
+      ],
+      {
+        [active]: activeShown,
+        [exhausted]: [...MANUSCRIPT_CLUE_NEWS_IDS],
+      },
+      [...MANUSCRIPT_CLUE_NEWS_IDS],
+    );
+    expect(isValidGameState(invalidState)).toBe(false);
+
+    const clue = forceNewsTicker(
+      invalidState as unknown as GameState,
+      "manuscriptClue",
+      MANUSCRIPT_CLUE_NEWS_IDS[0],
+    );
+    expect(clue).not.toBeNull();
+    expect(clue!.state.run.newsTicker.entries.at(-1)).toMatchObject({
+      id: MANUSCRIPT_CLUE_NEWS_IDS[0],
+      clueSystemId: active,
+    });
+    expect(clue!.state.permanent.megastructures.manuscriptCluesShown[active]).toEqual([
+      ...activeShown,
+      MANUSCRIPT_CLUE_NEWS_IDS[0],
+    ]);
+    expect(forceNewsTicker(clue!.state, "manuscriptClue")).toBeNull();
   });
 
   it("awards onboarding and lifetime achievements through accepted engine commands", () => {
@@ -227,8 +497,8 @@ describe("meta achievements, events, and ticker", () => {
     expect(effect?.nextShiftInMs).toBe(60_000);
     expect(shifted.state.run.random.draws).toBe(before + 2);
     const ticker = transition(start, { type: "news.ticker.force", category: "headline" });
-    expect(ticker.state.run.newsTicker.remainingMs).toBeGreaterThanOrEqual(20_000);
-    expect(ticker.state.run.newsTicker.remainingMs).toBeLessThanOrEqual(35_000);
+    expect(ticker.state.run.newsTicker.remainingMs).toBeGreaterThanOrEqual(60_000);
+    expect(ticker.state.run.newsTicker.remainingMs).toBeLessThanOrEqual(75_000);
   });
 
   it("uses rebirth count and current-star titanium precipitation for their achievements", () => {

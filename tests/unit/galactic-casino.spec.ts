@@ -80,23 +80,53 @@ function hiloDeck() {
 }
 
 describe("Galactic Casino economy and games", () => {
-  it("requires a current-run AP award to unlock casino actions", () => {
+  it("requires an AP award or at least one rebirth to unlock casino actions", () => {
     const state = createInitialGameState({ seed: 5 });
     const blocked = transition(state, { type: "casino.wheel.spin" });
     expect(blocked.accepted).toBe(false);
     expect(blocked.failure?.code).toBe("casino-locked");
   });
 
-  it("does not carry Casino access through rebirth before the next AP award", () => {
+  it("unlocks Casino actions when the first run awards AP", () => {
+    const initial = createInitialGameState({ seed: 5 });
+    const firstRunWithAp = {
+      ...initial,
+      run: {
+        ...initial.run,
+        cash: 100_000,
+        space: { ...initial.run.space, ascendencyAwardedThisRun: true },
+      },
+    };
+    expect(firstRunWithAp.permanent.rebirthCount).toBe(0);
+
+    const result = transition(firstRunWithAp, {
+      type: "casino.points.buy",
+      goodId: "cash",
+      amount: 1,
+    });
+
+    expect(result.accepted, JSON.stringify(result.failure)).toBe(true);
+    expect(result.state.permanent.galacticCasino.casinoPoints).toBe(1);
+  });
+
+  it("allows Casino actions after rebirth while resetting the CP wallet", () => {
     const initial = createInitialGameState({ seed: 5 });
     const afterRebirth = {
       ...initial,
+      run: { ...initial.run, cash: 100_000 },
       permanent: { ...initial.permanent, rebirthCount: 1 },
     };
-    const blocked = transition(afterRebirth, { type: "casino.wheel.spin" });
+    expect(afterRebirth.run.space.ascendencyAwardedThisRun).toBe(false);
+    expect(afterRebirth.permanent.galacticCasino.casinoPoints).toBe(0);
 
-    expect(blocked.accepted).toBe(false);
-    expect(blocked.failure?.code).toBe("casino-locked");
+    const result = transition(afterRebirth, {
+      type: "casino.points.buy",
+      goodId: "cash",
+      amount: 1,
+    });
+
+    expect(result.accepted, JSON.stringify(result.failure)).toBe(true);
+    expect(result.state.permanent.galacticCasino.casinoPoints).toBe(1);
   });
 
   it("uses the source exchange values and exact-cost CP purchase settlement", () => {

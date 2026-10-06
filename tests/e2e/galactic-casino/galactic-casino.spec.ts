@@ -99,9 +99,9 @@ test("plays all four casino games and reloads a saved Higher or Lower round", as
   await captureVisualCheckpoint(page, testInfo, "galactic-casino-roundtrip");
 });
 
-test("disabled Casino actions describe their exact payment and CP shortfalls @p06-affordances", async ({
+test("Casino entry costs, stake previews, and insufficient-balance guidance are clear @p06-affordances", async ({
   page,
-}) => {
+}, testInfo) => {
   await startMetaFixture(page, "meta-casino-ready");
   await page.locator("#tab-galaxy").click();
   await page.locator("#tab-galactic-casino").click();
@@ -112,22 +112,75 @@ test("disabled Casino actions describe their exact payment and CP shortfalls @p0
   await expect(purchase).toBeDisabled();
   await expect(purchase).toHaveAttribute("aria-describedby", "casino-buy-reason");
   const cash = await page.evaluate(() => window.miaplacidusTest!.getState().run.cash);
-  await expect(casino.locator("#casino-buy-reason")).toContainText("Requires");
-  await expect(casino.locator("#casino-buy-reason")).toContainText(cash.toLocaleString("en-US"));
+  const cashRequired = Math.ceil((50_000_000 * 100_000) / 1);
+  await expect(casino.locator("#casino-buy-reason")).toHaveText(
+    `Requires ${cashRequired.toLocaleString("en-US")} Cash; available: ${cash.toLocaleString("en-US")}.`,
+  );
 
   const points = await page.evaluate(
     () => window.miaplacidusTest!.getState().permanent.galacticCasino.casinoPoints,
   );
+  const wheel = casino.getByTestId("casino-wheel-spin");
+  await expect(wheel).toBeDisabled();
+  await expect(wheel).toHaveAttribute("aria-describedby", "casino-wheel-spin-reason");
+  await expect(casino.locator("#casino-wheel-spin-reason")).toHaveText(
+    `Requires 1 CP; available: ${points.toLocaleString("en-US")} CP.`,
+  );
+
+  const higherLower = casino.getByTestId("casino-hilo-start");
+  await expect(higherLower).toBeDisabled();
+  await expect(higherLower).toHaveAttribute("aria-describedby", "casino-hilo-start-reason");
+  await expect(casino.locator("#casino-hilo-start-reason")).toHaveText(
+    `Requires 5 CP; available: ${points.toLocaleString("en-US")} CP.`,
+  );
+
   await casino.getByLabel("Stake in CP").fill(String(points + 999));
-  const play = casino.getByTestId("casino-don-play");
-  await expect(play).toBeDisabled();
-  await expect(play).toHaveAttribute("aria-describedby", "casino-don-reason");
-  await expect(casino.locator("#casino-don-reason")).toContainText(
-    `${(points + 999).toLocaleString("en-US")} CP`,
+  const doubleOrNothing = casino.getByTestId("casino-don-play");
+  await expect(doubleOrNothing).toBeDisabled();
+  await expect(doubleOrNothing).toHaveAttribute("aria-describedby", "casino-don-reason");
+  await expect(casino.locator("#casino-don-reason")).toHaveText(
+    `Requires ${(points + 999).toLocaleString("en-US")} CP; available: ${points.toLocaleString("en-US")} CP.`,
   );
-  await expect(casino.locator("#casino-don-reason")).toContainText(
-    `${points.toLocaleString("en-US")} CP`,
-  );
+
+  await casino.getByLabel("Points to buy").fill("5");
+  await expect(purchase).toBeEnabled();
+  await purchase.click();
+  await expect(casino.getByTestId("casino-balance")).toHaveText("5 CP");
+  let state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(state.run.cash).toBe(cash - 500_000);
+
+  await expect(casino.getByTestId("casino-wheel-entry-cost")).toHaveText("Entry cost: 1 CP");
+  await expect(casino.getByTestId("casino-hilo-entry-cost")).toHaveText("Entry cost: 5 CP");
+  await expect(wheel).toBeEnabled();
+  await expect(higherLower).toBeEnabled();
+
+  const stake = casino.getByLabel("Stake in CP");
+  await stake.fill("3");
+  await expect(casino.getByTestId("casino-don-stake-preview")).toHaveText("Current stake: 3 CP");
+  await expect(casino.getByTestId("casino-don-win-preview")).toHaveText("Win payout: 6 CP");
+  await expect(doubleOrNothing).toBeEnabled();
+  await captureVisualCheckpoint(page, testInfo, "casino-entry-cost-previews");
+
+  await wheel.click();
+  state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(state.run.casinoStats.wheelPlayed).toBe(1);
+  const wheelPrize = state.permanent.galacticCasino.history.at(-1)!;
+  expect(wheelPrize.gameId).toBe("wheel");
+  expect(wheelPrize.cpSpent).toBe(1);
+  const balanceAfterWheel = state.permanent.galacticCasino.casinoPoints;
+  await expect(casino.getByTestId("casino-balance")).toHaveText(`${balanceAfterWheel} CP`);
+  await casino.getByLabel("Points to buy").fill("1");
+  await purchase.click();
+  await expect(casino.getByTestId("casino-balance")).toHaveText(`${balanceAfterWheel + 1} CP`);
+
+  await higherLower.click();
+  await expect(casino.getByTestId("casino-balance")).toHaveText(`${balanceAfterWheel - 4} CP`);
+  await expect(casino.getByRole("button", { name: "Higher", exact: true })).toBeVisible();
+  state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(state.permanent.galacticCasino.higherLower).not.toBeNull();
+  expect(state.permanent.galacticCasino.casinoPoints).toBe(balanceAfterWheel - 4);
+  expect(state.permanent.galacticCasino.history.at(-1)?.gameId).toBe("wheel");
+  await expect(casino.getByTestId("casino-don-stake-preview")).toHaveText("Current stake: 3 CP");
 });
 
 test("Galactic Casino stays on its own child page under Galactic @ui-navigation", async ({
@@ -163,19 +216,41 @@ test("Galactic Casino stays on its own child page under Galactic @ui-navigation"
   ).toBeVisible();
 });
 
-test("rebirth does not reveal Casino before the current-run AP award @ui-navigation", async ({
+test("rebirth keeps Casino visible and usable before the current-run AP award @ui-navigation", async ({
   page,
 }) => {
-  await startMetaFixture(page, "meta-rebirth-before-casino-unlock");
+  await startMetaFixture(page, "meta-post-rebirth-casino-access");
+  const stateBefore = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(stateBefore.permanent.rebirthCount).toBe(1);
+  expect(stateBefore.run.space.ascendencyAwardedThisRun).toBe(false);
+  expect(stateBefore.permanent.galacticCasino.casinoPoints).toBe(0);
   await page.locator("#tab-galaxy").click();
 
   const childTablist = page
     .getByRole("tabpanel", { name: "Galactic" })
     .getByRole("tablist", { name: "Pages in this section" });
-  await expect(childTablist.locator("#tab-galactic-rebirth")).toHaveCount(1);
+  await expect(childTablist.locator("#tab-galactic-rebirth")).toHaveCount(0);
   await expect(childTablist.locator("#tab-galactic-market")).toHaveCount(1);
   await expect(childTablist.locator("#tab-galactic-ascendency-perks")).toHaveCount(1);
-  await expect(childTablist.locator("#tab-galactic-casino")).toHaveCount(0);
+  const casinoTab = childTablist.locator("#tab-galactic-casino");
+  await expect(casinoTab).toBeVisible();
+  const childOrder = await childTablist
+    .getByRole("tab")
+    .evaluateAll((tabs) => tabs.map((tab) => tab.id));
+  expect(childOrder).toEqual([
+    "tab-galactic-market",
+    "tab-galactic-casino",
+    "tab-galactic-ascendency-perks",
+  ]);
+
+  await casinoTab.click();
+  const casino = page.getByTestId("galactic-casino-pane");
+  await expect(casino.getByRole("heading", { name: "Galactic Casino" })).toBeVisible();
+  await expect(casino.getByTestId("casino-buy-cp")).toBeEnabled();
+  await casino.getByTestId("casino-buy-cp").click();
+  await expect(casino.getByTestId("casino-balance")).toHaveText("1 CP");
+  const stateAfter = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(stateAfter.permanent.galacticCasino.casinoPoints).toBe(1);
 });
 
 test("keyboard users can reach and play every Casino game @galactic-casino @keyboard", async ({

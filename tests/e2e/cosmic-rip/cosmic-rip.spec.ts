@@ -7,8 +7,52 @@ import { LOCALE_IDS, type EconomicGoodId } from "../../../src/content/ids";
 import { economyGoodName } from "../../../src/app/economyDisplay";
 import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
+import { formatCountdown } from "../../../src/app/timeFormatting";
 import { translate } from "../../../src/i18n/messages";
 import { cosmicRipText } from "../../../src/i18n/cosmicRipMessages";
+
+test("shows active research countdown while the Cosmic Rip page stays selected @cosmic-rip @timers", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-cosmic-rip-route");
+  await page.getByRole("tab", { name: "Cosmic Rip" }).click();
+  await page.locator("#tab-cosmic-rip-rip").click();
+
+  const technology = COSMIC_RIP_TECHNOLOGIES[0];
+  const card = page.getByTestId(`cosmic-rip-technology-${technology.id}`);
+  await card.getByRole("button", { name: cosmicRipText("en").research }).click();
+  const remaining = page.getByTestId("cosmic-rip-research-remaining");
+  await expect(remaining).toHaveText(
+    cosmicRipText("en").remaining.replace("{time}", formatCountdown("en", technology.durationMs)),
+  );
+
+  const elapsedBefore = await page.evaluate(
+    () => window.miaplacidusTest!.getState().permanent.cosmicRip.researchElapsedMs,
+  );
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().permanent.cosmicRip.researchElapsedMs),
+    )
+    .toBeGreaterThan(elapsedBefore);
+  await expect(page.locator("#tab-cosmic-rip-rip")).toHaveAttribute("aria-selected", "true");
+
+  const elapsed = await page.evaluate(
+    () => window.miaplacidusTest!.getState().permanent.cosmicRip.researchElapsedMs,
+  );
+  for (const locale of LOCALE_IDS) {
+    await page.evaluate((nextLocale) => {
+      window.miaplacidusTest!.dispatch({ type: "settings.update", patch: { locale: nextLocale } });
+    }, locale);
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(remaining).toHaveText(
+      cosmicRipText(locale).remaining.replace(
+        "{time}",
+        formatCountdown(locale, technology.durationMs - elapsed),
+      ),
+    );
+  }
+});
 
 test("restores the scanner, researches all Cosmic Rip stages and closes the rip @cosmic-rip", async ({
   page,
@@ -112,10 +156,17 @@ test("shows the scanner restore cost and localized disabled reason @cosmic-rip",
 }) => {
   await startMetaFixture(page, "meta-cosmic-rip-restore-affordance");
   await page.getByRole("tab", { name: "Cosmic Rip" }).click();
-  await page.locator("#tab-cosmic-rip-scanner-array").click();
+
+  const childTablist = page
+    .getByRole("tabpanel", { name: "Cosmic Rip" })
+    .getByRole("tablist", { name: "Pages in this section" });
+  await expect(childTablist.getByRole("tab")).toHaveCount(1);
+  await expect(page.locator("#tab-cosmic-rip-scanner-array")).toHaveCount(0);
+  const situation = page.locator("#panel-cosmic-rip-situation");
+  await expect(situation).toBeVisible();
 
   const copy = cosmicRipText("en");
-  const restore = page.getByTestId("cosmic-rip-restore-scanner");
+  const restore = situation.getByTestId("cosmic-rip-restore-scanner");
   await expect(restore).toHaveText(`${copy.restoreScanner} · 10 ${copy.gpShort}`);
   await expect(restore).toBeDisabled();
   await expect(restore).toHaveAttribute("aria-describedby", "cosmic-rip-restore-reason");
@@ -127,6 +178,13 @@ test("shows the scanner restore cost and localized disabled reason @cosmic-rip",
 test("shows scanner, upgrade and technology precondition reasons @cosmic-rip", async ({ page }) => {
   await startMetaFixture(page, "meta-cosmic-rip-action-affordances");
   await page.getByRole("tab", { name: "Cosmic Rip" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().permanent.cosmicRip.scannerRestored),
+    )
+    .toBe(true);
+  await expect(page.locator("#tab-cosmic-rip-scanner-array")).toBeVisible();
+  await expect(page.getByTestId("cosmic-rip-restore-scanner")).toHaveCount(0);
   await page.locator("#tab-cosmic-rip-scanner-array").click();
 
   const sector = page.getByTestId("cosmic-rip-sector-0");

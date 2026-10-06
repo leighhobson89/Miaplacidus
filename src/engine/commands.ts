@@ -337,6 +337,7 @@ export type EngineEvent =
       readonly capacity: number;
     }
   | { readonly type: "hydrogen.autobuyer.changed"; readonly enabled: boolean }
+  | { readonly type: "economy.power.tripped" }
   | { readonly type: "clock.paused" }
   | { readonly type: "clock.resumed" }
   | { readonly type: "timer.paused"; readonly timerId: TimerId }
@@ -1367,6 +1368,7 @@ function validateSettingsPatch(patch: Partial<SettingsState>): boolean {
   if (patch.currencyId !== undefined && !isCurrencyId(patch.currencyId)) return false;
   if (
     patch.notation !== undefined &&
+    patch.notation !== "condensed" &&
     patch.notation !== "standard" &&
     patch.notation !== "scientific"
   )
@@ -1413,6 +1415,85 @@ function incrementAccepted(state: GameState): GameState {
     statistics: {
       ...state.statistics,
       acceptedCommands: Math.min(Number.MAX_SAFE_INTEGER, state.statistics.acceptedCommands + 1),
+    },
+  };
+}
+
+function incrementScienceBuildingHistory(
+  state: GameState,
+  buildingId: FixedUpgradeId,
+  count: number,
+): GameState {
+  const fields =
+    buildingId === "scienceKit"
+      ? (["scienceKitsBuiltThisRun", "lifetimeScienceKitsBuilt"] as const)
+      : buildingId === "scienceClub"
+        ? (["scienceClubsBuiltThisRun", "lifetimeScienceClubsBuilt"] as const)
+        : buildingId === "scienceLab"
+          ? (["scienceLabsBuiltThisRun", "lifetimeScienceLabsBuilt"] as const)
+          : null;
+  if (!fields) return state;
+  const [runField, lifetimeField] = fields;
+  return {
+    ...state,
+    run: {
+      ...state.run,
+      [runField]: Math.min(Number.MAX_SAFE_INTEGER, state.run[runField] + count),
+    },
+    statistics: {
+      ...state.statistics,
+      [lifetimeField]: Math.min(Number.MAX_SAFE_INTEGER, state.statistics[lifetimeField] + count),
+    },
+  };
+}
+
+function incrementEnergyBuildingHistory(
+  state: GameState,
+  buildingId: FixedUpgradeId,
+  count: number,
+): GameState {
+  const fields =
+    buildingId === "powerPlant1"
+      ? (["basicPowerPlantsBuiltThisRun", "lifetimeBasicPowerPlantsBuilt"] as const)
+      : buildingId === "powerPlant3"
+        ? (["advancedPowerPlantsBuiltThisRun", "lifetimeAdvancedPowerPlantsBuilt"] as const)
+        : buildingId === "powerPlant2"
+          ? (["solarPowerPlantsBuiltThisRun", "lifetimeSolarPowerPlantsBuilt"] as const)
+          : buildingId === "battery1"
+            ? (["sodiumIonBatteriesBuiltThisRun", "lifetimeSodiumIonBatteriesBuilt"] as const)
+            : buildingId === "battery2"
+              ? (["battery2BuiltThisRun", "lifetimeBattery2Built"] as const)
+              : buildingId === "battery3"
+                ? (["battery3BuiltThisRun", "lifetimeBattery3Built"] as const)
+                : null;
+  if (!fields) return state;
+  const [runField, lifetimeField] = fields;
+  return {
+    ...state,
+    run: {
+      ...state.run,
+      [runField]: Math.min(Number.MAX_SAFE_INTEGER, state.run[runField] + count),
+    },
+    statistics: {
+      ...state.statistics,
+      [lifetimeField]: Math.min(Number.MAX_SAFE_INTEGER, state.statistics[lifetimeField] + count),
+    },
+  };
+}
+
+function incrementEnergyTripHistory(state: GameState): GameState {
+  return {
+    ...state,
+    run: {
+      ...state.run,
+      energyTripsThisRun: Math.min(Number.MAX_SAFE_INTEGER, state.run.energyTripsThisRun + 1),
+    },
+    statistics: {
+      ...state.statistics,
+      lifetimeEnergyTrips: Math.min(
+        Number.MAX_SAFE_INTEGER,
+        state.statistics.lifetimeEnergyTrips + 1,
+      ),
     },
   };
 }
@@ -1947,16 +2028,26 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
           };
         }
         return success(
-          incrementAccepted({
-            ...state,
-            run: {
-              ...state.run,
-              cash,
-              goods,
-              upgrades,
-              economy: { ...state.run.economy, buildingEnabled, power },
-            },
-          }),
+          incrementAccepted(
+            incrementScienceBuildingHistory(
+              incrementEnergyBuildingHistory(
+                {
+                  ...state,
+                  run: {
+                    ...state.run,
+                    cash,
+                    goods,
+                    upgrades,
+                    economy: { ...state.run.economy, buildingEnabled, power },
+                  },
+                },
+                command.buildingId,
+                1,
+              ),
+              command.buildingId,
+              1,
+            ),
+          ),
           [{ type: "purchase.completed", upgradeId: command.buildingId, count: 1 }],
           state,
         );
@@ -1997,16 +2088,26 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
           };
         }
         return success(
-          incrementAccepted({
-            ...state,
-            run: {
-              ...state.run,
-              cash,
-              goods,
-              upgrades,
-              economy: { ...state.run.economy, buildingEnabled, power },
-            },
-          }),
+          incrementAccepted(
+            incrementScienceBuildingHistory(
+              incrementEnergyBuildingHistory(
+                {
+                  ...state,
+                  run: {
+                    ...state.run,
+                    cash,
+                    goods,
+                    upgrades,
+                    economy: { ...state.run.economy, buildingEnabled, power },
+                  },
+                },
+                command.buildingId,
+                plan.count,
+              ),
+              command.buildingId,
+              plan.count,
+            ),
+          ),
           [{ type: "purchase.completed", upgradeId: command.buildingId, count: plan.count }],
           state,
         );
@@ -2153,6 +2254,7 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
         };
         const events: EngineEvent[] = [];
         let cashEarned = 0;
+        let researchPointsEarned = 0;
         let goodsProduced = 0;
         const goodsProducedByGood = Object.fromEntries(
           ECONOMIC_GOOD_IDS.map((id) => [id, 0]),
@@ -2253,8 +2355,13 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
               ? false
               : previousPower.tripped || deficitMs >= 10_000,
           };
-          let researchPoints =
-            nextState.run.researchPoints + (tickPlan.researchPerSecond ?? 0) * seconds;
+          if (!previousPower.tripped && power.tripped) {
+            events.push({ type: "economy.power.tripped" });
+            nextState = incrementEnergyTripHistory(nextState);
+          }
+          const researchGain = (tickPlan.researchPerSecond ?? 0) * seconds;
+          researchPointsEarned += researchGain;
+          let researchPoints = nextState.run.researchPoints + researchGain;
           const researchedTechnologies = [...nextState.run.economy.researchedTechnologies];
           const unlockedResources = [...nextState.run.unlockedResources];
           const unlockedCompounds = [...nextState.run.economy.unlockedCompounds];
@@ -2365,6 +2472,10 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
           run: {
             ...nextState.run,
             goodsProducedThisRun,
+            researchPointsEarnedThisRun: Math.min(
+              Number.MAX_SAFE_INTEGER,
+              nextState.run.researchPointsEarnedThisRun + researchPointsEarned,
+            ),
             space: {
               ...nextState.run.space,
               precipitationCollectedThisRun:
@@ -2376,6 +2487,10 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
             lifetimeCashEarned: nextState.statistics.lifetimeCashEarned + cashEarned,
             lifetimeGoodsProduced: nextState.statistics.lifetimeGoodsProduced + goodsProduced,
             lifetimeGoodsProducedByGood,
+            lifetimeResearchPointsEarned: Math.min(
+              Number.MAX_SAFE_INTEGER,
+              nextState.statistics.lifetimeResearchPointsEarned + researchPointsEarned,
+            ),
             lifetimeActiveMs: Math.min(
               Number.MAX_SAFE_INTEGER,
               nextState.statistics.lifetimeActiveMs + foregroundActiveMs,

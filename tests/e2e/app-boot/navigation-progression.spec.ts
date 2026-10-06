@@ -108,9 +108,9 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
   await startFixture(page, "space-telescope", "Space Navigation Pioneer");
   const technologyUnlockedTabs = [
     ["Resources", "hydrogen"],
+    ["Compounds", "compounds"],
     ["Energy", "energy"],
     ["Research", "research"],
-    ["Compounds", "compounds"],
     ["Interstellar", "interstellar"],
     ["Space Mining", "space-mining"],
     ["Settings", "settings"],

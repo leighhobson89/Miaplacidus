@@ -16,11 +16,11 @@ export function weatherParticlePosition(
   progress: number,
 ): WeatherParticlePosition {
   if (weather === "volcano") {
-    return { x: sourceX - width, y: -height * 1.5 + progress * height * 2.5 };
+    return { x: sourceX, y: -height * 1.5 + progress * height * 2.5 };
   }
 
   return {
-    x: sourceX - width * 2 + progress * width * 2,
+    x: sourceX - width + progress * width * 2,
     y: -height * 1.5 + progress * height * 3,
   };
 }

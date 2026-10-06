@@ -10,6 +10,9 @@ export interface MegastructureMessages {
   readonly manuscriptReported: string;
   readonly notSettled: string;
   readonly notAtFactory: string;
+  readonly insufficientResearch: string;
+  readonly missingPrerequisites: string;
+  readonly researchUnavailable: string;
   readonly stageProgress: string;
   readonly stage: string;
   readonly researched: string;
@@ -36,6 +39,9 @@ const MESSAGES: Record<LocaleId, MegastructureMessages> = {
     researched: "Researched",
     researchAction: "Research stage",
     researchCost: "{cost} RP",
+    insufficientResearch: "Requires {required} RP; short by {shortfall} RP.",
+    missingPrerequisites: "Research these technologies first: {technologies}.",
+    researchUnavailable: "This stage is not available for research yet.",
     structureNames: {
       dysonSphere: "Dyson Sphere",
       celestialProcessingCore: "Celestial Processing Core",
@@ -61,6 +67,9 @@ const MESSAGES: Record<LocaleId, MegastructureMessages> = {
     researched: "Investigada",
     researchAction: "Investigar etapa",
     researchCost: "{cost} PI",
+    insufficientResearch: "Requiere {required} PI; faltan {shortfall} PI.",
+    missingPrerequisites: "Investiga primero estas tecnologías: {technologies}.",
+    researchUnavailable: "Esta etapa aún no está disponible para investigar.",
     structureNames: {
       dysonSphere: "Esfera de Dyson",
       celestialProcessingCore: "Núcleo de Procesamiento Celestial",
@@ -85,6 +94,9 @@ const MESSAGES: Record<LocaleId, MegastructureMessages> = {
     researched: "Pesquisada",
     researchAction: "Pesquisar etapa",
     researchCost: "{cost} PI",
+    insufficientResearch: "Requer {required} PI; faltam {shortfall} PI.",
+    missingPrerequisites: "Pesquise estas tecnologias primeiro: {technologies}.",
+    researchUnavailable: "Esta etapa ainda não está disponível para pesquisa.",
     structureNames: {
       dysonSphere: "Esfera de Dyson",
       celestialProcessingCore: "Núcleo de Processamento Celestial",
@@ -110,6 +122,9 @@ const MESSAGES: Record<LocaleId, MegastructureMessages> = {
     researched: "Erforscht",
     researchAction: "Stufe erforschen",
     researchCost: "{cost} FP",
+    insufficientResearch: "Benötigt {required} FP; es fehlen {shortfall} FP.",
+    missingPrerequisites: "Erforsche zuerst diese Technologien: {technologies}.",
+    researchUnavailable: "Diese Stufe kann noch nicht erforscht werden.",
     structureNames: {
       dysonSphere: "Dyson-Sphäre",
       celestialProcessingCore: "Himmlischer Verarbeitungskern",
@@ -135,6 +150,9 @@ const MESSAGES: Record<LocaleId, MegastructureMessages> = {
     researched: "Ricercata",
     researchAction: "Ricerca fase",
     researchCost: "{cost} PR",
+    insufficientResearch: "Richiede {required} PR; ne mancano {shortfall} PR.",
+    missingPrerequisites: "Ricerca prima queste tecnologie: {technologies}.",
+    researchUnavailable: "Questa fase non è ancora disponibile per la ricerca.",
     structureNames: {
       dysonSphere: "Sfera di Dyson",
       celestialProcessingCore: "Nucleo di Elaborazione Celestiale",
@@ -159,6 +177,9 @@ const MESSAGES: Record<LocaleId, MegastructureMessages> = {
     researched: "Recherchée",
     researchAction: "Rechercher l'étape",
     researchCost: "{cost} PR",
+    insufficientResearch: "Nécessite {required} PR ; il manque {shortfall} PR.",
+    missingPrerequisites: "Recherchez d'abord ces technologies : {technologies}.",
+    researchUnavailable: "Cette étape n'est pas encore disponible pour la recherche.",
     structureNames: {
       dysonSphere: "Sphère de Dyson",
       celestialProcessingCore: "Noyau de Traitement Céleste",

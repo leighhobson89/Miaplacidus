@@ -64,3 +64,15 @@ npm.cmd run test:e2e:focused -- tests/e2e/economy/economy.spec.ts -g "first fusi
 
 This passed **1/1** in system Chrome with video disabled. The player journey researched Hydrogen Fusion, discovered Helium and checked generated/stored quantities, then fused Hydrogen again and checked the later efficiency-loss notice.
 - `npm.cmd run test:unit:focused -- tests/unit/economy.spec.ts` passed **22/22**; the discovery event flag and rendered placeholder/quantity copy are covered, with all six locale templates checked. `npm.cmd run typecheck` passed.
+
+## Full-storage automatic-production status (5 October 2026)
+
+The Hydrogen hero, material cards, and compound cards show localized red-disabled text when an enabled automatic producer is blocked by a full output store. The notice is omitted for paused producers, stores below capacity, or a full store without blocked production; it also detects automatic compound creation when the output is full. The focused economy unit suite passed **28/28**, including six-locale copy checks, and the focused Chrome interaction passed **1/1** after the `storage-production` fixture was added to the app's test-only allowlist. Typecheck and targeted formatting passed.
+
+## Research and Tech Tree visual capture (5 October 2026)
+
+The Energy journey now captures Research buildings and the Tech Tree as separate pages. The Research capture shows the science buildings and locked research automation; the Tech Tree capture shows the graph without the Research building cards. Energy, Research, Tech Tree, and Compounds captures were visually reviewed at 1280px in Terminal. The focused Chrome journey passed 1/1 while refreshing those baselines and passed 1/1 again without snapshot updates. The active Tech Tree viewport intentionally shows a scrollable subset of the wider graph; this does not close the broader theme and narrow-viewport review under P-60/P-56.
+
+## Hydrogen hero and Fusion layout review (5 October 2026)
+
+The `economy-fresh-hydrogen-compressor.png` and `economy-hydrogen-fusion-open.png` baselines were refreshed and visually reviewed at 1280px in Terminal. Sell controls sit without a separate card border inside the Hydrogen hero; the unlocked Fusion controls remain visible as a full-width section below Sell with a fine separator and no disclosure toggle. Hydrogen storage is the first full-width panel below the hero. The compressor screenshot shows no inline purchase-complete message. Both focused Chrome journeys passed 1/1 during snapshot refresh and again without snapshot updates; the active-Fusion journey also asserts the panel geometry and absence of a collapse control.

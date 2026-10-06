@@ -2,14 +2,14 @@ import type { Page } from "@playwright/test";
 
 /** Run one Test Lab control, then return the app to its normal playable state. */
 export async function runTestLabAction(page: Page, buttonName: string): Promise<void> {
-  const dialog = page.locator("dialog.debug-tools");
+  const dialog = page.locator("dialog.debug-tools:not(.debug-scenario-menu)");
   await dialog.waitFor({ state: "attached" });
   const isOpen = await dialog.evaluate((element) => (element as HTMLDialogElement).open);
   if (!isOpen) {
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     });
-    await page.keyboard.press("NumpadSubtract");
+    await page.keyboard.press("NumpadAdd");
     await dialog.waitFor({ state: "visible" });
   }
   await dialog.getByRole("button", { name: buttonName, exact: true }).click();

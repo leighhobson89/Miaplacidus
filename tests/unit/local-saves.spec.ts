@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
+import { checkNewsPrizeClaim } from "../../src/engine/newsTicker";
+import { MANUSCRIPT_CLUE_NEWS_IDS } from "../../src/content/metaSignals";
+import { systemIdForStar } from "../../src/content/ids";
 import { createStarCatalogue, findStarByName } from "../../src/content/starCatalogue";
 import { createInitialStarSystemBattleState } from "../../src/content/space";
 import { compressToEncodedURIComponent, compressToUTF16 } from "lz-string";
@@ -1077,7 +1080,20 @@ describe("local save formats and identity", () => {
       statistics: {
         lifetimeCashEarned: 9_000_000,
         lifetimeGoodsProduced: 25_000_000,
+        lifetimeResearchPointsEarned: 0,
+        lifetimeScienceKitsBuilt: 0,
+        lifetimeScienceClubsBuilt: 0,
+        lifetimeScienceLabsBuilt: 0,
+        lifetimeEnergyTrips: 0,
+        lifetimeBasicPowerPlantsBuilt: 0,
+        lifetimeAdvancedPowerPlantsBuilt: 0,
+        lifetimeSolarPowerPlantsBuilt: 0,
+        lifetimeSodiumIonBatteriesBuilt: 0,
+        lifetimeBattery2Built: 0,
+        lifetimeBattery3Built: 0,
         lifetimeAntimatterMined: 100,
+        lifetimeGalacticPointsSpent: 0,
+        lifetimeCosmicRipTelemetryDataEarned: 0,
         lifetimeAscendencyPointsGained: 0,
         lifetimeAsteroidsDiscovered: 0,
         lifetimeLegendaryAsteroidsDiscovered: 0,
@@ -1488,6 +1504,301 @@ describe("lifetime statistics save migration", () => {
     expect(isSaveEnvelope(migrated)).toBe(true);
   });
 
+  it("adds Cosmic Rip lifetime counters to version 37 saves", () => {
+    const current = envelope("Cosmic Rip Statistics Migration");
+    const {
+      lifetimeGalacticPointsSpent: _gpSpent,
+      lifetimeCosmicRipTelemetryDataEarned: _telemetryEarned,
+      ...oldStatistics
+    } = current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 37,
+      statistics: { ...oldStatistics, lifetimeCashEarned: 1_234_567 },
+      permanent: { ...current.state.permanent, gloryPoints: 17 },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 37, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.statistics).toMatchObject({
+      lifetimeGalacticPointsSpent: 0,
+      lifetimeCosmicRipTelemetryDataEarned: 0,
+      lifetimeCashEarned: 1_234_567,
+    });
+    expect(migrated.state.permanent.gloryPoints).toBe(17);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates version 38 one-off offer history without marking an unclaimed offer claimed", () => {
+    const current = envelope("One-off Offer Migration");
+    const { offeredOneOffIds: _offered, ...oldNewsTicker } = current.state.run.newsTicker;
+    const unclaimedEntry = {
+      id: 3013,
+      category: "oneOff" as const,
+      textKey: "oneOff.3013",
+      simulationMs: 0,
+      prizeGoodId: null,
+      claimed: false,
+    };
+    const oldState = {
+      ...current.state,
+      schemaVersion: 38,
+      run: {
+        ...current.state.run,
+        newsTicker: {
+          ...oldNewsTicker,
+          entries: [unclaimedEntry],
+          seenIds: [3013],
+          claimedPrizeIds: [3000],
+        },
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 38, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.newsTicker.offeredOneOffIds).toEqual([3013, 3000]);
+    expect(migrated.state.run.newsTicker.claimedPrizeIds).toEqual([3000]);
+    expect(migrated.state.run.newsTicker.entries).toEqual([unclaimedEntry]);
+    expect(checkNewsPrizeClaim(migrated.state, 3013)).toBe(true);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates version 39 saves with zero Research history while preserving the saved pool", () => {
+    const current = envelope("Research History Migration");
+    const {
+      researchPointsEarnedThisRun: _researchEarned,
+      scienceKitsBuiltThisRun: _kitsBuilt,
+      scienceClubsBuiltThisRun: _clubsBuilt,
+      scienceLabsBuiltThisRun: _labsBuilt,
+      ...oldRun
+    } = current.state.run;
+    const {
+      lifetimeResearchPointsEarned: _lifetimeResearchEarned,
+      lifetimeScienceKitsBuilt: _lifetimeKitsBuilt,
+      lifetimeScienceClubsBuilt: _lifetimeClubsBuilt,
+      lifetimeScienceLabsBuilt: _lifetimeLabsBuilt,
+      ...oldStatistics
+    } = current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 39,
+      run: oldRun,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 39, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.researchPoints).toBe(50);
+    expect(migrated.state.run).toMatchObject({
+      researchPointsEarnedThisRun: 0,
+      scienceKitsBuiltThisRun: 0,
+      scienceClubsBuiltThisRun: 0,
+      scienceLabsBuiltThisRun: 0,
+    });
+    expect(migrated.state.statistics).toMatchObject({
+      lifetimeResearchPointsEarned: 0,
+      lifetimeScienceKitsBuilt: 0,
+      lifetimeScienceClubsBuilt: 0,
+      lifetimeScienceLabsBuilt: 0,
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v40 manuscript clue history from retained ticker entries and preserves counters", () => {
+    const current = envelope("Manuscript Clue Migration");
+    const firstManuscript = systemIdForStar(93, 1);
+    const firstFactory = systemIdForStar(93, 11);
+    const secondManuscript = systemIdForStar(93, 2);
+    const secondFactory = systemIdForStar(93, 12);
+    const { manuscriptCluesShown: _history, ...oldMegastructures } =
+      current.state.permanent.megastructures;
+    const clueEntries = [
+      {
+        id: MANUSCRIPT_CLUE_NEWS_IDS[1],
+        category: "manuscriptClue" as const,
+        textKey: `manuscriptClue.${MANUSCRIPT_CLUE_NEWS_IDS[1]}`,
+        simulationMs: 100,
+        prizeGoodId: null,
+        prizeAmount: null,
+        clueSystemId: firstManuscript,
+        claimed: false,
+      },
+      {
+        id: MANUSCRIPT_CLUE_NEWS_IDS[4],
+        category: "manuscriptClue" as const,
+        textKey: `manuscriptClue.${MANUSCRIPT_CLUE_NEWS_IDS[4]}`,
+        simulationMs: 200,
+        prizeGoodId: null,
+        prizeAmount: null,
+        clueSystemId: secondManuscript,
+        claimed: false,
+      },
+      {
+        id: MANUSCRIPT_CLUE_NEWS_IDS[7],
+        category: "manuscriptClue" as const,
+        textKey: `manuscriptClue.${MANUSCRIPT_CLUE_NEWS_IDS[7]}`,
+        simulationMs: 300,
+        prizeGoodId: null,
+        prizeAmount: null,
+        clueSystemId: firstManuscript,
+        claimed: false,
+      },
+    ];
+    const oldState = {
+      ...current.state,
+      schemaVersion: 40,
+      run: {
+        ...current.state.run,
+        researchPointsEarnedThisRun: 18.25,
+        scienceKitsBuiltThisRun: 2,
+        scienceClubsBuiltThisRun: 1,
+        scienceLabsBuiltThisRun: 3,
+        newsTicker: {
+          ...current.state.run.newsTicker,
+          entries: clueEntries,
+          seenIds: clueEntries.map((entry) => entry.id),
+        },
+      },
+      permanent: {
+        ...current.state.permanent,
+        megastructures: {
+          ...oldMegastructures,
+          ancientManuscripts: [
+            {
+              position: 1 as const,
+              manuscriptSystemId: firstManuscript,
+              factorySystemId: firstFactory,
+              megastructureId: "dysonSphere" as const,
+              reported: false,
+            },
+            {
+              position: 2 as const,
+              manuscriptSystemId: secondManuscript,
+              factorySystemId: secondFactory,
+              megastructureId: "plasmaForge" as const,
+              reported: false,
+            },
+          ],
+        },
+      },
+      statistics: {
+        ...current.state.statistics,
+        lifetimeResearchPointsEarned: 91.5,
+        lifetimeScienceKitsBuilt: 7,
+        lifetimeScienceClubsBuilt: 5,
+        lifetimeScienceLabsBuilt: 6,
+        lifetimeGalacticPointsSpent: 15,
+        lifetimeCosmicRipTelemetryDataEarned: 33,
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 40, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.permanent.megastructures.manuscriptCluesShown).toEqual({
+      [firstManuscript]: [MANUSCRIPT_CLUE_NEWS_IDS[1], MANUSCRIPT_CLUE_NEWS_IDS[7]],
+      [secondManuscript]: [MANUSCRIPT_CLUE_NEWS_IDS[4]],
+    });
+    expect(migrated.state.run).toMatchObject({
+      researchPointsEarnedThisRun: 18.25,
+      scienceKitsBuiltThisRun: 2,
+      scienceClubsBuiltThisRun: 1,
+      scienceLabsBuiltThisRun: 3,
+    });
+    expect(migrated.state.statistics).toMatchObject({
+      lifetimeResearchPointsEarned: 91.5,
+      lifetimeScienceKitsBuilt: 7,
+      lifetimeScienceClubsBuilt: 5,
+      lifetimeScienceLabsBuilt: 6,
+      lifetimeGalacticPointsSpent: 15,
+      lifetimeCosmicRipTelemetryDataEarned: 33,
+    });
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("preserves nonzero Research history through local and portable saves", () => {
+    const current = envelope("Research History Roundtrip");
+    const state: GameState = {
+      ...current.state,
+      run: {
+        ...current.state.run,
+        researchPointsEarnedThisRun: 12.5,
+        scienceKitsBuiltThisRun: 2,
+        scienceClubsBuiltThisRun: 1,
+        scienceLabsBuiltThisRun: 1,
+      },
+      statistics: {
+        ...current.state.statistics,
+        lifetimeResearchPointsEarned: 98.75,
+        lifetimeScienceKitsBuilt: 9,
+        lifetimeScienceClubsBuilt: 5,
+        lifetimeScienceLabsBuilt: 3,
+      },
+    };
+    const save = makeEnvelope({
+      slotId: current.slotId,
+      pioneerName: current.pioneerName,
+      createdAt: current.createdAt,
+      savedAt: current.savedAt,
+      revision: current.revision,
+      state,
+    });
+    const expected = {
+      researchPointsEarnedThisRun: 12.5,
+      scienceKitsBuiltThisRun: 2,
+      scienceClubsBuiltThisRun: 1,
+      scienceLabsBuiltThisRun: 1,
+      lifetimeResearchPointsEarned: 98.75,
+      lifetimeScienceKitsBuilt: 9,
+      lifetimeScienceClubsBuilt: 5,
+      lifetimeScienceLabsBuilt: 3,
+    };
+    for (const reloaded of [
+      decodeLocal(encodeLocal(save)).state,
+      decodePortable(encodePortable(save)).state,
+    ]) {
+      expect(reloaded.run).toMatchObject({
+        researchPointsEarnedThisRun: expected.researchPointsEarnedThisRun,
+        scienceKitsBuiltThisRun: expected.scienceKitsBuiltThisRun,
+        scienceClubsBuiltThisRun: expected.scienceClubsBuiltThisRun,
+        scienceLabsBuiltThisRun: expected.scienceLabsBuiltThisRun,
+      });
+      expect(reloaded.statistics).toMatchObject({
+        lifetimeResearchPointsEarned: expected.lifetimeResearchPointsEarned,
+        lifetimeScienceKitsBuilt: expected.lifetimeScienceKitsBuilt,
+        lifetimeScienceClubsBuilt: expected.lifetimeScienceClubsBuilt,
+        lifetimeScienceLabsBuilt: expected.lifetimeScienceLabsBuilt,
+      });
+    }
+  });
+
   it("upgrades a version 32 save with an empty pending-navigation list", () => {
     const current = envelope("Navigation Migration Pioneer");
     const {
@@ -1587,5 +1898,137 @@ describe("lifetime statistics save migration", () => {
     expect(migrated.state.settings.themeId).toBe("terminal");
     expect(migrated.state.permanent.achievements.themeIdsTried).toEqual(["terminal"]);
     expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates v41 energy history as zero while preserving all prior run and lifetime state", () => {
+    const current = envelope("Energy History Migration");
+    const {
+      energyTripsThisRun: _energyTripsThisRun,
+      basicPowerPlantsBuiltThisRun: _basicPowerPlantsBuiltThisRun,
+      advancedPowerPlantsBuiltThisRun: _advancedPowerPlantsBuiltThisRun,
+      solarPowerPlantsBuiltThisRun: _solarPowerPlantsBuiltThisRun,
+      sodiumIonBatteriesBuiltThisRun: _sodiumIonBatteriesBuiltThisRun,
+      battery2BuiltThisRun: _battery2BuiltThisRun,
+      battery3BuiltThisRun: _battery3BuiltThisRun,
+      ...legacyRun
+    } = current.state.run;
+    const {
+      lifetimeEnergyTrips: _lifetimeEnergyTrips,
+      lifetimeBasicPowerPlantsBuilt: _lifetimeBasicPowerPlantsBuilt,
+      lifetimeAdvancedPowerPlantsBuilt: _lifetimeAdvancedPowerPlantsBuilt,
+      lifetimeSolarPowerPlantsBuilt: _lifetimeSolarPowerPlantsBuilt,
+      lifetimeSodiumIonBatteriesBuilt: _lifetimeSodiumIonBatteriesBuilt,
+      lifetimeBattery2Built: _lifetimeBattery2Built,
+      lifetimeBattery3Built: _lifetimeBattery3Built,
+      ...legacyStatistics
+    } = current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 41,
+      run: { ...legacyRun, cash: 4321 },
+      statistics: { ...legacyStatistics, lifetimeCashEarned: 6543 },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 41, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+    const portable = PORTABLE_PREFIX + compressToEncodedURIComponent(canonicalJson(oldSave));
+
+    for (const migrated of [
+      decodeLocal(compressToUTF16(JSON.stringify(oldSave))),
+      decodePortable(portable),
+    ]) {
+      expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+      expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+      expect(migrated.state.run).toMatchObject({
+        ...legacyRun,
+        cash: 4321,
+        energyTripsThisRun: 0,
+        basicPowerPlantsBuiltThisRun: 0,
+        advancedPowerPlantsBuiltThisRun: 0,
+        solarPowerPlantsBuiltThisRun: 0,
+        sodiumIonBatteriesBuiltThisRun: 0,
+        battery2BuiltThisRun: 0,
+        battery3BuiltThisRun: 0,
+      });
+      expect(migrated.state.statistics).toMatchObject({
+        ...legacyStatistics,
+        lifetimeCashEarned: 6543,
+        lifetimeEnergyTrips: 0,
+        lifetimeBasicPowerPlantsBuilt: 0,
+        lifetimeAdvancedPowerPlantsBuilt: 0,
+        lifetimeSolarPowerPlantsBuilt: 0,
+        lifetimeSodiumIonBatteriesBuilt: 0,
+        lifetimeBattery2Built: 0,
+        lifetimeBattery3Built: 0,
+      });
+      expect(migrated.state.permanent).toEqual(current.state.permanent);
+      expect(migrated.state.settings).toEqual(current.state.settings);
+      expect(isSaveEnvelope(migrated)).toBe(true);
+    }
+  });
+
+  it("preserves nonzero energy run and lifetime counters through local and portable saves", () => {
+    const current = envelope("Energy History Roundtrip");
+    const state: GameState = {
+      ...current.state,
+      run: {
+        ...current.state.run,
+        energyTripsThisRun: 2,
+        basicPowerPlantsBuiltThisRun: 3,
+        advancedPowerPlantsBuiltThisRun: 4,
+        solarPowerPlantsBuiltThisRun: 5,
+        sodiumIonBatteriesBuiltThisRun: 6,
+        battery2BuiltThisRun: 7,
+        battery3BuiltThisRun: 8,
+      },
+      statistics: {
+        ...current.state.statistics,
+        lifetimeEnergyTrips: 9,
+        lifetimeBasicPowerPlantsBuilt: 10,
+        lifetimeAdvancedPowerPlantsBuilt: 11,
+        lifetimeSolarPowerPlantsBuilt: 12,
+        lifetimeSodiumIonBatteriesBuilt: 13,
+        lifetimeBattery2Built: 14,
+        lifetimeBattery3Built: 15,
+      },
+    };
+    const save = makeEnvelope({
+      slotId: current.slotId,
+      pioneerName: current.pioneerName,
+      createdAt: current.createdAt,
+      savedAt: current.savedAt,
+      revision: current.revision,
+      state,
+    });
+    const expectedRun = {
+      energyTripsThisRun: 2,
+      basicPowerPlantsBuiltThisRun: 3,
+      advancedPowerPlantsBuiltThisRun: 4,
+      solarPowerPlantsBuiltThisRun: 5,
+      sodiumIonBatteriesBuiltThisRun: 6,
+      battery2BuiltThisRun: 7,
+      battery3BuiltThisRun: 8,
+    };
+    const expectedLifetime = {
+      lifetimeEnergyTrips: 9,
+      lifetimeBasicPowerPlantsBuilt: 10,
+      lifetimeAdvancedPowerPlantsBuilt: 11,
+      lifetimeSolarPowerPlantsBuilt: 12,
+      lifetimeSodiumIonBatteriesBuilt: 13,
+      lifetimeBattery2Built: 14,
+      lifetimeBattery3Built: 15,
+    };
+
+    for (const reloaded of [
+      decodeLocal(encodeLocal(save)).state,
+      decodePortable(encodePortable(save)).state,
+    ]) {
+      expect(reloaded.run).toMatchObject(expectedRun);
+      expect(reloaded.statistics).toMatchObject(expectedLifetime);
+      expect(isValidGameState(reloaded)).toBe(true);
+    }
   });
 });

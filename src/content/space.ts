@@ -492,6 +492,8 @@ export interface StarshipTravelState {
   readonly timerId: string | null;
   readonly durationMs: number;
   readonly antimatterSpent: number;
+  /** Accepted route length retained until arrival is credited to Statistics. */
+  readonly travelDistanceLy: number | null;
 }
 
 export function createInitialStarshipModules(): Readonly<
@@ -527,6 +529,7 @@ export interface SpaceState {
   readonly autoTelescopeEnabled: boolean;
   readonly autoTelescopeMode: TelescopeMode;
   readonly starStudyRange: number;
+  readonly starshipDistanceTravelledThisRun: number;
   readonly launchPadBuilt: boolean;
   readonly asteroids: readonly AsteroidState[];
   /** Rocket arrivals at asteroids during the current run, matching the source stat counter. */
@@ -582,6 +585,7 @@ export function createInitialSpaceState(): SpaceState {
     autoTelescopeEnabled: false,
     autoTelescopeMode: "asteroids",
     starStudyRange: 0,
+    starshipDistanceTravelledThisRun: 0,
     launchPadBuilt: false,
     asteroids: [],
     asteroidsMinedThisRun: 0,
@@ -611,6 +615,7 @@ export function createInitialSpaceState(): SpaceState {
       timerId: null,
       durationMs: 0,
       antimatterSpent: 0,
+      travelDistanceLy: null,
     },
     rockets,
   };

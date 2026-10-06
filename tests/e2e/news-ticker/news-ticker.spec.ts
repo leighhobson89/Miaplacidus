@@ -57,6 +57,7 @@ test("the shell ticker shows only its message and lets keyboard users claim both
   expect(tickerSizing.height).toBeGreaterThanOrEqual(64);
   await expect(ticker.locator(".news-ticker-message")).toHaveAttribute("aria-live", "polite");
   await expect(ticker.locator(".news-ticker-label, .news-ticker-category")).toHaveCount(0);
+  await expect(ticker.locator(".news-ticker-message")).toHaveCSS("animation-duration", "40s");
   await expect(ticker.locator(".news-ticker-message")).toHaveCSS("animation-play-state", "running");
   await ticker.hover();
   await expect(ticker.locator(".news-ticker-message")).toHaveCSS("animation-play-state", "running");
@@ -357,8 +358,8 @@ test("the ticker advances on schedule and fits a phone width @news-ticker", asyn
     () => window.miaplacidusTest!.getState().run.newsTicker.remainingMs,
   );
   expect(NEWS_CATEGORIES).toContain(latest.category);
-  expect(nextInterval).toBeGreaterThanOrEqual(19_999);
-  expect(nextInterval).toBeLessThanOrEqual(35_000);
+  expect(nextInterval).toBeGreaterThanOrEqual(59_999);
+  expect(nextInterval).toBeLessThanOrEqual(75_000);
   await expect(ticker).toHaveAttribute("data-news-id", String(latest.id));
   await expect(ticker.locator(".news-ticker-category")).toHaveCount(0);
   const viewport = await freshGame.evaluate(() => {
@@ -392,6 +393,69 @@ test("the ticker advances on schedule and fits a phone width @news-ticker", asyn
     `content outside the phone viewport: ${JSON.stringify(viewport.overflowElements)}`,
   ).toBeLessThanOrEqual(viewport.viewportWidth);
   expect(viewport.tickerWidth).toBeLessThanOrEqual(viewport.viewportWidth);
+});
+
+test("reduced motion keeps full ticker messages readable and controls usable @news-ticker", async ({
+  freshGame,
+}) => {
+  await freshGame.setViewportSize({ width: 390, height: 844 });
+  await freshGame.emulateMedia({ reducedMotion: "reduce" });
+
+  const ticker = freshGame.getByTestId("news-ticker");
+  const dispatch = (category: "headline" | "prize" | "wacky", id: number) =>
+    freshGame.evaluate(
+      ({ entryCategory, entryId }) =>
+        window.miaplacidusTest!.dispatch({
+          type: "news.ticker.force",
+          category: entryCategory,
+          id: entryId,
+        }),
+      { entryCategory: category, entryId: id },
+    );
+
+  expect(await dispatch("wacky", 1002)).toBe(true);
+  await expect(ticker).toHaveAttribute("data-news-id", "1002");
+  const message = ticker.locator(".news-ticker-message");
+  await expect(message).toHaveCSS("position", "static");
+  await expect(message).toHaveCSS("animation-name", "none");
+  await expect(ticker.locator(".news-ticker-window")).toHaveCSS("white-space", "normal");
+  const layout = await ticker.locator(".news-ticker-window").evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(layout.clientWidth).toBeGreaterThan(0);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+  expect(layout.scrollHeight).toBeLessThanOrEqual(layout.clientHeight);
+
+  const wackyAction = ticker.locator(".news-ticker-action").first();
+  await expect(wackyAction).toBeVisible();
+  await wackyAction.focus();
+  await wackyAction.press("Enter");
+  await expect(wackyAction).toBeDisabled();
+  await expect(ticker.locator(".news-ticker-copy")).toHaveCSS("animation-name", "none");
+
+  expect(await dispatch("prize", 2000)).toBe(true);
+  await expect(ticker).toHaveAttribute("data-news-id", "2000");
+  await expect(ticker.locator(".news-ticker-copy")).toContainText("free Hydrogen");
+  const claim = ticker.locator(".news-ticker-claim");
+  await expect(claim).toBeVisible();
+  await expect(claim).toHaveText("here");
+  await claim.click();
+  await expect(claim).toBeDisabled();
+  await expect(claim).toHaveText("here");
+
+  await freshGame.emulateMedia({ reducedMotion: "no-preference" });
+  await freshGame.locator("#tab-settings").click();
+  await freshGame.locator("#tab-settings-visual").click();
+  await freshGame.locator("#settings-motion").check();
+  expect(await freshGame.locator(".game-frame").getAttribute("data-reduced-motion")).toBe("true");
+  expect(await dispatch("headline", 0)).toBe(true);
+  await expect(ticker).toHaveAttribute("data-news-id", "0");
+  await expect(message).toHaveCSS("position", "static");
+  await expect(message).toHaveCSS("animation-name", "none");
+  await expect(ticker.locator(".news-ticker-copy")).toContainText("Hydrogen surpluses");
 });
 
 test("the Settings ticker toggle hides the strip and persists after reload @news-ticker", async ({

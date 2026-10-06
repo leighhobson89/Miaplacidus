@@ -15,6 +15,9 @@ type CasinoCopy = {
   readonly doubleOrNothing: string;
   readonly probability: string;
   readonly stake: string;
+  readonly entryCostPreview: string;
+  readonly currentStakePreview: string;
+  readonly doubledWinPreview: string;
   readonly play: string;
   readonly wheel: string;
   readonly spin: string;
@@ -95,6 +98,9 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     doubleOrNothing: "Double or Nothing",
     probability: "Win chance",
     stake: "Stake in CP",
+    entryCostPreview: "Entry cost: {amount} CP",
+    currentStakePreview: "Current stake: {amount} CP",
+    doubledWinPreview: "Win payout: {amount} CP",
     play: "Play",
     wheel: "Wheel of Fortune",
     spin: "Spin for 1 CP",
@@ -173,6 +179,9 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     doubleOrNothing: "Todo o nada",
     probability: "Probabilidad de ganar",
     stake: "Apuesta en PC",
+    entryCostPreview: "Coste de entrada: {amount} CP",
+    currentStakePreview: "Apuesta actual: {amount} CP",
+    doubledWinPreview: "Premio si ganas: {amount} CP",
     play: "Jugar",
     wheel: "Ruleta de la fortuna",
     spin: "Girar por 1 PC",
@@ -251,6 +260,9 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     doubleOrNothing: "Dobrar ou perder",
     probability: "Probabilidade de ganhar",
     stake: "Aposta em PC",
+    entryCostPreview: "Custo de entrada: {amount} CP",
+    currentStakePreview: "Aposta atual: {amount} CP",
+    doubledWinPreview: "Prémio se venceres: {amount} CP",
     play: "Jogar",
     wheel: "Roda da fortuna",
     spin: "Rodar por 1 PC",
@@ -329,6 +341,9 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     doubleOrNothing: "Doppelt oder nichts",
     probability: "Gewinnchance",
     stake: "Einsatz in CP",
+    entryCostPreview: "Einsatzkosten: {amount} CP",
+    currentStakePreview: "Aktueller Einsatz: {amount} CP",
+    doubledWinPreview: "Auszahlung bei Gewinn: {amount} CP",
     play: "Spielen",
     wheel: "Glücksrad",
     spin: "Drehen für 1 CP",
@@ -407,6 +422,9 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     doubleOrNothing: "Raddoppia o perdi",
     probability: "Probabilità di vincita",
     stake: "Puntata in PC",
+    entryCostPreview: "Costo d'ingresso: {amount} CP",
+    currentStakePreview: "Puntata attuale: {amount} CP",
+    doubledWinPreview: "Vincita: {amount} CP",
     play: "Gioca",
     wheel: "Ruota della fortuna",
     spin: "Gira per 1 PC",
@@ -486,6 +504,9 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     doubleOrNothing: "Le double ou rien",
     probability: "Chance de gagner",
     stake: "Mise en PC",
+    entryCostPreview: "Coût d'entrée : {amount} CP",
+    currentStakePreview: "Mise actuelle : {amount} CP",
+    doubledWinPreview: "Gain en cas de victoire : {amount} CP",
     play: "Jouer",
     wheel: "Roue de la fortune",
     spin: "Tourner pour 1 PC",

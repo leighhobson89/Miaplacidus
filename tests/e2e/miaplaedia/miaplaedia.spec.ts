@@ -64,13 +64,23 @@ test("Miaplaedia maps each guide option to its own source document @cosmicopedia
   for (const [index, document] of guideDocuments.entries()) {
     const paneId = MIAPLAEDIA_PANE_IDS[index]!;
     await guideNavigation.locator(`#tab-${paneId}`).click();
-    const article = freshGame.locator("#pane-miaplaedia .miaplaedia-page");
+    const article = freshGame.locator(`#panel-${paneId} .miaplaedia-page`);
     await expect(article.locator("h3")).toHaveText(document.label);
     await expect(article.locator(".miaplaedia-entry h4").first()).toHaveText(document.firstHeading);
     const text = await article.innerText();
     expect(text).not.toContain("Cosmic Forge");
     expect(text).not.toContain("Cosmic Forger");
-    if (document.label === "Story") expect(text).toContain("Mia'Plac");
+    if (document.label === "Story") {
+      expect(text).toContain("Mia'Plac");
+      const storyBodies = article.locator(".miaplaedia-entry-body");
+      await expect(storyBodies).toHaveCount(3);
+      for (const body of await storyBodies.all()) {
+        const visibleBody = await body.innerText();
+        expect(visibleBody).not.toContain("\\n");
+        expect(visibleBody.split(/\n+/).filter((paragraph) => paragraph.trim())).toHaveLength(3);
+        await expect(body.locator("br")).toHaveCount(4);
+      }
+    }
     if (document.snapshotName) {
       await captureVisualCheckpoint(freshGame, testInfo, document.snapshotName);
     }
@@ -88,13 +98,14 @@ test("Miaplaedia keeps all seven source documents mapped and within phone and de
     for (const viewport of [
       { width: 1280, height: 900 },
       { width: 390, height: 844 },
+      { width: 320, height: 844 },
     ]) {
       await freshGame.setViewportSize(viewport);
       await freshGame.locator("#tab-miaplaedia").click();
       for (const paneId of MIAPLAEDIA_PANE_IDS) {
         await freshGame.locator(`#tab-${paneId}`).click();
         const sectionId = miaplaediaSectionId(paneId);
-        const article = freshGame.locator("#pane-miaplaedia .miaplaedia-page");
+        const article = freshGame.locator(`#panel-${paneId} .miaplaedia-page`);
         await expect(article.locator("h3")).toHaveText(settingsSectionName(locale, sectionId));
         await expect(article.locator(".miaplaedia-entry h4").first()).toHaveText(
           cosmicopediaArticles(locale, sectionId)[0]!.heading,
@@ -105,6 +116,8 @@ test("Miaplaedia keeps all seven source documents mapped and within phone and de
           parentWidth: element.parentElement?.clientWidth ?? 0,
           scrollWidth: element.scrollWidth,
           documentWidth: document.documentElement.scrollWidth,
+          left: element.getBoundingClientRect().left,
+          right: element.getBoundingClientRect().right,
         }));
         expect(
           dimensions.clientWidth,
@@ -118,11 +131,31 @@ test("Miaplaedia keeps all seven source documents mapped and within phone and de
           dimensions.documentWidth,
           `${locale} ${paneId} page at ${viewport.width}px`,
         ).toBeLessThanOrEqual(viewport.width);
+        expect(
+          dimensions.left,
+          `${locale} ${paneId} guide starts within the viewport at ${viewport.width}px`,
+        ).toBeGreaterThanOrEqual(0);
+        expect(
+          dimensions.right,
+          `${locale} ${paneId} guide ends within the viewport at ${viewport.width}px`,
+        ).toBeLessThanOrEqual(viewport.width);
 
         const text = await article.innerText();
         expect(text).not.toContain("Cosmic Forge");
         expect(text).not.toContain("Cosmic Forger");
-        if (sectionId === "story") expect(text).toContain("Mia'Plac");
+        if (sectionId === "story") {
+          expect(text).toContain("Mia'Plac");
+          const storyBodies = article.locator(".miaplaedia-entry-body");
+          await expect(storyBodies).toHaveCount(3);
+          for (const body of await storyBodies.all()) {
+            const visibleBody = await body.innerText();
+            expect(visibleBody).not.toContain("\\n");
+            expect(visibleBody.split(/\n+/).filter((paragraph) => paragraph.trim())).toHaveLength(
+              3,
+            );
+            await expect(body.locator("br")).toHaveCount(4);
+          }
+        }
       }
     }
   }

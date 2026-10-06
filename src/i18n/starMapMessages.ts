@@ -24,6 +24,7 @@ const en = {
   mapView: "Map",
   dataView: "Star Data",
   starDataDescription: "Review the properties of systems already studied in the star map.",
+  tableScrollHint: "Scroll horizontally inside the table to see all columns and actions.",
   sortBy: "Sort by",
   sortName: "Name",
   sortDistance: "Distance",
@@ -217,6 +218,8 @@ const additionalMessages: Readonly<
   es: {
     starDataDescription:
       "Consulta las características de los sistemas ya estudiados en el mapa estelar.",
+    tableScrollHint:
+      "Desplázate horizontalmente dentro de la tabla para ver todas las columnas y las acciones.",
     mapView: "Mapa",
     dataView: "Datos estelares",
     sortBy: "Ordenar por",
@@ -245,6 +248,7 @@ const additionalMessages: Readonly<
   },
   pt: {
     starDataDescription: "Consulte as características dos sistemas já estudados no mapa estelar.",
+    tableScrollHint: "Desloque a tabela horizontalmente para ver todas as colunas e ações.",
     mapView: "Mapa",
     dataView: "Dados estelares",
     sortBy: "Ordenar por",
@@ -274,6 +278,8 @@ const additionalMessages: Readonly<
   de: {
     starDataDescription:
       "Sieh dir die Eigenschaften der bereits auf der Sternkarte erforschten Systeme an.",
+    tableScrollHint:
+      "Scrolle innerhalb der Tabelle horizontal, um alle Spalten und Aktionen zu sehen.",
     mapView: "Karte",
     dataView: "Sterndaten",
     sortBy: "Sortieren nach",
@@ -303,6 +309,7 @@ const additionalMessages: Readonly<
   it: {
     starDataDescription:
       "Consulta le caratteristiche dei sistemi già studiati sulla mappa stellare.",
+    tableScrollHint: "Scorri la tabella orizzontalmente per vedere tutte le colonne e le azioni.",
     mapView: "Mappa",
     dataView: "Dati stellari",
     sortBy: "Ordina per",
@@ -332,6 +339,8 @@ const additionalMessages: Readonly<
   fr: {
     starDataDescription:
       "Consultez les caractéristiques des systèmes déjà étudiés sur la carte stellaire.",
+    tableScrollHint:
+      "Faites défiler le tableau horizontalement pour voir toutes les colonnes et les actions.",
     mapView: "Carte",
     dataView: "Donnees stellaires",
     sortBy: "Trier par",

@@ -53,7 +53,7 @@ const en = {
   runDuration: "Run time",
   totalDuration: "Total active time",
   rebirths: "Rebirths completed",
-  gloryPoints: "Glory points",
+  gloryPoints: "Galactic Points",
   day: "d",
   hour: "h",
   minute: "m",
@@ -85,7 +85,11 @@ type StatusExtensionMessageKey =
   | "researchScienceLabs"
   | "researchMegastructureOther"
   | "researchTotalRate"
-  | "perSecond";
+  | "perSecond"
+  | "timeWarpLabel"
+  | "timeWarpValue"
+  | "timeWarpTooltip"
+  | "precipitationThisRun";
 
 type TopStatusMessageKey = StatusMessageKey | StatusExtensionMessageKey;
 
@@ -106,6 +110,10 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     researchMegastructureOther: "Megastructure / other bonuses",
     researchTotalRate: "Total rate",
     perSecond: "{value}/s",
+    timeWarpLabel: "Time warp",
+    timeWarpValue: "×{multiplier} · {time}",
+    timeWarpTooltip: "Production is accelerated by {multiplier}× for {time}.",
+    precipitationThisRun: "Precipitation collected this run",
   },
   es: {
     eventStatusLabel: "Último evento / Evento en curso",
@@ -123,6 +131,10 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     researchMegastructureOther: "Megastructuras / otras bonificaciones",
     researchTotalRate: "Tasa total",
     perSecond: "{value}/s",
+    timeWarpLabel: "Distorsión temporal",
+    timeWarpValue: "×{multiplier} · {time}",
+    timeWarpTooltip: "La producción se acelera {multiplier}× durante {time}.",
+    precipitationThisRun: "Precipitación recolectada en esta partida",
   },
   pt: {
     eventStatusLabel: "Último evento / Evento em curso",
@@ -140,6 +152,10 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     researchMegastructureOther: "Megastruturas / outros bónus",
     researchTotalRate: "Taxa total",
     perSecond: "{value}/s",
+    timeWarpLabel: "Distorção temporal",
+    timeWarpValue: "×{multiplier} · {time}",
+    timeWarpTooltip: "A produção é acelerada {multiplier}× durante {time}.",
+    precipitationThisRun: "Precipitação recolhida nesta partida",
   },
   de: {
     eventStatusLabel: "Letztes Ereignis / Laufendes Ereignis",
@@ -157,6 +173,10 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     researchMegastructureOther: "Megastruktur- / sonstige Boni",
     researchTotalRate: "Gesamtrate",
     perSecond: "{value}/s",
+    timeWarpLabel: "Zeitverzerrung",
+    timeWarpValue: "×{multiplier} · {time}",
+    timeWarpTooltip: "Die Produktion wird für {time} um das {multiplier}-Fache beschleunigt.",
+    precipitationThisRun: "In diesem Durchlauf gesammelter Niederschlag",
   },
   it: {
     eventStatusLabel: "Ultimo evento / Evento in corso",
@@ -174,6 +194,10 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     researchMegastructureOther: "Bonus megastrutture / altri",
     researchTotalRate: "Tasso totale",
     perSecond: "{value}/s",
+    timeWarpLabel: "Distorsione temporale",
+    timeWarpValue: "×{multiplier} · {time}",
+    timeWarpTooltip: "La produzione è accelerata di {multiplier}× per {time}.",
+    precipitationThisRun: "Precipitazioni raccolte in questa partita",
   },
   fr: {
     eventStatusLabel: "Dernier événement / Événement en cours",
@@ -191,6 +215,10 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     researchMegastructureOther: "Bonus de mégastructure / autres",
     researchTotalRate: "Taux total",
     perSecond: "{value}/s",
+    timeWarpLabel: "Distorsion temporelle",
+    timeWarpValue: "×{multiplier} · {time}",
+    timeWarpTooltip: "La production est accélérée de {multiplier}× pendant {time}.",
+    precipitationThisRun: "Précipitations recueillies cette partie",
   },
 };
 
@@ -247,7 +275,7 @@ const es: Record<StatusMessageKey, string> = {
   runDuration: "Tiempo de la partida",
   totalDuration: "Tiempo activo total",
   rebirths: "Renacimientos completados",
-  gloryPoints: "Puntos de gloria",
+  gloryPoints: "Puntos galácticos",
   day: "d",
   hour: "h",
   minute: "min",
@@ -315,7 +343,7 @@ const pt: Record<StatusMessageKey, string> = {
   runDuration: "Tempo da partida",
   totalDuration: "Tempo ativo total",
   rebirths: "Renascimentos concluídos",
-  gloryPoints: "Pontos de glória",
+  gloryPoints: "Pontos galácticos",
   day: "d",
   hour: "h",
   minute: "min",
@@ -383,7 +411,7 @@ const de: Record<StatusMessageKey, string> = {
   runDuration: "Laufzeit",
   totalDuration: "Gesamte aktive Zeit",
   rebirths: "Abgeschlossene Wiedergeburten",
-  gloryPoints: "Ruhmpunkte",
+  gloryPoints: "Galaktische Punkte",
   day: "T",
   hour: "Std.",
   minute: "Min.",
@@ -451,7 +479,7 @@ const it: Record<StatusMessageKey, string> = {
   runDuration: "Durata della partita",
   totalDuration: "Tempo attivo totale",
   rebirths: "Rinascite completate",
-  gloryPoints: "Punti gloria",
+  gloryPoints: "Punti galattici",
   day: "g",
   hour: "h",
   minute: "min",
@@ -519,7 +547,7 @@ const fr: Record<StatusMessageKey, string> = {
   runDuration: "Durée de la partie",
   totalDuration: "Temps actif total",
   rebirths: "Renaissances terminées",
-  gloryPoints: "Points de gloire",
+  gloryPoints: "Points galactiques",
   day: "j",
   hour: "h",
   minute: "min",
@@ -545,7 +573,5 @@ export function topStatusText(
     key in messages[locale]
       ? messages[locale][key as StatusMessageKey]
       : statusExtensions[locale][key as StatusExtensionMessageKey];
-  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-    String(values[name] ?? match),
-  );
+  return template.replace(/\{(\w+)\}/g, (match, name: string) => String(values[name] ?? match));
 }

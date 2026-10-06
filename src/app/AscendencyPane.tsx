@@ -107,7 +107,7 @@ export function RebirthPane({ state, store }: Props) {
           <h2 id="rebirth-confirm-title">{rebirthText(locale, "title")}</h2>
           <p className="rebirth-confirm-prompt">{rebirthText(locale, "prompt")}</p>
           <p className={carryClass}>
-            {rebirthCarryText(locale, state.permanent.ascendencyPoints, state.settings.notation)}
+            {rebirthCarryText(locale, number(state, state.permanent.ascendencyPoints))}
           </p>
           {cosmicRipUnlocked && <p className={carryClass}>{rebirthText(locale, "gp")}</p>}
           <div className="card-controls">
@@ -159,6 +159,13 @@ export function AscendencyPane({ state, store }: Props) {
           const maxed = ascendencyPerkMaxed(state.permanent.acquiredPerks, perk.id);
           const check = checkPreconditions(state, { type: "meta.perk.purchase", perkId: perk.id });
           const [name, description] = metaPerkCopy(locale, perk.id);
+          const reasonId = `ascendency-perk-${perk.id}-reason`;
+          const insufficientAp = !check.ok && check.failure.code === "insufficient-ap" && !maxed;
+          const reason = insufficientAp
+            ? metaText(locale, "perkInsufficient")
+                .replace("{required}", number(state, cost))
+                .replace("{available}", number(state, state.permanent.ascendencyPoints))
+            : undefined;
           return (
             <article className="upgrade-card" key={perk.id} data-perk-id={perk.id}>
               <div className="card-copy">
@@ -174,10 +181,16 @@ export function AscendencyPane({ state, store }: Props) {
                   className="secondary-button"
                   type="button"
                   disabled={maxed || !check.ok}
+                  aria-describedby={reason ? reasonId : undefined}
                   onClick={() => store.dispatch({ type: "meta.perk.purchase", perkId: perk.id })}
                 >
                   {maxed ? metaText(locale, "maxed") : metaText(locale, "buy")}
                 </button>
+                {reason && (
+                  <span id={reasonId} className="control-reason">
+                    {reason}
+                  </span>
+                )}
               </div>
             </article>
           );

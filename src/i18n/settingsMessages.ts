@@ -9,6 +9,7 @@ const messages: Record<
     theme: string;
     currency: string;
     notation: string;
+    condensed: string;
     standard: string;
     scientific: string;
     fullscreen: string;
@@ -41,6 +42,7 @@ const messages: Record<
     theme: "Theme",
     currency: "Currency symbol",
     notation: "Number notation",
+    condensed: "Condensed",
     standard: "Standard",
     scientific: "Scientific",
     fullscreen: "Fullscreen",
@@ -82,6 +84,7 @@ const messages: Record<
     theme: "Tema",
     currency: "Símbolo de moneda",
     notation: "Notación numérica",
+    condensed: "Compacta",
     standard: "Estándar",
     scientific: "Científica",
     fullscreen: "Pantalla completa",
@@ -123,6 +126,7 @@ const messages: Record<
     theme: "Tema",
     currency: "Símbolo da moeda",
     notation: "Notação numérica",
+    condensed: "Condensada",
     standard: "Padrão",
     scientific: "Científica",
     fullscreen: "Ecrã inteiro",
@@ -164,6 +168,7 @@ const messages: Record<
     theme: "Design",
     currency: "Währungssymbol",
     notation: "Zahlennotation",
+    condensed: "Kompakt",
     standard: "Standard",
     scientific: "Wissenschaftlich",
     fullscreen: "Vollbild",
@@ -205,6 +210,7 @@ const messages: Record<
     theme: "Tema",
     currency: "Simbolo della valuta",
     notation: "Notazione numerica",
+    condensed: "Compatta",
     standard: "Standard",
     scientific: "Scientifica",
     fullscreen: "Schermo intero",
@@ -246,6 +252,7 @@ const messages: Record<
     theme: "Thème",
     currency: "Symbole monétaire",
     notation: "Notation des nombres",
+    condensed: "Condensée",
     standard: "Standard",
     scientific: "Scientifique",
     fullscreen: "Plein écran",
@@ -409,6 +416,7 @@ export type SettingsStatisticId =
   | "run"
   | "runSection"
   | "overviewSection"
+  | "researchSection"
   | "resourcesSection"
   | "compoundsSection"
   | "spaceMiningSection"
@@ -440,6 +448,11 @@ export type SettingsStatisticId =
   | "voidSeerPlayed"
   | "voidSeerWon"
   | "systemsSettled"
+  | "techsUnlocked"
+  | "researchPointsEarned"
+  | "scienceKitsBuilt"
+  | "scienceClubsBuilt"
+  | "scienceLabsBuilt"
   | "spaceTelescopeBuilt"
   | "launchPadBuilt"
   | "rocketsBuilt"
@@ -448,10 +461,12 @@ export type SettingsStatisticId =
   | "antimatterThisRun"
   | "cosmicRipSectors"
   | "cosmicRipResearch"
+  | "cosmicRipChapterUnlocked"
   | "cosmicRipTelemetry"
   | "cosmicRipScannerRestored"
   | "cosmicRipLocated"
   | "cosmicRipClosed"
+  | "cosmicRipStabilised"
   | "yes"
   | "no"
   | "ascendencyPoints"
@@ -463,6 +478,14 @@ export type SettingsStatisticId =
 const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
   en: {
     run: "This run",
+    researchSection: "Research",
+    techsUnlocked: "Techs unlocked",
+    researchPointsEarned: "Research points earned",
+    scienceKitsBuilt: "Science kits built",
+    scienceClubsBuilt: "Science clubs built",
+    scienceLabsBuilt: "Science labs built",
+    cosmicRipChapterUnlocked: "Cosmic Rip Chapter unlocked",
+    cosmicRipStabilised: "Cosmic Rip stabilised",
     runSection: "Run",
     overviewSection: "Overview",
     resourcesSection: "Resources",
@@ -511,13 +534,21 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     yes: "Yes",
     no: "No",
     ascendencyPoints: "Ascendency Points (AP)",
-    gloryPoints: "Glory Points available (GP)",
+    gloryPoints: "Galactic Points available (GP)",
     rebirths: "Rebirths",
     pioneer: "Pioneer",
     runNumber: "Run number",
   },
   es: {
     run: "Esta partida",
+    researchSection: "Investigación",
+    techsUnlocked: "Tecnologías desbloqueadas",
+    researchPointsEarned: "Puntos de investigación obtenidos",
+    scienceKitsBuilt: "Kits científicos construidos",
+    scienceClubsBuilt: "Clubes científicos construidos",
+    scienceLabsBuilt: "Laboratorios científicos construidos",
+    cosmicRipChapterUnlocked: "Capítulo Cosmic Rip desbloqueado",
+    cosmicRipStabilised: "Cosmic Rip estabilizada",
     runSection: "Partida",
     overviewSection: "Resumen",
     resourcesSection: "Recursos",
@@ -566,13 +597,21 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     yes: "Sí",
     no: "No",
     ascendencyPoints: "Puntos de ascensión (AP)",
-    gloryPoints: "Puntos de gloria disponibles (GP)",
+    gloryPoints: "Puntos galácticos disponibles (GP)",
     rebirths: "Renacimientos",
     pioneer: "Pionero",
     runNumber: "Número de partida",
   },
   pt: {
     run: "Esta partida",
+    researchSection: "Pesquisa",
+    techsUnlocked: "Tecnologias desbloqueadas",
+    researchPointsEarned: "Pontos de pesquisa obtidos",
+    scienceKitsBuilt: "Kits científicos construídos",
+    scienceClubsBuilt: "Clubes científicos construídos",
+    scienceLabsBuilt: "Laboratórios científicos construídos",
+    cosmicRipChapterUnlocked: "Capítulo Cosmic Rip desbloqueado",
+    cosmicRipStabilised: "Cosmic Rip estabilizada",
     runSection: "Partida",
     overviewSection: "Visão geral",
     resourcesSection: "Recursos",
@@ -621,13 +660,21 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     yes: "Sim",
     no: "Não",
     ascendencyPoints: "Pontos de ascensão (AP)",
-    gloryPoints: "Pontos de glória disponíveis (GP)",
+    gloryPoints: "Pontos galácticos disponíveis (GP)",
     rebirths: "Renascimentos",
     pioneer: "Pioneiro",
     runNumber: "Número da partida",
   },
   de: {
     run: "Dieser Durchlauf",
+    researchSection: "Forschung",
+    techsUnlocked: "Freigeschaltete Technologien",
+    researchPointsEarned: "Erhaltene Forschungspunkte",
+    scienceKitsBuilt: "Wissenschaftskits gebaut",
+    scienceClubsBuilt: "Wissenschaftsclubs gebaut",
+    scienceLabsBuilt: "Wissenschaftslabore gebaut",
+    cosmicRipChapterUnlocked: "Cosmic-Rip-Kapitel freigeschaltet",
+    cosmicRipStabilised: "Cosmic Rip stabilisiert",
     runSection: "Durchlauf",
     overviewSection: "Übersicht",
     resourcesSection: "Ressourcen",
@@ -676,13 +723,21 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     yes: "Ja",
     no: "Nein",
     ascendencyPoints: "Ascendency-Punkte (AP)",
-    gloryPoints: "Verfügbare Ruhmpunkte (GP)",
+    gloryPoints: "Verfügbare galaktische Punkte (GP)",
     rebirths: "Wiedergeburten",
     pioneer: "Pionier",
     runNumber: "Durchlaufnummer",
   },
   it: {
     run: "Partita attuale",
+    researchSection: "Ricerca",
+    techsUnlocked: "Tecnologie sbloccate",
+    researchPointsEarned: "Punti ricerca ottenuti",
+    scienceKitsBuilt: "Kit scientifici costruiti",
+    scienceClubsBuilt: "Club scientifici costruiti",
+    scienceLabsBuilt: "Laboratori scientifici costruiti",
+    cosmicRipChapterUnlocked: "Capitolo Cosmic Rip sbloccato",
+    cosmicRipStabilised: "Cosmic Rip stabilizzata",
     runSection: "Partita",
     overviewSection: "Panoramica",
     resourcesSection: "Risorse",
@@ -731,13 +786,21 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     yes: "Sì",
     no: "No",
     ascendencyPoints: "Punti di Ascendenza (AP)",
-    gloryPoints: "Punti Gloria disponibili (GP)",
+    gloryPoints: "Punti galattici disponibili (GP)",
     rebirths: "Rinascite",
     pioneer: "Pioniere",
     runNumber: "Numero partita",
   },
   fr: {
     run: "Cette partie",
+    researchSection: "Recherche",
+    techsUnlocked: "Technologies débloquées",
+    researchPointsEarned: "Points de recherche gagnés",
+    scienceKitsBuilt: "Kits scientifiques construits",
+    scienceClubsBuilt: "Clubs scientifiques construits",
+    scienceLabsBuilt: "Laboratoires scientifiques construits",
+    cosmicRipChapterUnlocked: "Chapitre Cosmic Rip débloqué",
+    cosmicRipStabilised: "Cosmic Rip stabilisée",
     runSection: "Partie",
     overviewSection: "Vue d’ensemble",
     resourcesSection: "Ressources",
@@ -786,7 +849,7 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     yes: "Oui",
     no: "Non",
     ascendencyPoints: "Points d’ascendance (AP)",
-    gloryPoints: "Points de gloire disponibles (GP)",
+    gloryPoints: "Points galactiques disponibles (GP)",
     rebirths: "Renaissances",
     pioneer: "Pionnier",
     runNumber: "Numéro de partie",

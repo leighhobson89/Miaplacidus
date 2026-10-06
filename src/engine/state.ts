@@ -61,11 +61,14 @@ import { ACHIEVEMENT_IDS, type AchievementId } from "../content/achievements";
 import { DEFAULT_THEME_ID, THEME_IDS, isThemeId, type ThemeId } from "../content/themes";
 import { isCurrencyId, type CurrencyId } from "../content/currency";
 import {
+  MANUSCRIPT_CLUE_NEWS_IDS,
   NEWS_CATEGORIES,
+  ONE_OFF_NEWS_IDS,
   RANDOM_EVENT_IDS,
   createInitialNewsTickerProgress,
   createInitialRandomEventProgress,
   createRandomEventCounts,
+  type ManuscriptClueNewsId,
   type NewsTickerProgress,
   type RandomEventProgress,
 } from "../content/metaSignals";
@@ -98,7 +101,11 @@ import {
   type SpaceState,
   type StarSystemProfile,
 } from "../content/space";
-import { createStarCatalogue, starTypeForSystem } from "../content/starCatalogue";
+import {
+  createStarCatalogue,
+  distanceBetweenStars,
+  starTypeForSystem,
+} from "../content/starCatalogue";
 import { O_TYPE_POWER_PLANT_IDS, type OTypePowerPlantId } from "../content/starTypeRules";
 import { createClockState } from "./clock";
 import { createRandomState } from "./random";
@@ -128,6 +135,17 @@ export interface RunState {
   readonly hydrogenAutobuyerEnabled: boolean;
   readonly cash: number;
   readonly researchPoints: number;
+  readonly researchPointsEarnedThisRun: number;
+  readonly scienceKitsBuiltThisRun: number;
+  readonly scienceClubsBuiltThisRun: number;
+  readonly scienceLabsBuiltThisRun: number;
+  readonly energyTripsThisRun: number;
+  readonly basicPowerPlantsBuiltThisRun: number;
+  readonly advancedPowerPlantsBuiltThisRun: number;
+  readonly solarPowerPlantsBuiltThisRun: number;
+  readonly sodiumIonBatteriesBuiltThisRun: number;
+  readonly battery2BuiltThisRun: number;
+  readonly battery3BuiltThisRun: number;
   readonly goods: Readonly<Record<EconomicGoodId, GoodState>>;
   readonly goodsProducedThisRun: Readonly<Record<EconomicGoodId, number>>;
   readonly unlockedResources: readonly MaterialId[];
@@ -265,6 +283,9 @@ export function createInitialCosmicRipProgress(): CosmicRipProgress {
 
 export interface MegastructureProgress {
   readonly ancientManuscripts: readonly AncientManuscriptRecord[];
+  readonly manuscriptCluesShown: Readonly<
+    Partial<Record<SystemId, readonly ManuscriptClueNewsId[]>>
+  >;
   readonly researchedTechnologyIds: readonly TechId[];
   readonly manuscriptRewardClaimed: boolean;
   readonly conquestRewardClaimed: boolean;
@@ -276,6 +297,7 @@ export interface MegastructureProgress {
 export function createInitialMegastructureProgress(): MegastructureProgress {
   return {
     ancientManuscripts: [],
+    manuscriptCluesShown: {},
     researchedTechnologyIds: [],
     manuscriptRewardClaimed: false,
     conquestRewardClaimed: false,
@@ -315,11 +337,13 @@ export function createInitialBlackHoleProgress(): BlackHoleProgress {
   };
 }
 
+export type NumberNotation = "condensed" | "standard" | "scientific";
+
 export interface SettingsState {
   readonly locale: LocaleId;
   readonly themeId: ThemeId;
   readonly currencyId?: CurrencyId;
-  readonly notation: "standard" | "scientific";
+  readonly notation: NumberNotation;
   readonly soundEnabled: boolean;
   /** Optional audio preferences are absent in saves created before the controls were split. */
   readonly backgroundAudioEnabled?: boolean;
@@ -340,14 +364,28 @@ export interface StatisticsState {
   readonly lifetimeCashEarned: number;
   readonly lifetimeGoodsProduced: number;
   readonly lifetimeGoodsProducedByGood: Readonly<Record<EconomicGoodId, number>>;
+  readonly lifetimeResearchPointsEarned: number;
+  readonly lifetimeScienceKitsBuilt: number;
+  readonly lifetimeScienceClubsBuilt: number;
+  readonly lifetimeScienceLabsBuilt: number;
+  readonly lifetimeEnergyTrips: number;
+  readonly lifetimeBasicPowerPlantsBuilt: number;
+  readonly lifetimeAdvancedPowerPlantsBuilt: number;
+  readonly lifetimeSolarPowerPlantsBuilt: number;
+  readonly lifetimeSodiumIonBatteriesBuilt: number;
+  readonly lifetimeBattery2Built: number;
+  readonly lifetimeBattery3Built: number;
   readonly lifetimeAntimatterMined: number;
   readonly lifetimeAscendencyPointsGained: number;
+  readonly lifetimeGalacticPointsSpent: number;
+  readonly lifetimeCosmicRipTelemetryDataEarned: number;
   readonly lifetimeAsteroidsDiscovered: number;
   readonly lifetimeLegendaryAsteroidsDiscovered: number;
   readonly lifetimeAsteroidsMined: number;
   readonly lifetimeRocketsBuilt: number;
   readonly lifetimeRocketsLaunched: number;
   readonly lifetimeStarshipsLaunched: number;
+  readonly lifetimeStarshipDistanceTravelled: number;
   readonly lifetimeActiveMs: number;
   readonly acceptedCommands: number;
   readonly completedTimers: number;
@@ -355,7 +393,7 @@ export interface StatisticsState {
 }
 
 export interface GameState {
-  readonly schemaVersion: 37;
+  readonly schemaVersion: 43;
   readonly run: RunState;
   readonly permanent: PermanentState;
   readonly settings: SettingsState;
@@ -366,6 +404,13 @@ export type LegacyRunStateV1 = Omit<
   RunState,
   | "economy"
   | "space"
+  | "energyTripsThisRun"
+  | "basicPowerPlantsBuiltThisRun"
+  | "advancedPowerPlantsBuiltThisRun"
+  | "solarPowerPlantsBuiltThisRun"
+  | "sodiumIonBatteriesBuiltThisRun"
+  | "battery2BuiltThisRun"
+  | "battery3BuiltThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
   | "philosophyChoicePending"
@@ -395,6 +440,17 @@ export interface LegacyGameStateV1 {
   readonly statistics: Omit<
     StatisticsState,
     | "lifetimeGoodsProducedByGood"
+    | "lifetimeResearchPointsEarned"
+    | "lifetimeScienceKitsBuilt"
+    | "lifetimeScienceClubsBuilt"
+    | "lifetimeScienceLabsBuilt"
+    | "lifetimeEnergyTrips"
+    | "lifetimeBasicPowerPlantsBuilt"
+    | "lifetimeAdvancedPowerPlantsBuilt"
+    | "lifetimeSolarPowerPlantsBuilt"
+    | "lifetimeSodiumIonBatteriesBuilt"
+    | "lifetimeBattery2Built"
+    | "lifetimeBattery3Built"
     | "lifetimeAntimatterMined"
     | "lifetimeAscendencyPointsGained"
     | "lifetimeAsteroidsDiscovered"
@@ -415,6 +471,13 @@ export type LegacyRunStateV2 = Omit<
   RunState,
   | "economy"
   | "space"
+  | "energyTripsThisRun"
+  | "basicPowerPlantsBuiltThisRun"
+  | "advancedPowerPlantsBuiltThisRun"
+  | "solarPowerPlantsBuiltThisRun"
+  | "sodiumIonBatteriesBuiltThisRun"
+  | "battery2BuiltThisRun"
+  | "battery3BuiltThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
   | "philosophyChoicePending"
@@ -435,6 +498,17 @@ export interface LegacyGameStateV2 {
   readonly statistics: Omit<
     StatisticsState,
     | "lifetimeGoodsProducedByGood"
+    | "lifetimeResearchPointsEarned"
+    | "lifetimeScienceKitsBuilt"
+    | "lifetimeScienceClubsBuilt"
+    | "lifetimeScienceLabsBuilt"
+    | "lifetimeEnergyTrips"
+    | "lifetimeBasicPowerPlantsBuilt"
+    | "lifetimeAdvancedPowerPlantsBuilt"
+    | "lifetimeSolarPowerPlantsBuilt"
+    | "lifetimeSodiumIonBatteriesBuilt"
+    | "lifetimeBattery2Built"
+    | "lifetimeBattery3Built"
     | "lifetimeAntimatterMined"
     | "lifetimeAscendencyPointsGained"
     | "lifetimeAsteroidsDiscovered"
@@ -450,6 +524,13 @@ export interface LegacyGameStateV2 {
 export type LegacyRunStateV3 = Omit<
   RunState,
   | "space"
+  | "energyTripsThisRun"
+  | "basicPowerPlantsBuiltThisRun"
+  | "advancedPowerPlantsBuiltThisRun"
+  | "solarPowerPlantsBuiltThisRun"
+  | "sodiumIonBatteriesBuiltThisRun"
+  | "battery2BuiltThisRun"
+  | "battery3BuiltThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
   | "philosophyChoicePending"
@@ -468,6 +549,17 @@ export interface LegacyGameStateV3 {
   readonly statistics: Omit<
     StatisticsState,
     | "lifetimeGoodsProducedByGood"
+    | "lifetimeResearchPointsEarned"
+    | "lifetimeScienceKitsBuilt"
+    | "lifetimeScienceClubsBuilt"
+    | "lifetimeScienceLabsBuilt"
+    | "lifetimeEnergyTrips"
+    | "lifetimeBasicPowerPlantsBuilt"
+    | "lifetimeAdvancedPowerPlantsBuilt"
+    | "lifetimeSolarPowerPlantsBuilt"
+    | "lifetimeSodiumIonBatteriesBuilt"
+    | "lifetimeBattery2Built"
+    | "lifetimeBattery3Built"
     | "lifetimeAntimatterMined"
     | "lifetimeAscendencyPointsGained"
     | "lifetimeAsteroidsDiscovered"
@@ -567,12 +659,23 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
   ) as Record<EconomicGoodId, GoodState>;
 
   const initialState: GameState = {
-    schemaVersion: 37,
+    schemaVersion: 43,
     run: {
       pioneerName: options.pioneerName?.trim() || "Pioneer",
       hydrogenAutobuyerEnabled: true,
       cash: 10,
       researchPoints: 50,
+      researchPointsEarnedThisRun: 0,
+      scienceKitsBuiltThisRun: 0,
+      scienceClubsBuiltThisRun: 0,
+      scienceLabsBuiltThisRun: 0,
+      energyTripsThisRun: 0,
+      basicPowerPlantsBuiltThisRun: 0,
+      advancedPowerPlantsBuiltThisRun: 0,
+      solarPowerPlantsBuiltThisRun: 0,
+      sodiumIonBatteriesBuiltThisRun: 0,
+      battery2BuiltThisRun: 0,
+      battery3BuiltThisRun: 0,
       goods,
       goodsProducedThisRun: createGoodProductionCounts(),
       unlockedResources: ["hydrogen"],
@@ -620,7 +723,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       locale: options.locale ?? "en",
       themeId: DEFAULT_THEME_ID,
       currencyId: "usd",
-      notation: "standard",
+      notation: "condensed",
       soundEnabled: false,
       backgroundAudioEnabled: false,
       soundEffectsEnabled: false,
@@ -637,14 +740,28 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       lifetimeCashEarned: 0,
       lifetimeGoodsProduced: 0,
       lifetimeGoodsProducedByGood: createGoodProductionCounts(),
+      lifetimeResearchPointsEarned: 0,
+      lifetimeScienceKitsBuilt: 0,
+      lifetimeScienceClubsBuilt: 0,
+      lifetimeScienceLabsBuilt: 0,
+      lifetimeEnergyTrips: 0,
+      lifetimeBasicPowerPlantsBuilt: 0,
+      lifetimeAdvancedPowerPlantsBuilt: 0,
+      lifetimeSolarPowerPlantsBuilt: 0,
+      lifetimeSodiumIonBatteriesBuilt: 0,
+      lifetimeBattery2Built: 0,
+      lifetimeBattery3Built: 0,
       lifetimeAntimatterMined: 0,
       lifetimeAscendencyPointsGained: 0,
+      lifetimeGalacticPointsSpent: 0,
+      lifetimeCosmicRipTelemetryDataEarned: 0,
       lifetimeAsteroidsDiscovered: 0,
       lifetimeLegendaryAsteroidsDiscovered: 0,
       lifetimeAsteroidsMined: 0,
       lifetimeRocketsBuilt: 0,
       lifetimeRocketsLaunched: 0,
       lifetimeStarshipsLaunched: 0,
+      lifetimeStarshipDistanceTravelled: 0,
       lifetimeActiveMs: 0,
       acceptedCommands: 0,
       completedTimers: 0,
@@ -991,6 +1108,114 @@ function validRandomEventCounts(
   );
 }
 
+function addLegacyOneOffOffers(value: unknown): NewsTickerProgress {
+  const saved =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const ids = Array.isArray(saved["offeredOneOffIds"])
+    ? saved["offeredOneOffIds"]
+    : [
+        ...(Array.isArray(saved["seenIds"]) ? saved["seenIds"] : []),
+        ...(Array.isArray(saved["claimedPrizeIds"]) ? saved["claimedPrizeIds"] : []),
+      ];
+  const offeredOneOffIds = Array.from(
+    new Set(
+      ids.filter(
+        (id): id is number =>
+          Number.isSafeInteger(id) &&
+          ONE_OFF_NEWS_IDS.includes(id as (typeof ONE_OFF_NEWS_IDS)[number]),
+      ),
+    ),
+  );
+  return {
+    ...createInitialNewsTickerProgress(),
+    ...saved,
+    offeredOneOffIds,
+  } as unknown as NewsTickerProgress;
+}
+
+function legacyManuscriptClueHistory(megastructuresValue: unknown, newsTickerValue: unknown) {
+  const megastructures =
+    megastructuresValue &&
+    typeof megastructuresValue === "object" &&
+    !Array.isArray(megastructuresValue)
+      ? (megastructuresValue as Record<string, unknown>)
+      : {};
+  const records = Array.isArray(megastructures["ancientManuscripts"])
+    ? megastructures["ancientManuscripts"]
+    : [];
+  const manuscriptSystemIds = new Set(
+    records.flatMap((raw) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+      const id = (raw as Record<string, unknown>)["manuscriptSystemId"];
+      return isSystemId(id) ? [id] : [];
+    }),
+  );
+  const history: Record<string, number[]> = {};
+  const addShown = (systemId: unknown, clueId: unknown) => {
+    if (
+      !isSystemId(systemId) ||
+      !manuscriptSystemIds.has(systemId) ||
+      !Number.isSafeInteger(clueId) ||
+      !MANUSCRIPT_CLUE_NEWS_IDS.includes(clueId as ManuscriptClueNewsId)
+    )
+      return;
+    const ids = (history[systemId] ??= []);
+    if (!ids.includes(clueId as number)) ids.push(clueId as number);
+  };
+
+  const savedHistory = megastructures["manuscriptCluesShown"];
+  if (savedHistory && typeof savedHistory === "object" && !Array.isArray(savedHistory)) {
+    for (const [systemId, rawIds] of Object.entries(savedHistory)) {
+      if (Array.isArray(rawIds)) for (const id of rawIds) addShown(systemId, id);
+    }
+  }
+
+  const newsTicker =
+    newsTickerValue && typeof newsTickerValue === "object" && !Array.isArray(newsTickerValue)
+      ? (newsTickerValue as Record<string, unknown>)
+      : {};
+  const entries = Array.isArray(newsTicker["entries"]) ? newsTicker["entries"] : [];
+  for (const raw of entries) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const entry = raw as Record<string, unknown>;
+    if (entry["category"] === "manuscriptClue") addShown(entry["clueSystemId"], entry["id"]);
+  }
+  return history as MegastructureProgress["manuscriptCluesShown"];
+}
+
+function validManuscriptClueHistory(
+  value: unknown,
+  manuscripts: readonly AncientManuscriptRecord[],
+): value is MegastructureProgress["manuscriptCluesShown"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const manuscriptSystemIds = new Set(
+    (manuscripts as readonly unknown[]).flatMap((raw) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+      const systemId = (raw as Record<string, unknown>)["manuscriptSystemId"];
+      return isSystemId(systemId) ? [systemId] : [];
+    }),
+  );
+  const entries = Object.entries(value);
+  return (
+    entries.length <= 4 &&
+    entries.every(
+      ([systemId, ids]) =>
+        isSystemId(systemId) &&
+        manuscriptSystemIds.has(systemId) &&
+        Array.isArray(ids) &&
+        ids.length <= MANUSCRIPT_CLUE_NEWS_IDS.length &&
+        ids.every(
+          (id) =>
+            Number.isSafeInteger(id) &&
+            MANUSCRIPT_CLUE_NEWS_IDS.includes(id as ManuscriptClueNewsId),
+        ) &&
+        new Set(ids).size === ids.length,
+    )
+  );
+}
+
 function validNewsTickerProgress(value: unknown): value is NewsTickerProgress {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const progress = value as Partial<NewsTickerProgress>;
@@ -1003,6 +1228,7 @@ function validNewsTickerProgress(value: unknown): value is NewsTickerProgress {
       "seenIds",
       "activatedWackyIds",
       "claimedPrizeIds",
+      "offeredOneOffIds",
       "resourceStorageMultiplier",
       "compoundStorageMultiplier",
       "powerCapacityMultiplier",
@@ -1011,7 +1237,7 @@ function validNewsTickerProgress(value: unknown): value is NewsTickerProgress {
     ]) &&
     Number.isFinite(progress.remainingMs) &&
     progress.remainingMs! >= 0 &&
-    progress.remainingMs! <= 35_000 &&
+    progress.remainingMs! <= 75_000 &&
     Array.isArray(progress.entries) &&
     progress.entries.length <= 50 &&
     progress.entries.every(
@@ -1042,12 +1268,20 @@ function validNewsTickerProgress(value: unknown): value is NewsTickerProgress {
           typeof entry.clueSystemId === "string") &&
         typeof entry.claimed === "boolean",
     ) &&
-    [progress.seenIds, progress.activatedWackyIds, progress.claimedPrizeIds].every(
+    [
+      progress.seenIds,
+      progress.activatedWackyIds,
+      progress.claimedPrizeIds,
+      progress.offeredOneOffIds,
+    ].every(
       (ids) =>
         Array.isArray(ids) &&
         ids.length <= 500 &&
         ids.every(Number.isSafeInteger) &&
         new Set(ids).size === ids.length,
+    ) &&
+    progress.offeredOneOffIds!.every((id) =>
+      ONE_OFF_NEWS_IDS.includes(id as (typeof ONE_OFF_NEWS_IDS)[number]),
     ) &&
     [
       progress.resourceStorageMultiplier,
@@ -1215,7 +1449,7 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   const state = value as Partial<GameState>;
   if (
-    state.schemaVersion !== 37 ||
+    state.schemaVersion !== 43 ||
     !state.run ||
     !state.permanent ||
     !state.settings ||
@@ -1230,6 +1464,17 @@ export function isValidGameState(value: unknown): value is GameState {
       "hydrogenAutobuyerEnabled",
       "cash",
       "researchPoints",
+      "researchPointsEarnedThisRun",
+      "scienceKitsBuiltThisRun",
+      "scienceClubsBuiltThisRun",
+      "scienceLabsBuiltThisRun",
+      "energyTripsThisRun",
+      "basicPowerPlantsBuiltThisRun",
+      "advancedPowerPlantsBuiltThisRun",
+      "solarPowerPlantsBuiltThisRun",
+      "sodiumIonBatteriesBuiltThisRun",
+      "battery2BuiltThisRun",
+      "battery3BuiltThisRun",
       "goods",
       "goodsProducedThisRun",
       "unlockedResources",
@@ -1275,14 +1520,28 @@ export function isValidGameState(value: unknown): value is GameState {
       "lifetimeCashEarned",
       "lifetimeGoodsProduced",
       "lifetimeGoodsProducedByGood",
+      "lifetimeResearchPointsEarned",
+      "lifetimeScienceKitsBuilt",
+      "lifetimeScienceClubsBuilt",
+      "lifetimeScienceLabsBuilt",
+      "lifetimeEnergyTrips",
+      "lifetimeBasicPowerPlantsBuilt",
+      "lifetimeAdvancedPowerPlantsBuilt",
+      "lifetimeSolarPowerPlantsBuilt",
+      "lifetimeSodiumIonBatteriesBuilt",
+      "lifetimeBattery2Built",
+      "lifetimeBattery3Built",
       "lifetimeAntimatterMined",
       "lifetimeAscendencyPointsGained",
+      "lifetimeGalacticPointsSpent",
+      "lifetimeCosmicRipTelemetryDataEarned",
       "lifetimeAsteroidsDiscovered",
       "lifetimeLegendaryAsteroidsDiscovered",
       "lifetimeAsteroidsMined",
       "lifetimeRocketsBuilt",
       "lifetimeRocketsLaunched",
       "lifetimeStarshipsLaunched",
+      "lifetimeStarshipDistanceTravelled",
       "lifetimeActiveMs",
       "acceptedCommands",
       "completedTimers",
@@ -1318,6 +1577,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "autoTelescopeEnabled",
       "autoTelescopeMode",
       "starStudyRange",
+      "starshipDistanceTravelledThisRun",
       "launchPadBuilt",
       "asteroids",
       "asteroidsMinedThisRun",
@@ -1363,6 +1623,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "timerId",
       "durationMs",
       "antimatterSpent",
+      "travelDistanceLy",
     ]) ||
     !exactKeys(run.economy.autobuyerEnabled, [
       ...ECONOMIC_GOOD_IDS.flatMap((id) =>
@@ -1395,6 +1656,28 @@ export function isValidGameState(value: unknown): value is GameState {
     run.cash < 0 ||
     !Number.isFinite(run.researchPoints) ||
     run.researchPoints < 0 ||
+    !Number.isFinite(run.researchPointsEarnedThisRun) ||
+    run.researchPointsEarnedThisRun < 0 ||
+    !Number.isSafeInteger(run.scienceKitsBuiltThisRun) ||
+    run.scienceKitsBuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.scienceClubsBuiltThisRun) ||
+    run.scienceClubsBuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.scienceLabsBuiltThisRun) ||
+    run.scienceLabsBuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.energyTripsThisRun) ||
+    run.energyTripsThisRun < 0 ||
+    !Number.isSafeInteger(run.basicPowerPlantsBuiltThisRun) ||
+    run.basicPowerPlantsBuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.advancedPowerPlantsBuiltThisRun) ||
+    run.advancedPowerPlantsBuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.solarPowerPlantsBuiltThisRun) ||
+    run.solarPowerPlantsBuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.sodiumIonBatteriesBuiltThisRun) ||
+    run.sodiumIonBatteriesBuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.battery2BuiltThisRun) ||
+    run.battery2BuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.battery3BuiltThisRun) ||
+    run.battery3BuiltThisRun < 0 ||
     typeof run.goods !== "object" ||
     run.goods === null ||
     !Array.isArray(run.unlockedResources) ||
@@ -1425,6 +1708,8 @@ export function isValidGameState(value: unknown): value is GameState {
     !["asteroids", "stars", "pillageVoid"].includes(run.space.autoTelescopeMode) ||
     !Number.isFinite(run.space.starStudyRange) ||
     run.space.starStudyRange < 0 ||
+    !Number.isFinite(run.space.starshipDistanceTravelledThisRun) ||
+    run.space.starshipDistanceTravelledThisRun < 0 ||
     typeof run.space.launchPadBuilt !== "boolean" ||
     !Number.isSafeInteger(run.space.asteroidsMinedThisRun) ||
     run.space.asteroidsMinedThisRun < 0 ||
@@ -1434,6 +1719,7 @@ export function isValidGameState(value: unknown): value is GameState {
     !permanent.megastructures ||
     !exactKeys(permanent.megastructures, [
       "ancientManuscripts",
+      "manuscriptCluesShown",
       "researchedTechnologyIds",
       "manuscriptRewardClaimed",
       "conquestRewardClaimed",
@@ -1443,6 +1729,10 @@ export function isValidGameState(value: unknown): value is GameState {
     ]) ||
     !Array.isArray(permanent.megastructures.ancientManuscripts) ||
     permanent.megastructures.ancientManuscripts.length > 4 ||
+    !validManuscriptClueHistory(
+      permanent.megastructures.manuscriptCluesShown,
+      permanent.megastructures.ancientManuscripts,
+    ) ||
     !Array.isArray(permanent.megastructures.researchedTechnologyIds) ||
     permanent.megastructures.researchedTechnologyIds.length > MEGASTRUCTURE_TECHNOLOGY_IDS.length ||
     permanent.megastructures.researchedTechnologyIds.some(
@@ -1713,12 +2003,18 @@ export function isValidGameState(value: unknown): value is GameState {
     starship.durationMs < 0 ||
     !Number.isFinite(starship.antimatterSpent) ||
     starship.antimatterSpent < 0 ||
+    (starship.travelDistanceLy !== null &&
+      (!Number.isFinite(starship.travelDistanceLy) || starship.travelDistanceLy < 0)) ||
     (starship.phase === "unlaunched" &&
-      (starship.timerId !== null || starship.durationMs !== 0 || starship.antimatterSpent !== 0)) ||
+      (starship.timerId !== null ||
+        starship.durationMs !== 0 ||
+        starship.antimatterSpent !== 0 ||
+        starship.travelDistanceLy !== null)) ||
     (starship.phase !== "unlaunched" &&
       (starship.destinationSystemId === null ||
         starship.durationMs <= 0 ||
         starship.antimatterSpent <= 0)) ||
+    (starship.phase === "orbiting" && starship.travelDistanceLy !== null) ||
     (starship.phase === "travelling") !== (starship.timerId !== null)
   )
     return false;
@@ -2066,7 +2362,9 @@ export function isValidGameState(value: unknown): value is GameState {
     LOCALE_IDS.includes(settings.locale) &&
     isThemeId(settings.themeId) &&
     (settings.currencyId === undefined || isCurrencyId(settings.currencyId)) &&
-    (settings.notation === "standard" || settings.notation === "scientific") &&
+    (settings.notation === "condensed" ||
+      settings.notation === "standard" ||
+      settings.notation === "scientific") &&
     typeof settings.soundEnabled === "boolean" &&
     (settings.backgroundAudioEnabled === undefined ||
       typeof settings.backgroundAudioEnabled === "boolean") &&
@@ -2094,11 +2392,37 @@ export function isValidGameState(value: unknown): value is GameState {
     statistics.lifetimeCashEarned >= 0 &&
     Number.isFinite(statistics.lifetimeGoodsProduced) &&
     statistics.lifetimeGoodsProduced >= 0 &&
+    Number.isFinite(statistics.lifetimeResearchPointsEarned) &&
+    statistics.lifetimeResearchPointsEarned >= run.researchPointsEarnedThisRun &&
+    Number.isSafeInteger(statistics.lifetimeScienceKitsBuilt) &&
+    statistics.lifetimeScienceKitsBuilt >= run.scienceKitsBuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeScienceClubsBuilt) &&
+    statistics.lifetimeScienceClubsBuilt >= run.scienceClubsBuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeScienceLabsBuilt) &&
+    statistics.lifetimeScienceLabsBuilt >= run.scienceLabsBuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeEnergyTrips) &&
+    statistics.lifetimeEnergyTrips >= run.energyTripsThisRun &&
+    Number.isSafeInteger(statistics.lifetimeBasicPowerPlantsBuilt) &&
+    statistics.lifetimeBasicPowerPlantsBuilt >= run.basicPowerPlantsBuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeAdvancedPowerPlantsBuilt) &&
+    statistics.lifetimeAdvancedPowerPlantsBuilt >= run.advancedPowerPlantsBuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeSolarPowerPlantsBuilt) &&
+    statistics.lifetimeSolarPowerPlantsBuilt >= run.solarPowerPlantsBuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeSodiumIonBatteriesBuilt) &&
+    statistics.lifetimeSodiumIonBatteriesBuilt >= run.sodiumIonBatteriesBuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeBattery2Built) &&
+    statistics.lifetimeBattery2Built >= run.battery2BuiltThisRun &&
+    Number.isSafeInteger(statistics.lifetimeBattery3Built) &&
+    statistics.lifetimeBattery3Built >= run.battery3BuiltThisRun &&
     Number.isFinite(statistics.lifetimeAntimatterMined) &&
     statistics.lifetimeAntimatterMined >= 0 &&
     statistics.lifetimeAntimatterMined >= run.space.antimatterMinedThisRun &&
     Number.isSafeInteger(statistics.lifetimeAscendencyPointsGained) &&
     statistics.lifetimeAscendencyPointsGained >= 0 &&
+    Number.isSafeInteger(statistics.lifetimeGalacticPointsSpent) &&
+    statistics.lifetimeGalacticPointsSpent >= 0 &&
+    Number.isFinite(statistics.lifetimeCosmicRipTelemetryDataEarned) &&
+    statistics.lifetimeCosmicRipTelemetryDataEarned >= 0 &&
     Number.isSafeInteger(statistics.lifetimeAsteroidsDiscovered) &&
     statistics.lifetimeAsteroidsDiscovered >= 0 &&
     Number.isSafeInteger(statistics.lifetimeLegendaryAsteroidsDiscovered) &&
@@ -2113,6 +2437,8 @@ export function isValidGameState(value: unknown): value is GameState {
     statistics.lifetimeRocketsLaunched >= 0 &&
     Number.isSafeInteger(statistics.lifetimeStarshipsLaunched) &&
     statistics.lifetimeStarshipsLaunched >= 0 &&
+    Number.isFinite(statistics.lifetimeStarshipDistanceTravelled) &&
+    statistics.lifetimeStarshipDistanceTravelled >= run.space.starshipDistanceTravelledThisRun &&
     Number.isFinite(statistics.lifetimeActiveMs) &&
     statistics.lifetimeActiveMs >= 0 &&
     Number.isSafeInteger(statistics.acceptedCommands) &&
@@ -2210,6 +2536,7 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
     : [];
   const megastructures: MegastructureProgress = {
     ancientManuscripts,
+    manuscriptCluesShown: {},
     researchedTechnologyIds,
     manuscriptRewardClaimed: false,
     conquestRewardClaimed: false,
@@ -2343,7 +2670,7 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
       blackHoleWarpActive: runState["blackHoleWarpActive"] ?? false,
       achievements: runState["achievements"] ?? createInitialRunAchievementProgress(),
       randomEvents: runState["randomEvents"] ?? createInitialRandomEventProgress(),
-      newsTicker: runState["newsTicker"] ?? createInitialNewsTickerProgress(),
+      newsTicker: addLegacyOneOffOffers(runState["newsTicker"]),
       space: {
         ...spaceWithoutManuscripts,
         systemProfiles,
@@ -2472,6 +2799,26 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
   return upgradeMetaSignalsAndThemes(upgraded as unknown as Record<string, unknown>);
 }
 
+function legacyStarshipTravelDistance(space: Record<string, unknown>): number | null {
+  const rawStarship = space["starship"];
+  if (!rawStarship || typeof rawStarship !== "object" || Array.isArray(rawStarship)) return null;
+  const starship = rawStarship as Record<string, unknown>;
+  if (starship["phase"] !== "travelling" || typeof starship["destinationSystemId"] !== "string")
+    return null;
+  const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
+  const currentSystemId = space["currentSystemId"];
+  const origin =
+    typeof currentSystemId === "string"
+      ? catalogue.find(
+          (star) =>
+            star.id === currentSystemId ||
+            star.name.toLocaleLowerCase("en") === currentSystemId.toLocaleLowerCase("en"),
+        )
+      : undefined;
+  const destination = catalogue.find((star) => star.id === starship["destinationSystemId"]);
+  return origin && destination ? distanceBetweenStars(origin, destination) : null;
+}
+
 function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState | null {
   const run = value["run"];
   const permanent = value["permanent"];
@@ -2501,6 +2848,12 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
     savedSpace && typeof savedSpace === "object" && !Array.isArray(savedSpace)
       ? (savedSpace as Record<string, unknown>)
       : {};
+  const starshipState =
+    spaceState["starship"] &&
+    typeof spaceState["starship"] === "object" &&
+    !Array.isArray(spaceState["starship"])
+      ? (spaceState["starship"] as Record<string, unknown>)
+      : (createInitialSpaceState().starship as unknown as Record<string, unknown>);
   const themeId = isThemeId(settingsState["themeId"]) ? settingsState["themeId"] : DEFAULT_THEME_ID;
   const achievement = permanentState["achievements"];
   const randomEvents = runState["randomEvents"];
@@ -2527,7 +2880,7 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
       : [];
   const candidate = {
     ...value,
-    schemaVersion: 37,
+    schemaVersion: 43,
     settings: {
       ...settingsState,
       themeId,
@@ -2535,6 +2888,33 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
     },
     run: {
       ...runState,
+      researchPointsEarnedThisRun:
+        Number.isFinite(runState["researchPointsEarnedThisRun"]) &&
+        Number(runState["researchPointsEarnedThisRun"]) >= 0
+          ? Number(runState["researchPointsEarnedThisRun"])
+          : 0,
+      scienceKitsBuiltThisRun:
+        Number.isSafeInteger(runState["scienceKitsBuiltThisRun"]) &&
+        Number(runState["scienceKitsBuiltThisRun"]) >= 0
+          ? Number(runState["scienceKitsBuiltThisRun"])
+          : 0,
+      scienceClubsBuiltThisRun:
+        Number.isSafeInteger(runState["scienceClubsBuiltThisRun"]) &&
+        Number(runState["scienceClubsBuiltThisRun"]) >= 0
+          ? Number(runState["scienceClubsBuiltThisRun"])
+          : 0,
+      scienceLabsBuiltThisRun:
+        Number.isSafeInteger(runState["scienceLabsBuiltThisRun"]) &&
+        Number(runState["scienceLabsBuiltThisRun"]) >= 0
+          ? Number(runState["scienceLabsBuiltThisRun"])
+          : 0,
+      energyTripsThisRun: 0,
+      basicPowerPlantsBuiltThisRun: 0,
+      advancedPowerPlantsBuiltThisRun: 0,
+      solarPowerPlantsBuiltThisRun: 0,
+      sodiumIonBatteriesBuiltThisRun: 0,
+      battery2BuiltThisRun: 0,
+      battery3BuiltThisRun: 0,
       goodsProducedThisRun: validGoodProductionCounts(runState["goodsProducedThisRun"])
         ? runState["goodsProducedThisRun"]
         : createGoodProductionCounts(),
@@ -2554,8 +2934,14 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
           )
         : [],
       navigationAttentionInitialized: runState["navigationAttentionInitialized"] === true,
+      newsTicker: addLegacyOneOffOffers(runState["newsTicker"]),
       space: {
         ...spaceState,
+        starshipDistanceTravelledThisRun: 0,
+        starship: {
+          ...starshipState,
+          travelDistanceLy: legacyStarshipTravelDistance(spaceState),
+        },
         asteroidsMinedThisRun:
           Number.isSafeInteger(spaceState["asteroidsMinedThisRun"]) &&
           Number(spaceState["asteroidsMinedThisRun"]) >= 0
@@ -2565,6 +2951,18 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
     },
     permanent: {
       ...permanentState,
+      megastructures: (() => {
+        const saved = permanentState["megastructures"];
+        const megastructures =
+          saved && typeof saved === "object" && !Array.isArray(saved)
+            ? (saved as Record<string, unknown>)
+            : {};
+        return {
+          ...createInitialMegastructureProgress(),
+          ...megastructures,
+          manuscriptCluesShown: legacyManuscriptClueHistory(megastructures, runState["newsTicker"]),
+        };
+      })(),
       achievements:
         achievement && typeof achievement === "object" && !Array.isArray(achievement)
           ? {
@@ -2584,12 +2982,42 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
       )
         ? statisticsState["lifetimeGoodsProducedByGood"]
         : createGoodProductionCounts(),
+      lifetimeResearchPointsEarned:
+        Number.isFinite(statisticsState["lifetimeResearchPointsEarned"]) &&
+        Number(statisticsState["lifetimeResearchPointsEarned"]) >= 0
+          ? Number(statisticsState["lifetimeResearchPointsEarned"])
+          : 0,
+      lifetimeScienceKitsBuilt:
+        Number.isSafeInteger(statisticsState["lifetimeScienceKitsBuilt"]) &&
+        Number(statisticsState["lifetimeScienceKitsBuilt"]) >= 0
+          ? Number(statisticsState["lifetimeScienceKitsBuilt"])
+          : 0,
+      lifetimeScienceClubsBuilt:
+        Number.isSafeInteger(statisticsState["lifetimeScienceClubsBuilt"]) &&
+        Number(statisticsState["lifetimeScienceClubsBuilt"]) >= 0
+          ? Number(statisticsState["lifetimeScienceClubsBuilt"])
+          : 0,
+      lifetimeScienceLabsBuilt:
+        Number.isSafeInteger(statisticsState["lifetimeScienceLabsBuilt"]) &&
+        Number(statisticsState["lifetimeScienceLabsBuilt"]) >= 0
+          ? Number(statisticsState["lifetimeScienceLabsBuilt"])
+          : 0,
+      lifetimeEnergyTrips: 0,
+      lifetimeBasicPowerPlantsBuilt: 0,
+      lifetimeAdvancedPowerPlantsBuilt: 0,
+      lifetimeSolarPowerPlantsBuilt: 0,
+      lifetimeSodiumIonBatteriesBuilt: 0,
+      lifetimeBattery2Built: 0,
+      lifetimeBattery3Built: 0,
       lifetimeRandomEventCounts: validRandomEventCounts(
         statisticsState["lifetimeRandomEventCounts"],
       )
         ? statisticsState["lifetimeRandomEventCounts"]
         : createRandomEventCounts(),
       lifetimeAscendencyPointsGained: statisticsState["lifetimeAscendencyPointsGained"] ?? 0,
+      lifetimeGalacticPointsSpent: statisticsState["lifetimeGalacticPointsSpent"] ?? 0,
+      lifetimeCosmicRipTelemetryDataEarned:
+        statisticsState["lifetimeCosmicRipTelemetryDataEarned"] ?? 0,
       lifetimeAsteroidsDiscovered: statisticsState["lifetimeAsteroidsDiscovered"] ?? 0,
       lifetimeLegendaryAsteroidsDiscovered:
         statisticsState["lifetimeLegendaryAsteroidsDiscovered"] ?? 0,
@@ -2597,6 +3025,7 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
       lifetimeRocketsBuilt: statisticsState["lifetimeRocketsBuilt"] ?? 0,
       lifetimeRocketsLaunched: statisticsState["lifetimeRocketsLaunched"] ?? 0,
       lifetimeStarshipsLaunched: statisticsState["lifetimeStarshipsLaunched"] ?? 0,
+      lifetimeStarshipDistanceTravelled: statisticsState["lifetimeStarshipDistanceTravelled"] ?? 0,
     },
   };
   return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;
@@ -3016,6 +3445,141 @@ export function upgradeGameStateV36(value: unknown): GameState | null {
   const legacy = value as Record<string, unknown>;
   if (legacy["schemaVersion"] !== 36) return null;
   return upgradeMetaSignalsAndThemes(legacy);
+}
+
+/** Adds lifetime Cosmic Rip resource counters to v37 saves without inferring old history. */
+export function upgradeGameStateV37(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const statistics = legacy["statistics"];
+  if (
+    legacy["schemaVersion"] !== 37 ||
+    !statistics ||
+    typeof statistics !== "object" ||
+    Array.isArray(statistics)
+  )
+    return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 38,
+    statistics: {
+      ...(statistics as Record<string, unknown>),
+      lifetimeGalacticPointsSpent: 0,
+      lifetimeCosmicRipTelemetryDataEarned: 0,
+    },
+  };
+  return upgradeGameStateV38(candidate);
+}
+
+/** Records v38 one-off offers separately from claims, preserving seen offers. */
+export function upgradeGameStateV38(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 38) return null;
+  return upgradeMetaSignalsAndThemes(legacy);
+}
+
+/** Adds Research history counters to v39 saves without inferring past production or builds. */
+export function upgradeGameStateV39(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 39) return null;
+  return upgradeMetaSignalsAndThemes(legacy);
+}
+
+/** Adds per-manuscript News Ticker clue history to v40 saves. */
+export function upgradeGameStateV40(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 40) return null;
+  return upgradeMetaSignalsAndThemes(legacy);
+}
+
+/** Adds Energy Statistics history to v41 saves without inferring pre-v42 activity. */
+export function upgradeGameStateV41(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const run = legacy["run"];
+  const statistics = legacy["statistics"];
+  if (
+    legacy["schemaVersion"] !== 41 ||
+    !run ||
+    typeof run !== "object" ||
+    Array.isArray(run) ||
+    !statistics ||
+    typeof statistics !== "object" ||
+    Array.isArray(statistics)
+  )
+    return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 42,
+    run: {
+      ...(run as Record<string, unknown>),
+      energyTripsThisRun: 0,
+      basicPowerPlantsBuiltThisRun: 0,
+      advancedPowerPlantsBuiltThisRun: 0,
+      solarPowerPlantsBuiltThisRun: 0,
+      sodiumIonBatteriesBuiltThisRun: 0,
+      battery2BuiltThisRun: 0,
+      battery3BuiltThisRun: 0,
+    },
+    statistics: {
+      ...(statistics as Record<string, unknown>),
+      lifetimeEnergyTrips: 0,
+      lifetimeBasicPowerPlantsBuilt: 0,
+      lifetimeAdvancedPowerPlantsBuilt: 0,
+      lifetimeSolarPowerPlantsBuilt: 0,
+      lifetimeSodiumIonBatteriesBuilt: 0,
+      lifetimeBattery2Built: 0,
+      lifetimeBattery3Built: 0,
+    },
+  };
+  return upgradeGameStateV42(candidate);
+}
+
+/** Adds Starship distance history to v42 saves without inferring completed journeys. */
+export function upgradeGameStateV42(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const run = legacy["run"];
+  const statistics = legacy["statistics"];
+  if (
+    legacy["schemaVersion"] !== 42 ||
+    !run ||
+    typeof run !== "object" ||
+    Array.isArray(run) ||
+    !statistics ||
+    typeof statistics !== "object" ||
+    Array.isArray(statistics)
+  )
+    return null;
+  const runState = run as Record<string, unknown>;
+  const rawSpace = runState["space"];
+  if (!rawSpace || typeof rawSpace !== "object" || Array.isArray(rawSpace)) return null;
+  const space = rawSpace as Record<string, unknown>;
+  const rawStarship = space["starship"];
+  if (!rawStarship || typeof rawStarship !== "object" || Array.isArray(rawStarship)) return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 43,
+    run: {
+      ...runState,
+      space: {
+        ...space,
+        starshipDistanceTravelledThisRun: 0,
+        starship: {
+          ...(rawStarship as Record<string, unknown>),
+          travelDistanceLy: legacyStarshipTravelDistance(space),
+        },
+      },
+    },
+    statistics: {
+      ...(statistics as Record<string, unknown>),
+      lifetimeStarshipDistanceTravelled: 0,
+    },
+  };
+  return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;
 }
 
 /** Adds permanent theme history and minute-based instability timing to v30 saves. */

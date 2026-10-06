@@ -3,15 +3,19 @@ import {
   ECONOMIC_GOOD_IDS,
   MATERIAL_IDS,
   isEconomicGoodId,
+  isSystemId,
   type EconomicGoodId,
+  type SystemId,
 } from "../content/ids";
 import {
   MANUSCRIPT_CLUE_NEWS_IDS,
   NEWS_CATEGORIES,
+  ONE_OFF_NEWS_IDS,
   PRIZE_NEWS_IDS,
   WACKY_NEWS_IDS,
   type NewsCategory,
 } from "../content/metaSignals";
+import { MEGASTRUCTURE_IDS } from "../content/technology";
 import { nextRandom, nextRandomInteger } from "./random";
 import { addLifetimeCount } from "./statistics";
 import type { GameState } from "./state";
@@ -32,8 +36,10 @@ const NEWS_GOODS: readonly EconomicGoodId[] = [
   "titanium",
   "water",
 ];
-const ONE_OFF_IDS = Array.from({ length: 14 }, (_, index) => 3000 + index);
 const MANUSCRIPT_CLUE_CHANCE = 0.25;
+const TICKER_SCROLL_DURATION_MS = 40_000;
+const TICKER_INTERVAL_MIN_MS = 20_000;
+const TICKER_INTERVAL_MAX_MS = 35_000;
 
 export type NewsTickerEvent =
   | { readonly type: "news.ticker.created"; readonly id: number; readonly category: NewsCategory }
@@ -60,6 +66,85 @@ function randomIndex(
   return { state: { ...state, run: { ...state.run, random: draw.state } }, index: draw.value };
 }
 
+interface EligibleManuscriptClue {
+  readonly manuscriptSystemId: SystemId;
+  readonly usedCount: number;
+  readonly availableTemplateIds: readonly number[];
+}
+
+function eligibleManuscriptClues(state: GameState): readonly EligibleManuscriptClue[] {
+  const history = state.permanent.megastructures.manuscriptCluesShown;
+  const seenManuscripts = new Set<SystemId>();
+  const eligible: EligibleManuscriptClue[] = [];
+  for (const record of state.permanent.megastructures.ancientManuscripts) {
+    if (
+      !record ||
+      typeof record !== "object" ||
+      record.reported !== false ||
+      !isSystemId(record.manuscriptSystemId) ||
+      !isSystemId(record.factorySystemId) ||
+      record.manuscriptSystemId === record.factorySystemId ||
+      !Number.isSafeInteger(record.position) ||
+      record.position < 1 ||
+      record.position > 4 ||
+      !MEGASTRUCTURE_IDS.includes(record.megastructureId) ||
+      seenManuscripts.has(record.manuscriptSystemId)
+    )
+      continue;
+    seenManuscripts.add(record.manuscriptSystemId);
+    const rawShownIds = history[record.manuscriptSystemId];
+    const shownIds = Array.isArray(rawShownIds)
+      ? Array.from(
+          new Set(
+            rawShownIds.filter(
+              (id) =>
+                Number.isSafeInteger(id) &&
+                MANUSCRIPT_CLUE_NEWS_IDS.includes(id as (typeof MANUSCRIPT_CLUE_NEWS_IDS)[number]),
+            ),
+          ),
+        )
+      : [];
+    const availableTemplateIds = MANUSCRIPT_CLUE_NEWS_IDS.filter((id) => !shownIds.includes(id));
+    if (availableTemplateIds.length > 0)
+      eligible.push({
+        manuscriptSystemId: record.manuscriptSystemId,
+        usedCount: shownIds.length,
+        availableTemplateIds,
+      });
+  }
+  return eligible;
+}
+
+function selectManuscriptClue(
+  state: GameState,
+  requestedId?: number,
+): {
+  readonly state: GameState;
+  readonly id: number;
+  readonly manuscriptSystemId: SystemId;
+} | null {
+  const eligible = eligibleManuscriptClues(state);
+  if (eligible.length === 0) return null;
+  const leastUsedCount = Math.min(...eligible.map((candidate) => candidate.usedCount));
+  const leastUsed = eligible.filter((candidate) => candidate.usedCount === leastUsedCount);
+  const manuscriptDraw = randomIndex(state, leastUsed.length);
+  const manuscript = leastUsed[manuscriptDraw.index]!;
+  if (requestedId !== undefined) {
+    if (!manuscript.availableTemplateIds.includes(requestedId)) return null;
+    return {
+      state: manuscriptDraw.state,
+      id: requestedId,
+      manuscriptSystemId: manuscript.manuscriptSystemId,
+    };
+  }
+  const templateDraw = randomIndex(manuscriptDraw.state, manuscript.availableTemplateIds.length);
+  return {
+    state: templateDraw.state,
+    id: manuscript.availableTemplateIds[templateDraw.index]!,
+    manuscriptSystemId: manuscript.manuscriptSystemId,
+  };
+}
+
 function availableFor(state: GameState, category: NewsCategory): readonly number[] {
   if (category === "wacky") return WACKY_NEWS_IDS;
   if (category === "prize")
@@ -72,12 +157,12 @@ function availableFor(state: GameState, category: NewsCategory): readonly number
       );
     });
   if (category === "oneOff")
-    return ONE_OFF_IDS.filter((id) => !state.run.newsTicker.claimedPrizeIds.includes(id));
+    return ONE_OFF_NEWS_IDS.filter((id) => !state.run.newsTicker.offeredOneOffIds.includes(id));
   if (category === "manuscriptClue")
-    return MANUSCRIPT_CLUE_NEWS_IDS.filter(
-      (id) =>
-        !state.run.newsTicker.seenIds.includes(id) &&
-        state.permanent.megastructures.ancientManuscripts.some((record) => !record.reported),
+    return Array.from(
+      new Set(
+        eligibleManuscriptClues(state).flatMap((candidate) => candidate.availableTemplateIds),
+      ),
     );
   return Array.from({ length: 200 }, (_, index) => index).filter(
     (id) => !state.run.newsTicker.seenIds.includes(id),
@@ -117,16 +202,25 @@ export function forceNewsTicker(state: GameState, category?: NewsCategory, reque
     next = picked.state;
     selectedCategory = picked.category;
   }
-  const available = availableFor(next, selectedCategory);
-  if (available.length === 0) return null;
   let chosenId: number;
-  if (requestedId !== undefined) {
-    if (!available.includes(requestedId)) return null;
-    chosenId = requestedId;
+  let clueSystemId: SystemId | null = null;
+  if (selectedCategory === "manuscriptClue") {
+    const selection = selectManuscriptClue(next, requestedId);
+    if (!selection) return null;
+    next = selection.state;
+    chosenId = selection.id;
+    clueSystemId = selection.manuscriptSystemId;
   } else {
-    const draw = randomIndex(next, available.length);
-    next = draw.state;
-    chosenId = available[draw.index]!;
+    const available = availableFor(next, selectedCategory);
+    if (available.length === 0) return null;
+    if (requestedId !== undefined) {
+      if (!available.includes(requestedId)) return null;
+      chosenId = requestedId;
+    } else {
+      const draw = randomIndex(next, available.length);
+      next = draw.state;
+      chosenId = available[draw.index]!;
+    }
   }
   const goodId = selectedCategory === "prize" ? NEWS_GOODS[chosenId - 2000]! : null;
   let prizeAmount: number | null = null;
@@ -141,18 +235,28 @@ export function forceNewsTicker(state: GameState, category?: NewsCategory, reque
     next = { ...next, run: { ...next.run, random: amountRoll.state } };
     prizeAmount = amountRoll.value;
   }
-  let clueSystemId: string | null = null;
-  if (selectedCategory === "manuscriptClue") {
-    const eligibleManuscripts = next.permanent.megastructures.ancientManuscripts.filter(
-      (record) => !record.reported,
-    );
-    if (eligibleManuscripts.length > 0) {
-      const draw = randomIndex(next, eligibleManuscripts.length);
-      next = draw.state;
-      clueSystemId = eligibleManuscripts[draw.index]!.manuscriptSystemId;
-    }
+  if (clueSystemId) {
+    const megastructures = next.permanent.megastructures;
+    const previouslyShown = megastructures.manuscriptCluesShown[clueSystemId] ?? [];
+    next = {
+      ...next,
+      permanent: {
+        ...next.permanent,
+        megastructures: {
+          ...megastructures,
+          manuscriptCluesShown: {
+            ...megastructures.manuscriptCluesShown,
+            [clueSystemId]: [...previouslyShown, chosenId],
+          },
+        },
+      },
+    };
   }
-  const interval = nextRandomInteger(next.run.random, 20_000, 35_000);
+  const interval = nextRandomInteger(
+    next.run.random,
+    TICKER_INTERVAL_MIN_MS,
+    TICKER_INTERVAL_MAX_MS,
+  );
   next = { ...next, run: { ...next.run, random: interval.state } };
   const entry = {
     id: chosenId,
@@ -168,15 +272,20 @@ export function forceNewsTicker(state: GameState, category?: NewsCategory, reque
   const seenIds = ticker.seenIds.includes(chosenId)
     ? ticker.seenIds
     : [...ticker.seenIds, chosenId];
+  const offeredOneOffIds =
+    selectedCategory === "oneOff" && !ticker.offeredOneOffIds.includes(chosenId)
+      ? [...ticker.offeredOneOffIds, chosenId]
+      : ticker.offeredOneOffIds;
   next = {
     ...next,
     run: {
       ...next.run,
       newsTicker: {
         ...ticker,
-        remainingMs: interval.value,
+        remainingMs: TICKER_SCROLL_DURATION_MS + interval.value,
         entries: [...ticker.entries, entry].slice(-50),
         seenIds,
+        offeredOneOffIds,
       },
     },
   };
@@ -360,24 +469,31 @@ export function claimNewsPrize(state: GameState, id: number) {
 
 export function advanceNewsTicker(stateValue: GameState, elapsedMs: number) {
   if (elapsedMs <= 0) return { state: stateValue, events: [] as readonly NewsTickerEvent[] };
-  let state = stateValue;
-  let remaining = state.run.newsTicker.remainingMs - elapsedMs;
-  const events: NewsTickerEvent[] = [];
-  let iterations = 0;
-  while (remaining <= 0 && iterations < 20) {
-    const next = forceNewsTicker(state);
-    if (!next) break;
-    state = next.state;
-    events.push(...next.events);
-    remaining += state.run.newsTicker.remainingMs;
-    iterations += 1;
-  }
-  state = {
-    ...state,
-    run: {
-      ...state.run,
-      newsTicker: { ...state.run.newsTicker, remainingMs: Math.max(0, remaining) },
+  const remaining = stateValue.run.newsTicker.remainingMs - elapsedMs;
+  if (remaining > 0)
+    return {
+      state: {
+        ...stateValue,
+        run: {
+          ...stateValue.run,
+          newsTicker: { ...stateValue.run.newsTicker, remainingMs: remaining },
+        },
+      },
+      events: [] as readonly NewsTickerEvent[],
+    };
+
+  // A long simulation step can cross multiple intervals. Generate only one
+  // message at a time and start a fresh scroll-plus-wait interval from here.
+  const next = forceNewsTicker(stateValue);
+  if (next) return next;
+  return {
+    state: {
+      ...stateValue,
+      run: {
+        ...stateValue.run,
+        newsTicker: { ...stateValue.run.newsTicker, remainingMs: 0 },
+      },
     },
+    events: [] as readonly NewsTickerEvent[],
   };
-  return { state, events };
 }

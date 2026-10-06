@@ -6,24 +6,24 @@ describe("weather particle motion geometry", () => {
   const width = 1_280;
   const height = 720;
 
-  it("sends rain from two viewport widths left to its source X as it falls", () => {
+  it("moves rain horizontally across one viewport width on either side of its source", () => {
     expect(weatherParticlePosition("rain", sourceX, width, height, 0)).toEqual({
-      x: sourceX - 2 * width,
+      x: sourceX - width,
       y: -1.5 * height,
     });
     expect(weatherParticlePosition("rain", sourceX, width, height, 1)).toEqual({
-      x: sourceX,
+      x: sourceX + width,
       y: 1.5 * height,
     });
   });
 
   it("keeps lava on its source column while it falls from above to below the viewport", () => {
     expect(weatherParticlePosition("volcano", sourceX, width, height, 0)).toEqual({
-      x: sourceX - width,
+      x: sourceX,
       y: -1.5 * height,
     });
     expect(weatherParticlePosition("volcano", sourceX, width, height, 1)).toEqual({
-      x: sourceX - width,
+      x: sourceX,
       y: height,
     });
   });

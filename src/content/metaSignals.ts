@@ -19,12 +19,16 @@ export const NEWS_CATEGORIES = ["wacky", "prize", "oneOff", "manuscriptClue", "h
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
 
 export const WACKY_NEWS_IDS = [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007] as const;
+export const ONE_OFF_NEWS_IDS = [
+  3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 3011, 3012, 3013,
+] as const;
 export const PRIZE_NEWS_IDS = [
   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013,
 ] as const;
 export const MANUSCRIPT_CLUE_NEWS_IDS = [
   4000, 4001, 4002, 4003, 4004, 4005, 4006, 4007, 4008, 4009,
 ] as const;
+export type ManuscriptClueNewsId = (typeof MANUSCRIPT_CLUE_NEWS_IDS)[number];
 
 export interface RandomEventHistoryEntry {
   readonly id: RandomEventId;
@@ -91,6 +95,8 @@ export interface NewsTickerProgress {
   readonly seenIds: readonly number[];
   readonly activatedWackyIds: readonly number[];
   readonly claimedPrizeIds: readonly number[];
+  /** One-off reward IDs already offered; independent of whether the reward was claimed. */
+  readonly offeredOneOffIds: readonly number[];
   readonly resourceStorageMultiplier: number;
   readonly compoundStorageMultiplier: number;
   readonly powerCapacityMultiplier: number;
@@ -134,6 +140,7 @@ export function createInitialNewsTickerProgress(): NewsTickerProgress {
     seenIds: [],
     activatedWackyIds: [],
     claimedPrizeIds: [],
+    offeredOneOffIds: [],
     resourceStorageMultiplier: 1,
     compoundStorageMultiplier: 1,
     powerCapacityMultiplier: 1,

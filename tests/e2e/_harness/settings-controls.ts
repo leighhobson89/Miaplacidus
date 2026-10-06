@@ -9,7 +9,7 @@ export async function setGameLocale(page: Page, locale: string): Promise<void> {
 
 export async function setNumberNotation(
   page: Page,
-  notation: "standard" | "scientific",
+  notation: "condensed" | "standard" | "scientific",
 ): Promise<void> {
   await page.locator("#tab-settings").click();
   await page.locator("#tab-settings-visual").click();

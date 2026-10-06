@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COMPOUND_IDS, ECONOMIC_GOOD_IDS } from "../../src/content/ids";
+import { LOCALE_IDS } from "../../src/content/ids";
 import { STARSHIP_MODULES } from "../../src/content/space";
 import { MEGASTRUCTURE_TECHNOLOGY_IDS, MEGASTRUCTURE_TRACKS } from "../../src/content/technology";
 import { createStarCatalogue } from "../../src/content/starCatalogue";
@@ -21,6 +22,7 @@ import { createInitialGameState, isValidGameState, type GameState } from "../../
 import { generateStarSystemEncounter } from "../../src/engine/starSystemEncounters";
 import { ensureDiscoveredStarSystemProfiles } from "../../src/engine/starSystemProfiles";
 import { createTimerId } from "../../src/engine/timers";
+import { megastructureText } from "../../src/i18n/megastructureMessages";
 
 const catalogue = createStarCatalogue();
 const awaySystemId = catalogue.find((star) => star.name === "Spica")!.id;
@@ -430,6 +432,27 @@ describe("megastructure progression", () => {
     expect(retry.accepted).toBe(true);
     expect(retry.state.run.space.systemEncounters[0]?.battle.phase).toBe("inProgress");
     expect(retry.state.run.timers[battleTimerId]?.status).toBe("running");
+  });
+});
+
+describe("megastructure research guidance localization", () => {
+  it("provides localized disabled-reason templates in all six locales", () => {
+    for (const locale of LOCALE_IDS) {
+      const text = megastructureText(locale);
+      expect(text.insufficientResearch).toContain("{required}");
+      expect(text.insufficientResearch).toContain("{shortfall}");
+      expect(text.missingPrerequisites).toContain("{technologies}");
+      expect(text.researchUnavailable.trim()).not.toBe("");
+      expect(text.notSettled.trim()).not.toBe("");
+      expect(text.notAtFactory.trim()).not.toBe("");
+
+      expect(
+        text.insufficientResearch.replace("{required}", "200,000").replace("{shortfall}", "50,000"),
+      ).not.toMatch(/\{(?:required|shortfall)\}/);
+      expect(
+        text.missingPrerequisites.replace("{technologies}", "Orbital Construction"),
+      ).not.toMatch(/\{technologies\}/);
+    }
   });
 });
 

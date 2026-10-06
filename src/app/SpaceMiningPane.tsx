@@ -20,6 +20,7 @@ import {
 import { economyGoodName } from "./economyDisplay";
 import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
+import { formatDuration } from "./timeFormatting";
 import { checkPreconditions, type PreconditionResult } from "../engine/commands";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
@@ -178,8 +179,20 @@ function RocketAssemblyCard({
   const pumpReason = disabledReason(state, pumpCheck);
   const pumpStartReason = disabledReason(state, pumpStartCheck);
   const launchReason = disabledReason(state, launchCheck);
-  const travelReason = travelCheck ? disabledReason(state, travelCheck) : null;
+  const travelReason = travelCheck
+    ? disabledReason(state, travelCheck)
+    : rocketText(locale, "reasonAsteroidUnavailable");
   const journeyTimer = rocket.timerId ? state.run.timers[rocket.timerId] : null;
+  const journeyRemainingMs = journeyTimer
+    ? Math.max(0, journeyTimer.durationMs - journeyTimer.elapsedMs)
+    : 0;
+  const fuelRemaining = Math.max(0, fuelCapacity - rocket.fuelQuantity);
+  const pumpRate = rocketFuelRatePerSecond(state);
+  const powerAvailable = state.run.economy.power.gridEnabled && !state.run.economy.power.tripped;
+  const fuelEtaMs =
+    rocket.fuelPumpEnabled && powerAvailable && pumpRate > 0 && fuelRemaining > 0
+      ? (fuelRemaining / pumpRate) * 1_000
+      : null;
 
   function dispatch(command: Parameters<GameStore["dispatch"]>[0], success: string) {
     const result = store.dispatch(command);
@@ -317,6 +330,21 @@ function RocketAssemblyCard({
                     max={fuelCapacity}
                     value={rocket.fuelQuantity}
                   />
+                  {fuelRemaining > 0 && (
+                    <p
+                      className="space-range-readout"
+                      data-testid={`rocket-fuel-eta-${rocketId}`}
+                      data-remaining-ms={fuelEtaMs ?? undefined}
+                    >
+                      {fuelEtaMs === null
+                        ? rocket.fuelPumpEnabled && !powerAvailable
+                          ? rocketText(locale, "reasonNoGrid")
+                          : rocketText(locale, "fuelingPaused")
+                        : rocketText(locale, "fuelingTimeRemaining", {
+                            time: formatDuration(locale, fuelEtaMs),
+                          })}
+                    </p>
+                  )}
                   {rocket.fuelQuantity < fuelCapacity && (
                     <button
                       className="text-button"
@@ -393,13 +421,24 @@ function RocketAssemblyCard({
             </>
           )}
           {(rocket.phase === "outbound" || rocket.phase === "returning") && journeyTimer && (
-            <meter
-              className="space-survey-progress"
-              min={0}
-              max={100}
-              value={remainingPercent(state, journeyTimer.id)}
-              aria-label={rocketPhaseText(state, rocket.phase)}
-            />
+            <>
+              <p
+                className="space-range-readout"
+                data-testid={`rocket-journey-countdown-${rocketId}`}
+                data-remaining-ms={journeyRemainingMs}
+              >
+                {rocketText(locale, "journeyTimeRemaining", {
+                  time: formatDuration(locale, journeyRemainingMs),
+                })}
+              </p>
+              <meter
+                className="space-survey-progress"
+                min={0}
+                max={100}
+                value={remainingPercent(state, journeyTimer.id)}
+                aria-label={rocketPhaseText(state, rocket.phase)}
+              />
+            </>
           )}
           {rocket.phase === "mining" && rocketTargetAsteroid && (
             <p className="space-rocket-parts">
@@ -442,13 +481,9 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
   const space = state.run.space;
   const currentWeather = currentWeatherForSystem(space);
   const weatherTimer = state.run.timers[STAR_WEATHER_TIMER_ID];
-  const weatherChangeInSeconds = weatherTimer
-    ? Math.max(0, Math.ceil((weatherTimer.durationMs - weatherTimer.elapsedMs) / 1000))
+  const weatherChangeInMs = weatherTimer
+    ? Math.max(0, weatherTimer.durationMs - weatherTimer.elapsedMs)
     : 0;
-  const currentPrecipitationRate =
-    currentWeather === "rain" || currentWeather === "heavyRain"
-      ? space.currentPrecipitationRate
-      : 0;
   const antimatterRate = antimatterMiningRatePerSecond(state);
   const autoTelescopeUnlocked =
     space.autoTelescopeUnlocked ||
@@ -498,6 +533,9 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
         : space.activeSurvey === "pillageVoid"
           ? state.run.timers[VOID_PILLAGE_TIMER_ID]
           : null;
+  const surveyRemainingMs = surveyTimer
+    ? Math.max(0, surveyTimer.durationMs - surveyTimer.elapsedMs)
+    : 0;
 
   useEffect(() => {
     const previous = previousOutcomeState.current;
@@ -642,6 +680,31 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
         </div>
       </div>
 
+      {activePane === "space-mining-launch-pad" && (
+        <div className="space-weather-overview" data-testid="space-weather-overview">
+          <div className="space-weather-scene">
+            <CelestialIllustration
+              kind="weather"
+              weather={currentWeather}
+              className="weather-mark"
+            />
+          </div>
+          <p className="space-range-readout">
+            {spaceText(locale, "systemWeather")}:{" "}
+            <strong data-testid="space-current-weather">
+              {spaceText(locale, WEATHER_MESSAGES[currentWeather])}
+            </strong>
+          </p>
+          <p
+            className="space-range-readout"
+            data-testid="space-weather-timer"
+            data-remaining-ms={weatherChangeInMs}
+          >
+            {spaceText(locale, "weatherChangesIn")}: {formatDuration(locale, weatherChangeInMs)}
+          </p>
+        </div>
+      )}
+
       <section
         className="space-card"
         aria-labelledby="space-telescope-title"
@@ -688,14 +751,25 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
               {surveyState}
             </p>
             {surveyTimer && (
-              <meter
-                className="space-survey-progress"
-                data-testid="space-survey-progress"
-                min={0}
-                max={100}
-                value={remainingPercent(state, surveyTimer.id)}
-                aria-label={surveyState}
-              />
+              <>
+                <p
+                  className="space-range-readout"
+                  data-testid="space-survey-countdown"
+                  data-remaining-ms={surveyRemainingMs}
+                >
+                  {spaceText(locale, "surveyTimeRemaining", {
+                    time: formatDuration(locale, surveyRemainingMs),
+                  })}
+                </p>
+                <meter
+                  className="space-survey-progress"
+                  data-testid="space-survey-progress"
+                  min={0}
+                  max={100}
+                  value={remainingPercent(state, surveyTimer.id)}
+                  aria-label={surveyState}
+                />
+              </>
             )}
             <div className="space-action-row">
               <button
@@ -864,6 +938,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                 className="secondary-button"
                 type="button"
                 disabled={antimatterRate <= 0}
+                aria-describedby={antimatterRate <= 0 ? "antimatter-boost-reason" : undefined}
                 aria-pressed={space.antimatterBoostActive}
                 aria-label={spaceText(locale, "boostHold")}
                 data-testid="antimatter-boost"
@@ -895,6 +970,15 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
               >
                 {spaceText(locale, "boostHold")}
               </button>
+              {antimatterRate <= 0 && (
+                <p
+                  className="control-reason"
+                  id="antimatter-boost-reason"
+                  data-testid="antimatter-boost-reason"
+                >
+                  {spaceText(locale, "reasonAntimatterBoostUnavailable")}
+                </p>
+              )}
             </>
           ) : (
             <p className="space-empty" data-testid="antimatter-locked">
@@ -961,25 +1045,6 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
         <div className="space-card-heading">
           <h3 id="space-assembly-title">{rocketText(locale, "assemblyTitle")}</h3>
         </div>
-        <div className="space-weather-scene">
-          <CelestialIllustration kind="weather" weather={currentWeather} className="weather-mark" />
-        </div>
-        <p className="space-range-readout">
-          {spaceText(locale, "systemWeather")}:{" "}
-          <strong data-testid="space-current-weather">
-            {spaceText(locale, WEATHER_MESSAGES[currentWeather])}
-          </strong>
-        </p>
-        <p className="space-range-readout" data-testid="space-weather-timer">
-          {spaceText(locale, "weatherChangesIn")}: {number(state, weatherChangeInSeconds)} s
-        </p>
-        <p className="space-range-readout" data-testid="space-precipitation-rate">
-          {spaceText(locale, "precipitationRate")}: {decimal(state, currentPrecipitationRate)} / s
-        </p>
-        <p className="space-range-readout" data-testid="space-precipitation-this-run">
-          {spaceText(locale, "precipitationThisRun")}:{" "}
-          {decimal(state, space.precipitationCollectedThisRun)}
-        </p>
         {!space.launchPadBuilt && activePane === "space-mining-launch-pad" ? (
           <>
             <h4>{rocketText(locale, "launchPadTitle")}</h4>

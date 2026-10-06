@@ -31,6 +31,7 @@ interface SettingsPaneProps {
   readonly attentionIds: ReadonlySet<string>;
   readonly attentionLabel: string;
   readonly onPaneVisit: (id: string) => void;
+  readonly onNavigateToPane?: (paneId: string) => void;
   readonly saveStatus: string;
   readonly savePersistent: boolean;
   readonly autoSaveEnabled: boolean;
@@ -47,6 +48,7 @@ export function SettingsPane({
   attentionIds,
   attentionLabel,
   onPaneVisit,
+  onNavigateToPane,
   saveStatus,
   savePersistent,
   autoSaveEnabled,
@@ -181,6 +183,7 @@ export function SettingsPane({
                 })
               }
             >
+              <option value="condensed">{settingsText(locale, "condensed")}</option>
               <option value="standard">{settingsText(locale, "standard")}</option>
               <option value="scientific">{settingsText(locale, "scientific")}</option>
             </select>
@@ -487,7 +490,17 @@ export function SettingsPane({
           tabIndex={0}
           hidden={activePane !== paneId}
         >
-          <SettingsStatisticsPane state={state} />
+          <SettingsStatisticsPane
+            state={state}
+            onNavigateToPane={(targetPaneId) => {
+              if (targetPaneId.startsWith("settings-")) {
+                onPaneVisit(targetPaneId);
+                setActivePane(targetPaneId as SettingsPaneId);
+                return;
+              }
+              onNavigateToPane?.(targetPaneId);
+            }}
+          />
         </section>
       ))}
     </section>

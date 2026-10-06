@@ -5,6 +5,7 @@
   autobuyerUpgradeId,
 } from "../../content/ids";
 import { COMPOUND_CATALOG, MATERIAL_CATALOG } from "../../content/economy";
+import { BLACK_HOLE_RESEARCH_PRICE } from "../../content/blackHole";
 import {
   ROCKET_IDS,
   ROCKET_PART_REQUIREMENTS,
@@ -17,6 +18,7 @@ import { createStarCatalogue } from "../../content/starCatalogue";
 import { MEGASTRUCTURE_TRACKS, TECHNOLOGY_CATALOG } from "../../content/technology";
 import { createInitialGameState, type GameState } from "../../engine/state";
 import { ensureDiscoveredStarSystemProfiles } from "../../engine/starSystemProfiles";
+import { generateStarSystemEncounter } from "../../engine/starSystemEncounters";
 import { createTimer, createTimerId } from "../../engine/timers";
 import { nextRandomInteger } from "../../engine/random";
 
@@ -33,6 +35,7 @@ type EconomyFixtureKind =
   | "storage-all"
   | "water-storage"
   | "water-storage-short"
+  | "storage-production"
   | "save"
   | "bulk-hydrogen"
   | "bulk-science"
@@ -43,6 +46,8 @@ type EconomyFixtureKind =
   | "multipliers"
   | "space-telescope"
   | "space-telescope-before-launch-pad"
+  | "space-rocket-part-shortfall"
+  | "space-rocket-part-exact"
   | "space-starship"
   | "space-starship-ready"
   | "space-starship-scanning"
@@ -58,10 +63,14 @@ type EconomyFixtureKind =
   | "space-manuscript-hidden"
   | "meta-rebirth-ready"
   | "meta-market-ready"
+  | "meta-market-action-reasons"
   | "meta-casino-ready"
-  | "meta-rebirth-before-casino-unlock"
+  | "meta-casino-timewarp"
+  | "meta-post-rebirth-casino-access"
   | "meta-black-hole-discovered"
+  | "meta-black-hole-underfunded"
   | "meta-megastructure-route"
+  | "meta-megastructure-research-reasons"
   | "meta-cosmic-rip-route"
   | "meta-cosmic-rip-restore-affordance"
   | "meta-cosmic-rip-action-affordances"
@@ -85,7 +94,11 @@ export function createEconomyFixture(
       ...base,
       run: {
         ...base.run,
-        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+        space: {
+          ...base.run.space,
+          ascendencyAwardedThisRun: true,
+          systemEncounters: [generateStarSystemEncounter(destination, false)],
+        },
       },
       permanent: {
         ...base.permanent,
@@ -118,9 +131,32 @@ export function createEconomyFixture(
       },
     };
   }
+  if (kind === "meta-market-action-reasons") {
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        unlockedResources: ["hydrogen", "helium"],
+        marketLockdownRemainingMs: 3_000,
+        goods: {
+          ...base.run.goods,
+          hydrogen: { ...base.run.goods.hydrogen, quantity: 100 },
+          helium: { ...base.run.goods.helium, quantity: 119 },
+        },
+        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        ascendencyPoints: 3,
+        gloryPoints: 1,
+      },
+    };
+  }
   if (kind === "meta-casino-ready") {
     let casinoSeed = 0;
     while (nextRandomInteger({ seed: casinoSeed, draws: 0 }, 0, 15).value !== 0) casinoSeed += 1;
+    const destination = createStarCatalogue().find((star) => !star.initiallySettled)!;
     return {
       ...base,
       run: {
@@ -136,7 +172,11 @@ export function createEconomyFixture(
         ) as typeof base.run.goods,
         unlockedResources: MATERIAL_IDS,
         economy: { ...base.run.economy, unlockedCompounds: COMPOUND_IDS },
-        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+        space: {
+          ...base.run.space,
+          ascendencyAwardedThisRun: true,
+          systemEncounters: [generateStarSystemEncounter(destination, false)],
+        },
       },
       permanent: {
         ...base.permanent,
@@ -145,9 +185,48 @@ export function createEconomyFixture(
       },
     };
   }
-  if (kind === "meta-rebirth-before-casino-unlock") {
+  if (kind === "meta-casino-timewarp") {
+    const casinoReady = createEconomyFixture("meta-casino-ready", locale);
+    const higherLowerPlayed = casinoReady.run.casinoStats.higherLowerPlayed + 1;
+    return {
+      ...casinoReady,
+      run: {
+        ...casinoReady.run,
+        casinoStats: { ...casinoReady.run.casinoStats, higherLowerPlayed },
+      },
+      permanent: {
+        ...casinoReady.permanent,
+        galacticCasino: {
+          ...casinoReady.permanent.galacticCasino,
+          casinoPoints: 5,
+          higherLower: {
+            deck: [
+              { rank: 8, suit: "diamonds" },
+              { rank: 5, suit: "clubs" },
+              { rank: 6, suit: "spades" },
+              { rank: 13, suit: "hearts" },
+              { rank: 9, suit: "clubs" },
+              { rank: 3, suit: "hearts" },
+              { rank: 5, suit: "hearts" },
+              { rank: 4, suit: "spades" },
+              { rank: 10, suit: "spades" },
+            ],
+            index: 7,
+            prizeKey: "hilo_timewarp_100_12000",
+          },
+          lifetimeStats: {
+            ...casinoReady.permanent.galacticCasino.lifetimeStats,
+            higherLowerPlayed:
+              casinoReady.permanent.galacticCasino.lifetimeStats.higherLowerPlayed + 1,
+          },
+        },
+      },
+    };
+  }
+  if (kind === "meta-post-rebirth-casino-access") {
     return {
       ...base,
+      run: { ...base.run, cash: 100_000 },
       permanent: {
         ...base.permanent,
         rebirthCount: 1,
@@ -156,12 +235,13 @@ export function createEconomyFixture(
       },
     };
   }
-  if (kind === "meta-black-hole-discovered") {
+  if (kind === "meta-black-hole-discovered" || kind === "meta-black-hole-underfunded") {
     return {
       ...base,
       run: {
         ...base.run,
-        researchPoints: 3_000_000,
+        researchPoints:
+          kind === "meta-black-hole-underfunded" ? BLACK_HOLE_RESEARCH_PRICE - 1 : 3_000_000,
         space: { ...base.run.space, ascendencyAwardedThisRun: true },
       },
       permanent: {
@@ -175,7 +255,8 @@ export function createEconomyFixture(
       },
     };
   }
-  if (kind === "meta-megastructure-route") {
+  if (kind === "meta-megastructure-route" || kind === "meta-megastructure-research-reasons") {
+    const researchReasonsFixture = kind === "meta-megastructure-research-reasons";
     const star = (name: string) => createStarCatalogue().find((entry) => entry.name === name)!;
     const manuscriptNames = ["Sirius", "Procyon", "Betelgeuse", "Altair"] as const;
     const factoryNames = ["Canopus", "Vega", "Rigel", "Deneb"] as const;
@@ -197,12 +278,18 @@ export function createEconomyFixture(
       MEGASTRUCTURE_TRACKS.celestialProcessingCore[2]!,
       MEGASTRUCTURE_TRACKS.plasmaForge[2]!,
       MEGASTRUCTURE_TRACKS.dysonSphere[2]!,
-      MEGASTRUCTURE_TRACKS.galacticMemoryArchive[0]!,
-      MEGASTRUCTURE_TRACKS.galacticMemoryArchive[1]!,
+      ...(researchReasonsFixture
+        ? []
+        : [
+            MEGASTRUCTURE_TRACKS.galacticMemoryArchive[0]!,
+            MEGASTRUCTURE_TRACKS.galacticMemoryArchive[1]!,
+          ]),
     ];
     const settledSystemIds = [
       ...base.permanent.settledSystemIds,
-      ...factoryNames.map((name) => star(name).id),
+      ...factoryNames
+        .filter((name) => !(researchReasonsFixture && name === "Deneb"))
+        .map((name) => star(name).id),
     ];
     const starshipModules = Object.fromEntries(
       STARSHIP_MODULE_IDS.map((moduleId) => [
@@ -223,7 +310,7 @@ export function createEconomyFixture(
       "advancedPowerGeneration",
       "quantumComputing",
       "neutronCapture",
-      "orbitalConstruction",
+      ...(!researchReasonsFixture ? ["orbitalConstruction" as const] : []),
       "stellarCartography",
       "stellarScanners",
       "FTLTravelTheory",
@@ -310,7 +397,12 @@ export function createEconomyFixture(
           ]),
         ) as GameState["run"]["goods"],
         unlockedResources: MATERIAL_IDS,
-        economy: { ...base.run.economy, unlockedCompounds: COMPOUND_IDS },
+        economy: {
+          ...base.run.economy,
+          researchedTechnologies: [...base.run.economy.researchedTechnologies, "compounds"],
+          revealedTechnologies: [...base.run.economy.revealedTechnologies, "compounds"],
+          unlockedCompounds: COMPOUND_IDS,
+        },
         space: { ...base.run.space, ascendencyAwardedThisRun: true },
       },
       permanent: {
@@ -407,6 +499,10 @@ export function createEconomyFixture(
     upgrades["powerPlant2"] = 0;
     upgrades["powerPlant3"] = 0;
   }
+  if (kind === "storage-production") {
+    upgrades[autobuyerUpgradeId("hydrogen", 1)] = 1;
+    upgrades[autobuyerUpgradeId("water", 1)] = 1;
+  }
   if (kind === "compound-automation")
     for (const id of MATERIAL_IDS) upgrades[autobuyerUpgradeId(id, 1)] = 1;
 
@@ -417,45 +513,47 @@ export function createEconomyFixture(
         ...base.run.goods[id],
         quantity: spaceFixture
           ? 1_000_000
-          : kind === "compound-automation"
-            ? MATERIAL_IDS.includes(id as (typeof MATERIAL_IDS)[number])
-              ? 10_000
-              : 0
-            : kind === "storage-each"
-              ? Math.max(0, base.run.goods[id].storageCapacity - 1)
-              : kind === "storage-compounds"
-                ? id === "hydrogen"
-                  ? 250
-                  : id === "silicon"
-                    ? 150
-                    : id === "water"
-                      ? 99
-                      : id === "concrete"
-                        ? 49
-                        : Math.max(0, base.run.goods[id].storageCapacity - 1)
-                : kind === "buyer-tiers"
-                  ? 100_000_000
-                  : kind === "power-buildings"
-                    ? 50_000
-                    : kind === "storage-all"
-                      ? id === "concrete"
-                        ? 30_000
-                        : 99_999
-                      : ["water-storage", "water-storage-short"].includes(kind) && id === "water"
+          : kind === "storage-production" && ["hydrogen", "water"].includes(id)
+            ? 100_000
+            : kind === "compound-automation"
+              ? MATERIAL_IDS.includes(id as (typeof MATERIAL_IDS)[number])
+                ? 10_000
+                : 0
+              : kind === "storage-each"
+                ? Math.max(0, base.run.goods[id].storageCapacity - 1)
+                : kind === "storage-compounds"
+                  ? id === "hydrogen"
+                    ? 250
+                    : id === "silicon"
+                      ? 150
+                      : id === "water"
                         ? 99
-                        : kind === "water-storage" && id === "concrete"
-                          ? 30
-                          : kind === "water-storage-short" && id === "concrete"
-                            ? 29
-                            : kind === "save" && id === "iron"
-                              ? 1_500
-                              : id === "hydrogen"
-                                ? kind === "bulk-hydrogen"
-                                  ? 150
-                                  : 2_000
-                                : id === "carbon"
-                                  ? 2_000
-                                  : 1_500,
+                        : id === "concrete"
+                          ? 49
+                          : Math.max(0, base.run.goods[id].storageCapacity - 1)
+                  : kind === "buyer-tiers"
+                    ? 100_000_000
+                    : kind === "power-buildings"
+                      ? 50_000
+                      : kind === "storage-all"
+                        ? id === "concrete"
+                          ? 30_000
+                          : 99_999
+                        : ["water-storage", "water-storage-short"].includes(kind) && id === "water"
+                          ? 99
+                          : kind === "water-storage" && id === "concrete"
+                            ? 30
+                            : kind === "water-storage-short" && id === "concrete"
+                              ? 29
+                              : kind === "save" && id === "iron"
+                                ? 1_500
+                                : id === "hydrogen"
+                                  ? kind === "bulk-hydrogen"
+                                    ? 150
+                                    : 2_000
+                                  : id === "carbon"
+                                    ? 2_000
+                                    : 1_500,
         storageCapacity: spaceFixture
           ? 1_000_000
           : kind === "save" && id === "iron"
@@ -529,6 +627,10 @@ export function createEconomyFixture(
             environmentalMultiplier: kind === "multipliers" ? 0.5 : 1,
           };
   const autobuyerEnabled = { ...base.run.economy.autobuyerEnabled };
+  if (kind === "storage-production") {
+    autobuyerEnabled[autobuyerUpgradeId("hydrogen", 1)] = true;
+    autobuyerEnabled[autobuyerUpgradeId("water", 1)] = true;
+  }
   if (kind === "multipliers") autobuyerEnabled[autobuyerUpgradeId("hydrogen", 1)] = true;
   const researchReadyRun =
     kind === "research"
@@ -555,7 +657,7 @@ export function createEconomyFixture(
     ]),
   ) as GameState["run"]["economy"]["resourceAllocation"];
   const autoCreateEnabled = Object.fromEntries(
-    COMPOUND_IDS.map((id) => [id, kind !== "compound-automation"]),
+    COMPOUND_IDS.map((id) => [id, !["compound-automation", "storage-production"].includes(kind)]),
   ) as GameState["run"]["economy"]["autoCreateEnabled"];
   const buildingEnabled = Object.fromEntries(
     [
@@ -580,6 +682,8 @@ export function createEconomyFixture(
       ...base.run,
       cash,
       researchPoints: initialPoints,
+      hydrogenAutobuyerEnabled:
+        kind === "storage-production" ? true : base.run.hydrogenAutobuyerEnabled,
       goods,
       unlockedResources,
       upgrades,
@@ -617,6 +721,8 @@ export function createEconomyFixture(
     },
   };
   if (
+    kind === "space-rocket-part-shortfall" ||
+    kind === "space-rocket-part-exact" ||
     kind === "space-starship-ready" ||
     kind === "space-starship-scanning" ||
     kind === "space-diplomacy" ||
@@ -630,7 +736,10 @@ export function createEconomyFixture(
     kind === "space-unoccupied" ||
     kind === "space-late-game"
   ) {
-    const scanningFixture = kind !== "space-starship-ready";
+    const scanningFixture =
+      kind !== "space-starship-ready" &&
+      kind !== "space-rocket-part-shortfall" &&
+      kind !== "space-rocket-part-exact";
     const battleVictoryFixture = kind === "space-battle-victory";
     const battleDefeatFixture = kind === "space-battle-defeat";
     const poweredDiplomacyFixture = [
@@ -741,6 +850,7 @@ export function createEconomyFixture(
                 timerId: null,
                 durationMs: 1,
                 antimatterSpent: 1,
+                travelDistanceLy: null,
               }
             : state.run.space.starship,
         },
@@ -750,6 +860,34 @@ export function createEconomyFixture(
         lifetimeAntimatterMined: 1_000_000,
       },
     };
+    if (kind === "space-rocket-part-shortfall" || kind === "space-rocket-part-exact") {
+      const steelQuantity = kind === "space-rocket-part-shortfall" ? 2_999 : 3_000;
+      return {
+        ...fixtureState,
+        run: {
+          ...fixtureState.run,
+          goods: {
+            ...fixtureState.run.goods,
+            steel: { ...fixtureState.run.goods.steel, quantity: steelQuantity },
+          },
+          economy: {
+            ...fixtureState.run.economy,
+            resourceAllocation: Object.fromEntries(
+              MATERIAL_IDS.map((goodId) => [
+                goodId,
+                {
+                  ...fixtureState.run.economy.resourceAllocation[goodId],
+                  enabled: false,
+                  cashShare: 0,
+                  compoundShare: 0,
+                },
+              ]),
+            ) as GameState["run"]["economy"]["resourceAllocation"],
+          },
+          space: { ...fixtureState.run.space, launchPadBuilt: true },
+        },
+      };
+    }
     if (kind !== "space-late-game") return fixtureState;
 
     const asteroids = ROCKET_IDS.map((rocketId, index) => ({

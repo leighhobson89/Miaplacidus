@@ -41,9 +41,13 @@ export interface EconomyTickPlan {
   readonly tickPlan: TickPlan;
   readonly researchPerSecond: number;
   readonly generationPerSecond: number;
+  readonly generationByPlantPerSecond: Readonly<
+    Record<"powerPlant1" | "powerPlant2" | "powerPlant3", number>
+  >;
   readonly demandPerSecond: number;
   readonly unavailablePerSecond: number;
   readonly netRatesPerSecond: Readonly<Partial<Record<EconomicGoodId, number>>>;
+  readonly capacityBlockedGoodIds: readonly EconomicGoodId[];
 }
 
 function owned(state: GameState, id: string): number {
@@ -134,6 +138,11 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
   }
 
   let generationPerSecond = 0;
+  const potentialGenerationByPlantPerSecond = {
+    powerPlant1: 0,
+    powerPlant2: 0,
+    powerPlant3: 0,
+  };
   if (gridRunning && state.run.economy.buildingEnabled.powerPlant1) {
     const count = owned(state, "powerPlant1");
     if (count > 0) {
@@ -145,6 +154,7 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
         state.run.newsTicker.powerPlantRateMultiplier *
         megastructurePowerPlantMultiplier(state);
       generationPerSecond += rate;
+      potentialGenerationByPlantPerSecond.powerPlant1 = rate;
       fuel.push({
         goodId: definition.fuel!.goodId,
         unitsPerSecond: definition.fuel!.unitsPerSecond * count,
@@ -153,7 +163,7 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     }
   }
   if (gridRunning && state.run.economy.buildingEnabled.powerPlant2) {
-    generationPerSecond +=
+    potentialGenerationByPlantPerSecond.powerPlant2 =
       ENERGY_BUILDINGS.powerPlant2.ratePerSecond *
       owned(state, "powerPlant2") *
       state.run.economy.power.environmentalMultiplier *
@@ -161,6 +171,7 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
       powerPlantMultiplierFor("powerPlant2") *
       state.run.newsTicker.powerPlantRateMultiplier *
       megastructurePowerPlantMultiplier(state);
+    generationPerSecond += potentialGenerationByPlantPerSecond.powerPlant2;
   }
   if (gridRunning && state.run.economy.buildingEnabled.powerPlant3) {
     const count = owned(state, "powerPlant3");
@@ -173,6 +184,7 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
         state.run.newsTicker.powerPlantRateMultiplier *
         megastructurePowerPlantMultiplier(state);
       generationPerSecond += rate;
+      potentialGenerationByPlantPerSecond.powerPlant3 = rate;
       fuel.push({
         goodId: definition.fuel!.goodId,
         unitsPerSecond: definition.fuel!.unitsPerSecond * count,
@@ -268,6 +280,30 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     researchPerSecond,
   };
   const preview = transactResources(state.run.goods, state.run.cash, 1000, tickPlan);
+  const capacityBlockedGoods = new Set<EconomicGoodId>();
+  for (const event of preview.events) {
+    if (
+      event.type === "storage.clamped" &&
+      state.run.goods[event.goodId].quantity >= state.run.goods[event.goodId].storageCapacity
+    ) {
+      capacityBlockedGoods.add(event.goodId);
+    }
+  }
+  for (const demand of crafting) {
+    if (!demand.inputBudgeted) continue;
+    const { outputId } = demand;
+    const output = state.run.goods[outputId];
+    if (output.quantity < output.storageCapacity) continue;
+    const addedCapacity = Math.max(1, Math.abs(output.storageCapacity) * Number.EPSILON * 2);
+    const expandedGoods = {
+      ...state.run.goods,
+      [outputId]: { ...output, storageCapacity: output.storageCapacity + addedCapacity },
+    };
+    const expandedPreview = transactResources(expandedGoods, state.run.cash, 1000, tickPlan);
+    if (expandedPreview.goods[outputId].quantity > preview.goods[outputId].quantity) {
+      capacityBlockedGoods.add(outputId);
+    }
+  }
   const fuelGenerationPotential = fuel.reduce(
     (total, demand) => total + demand.unitsPerSecond * (demand.energyPerFuel ?? 0),
     0,
@@ -275,6 +311,36 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
   const effectiveGenerationPerSecond = gridRunning
     ? Math.max(0, generationPerSecond - fuelGenerationPotential) + preview.fueledGenerationPerSecond
     : 0;
+  const fuelBurnedPerGood = new Map<EconomicGoodId, number>();
+  for (const event of preview.events) {
+    if (event.type === "resource.fuel-burned")
+      fuelBurnedPerGood.set(
+        event.goodId,
+        (fuelBurnedPerGood.get(event.goodId) ?? 0) + event.amount,
+      );
+  }
+  const fuelGenerationByPlantPerSecond = {
+    powerPlant1: 0,
+    powerPlant3: 0,
+  };
+  for (const demand of fuel) {
+    if (demand.energyPerFuel === undefined) continue;
+    const burnedPerSecond = fuelBurnedPerGood.get(demand.goodId) ?? 0;
+    const plantId =
+      demand.goodId === ENERGY_BUILDINGS.powerPlant1.fuel?.goodId
+        ? "powerPlant1"
+        : demand.goodId === ENERGY_BUILDINGS.powerPlant3.fuel?.goodId
+          ? "powerPlant3"
+          : null;
+    if (plantId) fuelGenerationByPlantPerSecond[plantId] += burnedPerSecond * demand.energyPerFuel;
+  }
+  const generationByPlantPerSecond = gridRunning
+    ? {
+        powerPlant1: fuelGenerationByPlantPerSecond.powerPlant1,
+        powerPlant2: potentialGenerationByPlantPerSecond.powerPlant2,
+        powerPlant3: fuelGenerationByPlantPerSecond.powerPlant3,
+      }
+    : { powerPlant1: 0, powerPlant2: 0, powerPlant3: 0 };
   const unavailablePerSecond =
     gridRunning && !state.run.economy.power.infinitePower
       ? Math.max(
@@ -286,8 +352,10 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
     tickPlan,
     researchPerSecond,
     generationPerSecond: effectiveGenerationPerSecond,
+    generationByPlantPerSecond,
     demandPerSecond,
     unavailablePerSecond,
     netRatesPerSecond: netRates(preview, state.run.goods),
+    capacityBlockedGoodIds: [...capacityBlockedGoods],
   };
 }

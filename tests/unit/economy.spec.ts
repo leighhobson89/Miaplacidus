@@ -19,7 +19,7 @@ import {
 import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
 import { buildingBuyMaxPlan, checkPreconditions, transition } from "../../src/engine/commands";
 import { transactResources } from "../../src/engine/transactions";
-import { autobuyerUpgradeId } from "../../src/content/ids";
+import { autobuyerUpgradeId, COMPOUND_IDS, MATERIAL_IDS } from "../../src/content/ids";
 import { TECHNOLOGY_CATALOG } from "../../src/content/technology";
 import { TECH_IDS } from "../../src/content/ids";
 import { createEconomyTickPlan } from "../../src/engine/economySimulation";
@@ -38,6 +38,12 @@ import {
 } from "../../src/engine/selectors";
 
 describe("M-03 economy catalogue and shared rules", () => {
+  it("localizes the full-storage automatic-production status in all six locales", () => {
+    for (const locale of ["en", "es", "pt", "de", "it", "fr"] as const) {
+      expect(economyLabel(locale, "automaticProductionBlockedByStorage").trim()).not.toBe("");
+    }
+  });
+
   it("localizes first-time fusion discovery and both yield amounts in all six locales", () => {
     for (const locale of ["en", "es", "pt", "de", "it", "fr"] as const) {
       const message = economyLabel(locale, "fusionDiscoveredNotice");
@@ -645,6 +651,118 @@ describe("M-03 economy catalogue and shared rules", () => {
     ).toThrow(RangeError);
   });
 
+  it("selects storage-blocked status only for full goods with active automatic producers", () => {
+    const initial = createInitialGameState();
+    const hydrogenBuyerId = autobuyerUpgradeId("hydrogen", 1);
+    const waterBuyerId = autobuyerUpgradeId("water", 1);
+    const activeHydrogen: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        upgrades: { ...initial.run.upgrades, [hydrogenBuyerId]: 1 },
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 150 },
+        },
+        economy: {
+          ...initial.run.economy,
+          autobuyerEnabled: { ...initial.run.economy.autobuyerEnabled, [hydrogenBuyerId]: true },
+        },
+      },
+    };
+
+    expect(createEconomyTickPlan(activeHydrogen).capacityBlockedGoodIds).toContain("hydrogen");
+
+    const pausedHydrogen: GameState = {
+      ...activeHydrogen,
+      run: {
+        ...activeHydrogen.run,
+        hydrogenAutobuyerEnabled: false,
+        economy: {
+          ...activeHydrogen.run.economy,
+          autobuyerEnabled: {
+            ...activeHydrogen.run.economy.autobuyerEnabled,
+            [hydrogenBuyerId]: false,
+          },
+        },
+      },
+    };
+    expect(createEconomyTickPlan(pausedHydrogen).capacityBlockedGoodIds).not.toContain("hydrogen");
+
+    const hydrogenBelowCapacity: GameState = {
+      ...activeHydrogen,
+      run: {
+        ...activeHydrogen.run,
+        goods: {
+          ...activeHydrogen.run.goods,
+          hydrogen: { ...activeHydrogen.run.goods.hydrogen, quantity: 149 },
+        },
+      },
+    };
+    expect(createEconomyTickPlan(hydrogenBelowCapacity).capacityBlockedGoodIds).not.toContain(
+      "hydrogen",
+    );
+
+    const activeWaterBuyer: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        unlockedCompounds: ["water"],
+        upgrades: { ...initial.run.upgrades, [waterBuyerId]: 1 },
+        goods: {
+          ...initial.run.goods,
+          water: { ...initial.run.goods.water, quantity: 100, storageCapacity: 100 },
+        },
+        economy: {
+          ...initial.run.economy,
+          autobuyerEnabled: { ...initial.run.economy.autobuyerEnabled, [waterBuyerId]: true },
+        },
+      },
+    };
+    expect(createEconomyTickPlan(activeWaterBuyer).capacityBlockedGoodIds).toContain("water");
+  });
+
+  it("detects automatic compound creation blocked by a full output store", () => {
+    const initial = createInitialGameState();
+    const hydrogenBuyerId = autobuyerUpgradeId("hydrogen", 1);
+    const oxygenBuyerId = autobuyerUpgradeId("oxygen", 1);
+    const autoCreateState: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        unlockedCompounds: ["water"],
+        upgrades: {
+          ...initial.run.upgrades,
+          [hydrogenBuyerId]: 1,
+          [oxygenBuyerId]: 1,
+        },
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 100 },
+          oxygen: { ...initial.run.goods.oxygen, quantity: 100, storageCapacity: 100 },
+          water: { ...initial.run.goods.water, quantity: 100, storageCapacity: 100 },
+        },
+        economy: {
+          ...initial.run.economy,
+          autobuyerEnabled: {
+            ...initial.run.economy.autobuyerEnabled,
+            [hydrogenBuyerId]: true,
+            [oxygenBuyerId]: true,
+          },
+          resourceAllocation: {
+            ...initial.run.economy.resourceAllocation,
+            hydrogen: { enabled: true, cashShare: 0, compoundShare: 100 },
+            oxygen: { enabled: true, cashShare: 0, compoundShare: 100 },
+          },
+          autoCreateEnabled: { ...initial.run.economy.autoCreateEnabled, water: true },
+        },
+      },
+      permanent: { ...initial.permanent, acquiredPerks: ["nanoBrokers:2"] },
+    };
+
+    expect(createEconomyTickPlan(autoCreateState).capacityBlockedGoodIds).toContain("water");
+  });
+
   it("matches the source ten-second Hydrogen, Science Kit and Plant 1 rates", () => {
     const initial = createInitialGameState();
     const hydrogenBuyer = autobuyerUpgradeId("hydrogen", 1);
@@ -942,6 +1060,8 @@ describe("M-03 economy catalogue and shared rules", () => {
     expect(result.accepted).toBe(true);
     expect(result.state.run.upgrades.scienceKit).toBe(2);
     expect(result.state.run.cash).toBe(0);
+    expect(result.state.run.scienceKitsBuiltThisRun).toBe(2);
+    expect(result.state.statistics.lifetimeScienceKitsBuilt).toBe(2);
   });
 
   it("increases every affordable unlocked storage once, and charges the extra Concrete for Water", () => {
@@ -1050,6 +1170,56 @@ describe("M-03 economy catalogue and shared rules", () => {
     expect(advanced.accepted).toBe(true);
     expect(advanced.state.run.economy.researchedTechnologies).toContain("knowledgeSharing");
     expect(advanced.state.run.researchPoints).toBe(50);
+    expect(advanced.state.run.researchPointsEarnedThisRun).toBe(150);
+    expect(advanced.state.statistics.lifetimeResearchPointsEarned).toBe(150);
     expect(isValidGameState(advanced.state)).toBe(true);
+  });
+
+  it("records Research points produced and science buildings accepted during this run", () => {
+    const initial = createInitialGameState();
+    let state: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        cash: 1_000_000,
+        clock: { ...initial.run.clock, wallNowMs: 0 },
+        goods: Object.fromEntries(
+          Object.entries(initial.run.goods).map(([id, good]) => [
+            id,
+            { ...good, quantity: 1_000_000, storageCapacity: 1_000_000 },
+          ]),
+        ) as GameState["run"]["goods"],
+        unlockedResources: MATERIAL_IDS,
+        economy: {
+          ...initial.run.economy,
+          unlockedCompounds: COMPOUND_IDS,
+          researchedTechnologies: TECHNOLOGY_CATALOG.map((technology) => technology.id),
+          revealedTechnologies: TECHNOLOGY_CATALOG.map((technology) => technology.id),
+        },
+      },
+    };
+    expect(isValidGameState(state)).toBe(true);
+
+    for (const buildingId of ["scienceKit", "scienceClub", "scienceLab"] as const) {
+      const purchase = transition(state, { type: "economy.building.purchase", buildingId });
+      expect(purchase.accepted, JSON.stringify(purchase.failure)).toBe(true);
+      state = purchase.state;
+    }
+    expect(state.run.scienceKitsBuiltThisRun).toBe(1);
+    expect(state.run.scienceClubsBuiltThisRun).toBe(1);
+    expect(state.run.scienceLabsBuiltThisRun).toBe(1);
+    expect(state.statistics.lifetimeScienceKitsBuilt).toBe(1);
+    expect(state.statistics.lifetimeScienceClubsBuilt).toBe(1);
+    expect(state.statistics.lifetimeScienceLabsBuilt).toBe(1);
+
+    const tick = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 1_000, foreground: true },
+      tickPlan: { researchPerSecond: 2 },
+    });
+    expect(tick.accepted, JSON.stringify(tick.failure)).toBe(true);
+    expect(tick.state.run.researchPointsEarnedThisRun).toBe(2);
+    expect(tick.state.statistics.lifetimeResearchPointsEarned).toBe(2);
+    expect(isValidGameState(tick.state)).toBe(true);
   });
 });

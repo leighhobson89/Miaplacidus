@@ -33,6 +33,8 @@ export function MiaplaediaPane({
             <h4>{entry.heading}</h4>
             <div className="miaplaedia-entry-body">
               {entry.body
+                .replace(/\\n/g, "\n")
+                .replace(/\r?\n{2,}/g, "<br/><br/>")
                 .split(/(<br\s*\/?>)/gi)
                 .map((part, partIndex) =>
                   /^<br\s*\/?>$/i.test(part) ? (

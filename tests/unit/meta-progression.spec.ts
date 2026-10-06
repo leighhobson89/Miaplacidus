@@ -213,6 +213,10 @@ describe("validated rebirth and ascendency purchases", () => {
       },
       statistics: {
         ...ready.statistics,
+        lifetimeResearchPointsEarned: 98.5,
+        lifetimeScienceKitsBuilt: 8,
+        lifetimeScienceClubsBuilt: 5,
+        lifetimeScienceLabsBuilt: 2,
         lifetimeAscendencyPointsGained: 7,
         lifetimeAsteroidsDiscovered: 3,
         lifetimeLegendaryAsteroidsDiscovered: 1,
@@ -228,6 +232,10 @@ describe("validated rebirth and ascendency purchases", () => {
       },
       run: {
         ...ready.run,
+        researchPointsEarnedThisRun: 12.5,
+        scienceKitsBuiltThisRun: 2,
+        scienceClubsBuiltThisRun: 1,
+        scienceLabsBuiltThisRun: 1,
         goodsProducedThisRun: {
           ...ready.run.goodsProducedThisRun,
           hydrogen: 12,
@@ -249,6 +257,12 @@ describe("validated rebirth and ascendency purchases", () => {
     expect(result.state.run.space.currentSystemId).toBe(destination);
     expect(result.state.run.cash).toBe(10);
     expect(result.state.run.researchPoints).toBe(50);
+    expect(result.state.run).toMatchObject({
+      researchPointsEarnedThisRun: 0,
+      scienceKitsBuiltThisRun: 0,
+      scienceClubsBuiltThisRun: 0,
+      scienceLabsBuiltThisRun: 0,
+    });
     expect(result.state.run.space.ascendencyAwardedThisRun).toBe(false);
     expect(result.state.run.goods.hydrogen.quantity).toBe(0);
     expect(result.state.run.goods.hydrogen.storageCapacity).toBe(
@@ -260,6 +274,10 @@ describe("validated rebirth and ascendency purchases", () => {
     expect(result.state.statistics.lifetimeCashEarned).toBe(500);
     expect(result.state.statistics).toMatchObject({
       lifetimeAscendencyPointsGained: 7,
+      lifetimeResearchPointsEarned: 98.5,
+      lifetimeScienceKitsBuilt: 8,
+      lifetimeScienceClubsBuilt: 5,
+      lifetimeScienceLabsBuilt: 2,
       lifetimeAsteroidsDiscovered: 3,
       lifetimeLegendaryAsteroidsDiscovered: 1,
       lifetimeAsteroidsMined: 6,
@@ -1014,6 +1032,32 @@ describe("Galactic Market", () => {
     );
   });
 
+  it("selects insufficient AP and below-one-AP liquidation reasons from current state", () => {
+    const state = marketReadyState();
+    const shortAp = {
+      ...state,
+      permanent: { ...state.permanent, ascendencyPoints: 3 },
+    };
+    expect(transition(shortAp, { type: "meta.market.sell-ap", quantity: 10 }).failure?.code).toBe(
+      "market-insufficient-ap",
+    );
+
+    const noLiquidationValue = {
+      ...state,
+      run: {
+        ...state.run,
+        cash: 0,
+        goods: {
+          ...state.run.goods,
+          hydrogen: { ...state.run.goods.hydrogen, quantity: 0 },
+        },
+      },
+    };
+    expect(transition(noLiquidationValue, { type: "meta.market.liquidate" }).failure?.code).toBe(
+      "market-no-liquidation",
+    );
+  });
+
   it("decays bias every ten seconds and updates prices, commission, and volume on the seeded market cycle", () => {
     const state = marketReadyState();
     const biased = {
@@ -1091,5 +1135,58 @@ describe("Galactic Market", () => {
     expect(titaniumVolume).toBeGreaterThanOrEqual(-1_000_000);
     expect(titaniumVolume).toBeLessThanOrEqual(10_000_000);
     expect(isValidGameState(advanced)).toBe(true);
+  });
+});
+
+describe("Energy Statistics rebirth scope", () => {
+  it("clears run energy counters while preserving lifetime totals", () => {
+    const base = rebirthReadyState();
+    const ready = {
+      ...base,
+      run: {
+        ...base.run,
+        energyTripsThisRun: 2,
+        basicPowerPlantsBuiltThisRun: 3,
+        advancedPowerPlantsBuiltThisRun: 4,
+        solarPowerPlantsBuiltThisRun: 5,
+        sodiumIonBatteriesBuiltThisRun: 6,
+        battery2BuiltThisRun: 7,
+        battery3BuiltThisRun: 8,
+      },
+      statistics: {
+        ...base.statistics,
+        lifetimeEnergyTrips: 12,
+        lifetimeBasicPowerPlantsBuilt: 13,
+        lifetimeAdvancedPowerPlantsBuilt: 14,
+        lifetimeSolarPowerPlantsBuilt: 15,
+        lifetimeSodiumIonBatteriesBuilt: 16,
+        lifetimeBattery2Built: 17,
+        lifetimeBattery3Built: 18,
+      },
+    };
+
+    expect(isValidGameState(ready)).toBe(true);
+    const result = transition(ready, { type: "meta.rebirth" });
+
+    expect(result.accepted).toBe(true);
+    expect(result.state.run).toMatchObject({
+      energyTripsThisRun: 0,
+      basicPowerPlantsBuiltThisRun: 0,
+      advancedPowerPlantsBuiltThisRun: 0,
+      solarPowerPlantsBuiltThisRun: 0,
+      sodiumIonBatteriesBuiltThisRun: 0,
+      battery2BuiltThisRun: 0,
+      battery3BuiltThisRun: 0,
+    });
+    expect(result.state.statistics).toMatchObject({
+      lifetimeEnergyTrips: 12,
+      lifetimeBasicPowerPlantsBuilt: 13,
+      lifetimeAdvancedPowerPlantsBuilt: 14,
+      lifetimeSolarPowerPlantsBuilt: 15,
+      lifetimeSodiumIonBatteriesBuilt: 16,
+      lifetimeBattery2Built: 17,
+      lifetimeBattery3Built: 18,
+    });
+    expect(isValidGameState(result.state)).toBe(true);
   });
 });

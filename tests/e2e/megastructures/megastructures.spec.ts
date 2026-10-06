@@ -25,6 +25,13 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
     (await page.evaluate(() => window.miaplacidusTest!.getState())).permanent.megastructures
       .researchedTechnologyIds,
   ).toContain(stageThree);
+  const stageFourButton = archive.getByRole("button", { name: "Research stage" });
+  await expect(stageFourButton).toBeDisabled();
+  const stageFourReasonId = await stageFourButton.getAttribute("aria-describedby");
+  expect(stageFourReasonId).toBeTruthy();
+  await expect(page.locator(`#${stageFourReasonId}`)).toHaveText(
+    "Requires 200,000 RP; short by 50,000 RP.",
+  );
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
   const map = page.getByTestId("star-map-pane");
@@ -95,4 +102,53 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
   expect(completed.permanent.megastructures.miaplacidusStoryPending).toBe(false);
   expect(completed.permanent.megastructures.miaplacidusStoryShown).toBe(true);
   await captureVisualCheckpoint(page, testInfo, "miaplacidus-homecoming-complete");
+});
+
+test("explains and associates missing technology and factory location gates @megastructures @megastructure-guidance", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-megastructure-research-reasons");
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Megastructures" }).click();
+
+  const reasons = [
+    {
+      track: "galacticMemoryArchive",
+      expected: "Research these technologies first: Orbital Construction.",
+    },
+    {
+      track: "dysonSphere",
+      expected: "Settle Deneb before researching this structure.",
+    },
+    {
+      track: "celestialProcessingCore",
+      expected: "Start a run at the conquered factory star to research its stages.",
+    },
+  ] as const;
+
+  for (const { track, expected } of reasons) {
+    const button = page
+      .getByTestId(`megastructure-track-${track}`)
+      .getByRole("button", { name: "Research stage" });
+    await expect(button).toBeDisabled();
+    const reasonId = await button.getAttribute("aria-describedby");
+    expect(reasonId).toBeTruthy();
+    await expect(page.locator(`#${reasonId}`)).toHaveText(expected);
+  }
+});
+
+test("shows the research point requirement and shortfall for a disabled next stage @megastructures @megastructure-guidance", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-megastructure-route");
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Megastructures" }).click();
+
+  const archive = page.getByTestId("megastructure-track-galacticMemoryArchive");
+  await archive.getByRole("button", { name: "Research stage" }).click();
+  const nextStageButton = archive.getByRole("button", { name: "Research stage" });
+  await expect(nextStageButton).toBeDisabled();
+  const reasonId = await nextStageButton.getAttribute("aria-describedby");
+  expect(reasonId).toBeTruthy();
+  await expect(page.locator(`#${reasonId}`)).toHaveText("Requires 200,000 RP; short by 50,000 RP.");
 });

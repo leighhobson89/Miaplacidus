@@ -10,7 +10,7 @@ import { HOME_SYSTEM_NAME, createStarCatalogue } from "../../src/content/starCat
 import { transition } from "../../src/engine/commands";
 import { advanceCosmicRip, cosmicRipUpgradeCost } from "../../src/engine/cosmicRip";
 import { selectEconomyAction } from "../../src/engine/selectors";
-import { makeEnvelope } from "../../src/persistence/schema";
+import { makeEnvelope, SAVE_SCHEMA_VERSION } from "../../src/persistence/schema";
 import { decodeLocal, encodeLocal } from "../../src/persistence/codec";
 import { cosmicRipText } from "../../src/i18n/cosmicRipMessages";
 import {
@@ -71,6 +71,7 @@ describe("Cosmic Rip", () => {
       ).toBe(true);
       expect(messages.hidden).toContain("{amount}");
       expect(messages.requires).toContain("{name}");
+      expect(messages.remaining).toContain("{time}");
     }
   });
 
@@ -360,6 +361,203 @@ describe("Cosmic Rip", () => {
     expect(repeated.state.permanent.gloryPoints).toBe(39);
   });
 
+  it("counts each accepted Cosmic Rip GP spend once and preserves the total through save and rebirth", () => {
+    let state = unlockedState();
+    expect(state.statistics.lifetimeGalacticPointsSpent).toBe(0);
+
+    const insufficientRestore = transition(
+      {
+        ...state,
+        permanent: { ...state.permanent, gloryPoints: COSMIC_RIP_SCANNER_REPAIR_GP - 1 },
+      },
+      { type: "cosmic-rip.scanner.restore" },
+    );
+    expect(insufficientRestore.accepted).toBe(false);
+    expect(insufficientRestore.state.statistics.lifetimeGalacticPointsSpent).toBe(0);
+
+    const restored = transition(state, { type: "cosmic-rip.scanner.restore" });
+    expect(restored.accepted).toBe(true);
+    expect(restored.state.statistics.lifetimeGalacticPointsSpent).toBe(10);
+    state = {
+      ...restored.state,
+      permanent: {
+        ...restored.state.permanent,
+        cosmicRip: { ...restored.state.permanent.cosmicRip, ripLocationSectorIndex: 0 },
+      },
+    };
+
+    const repeatedRestore = transition(state, { type: "cosmic-rip.scanner.restore" });
+    expect(repeatedRestore.accepted).toBe(false);
+    expect(repeatedRestore.failure?.code).toBe("cosmic-rip-scanner-restored");
+    expect(repeatedRestore.state.statistics.lifetimeGalacticPointsSpent).toBe(10);
+
+    const scanned = transition(state, { type: "cosmic-rip.sector.scan", sectorIndex: 0 });
+    expect(scanned.accepted).toBe(true);
+    expect(scanned.state.permanent.cosmicRip.ripFound).toBe(true);
+    expect(scanned.state.statistics.lifetimeGalacticPointsSpent).toBe(11);
+    const duplicateScan = transition(scanned.state, {
+      type: "cosmic-rip.sector.scan",
+      sectorIndex: 0,
+    });
+    expect(duplicateScan.accepted).toBe(false);
+    expect(duplicateScan.failure?.code).toBe("cosmic-rip-sector-scanned");
+    expect(duplicateScan.state.statistics.lifetimeGalacticPointsSpent).toBe(11);
+
+    const readyForResearch: GameState = {
+      ...scanned.state,
+      permanent: {
+        ...scanned.state.permanent,
+        cosmicRip: { ...scanned.state.permanent.cosmicRip, telemetryData: 200_000 },
+      },
+    };
+    const firstTechnology = COSMIC_RIP_TECHNOLOGIES[0]!;
+    const researchStarted = transition(readyForResearch, {
+      type: "cosmic-rip.tech.start",
+      technologyId: firstTechnology.id,
+    });
+    expect(researchStarted.accepted).toBe(true);
+    expect(researchStarted.state.statistics.lifetimeGalacticPointsSpent).toBe(12);
+    const repeatedResearchStart = transition(researchStarted.state, {
+      type: "cosmic-rip.tech.start",
+      technologyId: firstTechnology.id,
+    });
+    expect(repeatedResearchStart.accepted).toBe(false);
+    expect(repeatedResearchStart.failure?.code).toBe("cosmic-rip-research-running");
+    expect(repeatedResearchStart.state.statistics.lifetimeGalacticPointsSpent).toBe(12);
+
+    const completeRip: GameState = {
+      ...researchStarted.state,
+      permanent: {
+        ...researchStarted.state.permanent,
+        cosmicRip: {
+          ...researchStarted.state.permanent.cosmicRip,
+          activeResearchTechnologyId: null,
+          researchElapsedMs: 0,
+          researchedTechnologyIds: COSMIC_RIP_TECHNOLOGIES.map((technology) => technology.id),
+        },
+      },
+    };
+    const closed = transition(completeRip, { type: "cosmic-rip.close" });
+    expect(closed.accepted).toBe(true);
+    expect(closed.state.permanent.gloryPoints).toBe(27);
+    expect(closed.state.statistics.lifetimeGalacticPointsSpent).toBe(13);
+    const repeatedClose = transition(closed.state, { type: "cosmic-rip.close" });
+    expect(repeatedClose.accepted).toBe(false);
+    expect(repeatedClose.failure?.code).toBe("cosmic-rip-already-closed");
+    expect(repeatedClose.state.statistics.lifetimeGalacticPointsSpent).toBe(13);
+
+    const envelope = makeEnvelope({
+      slotId: "00000000-0000-4000-8000-000000000029",
+      pioneerName: closed.state.run.pioneerName,
+      createdAt: 0,
+      savedAt: 1,
+      revision: 1,
+      state: closed.state,
+    });
+    const reloaded = decodeLocal(encodeLocal(envelope)).state;
+    expect(reloaded.statistics.lifetimeGalacticPointsSpent).toBe(13);
+    const rebirthReady: GameState = {
+      ...reloaded,
+      run: {
+        ...reloaded.run,
+        space: { ...reloaded.run.space, ascendencyAwardedThisRun: true },
+      },
+    };
+    const reborn = transition(rebirthReady, { type: "meta.rebirth" });
+    expect(reborn.accepted).toBe(true);
+    expect(reborn.state.statistics.lifetimeGalacticPointsSpent).toBe(13);
+  });
+
+  it("credits rounded fractional telemetry gain but not telemetry spent on research", () => {
+    const initialTelemetry = 10_000.123456786;
+    const base = readyToResearch();
+    const prepared: GameState = {
+      ...base,
+      permanent: {
+        ...base.permanent,
+        cosmicRip: {
+          ...base.permanent.cosmicRip,
+          sensorBuoyCount: 1,
+          telemetryData: initialTelemetry,
+        },
+      },
+    };
+    const firstRoundedTelemetry = Number((initialTelemetry + 0.04).toFixed(8));
+    const first = advanceCosmicRip(prepared, 1_000);
+    expect(first.state.permanent.cosmicRip.telemetryData).toBe(firstRoundedTelemetry);
+    expect(first.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
+      firstRoundedTelemetry - initialTelemetry,
+      8,
+    );
+
+    const secondRoundedTelemetry = Number((firstRoundedTelemetry + 1).toFixed(8));
+    const second = advanceCosmicRip(first.state, 25_000);
+    const totalCredited = secondRoundedTelemetry - initialTelemetry;
+    expect(second.state.permanent.cosmicRip.telemetryData).toBe(secondRoundedTelemetry);
+    expect(second.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
+      totalCredited,
+      8,
+    );
+
+    const started = transition(second.state, {
+      type: "cosmic-rip.tech.start",
+      technologyId: COSMIC_RIP_TECHNOLOGIES[0]!.id,
+    });
+    expect(started.accepted).toBe(true);
+    expect(started.state.permanent.cosmicRip.telemetryData).toBe(
+      secondRoundedTelemetry - COSMIC_RIP_TECHNOLOGIES[0]!.telemetryCost,
+    );
+    expect(started.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
+      totalCredited,
+      8,
+    );
+
+    const roundedWithoutProduction: GameState = {
+      ...started.state,
+      statistics: {
+        ...started.state.statistics,
+        lifetimeCosmicRipTelemetryDataEarned: 7.25,
+      },
+      permanent: {
+        ...started.state.permanent,
+        cosmicRip: {
+          ...started.state.permanent.cosmicRip,
+          activeResearchTechnologyId: null,
+          telemetryData: 150_000.000000004,
+          sensorBuoyCount: 0,
+          ripResearchOrbiterCount: 0,
+        },
+      },
+    };
+    const normalized = advanceCosmicRip(roundedWithoutProduction, 1);
+    expect(normalized.state.permanent.cosmicRip.telemetryData).toBe(150_000);
+    expect(normalized.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBe(7.25);
+
+    const envelope = makeEnvelope({
+      slotId: "00000000-0000-4000-8000-000000000030",
+      pioneerName: started.state.run.pioneerName,
+      createdAt: 0,
+      savedAt: 1,
+      revision: 1,
+      state: started.state,
+    });
+    const reloaded = decodeLocal(encodeLocal(envelope)).state;
+    expect(reloaded.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(totalCredited, 8);
+    const rebirthReady: GameState = {
+      ...reloaded,
+      run: {
+        ...reloaded.run,
+        space: { ...reloaded.run.space, ascendencyAwardedThisRun: true },
+      },
+    };
+    const reborn = transition(rebirthReady, { type: "meta.rebirth" });
+    expect(reborn.accepted).toBe(true);
+    expect(reborn.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
+      totalCredited,
+      8,
+    );
+  });
+
   it("preserves an interrupted research timer in saves and across rebirth", () => {
     const started = transition(readyToResearch(), {
       type: "cosmic-rip.tech.start",
@@ -404,7 +602,7 @@ describe("Cosmic Rip", () => {
     const { achievements: _runAchievements, ...oldRun } = current.run;
     const old = { ...current, schemaVersion: 25 as const, run: oldRun, permanent: oldPermanent };
     const migrated = upgradeGameStateV25(old);
-    expect(migrated?.schemaVersion).toBe(37);
+    expect(migrated?.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated?.permanent.cosmicRip).toEqual(createInitialCosmicRipProgress());
     expect(migrated?.permanent.achievements).toEqual(createInitialPermanentAchievementProgress());
     expect(migrated?.run.achievements).toEqual(createInitialRunAchievementProgress());
@@ -416,7 +614,7 @@ describe("Cosmic Rip", () => {
     const { achievements: _achievements, ...oldPermanent } = current.permanent;
     const old = { ...current, schemaVersion: 26 as const, run: oldRun, permanent: oldPermanent };
     const migrated = upgradeGameStateV26(old);
-    expect(migrated?.schemaVersion).toBe(37);
+    expect(migrated?.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated?.permanent.cosmicRip).toEqual(current.permanent.cosmicRip);
     expect(migrated?.permanent.achievements).toEqual(createInitialPermanentAchievementProgress());
     expect(migrated?.run.achievements).toEqual(createInitialRunAchievementProgress());
@@ -427,7 +625,7 @@ describe("Cosmic Rip", () => {
     const { randomEvents: _randomEvents, newsTicker: _newsTicker, ...oldRun } = current.run;
     const old = { ...current, schemaVersion: 27 as const, run: oldRun };
     const migrated = upgradeGameStateV27(old);
-    expect(migrated?.schemaVersion).toBe(37);
+    expect(migrated?.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated?.run.randomEvents.history).toEqual([]);
     expect(migrated?.run.newsTicker.seenIds).toEqual([]);
   });
@@ -437,7 +635,7 @@ describe("Cosmic Rip", () => {
     const { lifetimeActiveMs: _active, ...oldStatistics } = current.statistics;
     const old = { ...current, schemaVersion: 29 as const, statistics: oldStatistics };
     const migrated = upgradeGameStateV29(old);
-    expect(migrated?.schemaVersion).toBe(37);
+    expect(migrated?.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated?.statistics.lifetimeActiveMs).toBe(0);
   });
 
@@ -469,7 +667,7 @@ describe("Cosmic Rip", () => {
       },
     };
     const migrated = upgradeGameStateV30(old);
-    expect(migrated?.schemaVersion).toBe(37);
+    expect(migrated?.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated?.settings.themeId).toBe("terminal");
     expect(migrated?.permanent.achievements.themeIdsTried).toEqual(["terminal"]);
     expect(migrated?.run.randomEvents.activeEffects[0]?.nextShiftInMs).toBe(60_000);

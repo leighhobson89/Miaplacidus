@@ -13,6 +13,32 @@ export function eventTrackingNote(locale: LocaleId): string {
   return eventTrackingNotes[locale];
 }
 
+const cosmicRipTrackingNotes: Record<LocaleId, string> = {
+  en: "Lifetime GP spent and telemetry earned start tracking with this update; earlier history is unavailable.",
+  es: "El seguimiento de los GP gastados y los datos de telemetría obtenidos empieza con esta actualización; no hay datos anteriores.",
+  pt: "O registo dos GP gastos e dos dados de telemetria obtidos começa com esta atualização; não há histórico anterior.",
+  de: "Die Erfassung ausgegebener GP und verdienter Telemetriedaten beginnt mit diesem Update; frühere Verlaufsdaten sind nicht verfügbar.",
+  it: "Il conteggio dei GP spesi e dei dati telemetrici ottenuti inizia con questo aggiornamento; lo storico precedente non è disponibile.",
+  fr: "Le suivi des GP dépensés et des données de télémétrie gagnées commence avec cette mise à jour ; l’historique antérieur est indisponible.",
+};
+
+const energyTrackingNotes: Record<LocaleId, string> = {
+  en: "Energy trip and building totals start tracking with this update; earlier history is unavailable.",
+  es: "El recuento de cortes eléctricos y construcciones empieza con esta actualización; no hay datos anteriores.",
+  pt: "O registo de cortes de energia e construções começa com esta atualização; não há dados anteriores.",
+  de: "Die Erfassung von Stromausfällen und Gebäuden beginnt mit diesem Update; frühere Verlaufsdaten sind nicht verfügbar.",
+  it: "Il conteggio delle interruzioni e degli edifici inizia con questo aggiornamento; lo storico precedente non è disponibile.",
+  fr: "Le suivi des coupures et des bâtiments commence avec cette mise à jour ; l’historique antérieur est indisponible.",
+};
+
+export function energyTrackingNote(locale: LocaleId): string {
+  return energyTrackingNotes[locale];
+}
+
+export function cosmicRipTrackingNote(locale: LocaleId): string {
+  return cosmicRipTrackingNotes[locale];
+}
+
 export type RunStatisticLabelId =
   | "runTime"
   | "starSystem"
@@ -20,8 +46,7 @@ export type RunStatisticLabelId =
   | "cash"
   | "apAnticipated"
   | "antimatter"
-  | "currentSnapshotSection"
-  | "notTracked";
+  | "currentSnapshotSection";
 
 const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> = {
   en: {
@@ -32,7 +57,6 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     apAnticipated: "AP anticipated",
     antimatter: "Antimatter",
     currentSnapshotSection: "Current snapshot",
-    notTracked: "Not tracked",
   },
   es: {
     runTime: "Tiempo de partida",
@@ -42,7 +66,6 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     apAnticipated: "AP previstos",
     antimatter: "Antimateria",
     currentSnapshotSection: "Estado actual",
-    notTracked: "No registrado",
   },
   pt: {
     runTime: "Tempo da partida",
@@ -52,7 +75,6 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     apAnticipated: "AP previstos",
     antimatter: "Antimat\u00e9ria",
     currentSnapshotSection: "Estado atual",
-    notTracked: "N\u00e3o acompanhado",
   },
   de: {
     runTime: "Laufzeit",
@@ -62,7 +84,6 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     apAnticipated: "Erwartete AP",
     antimatter: "Antimaterie",
     currentSnapshotSection: "Momentaufnahme",
-    notTracked: "Nicht erfasst",
   },
   it: {
     runTime: "Durata della partita",
@@ -72,7 +93,6 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     apAnticipated: "AP previsti",
     antimatter: "Antimateria",
     currentSnapshotSection: "Situazione attuale",
-    notTracked: "Non registrato",
   },
   fr: {
     runTime: "Dur\u00e9e de la partie",
@@ -82,25 +102,11 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     apAnticipated: "AP anticip\u00e9s",
     antimatter: "Antimati\u00e8re",
     currentSnapshotSection: "\u00c9tat actuel",
-    notTracked: "Non suivi",
   },
-};
-
-const runApTrackingNotes: Record<LocaleId, string> = {
-  en: "AP anticipated is not tracked separately in the current run data.",
-  es: "Los AP previstos no se registran por separado en los datos de la partida actual.",
-  pt: "Os AP previstos n\u00e3o s\u00e3o registados separadamente nos dados da partida atual.",
-  de: "Erwartete AP werden in den Daten des aktuellen Durchlaufs nicht getrennt erfasst.",
-  it: "Gli AP previsti non sono registrati separatamente nei dati della partita attuale.",
-  fr: "Les AP anticip\u00e9s ne sont pas enregistr\u00e9s s\u00e9par\u00e9ment dans les donn\u00e9es de la partie actuelle.",
 };
 
 export function runStatisticLabel(locale: LocaleId, id: RunStatisticLabelId): string {
   return runStatisticLabels[locale][id];
-}
-
-export function runApTrackingNote(locale: LocaleId): string {
-  return runApTrackingNotes[locale];
 }
 
 export type OverviewStatisticLabelId =
@@ -110,7 +116,9 @@ export type OverviewStatisticLabelId =
   | "totalAsteroids"
   | "legendaryAsteroids"
   | "rocketsLaunched"
-  | "starshipsLaunched";
+  | "starshipsLaunched"
+  | "cosmicRipGpSpent"
+  | "cosmicRipTelemetryEarned";
 
 const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId, string>> = {
   en: {
@@ -121,6 +129,8 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     legendaryAsteroids: "Legendary Asteroids Discovered",
     rocketsLaunched: "Rockets Launched",
     starshipsLaunched: "Star Ships Launched",
+    cosmicRipGpSpent: "Lifetime GP Spent in Cosmic Rip",
+    cosmicRipTelemetryEarned: "Lifetime Cosmic Rip Telemetry Data Earned",
   },
   es: {
     apGain: "Ganancia de AP",
@@ -130,6 +140,8 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     legendaryAsteroids: "Asteroides legendarios descubiertos",
     rocketsLaunched: "Cohetes lanzados",
     starshipsLaunched: "Naves estelares lanzadas",
+    cosmicRipGpSpent: "GP gastados en Cosmic Rip (total)",
+    cosmicRipTelemetryEarned: "Datos de telemetría del Cosmic Rip obtenidos (total)",
   },
   pt: {
     apGain: "Ganho de AP",
@@ -139,6 +151,8 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     legendaryAsteroids: "Asteroides lend\u00e1rios descobertos",
     rocketsLaunched: "Foguetes lan\u00e7ados",
     starshipsLaunched: "Naves estelares lan\u00e7adas",
+    cosmicRipGpSpent: "GP gastos no Cosmic Rip (total)",
+    cosmicRipTelemetryEarned: "Dados de telemetria do Cosmic Rip obtidos (total)",
   },
   de: {
     apGain: "AP-Zuwachs",
@@ -148,6 +162,8 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     legendaryAsteroids: "Legend\u00e4re Asteroiden entdeckt",
     rocketsLaunched: "Raketen gestartet",
     starshipsLaunched: "Raumschiffe gestartet",
+    cosmicRipGpSpent: "Insgesamt für Cosmic Rip ausgegebene GP",
+    cosmicRipTelemetryEarned: "Insgesamt verdiente Cosmic-Rip-Telemetriedaten",
   },
   it: {
     apGain: "Guadagno di AP",
@@ -157,6 +173,8 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     legendaryAsteroids: "Asteroidi leggendari scoperti",
     rocketsLaunched: "Razzi lanciati",
     starshipsLaunched: "Astronavi lanciate",
+    cosmicRipGpSpent: "GP totali spesi nel Cosmic Rip",
+    cosmicRipTelemetryEarned: "Dati telemetrici totali ottenuti dal Cosmic Rip",
   },
   fr: {
     apGain: "Gain d\u2019AP",
@@ -166,6 +184,8 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     legendaryAsteroids: "Ast\u00e9ro\u00efdes l\u00e9gendaires d\u00e9couverts",
     rocketsLaunched: "Fus\u00e9es lanc\u00e9es",
     starshipsLaunched: "Vaisseaux stellaires lanc\u00e9s",
+    cosmicRipGpSpent: "Total des GP dépensés dans la Cosmic Rip",
+    cosmicRipTelemetryEarned: "Total des données de télémétrie gagnées dans la Cosmic Rip",
   },
 };
 

@@ -43,6 +43,8 @@ import {
 import { createEconomyTickPlan } from "./economySimulation";
 import { CASINO_CP_BASE_COST, CASINO_CP_VALUES } from "../content/galacticCasino";
 import type { CasinoCommand } from "./galacticCasino";
+import { enemyFleetPower, totalPlayerFleetPower } from "./fleetMechanics";
+import { isStarshipReady } from "./spaceRules";
 
 export interface GameSnapshot {
   readonly pioneerName: string;
@@ -63,10 +65,12 @@ export interface GameSnapshot {
   readonly hydrogenAutobuyerEnabled: boolean;
   readonly hydrogenAutobuyerRatePerSecond: number;
   readonly hydrogenProductionPerSecond: number;
+  readonly hydrogenProductionBlockedByStorage: boolean;
   readonly revision: number;
 }
 
 export function selectGameSnapshot(state: GameState): GameSnapshot {
+  const economyTick = createEconomyTickPlan(state);
   return {
     pioneerName: state.run.pioneerName,
     cash: state.run.cash,
@@ -87,7 +91,8 @@ export function selectGameSnapshot(state: GameState): GameSnapshot {
     hydrogenAutobuyerRatePerSecond:
       HYDROGEN_AUTOBUYER_RATE *
       repeatedPerkMultiplier(state.permanent.acquiredPerks, "smartAutoBuyers", 1.5),
-    hydrogenProductionPerSecond: createEconomyTickPlan(state).netRatesPerSecond.hydrogen ?? 0,
+    hydrogenProductionPerSecond: economyTick.netRatesPerSecond.hydrogen ?? 0,
+    hydrogenProductionBlockedByStorage: economyTick.capacityBlockedGoodIds.includes("hydrogen"),
     revision: state.statistics.acceptedCommands,
   };
 }
@@ -96,6 +101,84 @@ export interface TopStatusEventSelection {
   readonly eventId: RandomEventId | null;
   readonly active: boolean;
   readonly remainingMs: number | null;
+}
+
+/**
+ * Mirrors Cosmic Forge's AP anticipated counter: scanned systems with an
+ * Industrial or Spacefaring civilization contribute that system profile's
+ * base ascendency value once during the current run.
+ */
+export function selectRunApAnticipated(state: GameState): number {
+  const eligibleSystemIds = new Set(
+    state.run.space.systemEncounters
+      .filter(
+        ({ civilizationLevel }) =>
+          civilizationLevel === "industrial" || civilizationLevel === "spacefaring",
+      )
+      .map(({ systemId }) => systemId),
+  );
+  const ascendencyPointsBySystemId = new Map(
+    state.run.space.systemProfiles.map(({ systemId, ascendencyPoints }) => [
+      systemId,
+      ascendencyPoints,
+    ]),
+  );
+
+  let total = 0;
+  for (const systemId of eligibleSystemIds) {
+    total += ascendencyPointsBySystemId.get(systemId) ?? 0;
+  }
+  return total;
+}
+
+export interface InterstellarStatisticsSelection {
+  readonly starStudyRange: number;
+  readonly starshipBuilt: boolean;
+  readonly distanceTravelledThisRun: number;
+  readonly distanceTravelledLifetime: number;
+  readonly systemScanned: boolean;
+  readonly fleetAttackStrength: number;
+  readonly envoy: number;
+  readonly scout: number;
+  readonly marauder: number;
+  readonly landStalker: number;
+  readonly navalStrafer: number;
+  readonly enemyName: string | null;
+  readonly enemyDefenceRemaining: number | null;
+  readonly blackHoleDiscovered: boolean;
+  readonly blackHoleAlwaysActive: boolean;
+  readonly blackHoleStrength: number;
+  readonly apFromStarVoyage: number;
+}
+
+/** Projects source-ordered live Interstellar Statistics values from engine state. */
+export function selectInterstellarStatistics(state: GameState): InterstellarStatisticsSelection {
+  const space = state.run.space;
+  const destinationId = space.starship.destinationSystemId;
+  const encounter = destinationId
+    ? (space.systemEncounters.find(({ systemId }) => systemId === destinationId) ?? null)
+    : null;
+  return {
+    starStudyRange: space.starStudyRange,
+    starshipBuilt: isStarshipReady(space),
+    distanceTravelledThisRun: space.starshipDistanceTravelledThisRun,
+    distanceTravelledLifetime: state.statistics.lifetimeStarshipDistanceTravelled,
+    systemScanned: encounter !== null,
+    fleetAttackStrength: Math.floor(
+      totalPlayerFleetPower(space.playerFleetCombatTotals).attackPower,
+    ),
+    envoy: space.fleetEnvoyBuilt ? 1 : 0,
+    scout: space.playerFleets.scout,
+    marauder: space.playerFleets.marauder,
+    landStalker: space.playerFleets.landStalker,
+    navalStrafer: space.playerFleets.navalStrafer,
+    enemyName: encounter?.raceName ?? null,
+    enemyDefenceRemaining: encounter ? enemyFleetPower(encounter.enemyFleets) : null,
+    blackHoleDiscovered: state.permanent.blackHole.discovered,
+    blackHoleAlwaysActive: state.permanent.blackHole.alwaysOn,
+    blackHoleStrength: state.permanent.blackHole.power,
+    apFromStarVoyage: selectRunApAnticipated(state),
+  };
 }
 
 /** Picks the newest active event, falling back to the latest recorded event. */

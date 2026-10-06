@@ -10,6 +10,8 @@ import {
 import { createInitialGameState, type GameState } from "../../src/engine/state";
 import { createGameStore } from "../../src/engine/store";
 import { topStatusText } from "../../src/i18n/topStatusMessages";
+import { formatNumber } from "../../src/app/numberFormatting";
+import { formatCountdown } from "../../src/app/timeFormatting";
 
 function stateWithResearchProduction(gridRunning: boolean): GameState {
   const initial = createInitialGameState({ pioneerName: "Status", seed: 810 });
@@ -118,9 +120,9 @@ describe("top status selectors and balances", () => {
   it("shows AP, CP and GP at their respective progression gates and exports RP details", () => {
     const initial = createInitialGameState({ pioneerName: "Balances", seed: 812 });
     const hiddenMarkup = renderToStaticMarkup(<AscendencyBalance state={initial} locale="en" />);
-    expect(hiddenMarkup).toContain("data-testid=\"ascendency-balance\"");
-    expect(hiddenMarkup).not.toContain("data-testid=\"cp-balance\"");
-    expect(hiddenMarkup).not.toContain("data-testid=\"gp-balance\"");
+    expect(hiddenMarkup).toContain('data-testid="ascendency-balance"');
+    expect(hiddenMarkup).not.toContain('data-testid="cp-balance"');
+    expect(hiddenMarkup).not.toContain('data-testid="gp-balance"');
 
     const revealed: GameState = {
       ...initial,
@@ -134,10 +136,10 @@ describe("top status selectors and balances", () => {
       run: { ...initial.run, space: { ...initial.run.space, ascendencyAwardedThisRun: false } },
     };
     const balanceMarkup = renderToStaticMarkup(<AscendencyBalance state={revealed} locale="en" />);
-    expect(balanceMarkup).toContain("data-testid=\"cp-balance\"");
+    expect(balanceMarkup).toContain('data-testid="cp-balance"');
     expect(balanceMarkup).toContain("Ascendency Points: 0");
     expect(balanceMarkup).toContain("Casino Points: 7");
-    expect(balanceMarkup).toContain("data-testid=\"gp-balance\"");
+    expect(balanceMarkup).toContain('data-testid="gp-balance"');
     expect(balanceMarkup).toContain("Galactic Points: 9");
 
     const researchMarkup = renderToStaticMarkup(
@@ -155,7 +157,7 @@ describe("top status selectors and balances", () => {
     const state = createInitialGameState({ pioneerName: "Status", seed: 813 });
     const store = createGameStore(state, { clock: { now: () => 0 } });
     const markup = renderToStaticMarkup(<TopStatusBar state={state} store={store} locale="en" />);
-    expect(markup).toContain("data-testid=\"top-stat-event\"");
+    expect(markup).toContain('data-testid="top-stat-event"');
     expect(markup).toContain('class="top-stat-label">Last Event / Ongoing Event</span>');
     expect(markup).toContain(">None<");
 
@@ -203,9 +205,7 @@ describe("top status selectors and balances", () => {
     expect(historicalMarkup).toContain('class="top-stat-label">Last Event / Ongoing Event</span>');
     expect(historicalMarkup).toContain("Last recorded event");
     expect(topStatusText("es", "eventLastRecorded")).toBe("Último evento registrado");
-    expect(topStatusText("fr", "eventStatusLabel")).toBe(
-      "Dernier événement / Événement en cours",
-    );
+    expect(topStatusText("fr", "eventStatusLabel")).toBe("Dernier événement / Événement en cours");
 
     for (const locale of LOCALE_IDS) {
       expect(topStatusText(locale, "eventStatusLabel")).not.toBe("");
@@ -219,6 +219,49 @@ describe("top status selectors and balances", () => {
       expect(topStatusText(locale, "researchScienceClubs")).not.toBe("");
       expect(topStatusText(locale, "researchScienceLabs")).not.toBe("");
       expect(topStatusText(locale, "researchMegastructureOther")).not.toBe("");
+      expect(topStatusText(locale, "timeWarpLabel")).not.toBe("");
+      expect(
+        topStatusText(locale, "timeWarpValue", { multiplier: "50", time: "15s" }),
+      ).not.toContain("{");
+      expect(
+        topStatusText(locale, "timeWarpTooltip", { multiplier: "50", time: "15s" }),
+      ).not.toContain("{");
+    }
+  });
+
+  it("shows a localized global time-warp countdown only while the effect is active", () => {
+    const initial = createInitialGameState({ pioneerName: "Warp Status", seed: 814 });
+    const active: GameState = {
+      ...initial,
+      run: { ...initial.run, timeWarp: { multiplier: 50, remainingMs: 15_000 } },
+    };
+
+    for (const locale of LOCALE_IDS) {
+      const localizedState = {
+        ...active,
+        settings: { ...active.settings, locale },
+      };
+      const store = createGameStore(localizedState, { clock: { now: () => 0 } });
+      const markup = renderToStaticMarkup(
+        <TopStatusBar state={localizedState} store={store} locale={locale} />,
+      );
+      const value = topStatusText(locale, "timeWarpValue", {
+        multiplier: formatNumber(locale, 50, 0, localizedState.settings.notation),
+        time: formatCountdown(locale, 15_000),
+      });
+      expect(markup).toContain('data-testid="top-stat-time-warp"');
+      expect(markup).toContain(topStatusText(locale, "timeWarpLabel"));
+      expect(markup).toContain(value);
+
+      const inactiveState: GameState = {
+        ...localizedState,
+        run: { ...localizedState.run, timeWarp: { multiplier: 1, remainingMs: 0 } },
+      };
+      const inactiveStore = createGameStore(inactiveState, { clock: { now: () => 0 } });
+      const inactiveMarkup = renderToStaticMarkup(
+        <TopStatusBar state={inactiveState} store={inactiveStore} locale={locale} />,
+      );
+      expect(inactiveMarkup).not.toContain('data-testid="top-stat-time-warp"');
     }
   });
 });

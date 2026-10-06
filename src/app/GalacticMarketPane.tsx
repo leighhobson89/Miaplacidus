@@ -85,6 +85,61 @@ export function GalacticMarketPane({ state, store }: Props) {
   const liquidationCommand = { type: "meta.market.liquidate" as const };
   const liquidationCheck = checkPreconditions(state, liquidationCommand);
   const liquidation = marketLiquidationPreview(state);
+  const marketFailureReason = (
+    check: { readonly ok: boolean; readonly failure?: { readonly code: string } },
+    details: Parameters<typeof marketFailureText>[2] = {},
+  ): string => {
+    const code =
+      state.run.marketLockdownRemainingMs > 0
+        ? "market-locked"
+        : check.ok
+          ? ""
+          : (check.failure?.code ?? "");
+    if (!code) return "";
+    const failure = marketFailureText(locale, code, details);
+    return code === "market-locked"
+      ? `${failure} ${marketLockCountdownText(locale, state.run.marketLockdownRemainingMs)}`
+      : failure;
+  };
+  const tradeFailureCode = tradeCheck.ok ? "" : (tradeCheck.failure?.code ?? "");
+  const tradeReason = marketFailureReason(
+    tradeCheck,
+    tradeFailureCode === "market-insufficient-stock" && outgoingGoodId
+      ? {
+          required: whole(state, Number.isSafeInteger(quantity) ? quantity : 0),
+          available: whole(state, state.run.goods[outgoingGoodId].quantity),
+          good: economyGoodName(locale, outgoingGoodId),
+        }
+      : tradeFailureCode === "market-capacity" && incomingGoodId
+        ? {
+            required: whole(state, quote?.incomingQuantity ?? 0),
+            available: whole(
+              state,
+              Math.max(
+                0,
+                state.run.goods[incomingGoodId].storageCapacity -
+                  state.run.goods[incomingGoodId].quantity,
+              ),
+            ),
+            good: economyGoodName(locale, incomingGoodId),
+            capacity: whole(state, state.run.goods[incomingGoodId].storageCapacity),
+          }
+        : {},
+  );
+  const apSellReason = marketFailureReason(apSellCheck, {
+    required: whole(state, apSellQuantity),
+    available: whole(state, state.permanent.ascendencyPoints),
+  });
+  const liquidationFailureCode = liquidationCheck.ok ? "" : (liquidationCheck.failure?.code ?? "");
+  const liquidationReason = marketFailureReason(
+    liquidationCheck,
+    liquidationFailureCode === "market-no-liquidation"
+      ? {
+          value: currency(state, liquidation.value),
+          minimum: currency(state, market.apBuyPrice),
+        }
+      : {},
+  );
 
   useEffect(() => {
     const dialog = liquidationDialog.current;
@@ -223,10 +278,16 @@ export function GalacticMarketPane({ state, store }: Props) {
                   type="button"
                   className="secondary-button"
                   disabled={!tradeCheck.ok || disabled}
+                  aria-describedby={tradeReason ? "galactic-market-trade-reason" : undefined}
                   onClick={dispatchTrade}
                 >
                   {marketText(locale, "trade")}
                 </button>
+                {tradeReason && (
+                  <p id="galactic-market-trade-reason" className="control-reason">
+                    {tradeReason}
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -259,10 +320,16 @@ export function GalacticMarketPane({ state, store }: Props) {
               type="button"
               className="secondary-button"
               disabled={!apSellCheck.ok || disabled}
+              aria-describedby={apSellReason ? "galactic-market-ap-sale-reason" : undefined}
               onClick={sellAp}
             >
               {marketText(locale, "sellApAction")}
             </button>
+            {apSellReason && (
+              <p id="galactic-market-ap-sale-reason" className="control-reason">
+                {apSellReason}
+              </p>
+            )}
           </div>
         </article>
         <article className="upgrade-card">
@@ -278,19 +345,21 @@ export function GalacticMarketPane({ state, store }: Props) {
               type="button"
               className="secondary-button"
               disabled={!liquidationCheck.ok || disabled}
+              aria-describedby={
+                liquidationReason ? "galactic-market-liquidation-reason" : undefined
+              }
               onClick={() => setConfirmLiquidation(true)}
             >
               {marketText(locale, "liquidate")}
             </button>
+            {liquidationReason && (
+              <p id="galactic-market-liquidation-reason" className="control-reason">
+                {liquidationReason}
+              </p>
+            )}
           </div>
         </article>
       </div>
-      {disabled && (
-        <p className="control-reason">
-          {marketText(locale, "locked")}{" "}
-          {marketLockCountdownText(locale, state.run.marketLockdownRemainingMs)}
-        </p>
-      )}
       <output className="live-feedback" aria-live="polite">
         {feedback}
       </output>

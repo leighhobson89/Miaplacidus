@@ -1321,6 +1321,7 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
               timerId,
               durationMs: plan.durationMs,
               antimatterSpent: plan.antimatter,
+              travelDistanceLy: plan.distanceLy,
             },
           },
         },
@@ -1885,14 +1886,34 @@ export function completeSpaceJourneys(
     completedIds.has(starship.timerId) &&
     starship.destinationSystemId !== null
   ) {
+    const routeDistanceLy =
+      starship.travelDistanceLy ??
+      starshipTravelPlan(nextState, starship.destinationSystemId)?.distanceLy ??
+      0;
+    const runDistance = Number(
+      (nextState.run.space.starshipDistanceTravelledThisRun + routeDistanceLy).toFixed(2),
+    );
+    const lifetimeDistance = Number(
+      (nextState.statistics.lifetimeStarshipDistanceTravelled + routeDistanceLy).toFixed(2),
+    );
     nextState = {
       ...nextState,
       run: {
         ...nextState.run,
         space: {
           ...nextState.run.space,
-          starship: { ...starship, phase: "orbiting", timerId: null },
+          starshipDistanceTravelledThisRun: runDistance,
+          starship: {
+            ...starship,
+            phase: "orbiting",
+            timerId: null,
+            travelDistanceLy: null,
+          },
         },
+      },
+      statistics: {
+        ...nextState.statistics,
+        lifetimeStarshipDistanceTravelled: lifetimeDistance,
       },
     };
     events.push({ type: "space.starship.arrived", systemId: starship.destinationSystemId });
