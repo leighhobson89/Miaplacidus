@@ -119,3 +119,18 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "reduced motion keeps full ticker messages readable and controls usable" tests/e2e/news-ticker/news-ticker.spec.ts
 ```
+
+8 October 2026 apostrophe rendering follow-up: replaced missing French and
+Italian elision marks in the source ticker copy with plain ASCII apostrophes.
+The focused installed-Chrome case renders one French and one Italian headline
+with reduced motion enabled, verifies their exact apostrophe-bearing copy, and
+captures each ticker for visual inspection. It passed 1/1 in 3.9 seconds; both
+generated screenshots were reviewed and show the apostrophe glyph in the
+Terminal font. Run it with:
+
+```powershell
+$env:MIAPLACIDUS_TEST_AREA = "news-ticker"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "French and Italian ticker apostrophes" tests/e2e/news-ticker/news-ticker.spec.ts
+```

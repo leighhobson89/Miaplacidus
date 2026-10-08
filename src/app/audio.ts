@@ -2,6 +2,10 @@ import type { EngineEvent, EngineResult, GameCommand } from "../engine/commands"
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { currentWeatherForSystem } from "../engine/weather";
+import {
+  miaplacidusForceFieldLevel,
+  stageForMegastructureTechnology,
+} from "../engine/megastructures";
 
 const AUDIO_URLS = {
   asteroidScan: new URL("../assets/audio/asteroidScan.mp3", import.meta.url).href,
@@ -118,14 +122,21 @@ function updateAmbience(state: GameState, focused = true): void {
   setAmbienceTrack("volcano", "eruptionLoop", volume > 0 && weather === "volcano", volume * 0.6);
 }
 
-function cueForEvent(event: EngineEvent): AudioCue | null {
+function cueForEvent(event: EngineEvent, state: GameState): AudioCue | null {
   switch (event.type) {
     case "storage.increased":
       return "increaseStorage";
-    case "purchase.completed":
-      return "kaching";
     case "technology.researched":
-      return event.technologyId === "dysonSphereConnect" ? "megastructureCaptured" : null;
+      switch (stageForMegastructureTechnology(event.technologyId)) {
+        case 3:
+          return miaplacidusForceFieldLevel(state) >= 4
+            ? "forcefieldTakedownFinal"
+            : "forcefieldTakedown";
+        case 5:
+          return "megastructureCaptured";
+        default:
+          return null;
+      }
     case "resource.sold":
       return "kaching";
     case "news.prize.claimed":
@@ -139,13 +150,18 @@ function cueForEvent(event: EngineEvent): AudioCue | null {
       return "buildTelescope";
     case "space.launch-pad.built":
       return "buildLaunchPad";
-    case "space.asteroid.discovered":
-    case "space.asteroid.scan-missed":
+    case "space.survey.started":
+      return event.survey === "asteroids"
+        ? "asteroidScan"
+        : event.survey === "stars"
+          ? "starStudy"
+          : null;
+    case "space.starship.system.scanned":
       return "asteroidScan";
-    case "space.stars.studied":
-      return "starStudy";
+    case "space.rocket.pump.purchased":
+      return "fuelRocket";
     case "space.rocket.pump.changed":
-      return event.enabled ? "fuelRocket" : "clickSwitch";
+      return "clickSwitch";
     case "space.rocket.launched":
       return "rocketLaunch";
     case "space.rocket.travel-started":
@@ -164,21 +180,20 @@ function cueForEvent(event: EngineEvent): AudioCue | null {
       return event.result === "victory" ? "shipBattleExplode1" : "shipBattleExplode2";
     case "black-hole.warp-activated":
       return "blackHoleActivated";
-    case "megastructure.force-field-breached":
-      return "forcefieldTakedown";
-    case "space.miaplacidus.story-ready":
-    case "cosmic-rip.closed":
-      return "forcefieldTakedownFinal";
+    case "black-hole.upgrade-purchased":
+      return event.upgradeId === "recharge" && state.permanent.blackHole.alwaysOn
+        ? "blackHoleActivated"
+        : null;
     case "random-event.triggered":
-      return event.id === "powerPlantExplosion" ? "powerTripped" : "eventAlarm";
+      return "eventAlarm";
     default:
       return null;
   }
 }
 
-function cuesForEvent(event: EngineEvent): readonly AudioCue[] {
+function cuesForEvent(event: EngineEvent, state: GameState): readonly AudioCue[] {
   if (event.type === "economy.power.tripped") return ["powerOff", "powerTripped"];
-  const cue = cueForEvent(event);
+  const cue = cueForEvent(event, state);
   return cue ? [cue] : [];
 }
 
@@ -261,7 +276,7 @@ function handleResult(
   }
   for (const event of result.events) {
     if (command.type === "clock.advance" && event.type === "resource.sold") continue;
-    for (const cue of cuesForEvent(event)) cues.add(cue);
+    for (const cue of cuesForEvent(event, result.state)) cues.add(cue);
   }
   const silentRocketProgress = result.events.some(
     (event) =>
@@ -271,6 +286,7 @@ function handleResult(
   if (
     cues.size === 0 &&
     command.type !== "clock.advance" &&
+    command.type !== "navigation.attention.clear" &&
     !silentRocketProgress &&
     !boostActivated
   ) {
@@ -286,6 +302,7 @@ function handleResult(
 
 export interface AudioGameStore extends GameStore {
   subscribeEvents(listener: (events: readonly EngineEvent[]) => void): () => void;
+  playUiCue(cue: "click" | "swipe"): void;
   dispose(): void;
 }
 
@@ -346,6 +363,17 @@ export function withGameAudio(store: GameStore): AudioGameStore {
     subscribeEvents(listener) {
       eventListeners.add(listener);
       return () => eventListeners.delete(listener);
+    },
+    playUiCue(cue) {
+      const state = store.getState();
+      audioUnlocked = true;
+      updateAmbience(state, isAudioFocused());
+      const effectsEnabled = state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
+      if (!effectsEnabled || !isAudioFocused()) return;
+      playEffect(
+        cue === "click" ? "clickButton" : "clickSwitch",
+        state.settings.soundEffectsVolume ?? 0.5,
+      );
     },
     dispatch(command) {
       const result = store.dispatch(command);

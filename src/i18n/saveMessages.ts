@@ -568,3 +568,5 @@ export function saveErrorText(locale: LocaleId, code: SaveErrorCode | string): s
     )[code] ?? "errGeneric";
   return saveText(locale, key);
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

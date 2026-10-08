@@ -307,7 +307,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
               · {quantity(locale, paymentAvailable)} {casinoText(locale, "available")}
             </p>
             {!purchaseCheck.enabled && (
-              <p className="live-feedback" id="casino-buy-reason">
+              <p className="live-feedback" id="casino-buy-reason" role="status" aria-live="polite">
                 {purchaseReason}
               </p>
             )}
@@ -374,14 +374,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
               data-testid="casino-don-play"
               disabled={!donCheck.enabled}
               aria-describedby={!donCheck.enabled ? "casino-don-reason" : undefined}
-              onClick={() =>
-                dispatch(donCommand, (result) => {
-                  const event = result.events.find((entry) => entry.type === "casino.game.played");
-                  return event?.type === "casino.game.played"
-                    ? `${event.result === "win" ? casinoText(locale, "win") : casinoText(locale, "loss")}: ${quantity(locale, event.cpAwarded)} CP`
-                    : "";
-                })
-              }
+              onClick={() => dispatch(donCommand)}
             >
               {casinoText(locale, "play")}
             </button>

@@ -99,3 +99,5 @@ export function achievementRewardText(
     String(values[name] ?? ""),
   );
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

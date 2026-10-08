@@ -201,6 +201,7 @@ export interface EconomyState {
 
 export interface PermanentState {
   readonly rebirthCount: number;
+  readonly navigationVisitedIds: readonly string[];
   readonly ascendencyPoints: number;
   readonly gloryPoints: number;
   readonly acquiredPerks: readonly string[];
@@ -393,7 +394,7 @@ export interface StatisticsState {
 }
 
 export interface GameState {
-  readonly schemaVersion: 43;
+  readonly schemaVersion: 44;
   readonly run: RunState;
   readonly permanent: PermanentState;
   readonly settings: SettingsState;
@@ -424,6 +425,7 @@ export type LegacyRunStateV1 = Omit<
 >;
 export type LegacyPermanentState = Omit<
   PermanentState,
+  | "navigationVisitedIds"
   | "philosophyId"
   | "philosophyRepeatableRanks"
   | "galacticCasino"
@@ -659,7 +661,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
   ) as Record<EconomicGoodId, GoodState>;
 
   const initialState: GameState = {
-    schemaVersion: 43,
+    schemaVersion: 44,
     run: {
       pioneerName: options.pioneerName?.trim() || "Pioneer",
       hydrogenAutobuyerEnabled: true,
@@ -705,6 +707,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
     },
     permanent: {
       rebirthCount: 0,
+      navigationVisitedIds: [],
       ascendencyPoints: 0,
       gloryPoints: 0,
       acquiredPerks: [],
@@ -1262,7 +1265,9 @@ function validNewsTickerProgress(value: unknown): value is NewsTickerProgress {
         (entry.prizeGoodId === null || typeof entry.prizeGoodId === "string") &&
         (entry.prizeAmount === undefined ||
           entry.prizeAmount === null ||
-          (Number.isSafeInteger(entry.prizeAmount) && entry.prizeAmount > 0)) &&
+          (Number.isFinite(entry.prizeAmount) &&
+            entry.prizeAmount > 0 &&
+            (entry.claimed || Number.isSafeInteger(entry.prizeAmount)))) &&
         (entry.clueSystemId === undefined ||
           entry.clueSystemId === null ||
           typeof entry.clueSystemId === "string") &&
@@ -1449,7 +1454,7 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   const state = value as Partial<GameState>;
   if (
-    state.schemaVersion !== 43 ||
+    state.schemaVersion !== 44 ||
     !state.run ||
     !state.permanent ||
     !state.settings ||
@@ -1501,6 +1506,7 @@ export function isValidGameState(value: unknown): value is GameState {
     ]) ||
     !exactKeys(permanent, [
       "rebirthCount",
+      "navigationVisitedIds",
       "ascendencyPoints",
       "gloryPoints",
       "acquiredPerks",
@@ -1646,6 +1652,9 @@ export function isValidGameState(value: unknown): value is GameState {
     !Array.isArray(run.navigationAttentionIds) ||
     run.navigationAttentionIds.some((id) => typeof id !== "string" || id.length === 0) ||
     new Set(run.navigationAttentionIds).size !== run.navigationAttentionIds.length ||
+    !Array.isArray(permanent.navigationVisitedIds) ||
+    permanent.navigationVisitedIds.some((id) => typeof id !== "string" || id.length === 0) ||
+    new Set(permanent.navigationVisitedIds).size !== permanent.navigationVisitedIds.length ||
     typeof run.navigationAttentionInitialized !== "boolean"
   )
     return false;
@@ -2880,7 +2889,7 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
       : [];
   const candidate = {
     ...value,
-    schemaVersion: 43,
+    schemaVersion: 44,
     settings: {
       ...settingsState,
       themeId,
@@ -2951,6 +2960,13 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
     },
     permanent: {
       ...permanentState,
+      navigationVisitedIds: Array.isArray(permanentState["navigationVisitedIds"])
+        ? [...new Set(
+            (permanentState["navigationVisitedIds"] as unknown[]).filter(
+              (id): id is string => typeof id === "string" && id.length > 0,
+            ),
+          )]
+        : [],
       megastructures: (() => {
         const saved = permanentState["megastructures"];
         const megastructures =
@@ -3543,12 +3559,16 @@ export function upgradeGameStateV42(value: unknown): GameState | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const legacy = value as Record<string, unknown>;
   const run = legacy["run"];
+  const permanent = legacy["permanent"];
   const statistics = legacy["statistics"];
   if (
     legacy["schemaVersion"] !== 42 ||
     !run ||
     typeof run !== "object" ||
     Array.isArray(run) ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent) ||
     !statistics ||
     typeof statistics !== "object" ||
     Array.isArray(statistics)
@@ -3562,7 +3582,7 @@ export function upgradeGameStateV42(value: unknown): GameState | null {
   if (!rawStarship || typeof rawStarship !== "object" || Array.isArray(rawStarship)) return null;
   const candidate = {
     ...legacy,
-    schemaVersion: 43,
+    schemaVersion: 44,
     run: {
       ...runState,
       space: {
@@ -3577,6 +3597,40 @@ export function upgradeGameStateV42(value: unknown): GameState | null {
     statistics: {
       ...(statistics as Record<string, unknown>),
       lifetimeStarshipDistanceTravelled: 0,
+    },
+    permanent: {
+      ...(permanent as Record<string, unknown>),
+      navigationVisitedIds: [],
+    },
+  };
+  return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;
+}
+
+/** Adds save-wide navigation visit history to v43 saves. */
+export function upgradeGameStateV43(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const permanent = legacy["permanent"];
+  if (
+    legacy["schemaVersion"] !== 43 ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent)
+  )
+    return null;
+  const permanentState = permanent as Record<string, unknown>;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 44,
+    permanent: {
+      ...permanentState,
+      navigationVisitedIds: Array.isArray(permanentState["navigationVisitedIds"])
+        ? [...new Set(
+            (permanentState["navigationVisitedIds"] as unknown[]).filter(
+              (id): id is string => typeof id === "string" && id.length > 0,
+            ),
+          )]
+        : [],
     },
   };
   return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;

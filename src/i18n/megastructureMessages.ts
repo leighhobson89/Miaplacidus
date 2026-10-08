@@ -192,3 +192,5 @@ const MESSAGES: Record<LocaleId, MegastructureMessages> = {
 export function megastructureText(locale: LocaleId): MegastructureMessages {
   return MESSAGES[locale];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { MESSAGES } as const;

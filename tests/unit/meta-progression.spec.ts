@@ -16,7 +16,12 @@ import { advanceCosmicRip } from "../../src/engine/cosmicRip";
 import { createTimer, createTimerId } from "../../src/engine/timers";
 import { createInitialStarSystemBattleState } from "../../src/content/space";
 import { generateStarSystemEncounter } from "../../src/engine/starSystemEncounters";
-import { decodePortable, encodePortable } from "../../src/persistence/codec";
+import {
+  decodeLocal,
+  decodePortable,
+  encodeLocal,
+  encodePortable,
+} from "../../src/persistence/codec";
 import { makeEnvelope } from "../../src/persistence/schema";
 import {
   advanceGalacticMarket,
@@ -49,6 +54,74 @@ function rebirthReadyState(rebirthCount: number = 1) {
 }
 
 describe("meta progression content", () => {
+  it("preserves navigation attention and visited history across local reload and rebirth", () => {
+    const ready = rebirthReadyState(0);
+    const navigationReady = {
+      ...ready,
+      run: {
+        ...ready.run,
+        navigationAttentionIds: ["miaplaedia-story"],
+        navigationAttentionInitialized: true,
+      },
+      permanent: {
+        ...ready.permanent,
+        navigationVisitedIds: ["settings-game-options"],
+      },
+    };
+
+    const envelope = makeEnvelope({
+      slotId: "00000000-0000-4000-8000-000000000036",
+      pioneerName: navigationReady.run.pioneerName,
+      createdAt: 1,
+      savedAt: 2,
+      revision: 1,
+      state: navigationReady,
+    });
+    const reloaded = decodeLocal(encodeLocal(envelope)).state;
+
+    expect(reloaded.run.navigationAttentionIds).toEqual(["miaplaedia-story"]);
+    expect(reloaded.run.navigationAttentionInitialized).toBe(true);
+    expect(reloaded.permanent.navigationVisitedIds).toEqual(["settings-game-options"]);
+
+    const reborn = transition(reloaded, { type: "meta.rebirth" });
+
+    expect(reborn.accepted).toBe(true);
+    expect(reborn.state.run.navigationAttentionIds).toEqual(["miaplaedia-story"]);
+    expect(reborn.state.run.navigationAttentionInitialized).toBe(true);
+    expect(reborn.state.permanent.navigationVisitedIds).toEqual(["settings-game-options"]);
+
+    const discovered = transition(reborn.state, {
+      type: "navigation.attention.discover",
+      pageIds: ["settings-game-options", "miaplaedia-story", "research-science-buildings"],
+    });
+    expect(discovered.state.run.navigationAttentionIds).toEqual([
+      "miaplaedia-story",
+      "research-science-buildings",
+    ]);
+
+    const revisited = transition(discovered.state, {
+      type: "navigation.attention.clear",
+      pageId: "settings-game-options",
+    });
+    expect(revisited.state.permanent.navigationVisitedIds).toEqual(["settings-game-options"]);
+
+    const newlyVisited = transition(revisited.state, {
+      type: "navigation.attention.clear",
+      pageId: "research-science-buildings",
+    });
+    expect(newlyVisited.state.run.navigationAttentionIds).toEqual(["miaplaedia-story"]);
+    expect(newlyVisited.state.permanent.navigationVisitedIds).toEqual([
+      "settings-game-options",
+      "research-science-buildings",
+    ]);
+
+    const rediscovered = transition(newlyVisited.state, {
+      type: "navigation.attention.discover",
+      pageIds: ["settings-game-options", "research-science-buildings"],
+    });
+    expect(rediscovered.state.run.navigationAttentionIds).toEqual(["miaplaedia-story"]);
+  });
+
   it("counts each repeated ascendency perk purchase from saved duplicate IDs", () => {
     expect(
       permanentPerkPurchaseCount(
@@ -158,6 +231,7 @@ describe("validated rebirth and ascendency purchases", () => {
                     timerId,
                     durationMs: 1_000,
                     antimatterSpent: 1,
+                    travelDistanceLy: 0,
                   }
                 : ready.run.space.starship,
             systemEncounters:

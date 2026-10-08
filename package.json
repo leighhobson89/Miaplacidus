@@ -17,6 +17,7 @@
     "check:boundaries": "oxlint src/engine --import-plugin --deny-warnings",
     "test:unit": "vitest run --passWithNoTests tests/unit",
     "test:unit:focused": "vitest run --passWithNoTests",
+    "check:localization": "npm run typecheck && vitest run tests/unit/localization-validation.spec.ts",
     "test:e2e": "playwright test --pass-with-no-tests tests/e2e",
     "test:e2e:focused": "playwright test --pass-with-no-tests"
   },

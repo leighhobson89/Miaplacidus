@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { RANDOM_EVENT_IDS } from "../content/metaSignals";
+import { checkNewsPrizeClaim, newsPrizeClaimAmount } from "../engine/newsTicker";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
+import { economyLabel } from "../i18n/economyMessages";
+import { formatDuration } from "./timeFormatting";
 import {
   journalLabel,
   metaSignalText,
@@ -11,12 +14,6 @@ import {
 } from "../i18n/metaSignalMessages";
 import type { LocaleNewsCopy } from "../i18n/sourceNewsCopy";
 import { RandomEventArtwork } from "./RandomEventArtwork";
-
-function timeLabel(milliseconds: number): string {
-  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const minutes = Math.floor(seconds / 60);
-  return minutes > 0 ? `${minutes}m ${seconds % 60}s` : `${seconds}s`;
-}
 
 export function MetaJournalPane({
   state,
@@ -62,27 +59,57 @@ export function MetaJournalPane({
           <header className="journal-section-heading">
             <h3 id="journal-news-heading">{metaSignalText(locale, "news")}</h3>
             <small>
-              {metaSignalText(locale, "remaining")} {timeLabel(news.remainingMs)}
+              {metaSignalText(locale, "remaining")}{" "}
+              {formatDuration(locale, news.remainingMs, state.settings.notation)}
             </small>
           </header>
           {latestNews.length > 0 && (
             <ol className="journal-list">
-              {latestNews.map((entry) => (
+              {latestNews.map((entry) => {
+                const availablePrizeAmount =
+                  entry.category === "prize" && !entry.claimed
+                    ? newsPrizeClaimAmount(state, entry)
+                    : null;
+                const displayEntry =
+                  entry.category === "prize" &&
+                  !entry.claimed &&
+                  availablePrizeAmount !== null
+                    ? { ...entry, prizeAmount: availablePrizeAmount }
+                    : entry;
+                const canClaim = checkNewsPrizeClaim(state, entry.id, entry.simulationMs);
+                const storageFull =
+                  entry.category === "prize" && !entry.claimed && availablePrizeAmount === null;
+                return (
                 <li key={`${entry.id}-${entry.simulationMs}`} data-news-id={entry.id}>
                   <div>
-                    <p>{newsEntryText(locale, entry, newsCopy ?? undefined)}</p>
+                    <p>{newsEntryText(locale, displayEntry, newsCopy ?? undefined)}</p>
                     <small>
                       {newsCategoryName(locale, entry.category)} ·{" "}
-                      {timeLabel(Math.max(0, state.run.clock.simulationMs - entry.simulationMs))}{" "}
+                      {formatDuration(
+                        locale,
+                        Math.max(0, state.run.clock.simulationMs - entry.simulationMs),
+                        state.settings.notation,
+                      )}{" "}
                       {journalLabel(locale, "ago")}
                     </small>
+                    {storageFull && (
+                      <small className="news-ticker-claim-reason">
+                        {economyLabel(locale, "collectStorageFull")}
+                      </small>
+                    )}
                   </div>
                   {(entry.category === "prize" || entry.category === "oneOff") && (
                     <button
                       className="text-button"
                       type="button"
-                      disabled={entry.claimed}
-                      onClick={() => store.dispatch({ type: "news.prize.claim", id: entry.id })}
+                      disabled={!canClaim}
+                      onClick={() =>
+                        store.dispatch({
+                          type: "news.prize.claim",
+                          id: entry.id,
+                          simulationMs: entry.simulationMs,
+                        })
+                      }
                     >
                       {entry.claimed
                         ? metaSignalText(locale, "claimed")
@@ -90,7 +117,8 @@ export function MetaJournalPane({
                     </button>
                   )}
                 </li>
-              ))}
+                );
+              })}
             </ol>
           )}
         </section>
@@ -106,7 +134,9 @@ export function MetaJournalPane({
               {events.activeEffects.map((effect) => (
                 <li key={effect.id}>
                   <span>{randomEventName(locale, effect.id)}</span>
-                  <strong>{timeLabel(effect.remainingMs)}</strong>
+                  <strong>
+                    {formatDuration(locale, effect.remainingMs, state.settings.notation)}
+                  </strong>
                 </li>
               ))}
             </ul>
@@ -128,7 +158,11 @@ export function MetaJournalPane({
                   <div>
                     <p>{randomEventName(locale, entry.id)}</p>
                     <small>
-                      {timeLabel(Math.max(0, state.run.clock.simulationMs - entry.simulationMs))}{" "}
+                      {formatDuration(
+                        locale,
+                        Math.max(0, state.run.clock.simulationMs - entry.simulationMs),
+                        state.settings.notation,
+                      )}{" "}
                       {journalLabel(locale, "ago")}
                     </small>
                   </div>

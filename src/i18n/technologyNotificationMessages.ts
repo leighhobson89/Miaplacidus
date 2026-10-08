@@ -633,3 +633,5 @@ export function technologyNotificationText(
 ): string {
   return notices[locale][id] ?? fallback[locale].replace("{technology}", technology);
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { notices, fallback } as const;

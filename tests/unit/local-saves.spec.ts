@@ -1063,6 +1063,7 @@ describe("local save formats and identity", () => {
       ...midState,
       permanent: {
         rebirthCount: 8,
+        navigationVisitedIds: base.permanent.navigationVisitedIds,
         ascendencyPoints: 120,
         gloryPoints: 35,
         galacticMarket: base.permanent.galacticMarket,
@@ -1101,6 +1102,7 @@ describe("local save formats and identity", () => {
         lifetimeRocketsBuilt: 0,
         lifetimeRocketsLaunched: 0,
         lifetimeStarshipsLaunched: 0,
+        lifetimeStarshipDistanceTravelled: 0,
         lifetimeGoodsProducedByGood: base.statistics.lifetimeGoodsProducedByGood,
         lifetimeActiveMs: 1_800_000,
         acceptedCommands: 900_000,
@@ -1847,6 +1849,35 @@ describe("lifetime statistics save migration", () => {
       "miaplaedia-story",
     ]);
     expect(migrated.state.run.navigationAttentionInitialized).toBe(false);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("adds save-wide navigation history when upgrading a version 43 save", () => {
+    const current = envelope("History Pioneer");
+    const { navigationVisitedIds: _visited, ...oldPermanent } = current.state.permanent;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 43,
+      run: {
+        ...current.state.run,
+        navigationAttentionIds: ["miaplaedia-story"],
+        navigationAttentionInitialized: true,
+      },
+      permanent: { ...oldPermanent },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 43, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.navigationAttentionIds).toEqual(["miaplaedia-story"]);
+    expect(migrated.state.run.navigationAttentionInitialized).toBe(true);
+    expect(migrated.state.permanent.navigationVisitedIds).toEqual([]);
     expect(isSaveEnvelope(migrated)).toBe(true);
   });
 

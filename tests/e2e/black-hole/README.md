@@ -17,3 +17,11 @@ Focused command:
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/black-hole/black-hole.spec.ts -g "shows the Black Hole power upgrade cost and applies its effect" --reporter=line --workers=1 --retries=0 --trace=off
 ```
+
+P-04 live attention verification (7 October 2026): after the charge timer completes, `Ready` appears on both the Galactic main tab and Black Hole child tab. Activating the warp clears both `Ready` indicators. The focused Chrome journey passed 1/1:
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/black-hole/black-hole.spec.ts -g 'researches, charges, saves and activates the Black Hole' --reporter=line --workers=1 --retries=0 --trace=off
+```
+
+P-20 warp-activation announcement verification (8 October 2026): an initially empty polite, atomic screen-reader-only region receives the localized active-state label only after the accepted black-hole.warp-activated event. It clears when the warp expires and countdown updates remain silent. Unit coverage passed 3/3 across all six locales. The focused Chrome journey passed 1/1 and checks the initial empty state, ARIA settings, activation announcement, existing warp state and cleared navigation badges, and empty output after expiry; it uses the focused command already listed above.

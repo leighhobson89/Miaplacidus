@@ -129,7 +129,8 @@ test("a fresh pioneer starts directly and Miaplaedia has no replay control @save
   await page.getByTestId("start-game").click();
   await expect(page.locator(".run-name")).toHaveText("Direct Start Pioneer");
   await expect(page.locator(".hydrogen-briefing")).toHaveCount(0);
-  await expect(page.locator("#tab-resources-hydrogen .attention-badge")).toHaveText("New");
+  const hydrogenPageTab = page.locator("#tab-resources-hydrogen");
+  await expect(hydrogenPageTab.locator(".attention-badge")).toHaveText("New");
   await captureVisualCheckpoint(page, testInfo, "hydrogen-first-run-no-briefing");
 
   await page.locator("#tab-settings").click();
@@ -142,6 +143,7 @@ test("a fresh pioneer starts directly and Miaplaedia has no replay control @save
   await expect(miaplaediaStory.locator(".attention-badge")).toHaveText("New");
   await miaplaediaStory.click();
   await expect(miaplaediaStory.locator(".attention-badge")).toHaveCount(0);
+  await saveNowFromSettings(page);
 
   await page.reload();
   await expect(page.getByLabel("Pioneer name")).toHaveValue("Direct Start Pioneer");
@@ -150,7 +152,11 @@ test("a fresh pioneer starts directly and Miaplaedia has no replay control @save
   await page.getByTestId("start-game").click();
   await expect(page.locator(".hydrogen-briefing")).toHaveCount(0);
   await expect(page.locator(".run-name")).toHaveText("Direct Start Pioneer");
+  await expect(hydrogenPageTab.locator(".attention-badge")).toHaveText("New");
+  await page.locator("#tab-settings").click();
+  await expect(page.locator("#tab-settings-game-options .attention-badge")).toHaveCount(0);
   await page.locator(".game-nav [role='tab'][aria-controls='pane-miaplaedia']").click();
+  await expect(page.locator("#tab-miaplaedia-story .attention-badge")).toHaveCount(0);
   await expect(page.locator(".miaplaedia-page button")).toHaveCount(0);
   await captureVisualCheckpoint(page, testInfo, "hydrogen-resume-no-replay-control");
 
@@ -564,6 +570,9 @@ test("portable save preview offers replace, new pioneer, and cancel before impor
   await manager.getByLabel("Paste a MIAPLACIDUS save code").fill(portableCode);
   await manager.getByRole("button", { name: "Preview import" }).click();
   await expect(manager.getByTestId("import-preview")).toBeVisible();
+  await expect(manager.getByRole("alert")).toHaveText(
+    "A local save already uses this pioneer name. Choose what to do.",
+  );
   await captureVisualCheckpoint(freshGame, testInfo, "import-conflict-preview");
   await expect(manager.getByRole("button", { name: "Replace matching save" })).toBeDisabled();
   await expect(manager.getByRole("button", { name: "Import as a new pioneer" })).toBeVisible();

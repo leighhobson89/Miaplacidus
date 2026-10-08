@@ -44,3 +44,5 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SettingsHelpId, string
 export function settingsHelpText(locale: LocaleId, id: SettingsHelpId): string {
   return messages[locale][id];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

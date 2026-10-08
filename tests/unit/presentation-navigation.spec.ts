@@ -810,5 +810,38 @@ describe("persistent navigation attention", () => {
     });
     expect(opened.accepted).toBe(true);
     expect(opened.state.run.navigationAttentionIds).toEqual(["energy"]);
+    expect(opened.state.permanent.navigationVisitedIds).toEqual(["energy-power-plant"]);
+
+    const rediscovered = transition(opened.state, {
+      type: "navigation.attention.discover",
+      pageIds: ["energy-power-plant", "energy-storage"],
+    });
+    expect(rediscovered.state.run.navigationAttentionIds).toEqual(["energy", "energy-storage"]);
+
+    const markedWithoutBadge = transition(rediscovered.state, {
+      type: "navigation.attention.clear",
+      pageId: "energy",
+    });
+    expect(markedWithoutBadge.state.permanent.navigationVisitedIds).toEqual([
+      "energy-power-plant",
+      "energy",
+    ]);
+  });
+
+  it("does not initialize first-access badges for pages already visited in the save", () => {
+    const base = createInitialGameState({ locale: "en" });
+    const state = {
+      ...base,
+      permanent: { ...base.permanent, navigationVisitedIds: ["settings"] },
+    };
+    const initialized = transition(state, {
+      type: "navigation.attention.initialize",
+      pageIds: ["settings", "settings-visual", "miaplaedia-story"],
+    });
+
+    expect(initialized.state.run.navigationAttentionIds).toEqual([
+      "settings-visual",
+      "miaplaedia-story",
+    ]);
   });
 });

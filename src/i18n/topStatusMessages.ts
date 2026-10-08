@@ -89,7 +89,13 @@ type StatusExtensionMessageKey =
   | "timeWarpLabel"
   | "timeWarpValue"
   | "timeWarpTooltip"
-  | "precipitationThisRun";
+  | "precipitationThisRun"
+  | "globalContext"
+  | "cash"
+  | "megastructures"
+  | "captured"
+  | "notCaptured"
+  | "philosophy";
 
 type TopStatusMessageKey = StatusMessageKey | StatusExtensionMessageKey;
 
@@ -99,6 +105,12 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     eventNone: "None",
     eventRemaining: "Remaining: {time}",
     eventLastRecorded: "Last recorded event",
+    globalContext: "Whole game progress",
+    cash: "Cash",
+    megastructures: "Megastructures",
+    captured: "Captured",
+    notCaptured: "Not captured",
+    philosophy: "Philosophy",
     ascendencyPointsName: "Ascendency Points",
     casinoPointsName: "Casino Points",
     galacticPointsName: "Galactic Points",
@@ -120,6 +132,12 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     eventNone: "Ninguno",
     eventRemaining: "Tiempo restante: {time}",
     eventLastRecorded: "Último evento registrado",
+    globalContext: "Progreso general",
+    cash: "Dinero",
+    megastructures: "Megastructuras",
+    captured: "Conquistada",
+    notCaptured: "No conquistada",
+    philosophy: "Filosofía",
     ascendencyPointsName: "Puntos de ascendencia",
     casinoPointsName: "Puntos de casino",
     galacticPointsName: "Puntos galácticos",
@@ -141,6 +159,12 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     eventNone: "Nenhum",
     eventRemaining: "Tempo restante: {time}",
     eventLastRecorded: "Último evento registado",
+    globalContext: "Progresso geral",
+    cash: "Dinheiro",
+    megastructures: "Megastruturas",
+    captured: "Conquistada",
+    notCaptured: "Não conquistada",
+    philosophy: "Filosofia",
     ascendencyPointsName: "Pontos de ascendência",
     casinoPointsName: "Pontos do casino",
     galacticPointsName: "Pontos galácticos",
@@ -162,6 +186,12 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     eventNone: "Keines",
     eventRemaining: "Verbleibend: {time}",
     eventLastRecorded: "Zuletzt aufgezeichnetes Ereignis",
+    globalContext: "Gesamtfortschritt",
+    cash: "Geld",
+    megastructures: "Megastrukturen",
+    captured: "Erobert",
+    notCaptured: "Nicht erobert",
+    philosophy: "Philosophie",
     ascendencyPointsName: "Aufstiegspunkte",
     casinoPointsName: "Casino-Punkte",
     galacticPointsName: "Galaktische Punkte",
@@ -183,6 +213,12 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     eventNone: "Nessuno",
     eventRemaining: "Tempo rimanente: {time}",
     eventLastRecorded: "Ultimo evento registrato",
+    globalContext: "Progresso generale",
+    cash: "Denaro",
+    megastructures: "Megastrutture",
+    captured: "Conquistata",
+    notCaptured: "Non conquistata",
+    philosophy: "Filosofia",
     ascendencyPointsName: "Punti ascendenza",
     casinoPointsName: "Punti del casinò",
     galacticPointsName: "Punti galattici",
@@ -204,6 +240,12 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     eventNone: "Aucun",
     eventRemaining: "Temps restant : {time}",
     eventLastRecorded: "Dernier événement enregistré",
+    globalContext: "Progression générale",
+    cash: "Argent",
+    megastructures: "Mégastructures",
+    captured: "Conquise",
+    notCaptured: "Non conquise",
+    philosophy: "Philosophie",
     ascendencyPointsName: "Points d'ascendance",
     casinoPointsName: "Points de casino",
     galacticPointsName: "Points galactiques",
@@ -575,3 +617,5 @@ export function topStatusText(
       : statusExtensions[locale][key as StatusExtensionMessageKey];
   return template.replace(/\{(\w+)\}/g, (match, name: string) => String(values[name] ?? match));
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages, statusExtensions } as const;

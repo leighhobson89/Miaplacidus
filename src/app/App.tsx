@@ -72,11 +72,13 @@ import {
   type SaveRepository,
 } from "../persistence";
 import { saveErrorText, saveText } from "../i18n/saveMessages";
-import { AscendencyBalance, LocationStatus, ResearchBalance, TopStatusBar } from "./TopStatusBar";
+import { GlobalContextBar, TopStatusBar } from "./TopStatusBar";
 import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { cosmicRipText } from "../i18n/cosmicRipMessages";
 import { technologyNotificationText } from "../i18n/technologyNotificationMessages";
 import { createSpaceEventNoticeHandler } from "./spaceEventNotifications";
+import { createCasinoEventNoticeHandler } from "./casinoEventNotifications";
+import { dispatchEconomySale } from "./economySaleNotifications";
 import { WeatherEffectsOverlay } from "./WeatherEffectsOverlay";
 import {
   GameNotificationProvider,
@@ -148,10 +150,10 @@ const SaveManager = lazy(() =>
 const GAME_TABS = [
   { id: "hydrogen", key: "tab.hydrogen" },
   { id: "compounds", key: "tab.compounds" },
-  { id: "energy", key: "tab.energy" },
   { id: "research", key: "tab.research" },
-  { id: "interstellar", key: "tab.interstellar" },
+  { id: "energy", key: "tab.energy" },
   { id: "space-mining", key: "tab.spaceMining" },
+  { id: "interstellar", key: "tab.interstellar" },
   { id: "galaxy", key: "tab.galaxy" },
   { id: "cosmic-rip", key: "tab.cosmicRip" },
   { id: "settings", key: "tab.settings" },
@@ -161,6 +163,7 @@ const GAME_TABS = [
 const DEBUG_ENABLED = true;
 
 type GameTabId = (typeof GAME_TABS)[number]["id"];
+const ECONOMY_TAB_IDS = new Set<GameTabId>(["compounds", "research", "energy"]);
 
 function isGameTabAvailable(tabId: GameTabId, state: GameState): boolean {
   return (
@@ -958,14 +961,14 @@ function GameSession({
   }> | null>(null);
   const t = (key: MessageKey) => translate(snapshot.locale, key);
   const activateTab = (tabId: GameTabId) => {
+    store.playUiCue("click");
     setVisitedTabs((current) => (current.has(tabId) ? current : new Set(current).add(tabId)));
     setActiveTab(tabId);
   };
-  const activatePane = (paneId: string) => {
+  const activatePane = (paneId: string, playClick = true) => {
+    if (playClick) store.playUiCue("click");
     setVisitedPanes((current) => (current.has(paneId) ? current : new Set(current).add(paneId)));
-    if (store.getState().run.navigationAttentionIds.includes(paneId)) {
-      store.dispatch({ type: "navigation.attention.clear", pageId: paneId });
-    }
+    store.dispatch({ type: "navigation.attention.clear", pageId: paneId });
   };
   const hydrogen = snapshot.goods.hydrogen;
   const storagePurchase = selectHydrogenStoragePurchase(store.getState());
@@ -1273,6 +1276,20 @@ function GameSession({
     return store.subscribeEvents(routeSpaceEvents);
   }, [notify, store]);
 
+  useEffect(() => {
+    const routeCasinoEvents = createCasinoEventNoticeHandler(
+      () => currentLocaleRef.current,
+      () => store.getState(),
+      (notice) =>
+        notify(notice.message, {
+          classification: notice.classification,
+          type: notice.type,
+          durationMs: notice.durationMs,
+        }),
+    );
+    return store.subscribeEvents(routeCasinoEvents);
+  }, [notify, store]);
+
   const previousNotificationState = useRef({
     store,
     rebirthCount: currentState.permanent.rebirthCount,
@@ -1408,7 +1425,17 @@ function GameSession({
       previousAvailabilityKey.current = availabilityKey;
       return;
     }
-    const previousIds = new Set(previousAvailabilityKey.current?.split("|").filter(Boolean) ?? []);
+    if (previousAvailabilityKey.current === null) {
+      const pendingIds = new Set(store.getState().run.navigationAttentionIds);
+      for (const id of nextIds) {
+        if (!pendingIds.has(id)) {
+          store.dispatch({ type: "navigation.attention.clear", pageId: id });
+        }
+      }
+      previousAvailabilityKey.current = availabilityKey;
+      return;
+    }
+    const previousIds = new Set(previousAvailabilityKey.current.split("|").filter(Boolean));
     const newlyAvailableIds = [...nextIds].filter((id) => !previousIds.has(id));
     if (newlyAvailableIds.length > 0) {
       store.dispatch({ type: "navigation.attention.discover", pageIds: newlyAvailableIds });
@@ -1421,9 +1448,7 @@ function GameSession({
     store,
   ]);
   const clearAttention = (id: string) => {
-    if (store.getState().run.navigationAttentionIds.includes(id)) {
-      store.dispatch({ type: "navigation.attention.clear", pageId: id });
-    }
+    store.dispatch({ type: "navigation.attention.clear", pageId: id });
   };
   const selectedResourcePane = resourcePanels.some((panel) => panel.id === activeResourcePane)
     ? activeResourcePane
@@ -1467,7 +1492,7 @@ function GameSession({
   const activateNavigationTab = (tabId: GameTabId) => {
     clearAttention(tabId);
     const activePaneId = activePaneByTab[tabId];
-    if (activePaneId) activatePane(activePaneId);
+    if (activePaneId) activatePane(activePaneId, false);
     activateTab(tabId);
   };
 
@@ -1504,23 +1529,7 @@ function GameSession({
           <span className="status-dot" aria-hidden="true" />
           {snapshot.pioneerName}
         </div>
-        <div className="header-balances">
-          <LocationStatus state={currentState} locale={snapshot.locale} />
-          <AscendencyBalance state={currentState} locale={snapshot.locale} />
-          <div>
-            <span className="balance-label">{t("header.cash")}</span>
-            <strong data-testid="cash-balance">
-              {formatCurrency(
-                snapshot.locale,
-                Number(displayCurrency(snapshot.cash)),
-                snapshot.currencyId ?? "usd",
-                2,
-                snapshot.notation,
-              )}
-            </strong>
-          </div>
-          <ResearchBalance state={currentState} locale={snapshot.locale} />
-        </div>
+        <GlobalContextBar state={currentState} locale={snapshot.locale} />
       </header>
       <TopStatusBar state={currentState} store={store} locale={snapshot.locale} />
       <NewsTickerBar state={currentState} store={store} />
@@ -1688,7 +1697,7 @@ function GameSession({
           onSelect={(paneId) => {
             clearAttention(paneId);
             activateTab("hydrogen");
-            activatePane(paneId);
+            activatePane(paneId, false);
             setActiveResourcePane(paneId);
           }}
         />
@@ -1705,14 +1714,13 @@ function GameSession({
           onSelect={(paneId) => {
             clearAttention(paneId);
             activateTab("compounds");
-            activatePane(paneId);
+            activatePane(paneId, false);
             setActiveCompoundPane(paneId);
           }}
         />
 
         <div className="pane-stack">
           {orderedTabs.map((tab) => {
-            const sourceIndex = GAME_TABS.findIndex((item) => item.id === tab.id);
             return (
               <section
                 key={tab.id}
@@ -1898,13 +1906,16 @@ function GameSession({
                                     className="secondary-button"
                                     disabled={!sale.enabled}
                                     aria-describedby="sell-reason"
-                                    onClick={() =>
-                                      send({
-                                        type: "resource.sell",
-                                        goodId: "hydrogen",
-                                        amount: sellAmount,
-                                      })
-                                    }
+                                    onClick={() => {
+                                      setFeedback("");
+                                      dispatchEconomySale(
+                                        store.getState(),
+                                        store,
+                                        "hydrogen",
+                                        sellAmount,
+                                        notify,
+                                      );
+                                    }}
                                   >
                                     {t("hydrogen.sell")}
                                   </button>
@@ -2363,7 +2374,7 @@ function GameSession({
                         attentionLabel={t("nav.new")}
                         onPaneVisit={activatePane}
                         onNavigateToPane={(paneId) => {
-                          activatePane(paneId);
+                          activatePane(paneId, false);
                           if (paneId.startsWith("resources-")) {
                             clearAttention("hydrogen");
                             setActiveResourcePane(paneId);
@@ -2417,7 +2428,7 @@ function GameSession({
                         onSaveNow={() => persistCurrent()}
                         onOpenSaveManager={() => setSaveManagerOpen(true)}
                       />
-                    ) : sourceIndex < 4 ? (
+                    ) : ECONOMY_TAB_IDS.has(tab.id) ? (
                       <EconomyPanes
                         tabId={tab.id}
                         activePane={

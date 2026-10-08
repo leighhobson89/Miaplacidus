@@ -27,10 +27,11 @@ async function expectTabSequence(
   page: import("@playwright/test").Page,
   tabs: readonly (readonly [string, string])[],
 ): Promise<void> {
-  const mainNav = page.locator(".game-nav");
-  const tabIds = await mainNav
-    .getByRole("tab")
-    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-controls")));
+  const visibleTabs = page.locator(".game-nav [role='tab']");
+  await expect(visibleTabs).toHaveCount(tabs.length);
+  const tabIds = await visibleTabs.evaluateAll((elements) =>
+    elements.map((element) => element.getAttribute("aria-controls")),
+  );
   expect(tabIds).toEqual(tabs.map(([, id]) => `pane-${id}`));
   const resourceRail = page.getByRole("complementary", { name: "Resources" });
 
@@ -109,10 +110,10 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
   const technologyUnlockedTabs = [
     ["Resources", "hydrogen"],
     ["Compounds", "compounds"],
-    ["Energy", "energy"],
     ["Research", "research"],
-    ["Interstellar", "interstellar"],
+    ["Energy", "energy"],
     ["Space Mining", "space-mining"],
+    ["Interstellar", "interstellar"],
     ["Settings", "settings"],
     ["Miaplaedia", "miaplaedia"],
   ] as const;
@@ -136,6 +137,36 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
     );
   }
 
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const unlockedAllTabs = await page.evaluate(() =>
+    window.miaplacidusTest?.applyDebugAction("unlock-all-tabs"),
+  );
+  expect(unlockedAllTabs).toBe(true);
+  const allTabsUnlocked = [
+    ["Resources", "hydrogen"],
+    ["Compounds", "compounds"],
+    ["Research", "research"],
+    ["Energy", "energy"],
+    ["Space Mining", "space-mining"],
+    ["Interstellar", "interstellar"],
+    ["Galactic", "galaxy"],
+    ["Cosmic Rip", "cosmic-rip"],
+    ["Settings", "settings"],
+    ["Miaplaedia", "miaplaedia"],
+  ] as const;
+  await expectTabSequence(page, allTabsUnlocked);
+  await page.locator("#tab-hydrogen").click();
+  await captureVisualCheckpoint(page, testInfo, "navigation-all-tabs-source-order-1280");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const fullOrderAtPhoneWidth = await page
+    .locator(".game-nav [role='tab']")
+    .evaluateAll((tabs) =>
+      tabs.map((tab) => tab.getAttribute("aria-controls")?.replace("pane-", "")),
+    );
+  expect(fullOrderAtPhoneWidth).toEqual(allTabsUnlocked.map(([, id]) => id));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await captureVisualCheckpoint(page, testInfo, "navigation-all-tabs-source-order-390");
+
   await startFixture(page, "space-telescope-before-launch-pad", "Telescope First Pioneer");
   await page.locator("#tab-space-mining").click();
   const telescopeOnlySpaceMining = page.locator("#pane-space-mining");
@@ -150,6 +181,7 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
   await startFixture(page, "meta-cosmic-rip-route", "Meta Navigation Pioneer");
   const metaUnlockedTabs = [
     ["Resources", "hydrogen"],
+    ["Compounds", "compounds"],
     ["Research", "research"],
     ["Galactic", "galaxy"],
     ["Cosmic Rip", "cosmic-rip"],

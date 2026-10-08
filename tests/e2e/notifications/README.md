@@ -40,3 +40,15 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; n
 ```
 
 Result: `4 passed (33.9s)`, clean process exit. The prior unclean runs above are retained as run history; this follow-up resolves their pending clean-shutdown verification.
+
+## Manual sale notices (8 October 2026)
+
+Manual Resource and Compound UI sales route one accepted `resource.sold` event to one localized notice: Resources use `sold`, Compounds use `special`. The notice includes the sold quantity, good name, and cash amount. Turning notifications off clears existing notices and suppresses subsequent manual sale notices; clock-driven automatic sales remain silent because they do not use the manual UI sale dispatcher.
+
+The focused `resource-sale-notifications.spec.ts` Chrome run passed `1/1` in `4.3s`, verifying the displayed Hydrogen sale amount/cash in its notice and suppression after disabling notifications. `npm.cmd run typecheck` passed. P-08 remains partial while other source notification families are still missing.
+
+## Double-or-Nothing notices (8 October 2026)
+
+The global accepted-event route emits Cosmic Forge's exact localized win/loss copy for Double-or-Nothing in all six locales. It uses `galacticCasino`, `info` for a win and `error` for a loss, with a 2.5-second lifetime. Wheel and Higher-or-Lower events are ignored. The notification setting suppresses delivery, and the Casino pane does not show a duplicate inline result.
+
+The focused Casino notification unit spec passed 3/3. The clean focused Chrome Casino journey passed 1/1 in 9.8 seconds. Its first run found a stale `galactic-casino-roundtrip` screenshot after the current-status-row redesign; that baseline was visually reviewed and refreshed before the clean no-update rerun passed. P-08 remains partial because other source notification families are still missing.

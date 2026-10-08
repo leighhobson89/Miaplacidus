@@ -445,7 +445,7 @@ export function SaveManager(props: Props) {
             </p>
             {matchingSlot ? (
               <div className="import-conflict">
-                <p>{t("conflict")}</p>
+                <p role="alert">{t("conflict")}</p>
                 <label>
                   <input
                     type="checkbox"

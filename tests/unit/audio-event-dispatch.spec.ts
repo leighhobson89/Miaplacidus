@@ -1,10 +1,328 @@
 import { describe, expect, it, vi } from "vitest";
-import { ROCKET_PART_REQUIREMENTS, type AsteroidState } from "../../src/content/space";
+import { GALAXY_SEED_DEFAULT, systemIdForStar } from "../../src/content/ids";
+import {
+  ROCKET_FUEL_PUMP_BASE_COST,
+  ROCKET_PART_REQUIREMENTS,
+  STARSHIP_MODULES,
+  type AsteroidState,
+} from "../../src/content/space";
 import { withGameAudio } from "../../src/app/audio";
 import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
 import { createGameStore } from "../../src/engine/store";
 
 describe("audio store event forwarding", () => {
+  it("plays telescope cues when scans start and destination-system scans are performed", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      readonly source: string;
+      loop = false;
+      paused = true;
+      preload = "";
+      volume = 1;
+      currentTime = 0;
+      playCount = 0;
+
+      constructor(source: string) {
+        super();
+        this.source = source;
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        this.playCount += 1;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    const audioFiles = () =>
+      MockAudio.instances
+        .filter((audio) => audio.playCount > 0)
+        .map((audio) => audio.source.split("/").at(-1));
+    const surveyCueFiles = () =>
+      audioFiles().filter((file) => file === "asteroidScan.mp3" || file === "starStudy.mp3");
+
+    MockAudio.instances = [];
+    vi.stubGlobal("Audio", MockAudio);
+    try {
+      const initial = createInitialGameState({ seed: 91 });
+      const surveyState: GameState = {
+        ...initial,
+        run: {
+          ...initial.run,
+          economy: {
+            ...initial.run.economy,
+            researchedTechnologies: ["atmosphericTelescopes"],
+            revealedTechnologies: [
+              ...initial.run.economy.revealedTechnologies,
+              "atmosphericTelescopes",
+            ],
+            power: { ...initial.run.economy.power, infinitePower: true },
+          },
+          space: { ...initial.run.space, telescopeBuilt: true },
+        },
+        settings: {
+          ...initial.settings,
+          backgroundAudioEnabled: false,
+          soundEffectsEnabled: true,
+        },
+      };
+      expect(isValidGameState(surveyState)).toBe(true);
+      const surveyStore = withGameAudio(createGameStore(surveyState, { clock: { now: () => 0 } }));
+
+      try {
+        const scan = surveyStore.dispatch({ type: "space.telescope.scan.start" });
+        expect(scan.events).toContainEqual(
+          expect.objectContaining({ type: "space.survey.started", survey: "asteroids" }),
+        );
+        expect(surveyCueFiles()).toEqual(["asteroidScan.mp3"]);
+
+        const scanTimer = Object.values(surveyStore.getState().run.timers).find(
+          (timer) => timer.domain === "survey",
+        )!;
+        surveyStore.dispatch({ type: "timer.complete", timerId: scanTimer.id });
+        expect(surveyCueFiles()).toEqual(["asteroidScan.mp3"]);
+
+        const study = surveyStore.dispatch({ type: "space.telescope.study.start" });
+        expect(study.events).toContainEqual(
+          expect.objectContaining({ type: "space.survey.started", survey: "stars" }),
+        );
+        expect(surveyCueFiles()).toEqual(["asteroidScan.mp3", "starStudy.mp3"]);
+
+        const studyTimer = Object.values(surveyStore.getState().run.timers).find(
+          (timer) => timer.domain === "survey",
+        )!;
+        surveyStore.dispatch({ type: "timer.complete", timerId: studyTimer.id });
+        expect(surveyCueFiles()).toEqual(["asteroidScan.mp3", "starStudy.mp3"]);
+      } finally {
+        surveyStore.dispose();
+      }
+
+      MockAudio.instances = [];
+      const destinationId = systemIdForStar(GALAXY_SEED_DEFAULT, 0);
+      const starshipState: GameState = {
+        ...initial,
+        run: {
+          ...initial.run,
+          space: {
+            ...initial.run.space,
+            starshipModules: {
+              ...initial.run.space.starshipModules,
+              stellarScanner: { builtParts: STARSHIP_MODULES.stellarScanner.parts },
+            },
+            starship: {
+              destinationSystemId: destinationId,
+              phase: "orbiting",
+              timerId: null,
+              durationMs: 1,
+              antimatterSpent: 1,
+              travelDistanceLy: null,
+            },
+          },
+        },
+        settings: {
+          ...initial.settings,
+          backgroundAudioEnabled: false,
+          soundEffectsEnabled: true,
+        },
+      };
+      expect(isValidGameState(starshipState)).toBe(true);
+      const starshipStore = withGameAudio(
+        createGameStore(starshipState, { clock: { now: () => 0 } }),
+      );
+
+      try {
+        const scan = starshipStore.dispatch({ type: "space.starship.system.scan" });
+        expect(scan.events).toContainEqual(
+          expect.objectContaining({
+            type: "space.starship.system.scanned",
+            systemId: destinationId,
+          }),
+        );
+        expect(audioFiles()).toEqual(["asteroidScan.mp3"]);
+      } finally {
+        starshipStore.dispose();
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses the fuel cue for pump purchase and switch cues for pump toggles", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      readonly source: string;
+      loop = false;
+      paused = true;
+      preload = "";
+      volume = 1;
+      currentTime = 0;
+      playCount = 0;
+
+      constructor(source: string) {
+        super();
+        this.source = source;
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        this.playCount += 1;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    MockAudio.instances = [];
+    vi.stubGlobal("Audio", MockAudio);
+    const initial = createInitialGameState();
+    const rocketState: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        cash: ROCKET_FUEL_PUMP_BASE_COST.rocket1 * 2,
+        economy: {
+          ...initial.run.economy,
+          researchedTechnologies: ["advancedFuels"],
+          revealedTechnologies: [...initial.run.economy.revealedTechnologies, "advancedFuels"],
+          power: { ...initial.run.economy.power, infinitePower: true },
+        },
+        space: {
+          ...initial.run.space,
+          launchPadBuilt: true,
+          rockets: {
+            ...initial.run.space.rockets,
+            rocket1: {
+              ...initial.run.space.rockets.rocket1,
+              builtParts: ROCKET_PART_REQUIREMENTS.rocket1,
+              phase: "ready",
+              fuelQuantity: 0,
+            },
+          },
+        },
+      },
+      settings: {
+        ...initial.settings,
+        backgroundAudioEnabled: false,
+        soundEffectsEnabled: true,
+      },
+    };
+    expect(isValidGameState(rocketState)).toBe(true);
+    const store = withGameAudio(createGameStore(rocketState, { clock: { now: () => 0 } }));
+    const audioFiles = () =>
+      MockAudio.instances
+        .filter((audio) => audio.playCount > 0)
+        .map((audio) => audio.source.split("/").at(-1));
+
+    try {
+      const purchased = store.dispatch({ type: "space.rocket.pump.purchase", rocketId: "rocket1" });
+      expect(purchased.events).toContainEqual(
+        expect.objectContaining({ type: "space.rocket.pump.purchased", rocketId: "rocket1" }),
+      );
+      expect(audioFiles()).toEqual(["fuelRocket.mp3"]);
+
+      const paused = store.dispatch({
+        type: "space.rocket.pump.set-enabled",
+        rocketId: "rocket1",
+        enabled: false,
+      });
+      expect(paused.events).toContainEqual(
+        expect.objectContaining({ type: "space.rocket.pump.changed", enabled: false }),
+      );
+      expect(audioFiles()).toEqual(["fuelRocket.mp3", "clickSwitch.mp3"]);
+
+      const resumed = store.dispatch({
+        type: "space.rocket.pump.set-enabled",
+        rocketId: "rocket1",
+        enabled: true,
+      });
+      expect(resumed.events).toContainEqual(
+        expect.objectContaining({ type: "space.rocket.pump.changed", enabled: true }),
+      );
+      expect(audioFiles()).toEqual(["fuelRocket.mp3", "clickSwitch.mp3", "clickSwitch.mp3"]);
+    } finally {
+      store.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("plays the Black Hole activation cue when a recharge purchase makes it always-on", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      readonly source: string;
+      loop = false;
+      paused = true;
+      preload = "";
+      volume = 1;
+      currentTime = 0;
+      playCount = 0;
+
+      constructor(source: string) {
+        super();
+        this.source = source;
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        this.playCount += 1;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    MockAudio.instances = [];
+    vi.stubGlobal("Audio", MockAudio);
+    const initial = createInitialGameState();
+    const state: GameState = {
+      ...initial,
+      run: { ...initial.run, researchPoints: 1_000_000 },
+      permanent: {
+        ...initial.permanent,
+        blackHole: {
+          ...initial.permanent.blackHole,
+          discovered: true,
+          researched: true,
+          rechargeMultiplier: 0.11,
+        },
+      },
+      settings: {
+        ...initial.settings,
+        backgroundAudioEnabled: false,
+        soundEffectsEnabled: true,
+      },
+    };
+    expect(isValidGameState(state)).toBe(true);
+    const store = withGameAudio(createGameStore(state, { clock: { now: () => 0 } }));
+
+    try {
+      const result = store.dispatch({ type: "black-hole.upgrade", upgradeId: "recharge" });
+      expect(result.accepted).toBe(true);
+      expect(result.state.permanent.blackHole.alwaysOn).toBe(true);
+      expect(result.events).toContainEqual(
+        expect.objectContaining({ type: "black-hole.upgrade-purchased", upgradeId: "recharge" }),
+      );
+      expect(
+        MockAudio.instances
+          .filter((audio) => audio.playCount > 0)
+          .map((audio) => audio.source.split("/").at(-1)),
+      ).toEqual(["blackHoleActivated.mp3"]);
+    } finally {
+      store.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("plays both reference power cues only when simulation first trips the grid", () => {
     class MockAudio extends EventTarget {
       static instances: MockAudio[] = [];
@@ -599,6 +917,212 @@ describe("audio store event forwarding", () => {
       store.dispose();
       vi.unstubAllGlobals();
       vi.useRealTimers();
+    }
+  });
+
+  it("plays source-matched UI navigation cues and respects the effects preference", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      readonly source: string;
+      loop = false;
+      paused = true;
+      preload = "";
+      volume = 1;
+      currentTime = 0;
+
+      constructor(source: string) {
+        super();
+        this.source = source;
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    MockAudio.instances = [];
+    vi.stubGlobal("Audio", MockAudio);
+    const initial = createInitialGameState();
+    const state = {
+      ...initial,
+      settings: {
+        ...initial.settings,
+        backgroundAudioEnabled: false,
+        soundEffectsEnabled: true,
+        soundEffectsVolume: 0.65,
+      },
+    };
+    const store = withGameAudio(createGameStore(state, { clock: { now: () => 0 } }));
+
+    try {
+      store.playUiCue("click");
+      store.playUiCue("swipe");
+      expect(MockAudio.instances.map((audio) => audio.source.split("/").at(-1))).toEqual([
+        "clickButton.mp3",
+        "clickSwitch.mp3",
+      ]);
+      expect(MockAudio.instances.map((audio) => audio.volume)).toEqual([0.65, 0.65]);
+
+      store.dispatch({ type: "settings.update", patch: { soundEffectsEnabled: false } });
+      store.playUiCue("click");
+      expect(MockAudio.instances).toHaveLength(2);
+    } finally {
+      store.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses a normal click for purchases, the storage cue for storage, and kaching for sales", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      readonly source: string;
+      loop = false;
+      paused = true;
+      preload = "";
+      volume = 1;
+      currentTime = 0;
+      playCount = 0;
+
+      constructor(source: string) {
+        super();
+        this.source = source;
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        this.playCount += 1;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    MockAudio.instances = [];
+    vi.stubGlobal("Audio", MockAudio);
+    const initial = createInitialGameState();
+    const state: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        cash: 1_000,
+        goods: {
+          ...initial.run.goods,
+          hydrogen: { ...initial.run.goods.hydrogen, quantity: 150 },
+        },
+      },
+      settings: {
+        ...initial.settings,
+        backgroundAudioEnabled: false,
+        soundEffectsEnabled: true,
+      },
+    };
+    expect(isValidGameState(state)).toBe(true);
+    const store = withGameAudio(createGameStore(state, { clock: { now: () => 0 } }));
+    const playedFiles = () =>
+      MockAudio.instances
+        .filter((audio) => audio.playCount > 0)
+        .map((audio) => audio.source.split("/").at(-1));
+
+    try {
+      const purchase = store.dispatch({
+        type: "economy.building.purchase",
+        buildingId: "scienceKit",
+      });
+      expect(purchase.accepted).toBe(true);
+      expect(purchase.events).toContainEqual(
+        expect.objectContaining({ type: "purchase.completed", upgradeId: "scienceKit" }),
+      );
+      expect(playedFiles()).toEqual(["clickButton.mp3"]);
+
+      MockAudio.instances = [];
+      const storage = store.dispatch({ type: "storage.purchase", goodId: "hydrogen" });
+      expect(storage.accepted).toBe(true);
+      expect(playedFiles()).toEqual(["increaseStorage.mp3"]);
+
+      MockAudio.instances = [];
+      const sale = store.dispatch({ type: "resource.sell", goodId: "hydrogen", amount: 1 });
+      expect(sale.accepted).toBe(true);
+      expect(playedFiles()).toEqual(["kaching.mp3"]);
+    } finally {
+      store.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses the source event alarm for a power plant explosion", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      readonly source: string;
+      loop = false;
+      paused = true;
+      preload = "";
+      volume = 1;
+      currentTime = 0;
+      playCount = 0;
+
+      constructor(source: string) {
+        super();
+        this.source = source;
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        this.playCount += 1;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    MockAudio.instances = [];
+    vi.stubGlobal("Audio", MockAudio);
+    const initial = createInitialGameState();
+    const state: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        upgrades: { ...initial.run.upgrades, powerPlant1: 1 },
+        economy: {
+          ...initial.run.economy,
+          buildingEnabled: {
+            ...initial.run.economy.buildingEnabled,
+            powerPlant1: true,
+          },
+        },
+      },
+      settings: {
+        ...initial.settings,
+        backgroundAudioEnabled: false,
+        soundEffectsEnabled: true,
+      },
+    };
+    expect(isValidGameState(state)).toBe(true);
+    const store = withGameAudio(createGameStore(state, { clock: { now: () => 0 } }));
+
+    try {
+      const result = store.dispatch({ type: "random-event.force", eventId: "powerPlantExplosion" });
+      expect(result.accepted).toBe(true);
+      expect(result.events).toContainEqual(
+        expect.objectContaining({ type: "random-event.triggered", id: "powerPlantExplosion" }),
+      );
+      expect(MockAudio.instances.map((audio) => audio.source.split("/").at(-1))).toEqual([
+        "eventAlarm.mp3",
+      ]);
+    } finally {
+      store.dispose();
+      vi.unstubAllGlobals();
     }
   });
 

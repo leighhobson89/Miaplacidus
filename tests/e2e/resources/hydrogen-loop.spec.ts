@@ -18,8 +18,8 @@ test("manual collection sells Hydrogen and credits its catalogue value @resource
   await expect(freshGame.getByText("$10.06")).toBeVisible();
   await captureVisualCheckpoint(freshGame, testInfo, "hydrogen-after-sale");
   await setGameLocale(freshGame, "es");
-  await expect(freshGame.locator(".header-balances strong").first()).toContainText("$");
-  await expect(freshGame.locator(".header-balances strong").first()).not.toContainText("€");
+  await expect(freshGame.getByTestId("cash-balance")).toContainText("$");
+  await expect(freshGame.getByTestId("cash-balance")).not.toContainText("€");
 });
 
 test("the storage purchase charges 149 Hydrogen and doubles capacity @resources", async ({

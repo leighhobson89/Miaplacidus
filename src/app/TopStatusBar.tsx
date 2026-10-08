@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import type { LocaleId } from "../content/ids";
 import { GALAXY_SEED_DEFAULT } from "../content/ids";
+import { MEGASTRUCTURE_IDS, MEGASTRUCTURE_TRACKS } from "../content/technology";
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import { createStarCatalogue, starTypeForSystem } from "../content/starCatalogue";
 import { createEconomyTickPlan } from "../engine/economySimulation";
+import { displayCurrency } from "../engine/precision";
 import { selectResearchProductionBreakdown, selectTopStatusEvent } from "../engine/selectors";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
@@ -14,7 +16,10 @@ import {
 } from "../engine/weather";
 import { topStatusText } from "../i18n/topStatusMessages";
 import { randomEventName } from "../i18n/metaSignalMessages";
+import { megastructureText } from "../i18n/megastructureMessages";
+import { philosophyText } from "../i18n/philosophyMessages";
 import { economyGoodName } from "./economyDisplay";
+import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
 import { formatCountdown, formatDuration } from "./timeFormatting";
 
@@ -29,6 +34,8 @@ interface StatProps {
   readonly label: string;
   readonly value: ReactNode;
   readonly tooltip: ReactNode;
+  readonly testId?: string | undefined;
+  readonly valueTestId?: string | undefined;
   readonly valueClassName?: string | undefined;
   readonly action?: {
     readonly label: string;
@@ -37,13 +44,22 @@ interface StatProps {
   };
 }
 
-function TopStat({ id, label, value, tooltip, valueClassName, action }: StatProps) {
+function TopStat({
+  id,
+  label,
+  value,
+  tooltip,
+  testId,
+  valueTestId,
+  valueClassName,
+  action,
+}: StatProps) {
   const tooltipId = `top-stat-tooltip-${id}`;
   const valueClasses = ["top-stat-value", valueClassName, action ? "top-stat-toggle" : ""]
     .filter(Boolean)
     .join(" ");
   return (
-    <div className="top-stat" data-testid={`top-stat-${id}`}>
+    <div className="top-stat" data-testid={testId ?? `top-stat-${id}`}>
       <span className="top-stat-label">{label}</span>
       {action ? (
         <button
@@ -57,7 +73,12 @@ function TopStat({ id, label, value, tooltip, valueClassName, action }: StatProp
           {value}
         </button>
       ) : (
-        <span className={valueClasses} tabIndex={0} aria-describedby={tooltipId}>
+        <span
+          className={valueClasses}
+          data-testid={valueTestId}
+          tabIndex={0}
+          aria-describedby={tooltipId}
+        >
           {value}
         </span>
       )}
@@ -72,48 +93,168 @@ export function AscendencyBalance({ state, locale }: Pick<Props, "state" | "loca
   const number = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
   const balances = [
     {
-      id: "ap",
-      label: "AP",
-      value: state.permanent.ascendencyPoints,
-      name: translated(locale, "ascendencyPointsName"),
-      visible: true,
-    },
-    {
-      id: "cp",
-      label: "CP",
-      value: state.permanent.galacticCasino.casinoPoints,
-      name: translated(locale, "casinoPointsName"),
-      visible: state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0,
-    },
-    {
       id: "gp",
       label: "GP",
       value: state.permanent.gloryPoints,
       name: translated(locale, "galacticPointsName"),
-      visible: state.permanent.cosmicRip.unlocked,
     },
-  ].filter((balance) => balance.visible);
+    {
+      id: "ap",
+      label: "AP",
+      value: state.permanent.ascendencyPoints,
+      name: translated(locale, "ascendencyPointsName"),
+    },
+  ];
   return (
     <>
       {balances.map((balance) => {
-        const tooltipId = `header-${balance.id}-tooltip`;
         return (
-          <div
-            className="header-ap"
-            data-testid={balance.id === "ap" ? "ascendency-balance" : `${balance.id}-balance`}
+          <TopStat
+            id={balance.id}
+            label={balance.label}
+            value={number(balance.value)}
+            valueTestId={balance.id === "ap" ? "ascendency-balance" : "gp-balance"}
+            tooltip={
+              <>
+                <div>{balance.name}</div>
+                <div>{number(balance.value)}</div>
+              </>
+            }
             key={balance.id}
-          >
-            <span className="balance-label">{balance.label}</span>
-            <strong tabIndex={0} aria-describedby={tooltipId}>
-              {number(balance.value)}
-            </strong>
-            <span className="top-stat-tooltip" id={tooltipId} role="tooltip">
-              {balance.name}: {number(balance.value)}
-            </span>
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function CasinoBalance({ state, locale }: Pick<Props, "state" | "locale">) {
+  if (!(state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0)) return null;
+  const value = formatNumber(
+    locale,
+    state.permanent.galacticCasino.casinoPoints,
+    0,
+    state.settings.notation,
+  );
+  return (
+    <TopStat
+      id="cp"
+      label="CP"
+      value={value}
+      valueTestId="cp-balance"
+      tooltip={
+        <>
+          <div>{translated(locale, "casinoPointsName")}</div>
+          <div>{value}</div>
+        </>
+      }
+    />
+  );
+}
+
+export function GlobalContextBar({ state, locale }: Pick<Props, "state" | "locale">) {
+  const number = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
+  const runNumber = state.permanent.rebirthCount + 1;
+  const records = state.permanent.megastructures.ancientManuscripts;
+  const visitedReportedFactory = records.some(
+    (record) =>
+      record.reported && state.permanent.settledSystemIds.includes(record.factorySystemId),
+  );
+  const capturedIds = new Set(
+    records
+      .filter((record) => state.permanent.settledSystemIds.includes(record.factorySystemId))
+      .map((record) => record.megastructureId),
+  );
+  const structureNames = megastructureText(locale).structureNames;
+  const megaTooltip = (
+    <>
+      <strong>
+        {translated(locale, "megastructures")}: {capturedIds.size}/{MEGASTRUCTURE_IDS.length}
+      </strong>
+      {MEGASTRUCTURE_IDS.map((id) => {
+        const researched = MEGASTRUCTURE_TRACKS[id].filter((technologyId) =>
+          state.permanent.megastructures.researchedTechnologyIds.includes(technologyId),
+        ).length;
+        return (
+          <div key={id}>
+            {structureNames[id]}:{" "}
+            {translated(locale, capturedIds.has(id) ? "captured" : "notCaptured")} -{" "}
+            {number(researched)}/5
           </div>
         );
       })}
     </>
+  );
+  const philosophyId = state.permanent.philosophyId;
+  const philosophy = philosophyId ? philosophyText(locale).paths[philosophyId] : null;
+
+  return (
+    <div
+      className="global-context-bar"
+      data-testid="global-context-bar"
+      role="group"
+      aria-label={translated(locale, "globalContext")}
+    >
+      <TopStat
+        id="run-number"
+        testId="global-stat-run-number"
+        label={translated(locale, "runNumber")}
+        value={number(runNumber)}
+        tooltip={
+          <>
+            <div>
+              {translated(locale, "runNumber")}: {number(runNumber)}
+            </div>
+            <div>
+              {translated(locale, "rebirths")}: {number(state.permanent.rebirthCount)}
+            </div>
+          </>
+        }
+      />
+      {visitedReportedFactory && (
+        <TopStat
+          id="megastructure-progress"
+          testId="global-stat-megastructure-progress"
+          label={translated(locale, "megastructures")}
+          value={`${capturedIds.size}/${MEGASTRUCTURE_IDS.length}`}
+          tooltip={megaTooltip}
+        />
+      )}
+      {philosophy && (
+        <TopStat
+          id="philosophy"
+          testId="global-stat-philosophy"
+          label={translated(locale, "philosophy")}
+          value={philosophy.name}
+          tooltip={<div>{philosophy.summary}</div>}
+        />
+      )}
+      <AscendencyBalance state={state} locale={locale} />
+    </div>
+  );
+}
+
+function CashBalance({ state, locale }: Pick<Props, "state" | "locale">) {
+  const value = formatCurrency(
+    locale,
+    Number(displayCurrency(state.run.cash)),
+    state.settings.currencyId ?? "usd",
+    2,
+    state.settings.notation,
+  );
+  return (
+    <TopStat
+      id="cash"
+      label={translated(locale, "cash")}
+      value={value}
+      valueTestId="cash-balance"
+      tooltip={
+        <>
+          <div>{translated(locale, "cash")}</div>
+          <div>{value}</div>
+        </>
+      }
+    />
   );
 }
 
@@ -121,11 +262,16 @@ export function ResearchBalance({ state, locale }: Pick<Props, "state" | "locale
   const number = (value: number) => formatNumber(locale, value, 1, state.settings.notation);
   const production = selectResearchProductionBreakdown(state);
   const perSecond = (value: number) => translated(locale, "perSecond", { value: number(value) });
-  const tooltipId = "header-rp-tooltip";
+  const tooltipId = "top-stat-tooltip-rp";
   return (
-    <div className="header-ap">
-      <span className="balance-label">RP</span>
-      <strong data-testid="research-balance" tabIndex={0} aria-describedby={tooltipId}>
+    <div className="top-stat" data-testid="top-stat-rp">
+      <span className="top-stat-label">RP</span>
+      <strong
+        className="top-stat-value"
+        data-testid="research-balance"
+        tabIndex={0}
+        aria-describedby={tooltipId}
+      >
         {formatNumber(locale, state.run.researchPoints, 0, state.settings.notation)}
       </strong>
       <span className="top-stat-tooltip" id={tooltipId} role="tooltip">
@@ -390,7 +536,7 @@ export function TopStatusBar({ state, store, locale }: Props) {
       >
         (
         {Number.isFinite(batterySecondsRemaining)
-          ? formatDuration(locale, batterySecondsRemaining * 1000)
+          ? formatDuration(locale, batterySecondsRemaining * 1000, state.settings.notation)
           : "∞"}
         )
       </small>
@@ -444,8 +590,12 @@ export function TopStatusBar({ state, store, locale }: Props) {
   ) : (
     <div>{translated(locale, "antimatterLocked")}</div>
   );
-  const runTime = formatDuration(locale, state.run.clock.simulationMs);
-  const totalTime = formatDuration(locale, state.statistics.lifetimeActiveMs);
+  const runTime = formatDuration(locale, state.run.clock.simulationMs, state.settings.notation);
+  const totalTime = formatDuration(
+    locale,
+    state.statistics.lifetimeActiveMs,
+    state.settings.notation,
+  );
   const timeValue = runTime;
   const timeTooltip = (
     <>
@@ -474,7 +624,7 @@ export function TopStatusBar({ state, store, locale }: Props) {
     : translated(locale, "eventNone");
   const eventRemaining =
     latestEvent.active && latestEvent.remainingMs !== null
-      ? formatDuration(locale, latestEvent.remainingMs)
+      ? formatDuration(locale, latestEvent.remainingMs, state.settings.notation)
       : null;
   const eventValue = eventRemaining ? (
     <>
@@ -497,7 +647,9 @@ export function TopStatusBar({ state, store, locale }: Props) {
   );
   const timeWarp = state.run.timeWarp;
   const timeWarpActive = timeWarp.multiplier > 1 && timeWarp.remainingMs > 0;
-  const timeWarpRemaining = timeWarpActive ? formatCountdown(locale, timeWarp.remainingMs) : null;
+  const timeWarpRemaining = timeWarpActive
+    ? formatCountdown(locale, timeWarp.remainingMs, state.settings.notation)
+    : null;
   const timeWarpValue = timeWarpRemaining
     ? translated(locale, "timeWarpValue", {
         multiplier: number(timeWarp.multiplier),
@@ -512,13 +664,21 @@ export function TopStatusBar({ state, store, locale }: Props) {
     : null;
 
   return (
-    <section className="top-status-bar" aria-label={translated(locale, "region")}>
+    <section
+      className="top-status-bar"
+      data-testid="run-status-bar"
+      aria-label={translated(locale, "region")}
+    >
+      <LocationStatus state={state} locale={locale} />
       <TopStat
         id="time"
         label={translated(locale, "time")}
         value={timeValue}
         tooltip={timeTooltip}
       />
+      <CashBalance state={state} locale={locale} />
+      <ResearchBalance state={state} locale={locale} />
+      <CasinoBalance state={state} locale={locale} />
       <TopStat
         id="event"
         label={translated(locale, "eventStatusLabel")}

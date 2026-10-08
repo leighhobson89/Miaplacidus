@@ -2,7 +2,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LOCALE_IDS, systemIdForStar } from "../../src/content/ids";
 import { MEGASTRUCTURE_TRACKS } from "../../src/content/technology";
-import { AscendencyBalance, ResearchBalance, TopStatusBar } from "../../src/app/TopStatusBar";
+import {
+  AscendencyBalance,
+  GlobalContextBar,
+  ResearchBalance,
+  TopStatusBar,
+} from "../../src/app/TopStatusBar";
 import {
   selectResearchProductionBreakdown,
   selectTopStatusEvent,
@@ -10,6 +15,7 @@ import {
 import { createInitialGameState, type GameState } from "../../src/engine/state";
 import { createGameStore } from "../../src/engine/store";
 import { topStatusText } from "../../src/i18n/topStatusMessages";
+import { philosophyText } from "../../src/i18n/philosophyMessages";
 import { formatNumber } from "../../src/app/numberFormatting";
 import { formatCountdown } from "../../src/app/timeFormatting";
 
@@ -52,6 +58,62 @@ function stateWithResearchProduction(gridRunning: boolean): GameState {
 }
 
 describe("top status selectors and balances", () => {
+  it("keeps GP and AP global and reveals progress only after a reported factory is visited", () => {
+    const initial = createInitialGameState({ pioneerName: "Global status", seed: 815 });
+    const initialMarkup = renderToStaticMarkup(<GlobalContextBar state={initial} locale="en" />);
+    expect(initialMarkup.indexOf('data-testid="top-stat-gp"')).toBeLessThan(
+      initialMarkup.indexOf('data-testid="top-stat-ap"'),
+    );
+    expect(initialMarkup).toContain('data-testid="global-stat-run-number"');
+    expect(initialMarkup).toMatch(/<span[^>]*data-testid="gp-balance"[^>]*>0<\/span>/);
+    expect(initialMarkup).toMatch(/<span[^>]*data-testid="ascendency-balance"[^>]*>0<\/span>/);
+    expect(initialMarkup).not.toContain('data-testid="global-stat-megastructure-progress"');
+    expect(initialMarkup).not.toContain('data-testid="global-stat-philosophy"');
+
+    const factorySystemId = systemIdForStar(815, 1);
+    const reported: GameState = {
+      ...initial,
+      permanent: {
+        ...initial.permanent,
+        megastructures: {
+          ...initial.permanent.megastructures,
+          ancientManuscripts: [
+            {
+              position: 1,
+              manuscriptSystemId: systemIdForStar(815, 2),
+              factorySystemId,
+              megastructureId: "celestialProcessingCore",
+              reported: true,
+            },
+          ],
+        },
+      },
+    };
+    const unvisitedMarkup = renderToStaticMarkup(
+      <GlobalContextBar state={reported} locale="en" />,
+    );
+    expect(unvisitedMarkup).not.toContain('data-testid="global-stat-megastructure-progress"');
+
+    const visited: GameState = {
+      ...reported,
+      permanent: {
+        ...reported.permanent,
+        settledSystemIds: [...reported.permanent.settledSystemIds, factorySystemId],
+        philosophyId: "expansionist",
+      },
+    };
+    const visitedMarkup = renderToStaticMarkup(
+      <GlobalContextBar state={visited} locale="en" />,
+    );
+    expect(visitedMarkup).toContain('data-testid="global-stat-megastructure-progress"');
+    expect(visitedMarkup).toContain(">1/4<");
+    expect(visitedMarkup).toContain('data-testid="global-stat-philosophy"');
+    expect(visitedMarkup).toContain(philosophyText("en").paths.expansionist.name);
+    expect(visitedMarkup).toContain(philosophyText("en").paths.expansionist.summary);
+    expect(visitedMarkup).toContain('tabindex="0" aria-describedby="top-stat-tooltip-megastructure-progress"');
+    expect(visitedMarkup).toContain('id="top-stat-tooltip-megastructure-progress" role="tooltip"');
+  });
+
   it("selects the newest active event and otherwise falls back to the event history", () => {
     const initial = createInitialGameState({ pioneerName: "Events", seed: 811 });
     const state: GameState = {
@@ -117,12 +179,37 @@ describe("top status selectors and balances", () => {
     });
   });
 
-  it("shows AP, CP and GP at their respective progression gates and exports RP details", () => {
+  it("keeps GP/AP global and gates CP in the current-run row by the Galactic OR condition", () => {
     const initial = createInitialGameState({ pioneerName: "Balances", seed: 812 });
-    const hiddenMarkup = renderToStaticMarkup(<AscendencyBalance state={initial} locale="en" />);
-    expect(hiddenMarkup).toContain('data-testid="ascendency-balance"');
-    expect(hiddenMarkup).not.toContain('data-testid="cp-balance"');
-    expect(hiddenMarkup).not.toContain('data-testid="gp-balance"');
+    const globalMarkup = renderToStaticMarkup(<AscendencyBalance state={initial} locale="en" />);
+    expect(globalMarkup.indexOf('data-testid="top-stat-gp"')).toBeLessThan(
+      globalMarkup.indexOf('data-testid="top-stat-ap"'),
+    );
+    expect(globalMarkup).toMatch(/<span[^>]*data-testid="gp-balance"[^>]*>0<\/span>/);
+    expect(globalMarkup).toMatch(/<span[^>]*data-testid="ascendency-balance"[^>]*>0<\/span>/);
+    expect(globalMarkup).not.toContain('data-testid="top-stat-cp"');
+
+    const initialStore = createGameStore(initial, { clock: { now: () => 0 } });
+    const initialRunMarkup = renderToStaticMarkup(
+      <TopStatusBar state={initial} store={initialStore} locale="en" />,
+    );
+    expect(initialRunMarkup).not.toContain('data-testid="top-stat-cp"');
+    expect(initialRunMarkup).toContain('data-testid="top-stat-cash"');
+    expect(initialRunMarkup).toContain('data-testid="top-stat-rp"');
+
+    const sameRun: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        space: { ...initial.run.space, ascendencyAwardedThisRun: true },
+      },
+    };
+    const sameRunStore = createGameStore(sameRun, { clock: { now: () => 0 } });
+    const sameRunMarkup = renderToStaticMarkup(
+      <TopStatusBar state={sameRun} store={sameRunStore} locale="en" />,
+    );
+    expect(sameRunMarkup).toContain('data-testid="top-stat-cp"');
+    expect(sameRunMarkup).toContain("Casino Points");
 
     const revealed: GameState = {
       ...initial,
@@ -135,17 +222,18 @@ describe("top status selectors and balances", () => {
       },
       run: { ...initial.run, space: { ...initial.run.space, ascendencyAwardedThisRun: false } },
     };
-    const balanceMarkup = renderToStaticMarkup(<AscendencyBalance state={revealed} locale="en" />);
-    expect(balanceMarkup).toContain('data-testid="cp-balance"');
-    expect(balanceMarkup).toContain("Ascendency Points: 0");
-    expect(balanceMarkup).toContain("Casino Points: 7");
-    expect(balanceMarkup).toContain('data-testid="gp-balance"');
-    expect(balanceMarkup).toContain("Galactic Points: 9");
+    const rebirthStore = createGameStore(revealed, { clock: { now: () => 0 } });
+    const rebirthMarkup = renderToStaticMarkup(
+      <TopStatusBar state={revealed} store={rebirthStore} locale="en" />,
+    );
+    expect(rebirthMarkup).toContain('data-testid="top-stat-cp"');
+    expect(rebirthMarkup).toMatch(/<span[^>]*data-testid="cp-balance"[^>]*>7<\/span>/);
+    expect(rebirthMarkup).toContain("Casino Points");
 
     const researchMarkup = renderToStaticMarkup(
       <ResearchBalance state={stateWithResearchProduction(true)} locale="en" />,
     );
-    expect(researchMarkup).toContain('<strong data-testid="research-balance"');
+    expect(researchMarkup).toContain('data-testid="research-balance"');
     expect(researchMarkup).toContain("Research Points:");
     expect(researchMarkup).toContain("Science Kits: 1/s");
     expect(researchMarkup).toContain("Science Clubs: 8/s");

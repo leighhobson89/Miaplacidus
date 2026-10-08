@@ -159,6 +159,47 @@ test("the shell ticker shows only its message and lets keyboard users claim both
   if (desktopViewport) await freshGame.setViewportSize(desktopViewport);
 });
 
+test("French and Italian ticker apostrophes render as plain ASCII quotes @news-ticker", async ({
+  freshGame,
+}, testInfo) => {
+  const ticker = freshGame.getByTestId("news-ticker");
+  const examples = [
+    {
+      locale: "it" as const,
+      copy: "Nuove sfide emergono mentre la galassia entra in un'età dell'oro.",
+    },
+    {
+      locale: "fr" as const,
+      copy: "Apparemment, il y a d'anciens Manuscrits disséminés dans la Galaxie qui pointent vers d'anciennes Mégastructures...",
+    },
+  ];
+
+  await freshGame.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { reducedMotion: true },
+    }),
+  );
+
+  for (const { locale, copy } of examples) {
+    await setGameLocale(freshGame, locale);
+    const headlineId = sourceNewsCopy(locale).headlines.indexOf(copy);
+    expect(headlineId, `${locale} example exists in the source catalog`).toBeGreaterThanOrEqual(0);
+    expect(copy).toContain("'");
+
+    expect(
+      await freshGame.evaluate(
+        (id) =>
+          window.miaplacidusTest!.dispatch({ type: "news.ticker.force", category: "headline", id }),
+        headlineId,
+      ),
+    ).toBe(true);
+    await expect(ticker).toHaveAttribute("data-news-id", String(headlineId));
+    await expect(ticker.locator(".news-ticker-copy")).toContainText(copy);
+    await ticker.screenshot({ path: testInfo.outputPath(`ticker-apostrophe-${locale}.png`) });
+  }
+});
+
 test("a fresh prize keeps its here action while localized ticker copy is loading @news-ticker", async ({
   freshGame,
 }) => {
@@ -220,6 +261,63 @@ test("a fresh prize keeps its here action while localized ticker copy is loading
   await expect(freshGame.locator(".news-ticker-copy")).toContainText("free Hydrogen");
   await expect(freshGame.locator(".news-ticker-claim")).toHaveText("here");
   await expect(freshGame.locator(".news-ticker-claim")).toBeDisabled();
+});
+
+test("a prize shows the capped amount and explains a full store @news-ticker", async ({
+  freshGame,
+}) => {
+  const ticker = freshGame.getByTestId("news-ticker");
+  expect(
+    await freshGame.evaluate(() =>
+      window.miaplacidusTest!.dispatch({
+        type: "news.ticker.force",
+        category: "prize",
+        id: 2000,
+      }),
+    ),
+  ).toBe(true);
+  await expect(ticker).toHaveAttribute("data-news-id", "2000");
+  const rewardAction = ticker.locator(".news-ticker-claim");
+  await ticker.locator(".news-ticker-message").evaluate((element) => {
+    (element as HTMLElement).style.animation = "none";
+  });
+
+  expect(
+    await freshGame.evaluate(() =>
+      window.miaplacidusTest!.applyDebugAction("give-1b-all-resources-compounds"),
+    ),
+  ).toBe(true);
+  await expect(rewardAction).toHaveText("here");
+  await expect(rewardAction).toBeDisabled();
+  await expect(ticker.locator(".news-ticker-claim-reason")).toContainText("Storage is full");
+
+  const beforeClaim = await freshGame.evaluate(() => {
+    const state = window.miaplacidusTest!.getState();
+    return {
+      quantity: state.run.goods.hydrogen.quantity,
+      claimed: state.run.newsTicker.entries.at(-1)?.claimed,
+      simulationMs: state.run.newsTicker.entries.at(-1)?.simulationMs,
+    };
+  });
+  expect(
+    await freshGame.evaluate(
+      (simulationMs) =>
+        window.miaplacidusTest!.dispatch({
+          type: "news.prize.claim",
+          id: 2000,
+          simulationMs: simulationMs!,
+        }),
+      beforeClaim.simulationMs,
+    ),
+  ).toBe(false);
+  const afterClaim = await freshGame.evaluate(() => {
+    const state = window.miaplacidusTest!.getState();
+    return {
+      quantity: state.run.goods.hydrogen.quantity,
+      claimed: state.run.newsTicker.entries.at(-1)?.claimed,
+    };
+  });
+  expect(afterClaim).toEqual({ quantity: beforeClaim.quantity, claimed: beforeClaim.claimed });
 });
 
 test("all wacky effects activate from keyboard controls, including feedback choices @news-ticker", async ({

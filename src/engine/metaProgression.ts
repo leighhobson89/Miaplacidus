@@ -144,6 +144,8 @@ function applyRebirth(state: GameState): { state: GameState; event: MetaProgress
     ...fresh.run,
     random: { ...fresh.run.random, seed },
     newsTicker: state.run.newsTicker,
+    navigationAttentionIds: state.run.navigationAttentionIds,
+    navigationAttentionInitialized: state.run.navigationAttentionInitialized,
     economy: {
       ...fresh.run.economy,
       resourceAllocation: state.run.economy.resourceAllocation,

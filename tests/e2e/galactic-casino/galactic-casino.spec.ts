@@ -4,6 +4,8 @@ import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
 import { setGameLocale } from "../_harness/settings-controls";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import { casinoText } from "../../../src/i18n/casinoMessages";
 
 async function tabUntilFocused(page: Page, target: Locator): Promise<void> {
   for (let index = 0; index < 100; index += 1) {
@@ -46,10 +48,29 @@ test("plays all four casino games and reloads a saved Higher or Lower round", as
   expect(state.run.casinoStats.wheelSpecialWon).toBe(1);
 
   await casino.getByLabel("Stake in CP").fill("10");
+  const notices = page.getByTestId("notification-stack").getByTestId("game-notification");
+  await expect(notices).toHaveCount(0);
   await casino.getByTestId("casino-don-play").click();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.casinoStats.doubleOrNothingPlayed).toBe(1);
-  expect(state.permanent.galacticCasino.history.at(-1)?.gameId).toBe("doubleOrNothing");
+  const donOutcome = state.permanent.galacticCasino.history.at(-1);
+  expect(donOutcome?.gameId).toBe("doubleOrNothing");
+  expect(donOutcome?.result).toMatch(/^(win|loss)$/);
+  await expect(notices).toHaveCount(1);
+  const donNotice = notices.first();
+  await expect(donNotice).toHaveAttribute("data-classification", "galacticCasino");
+  await expect(donNotice).toHaveClass(
+    new RegExp(donOutcome?.result === "win" ? "notification-info" : "notification-error"),
+  );
+  await expect(donNotice).toHaveText(
+    casinoText(
+      "en",
+      donOutcome?.result === "win"
+        ? "doubleOrNothingWinNotification"
+        : "doubleOrNothingLossNotification",
+    ),
+  );
+  await expect(casino.locator("output.live-feedback")).toHaveText("");
 
   await casino.getByTestId("casino-hilo-start").click();
   for (let turn = 0; turn < 2; turn += 1) {
@@ -111,10 +132,12 @@ test("Casino entry costs, stake previews, and insufficient-balance guidance are 
   await casino.getByLabel("Points to buy").fill("50000000");
   await expect(purchase).toBeDisabled();
   await expect(purchase).toHaveAttribute("aria-describedby", "casino-buy-reason");
+  await expect(casino.locator("#casino-buy-reason")).toHaveAttribute("role", "status");
+  await expect(casino.locator("#casino-buy-reason")).toHaveAttribute("aria-live", "polite");
   const cash = await page.evaluate(() => window.miaplacidusTest!.getState().run.cash);
   const cashRequired = Math.ceil((50_000_000 * 100_000) / 1);
   await expect(casino.locator("#casino-buy-reason")).toHaveText(
-    `Requires ${cashRequired.toLocaleString("en-US")} Cash; available: ${cash.toLocaleString("en-US")}.`,
+    `Requires ${formatNumber("en", cashRequired)} Cash; available: ${formatNumber("en", cash)}.`,
   );
 
   const points = await page.evaluate(
@@ -363,7 +386,7 @@ test.describe("touch controls", () => {
     hasTouch: true,
   });
 
-  test("touch users can purchase points and play a Casino game at 390px @galactic-casino @touch", async ({
+  test("touch users can buy points and use all four Casino games at 390px @galactic-casino @touch", async ({
     page,
   }) => {
     await startMetaFixture(page, "meta-casino-ready");
@@ -381,10 +404,35 @@ test.describe("touch controls", () => {
     await casino.getByTestId("casino-buy-cp").tap();
     await expect(casino.getByTestId("casino-balance")).toHaveText("20 CP");
 
+    await casino.getByTestId("casino-wheel-spin").tap();
+    await expect(casino.getByTestId("casino-wheel-claim")).toBeVisible();
+    await casino.getByTestId("casino-wheel-claim").tap();
+    let state = await page.evaluate(() => window.miaplacidusTest!.getState());
+    expect(state.run.casinoStats.wheelPlayed).toBe(1);
+    expect(state.run.casinoStats.wheelSpecialWon).toBe(1);
+
     await casino.getByTestId("casino-don-play").tap();
-    const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+    state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.run.casinoStats.doubleOrNothingPlayed).toBe(1);
     expect(state.permanent.galacticCasino.history.at(-1)?.gameId).toBe("doubleOrNothing");
+
+    await casino.getByTestId("casino-hilo-start").tap();
+    for (let turn = 0; turn < 2; turn += 1) {
+      state = await page.evaluate(() => window.miaplacidusTest!.getState());
+      const round = state.permanent.galacticCasino.higherLower!;
+      const currentCard = round.deck[round.index]!;
+      const nextCard = round.deck[round.index + 1]!;
+      const guessId = nextCard.rank > currentCard.rank ? "Higher" : "Lower";
+      await casino.getByRole("button", { name: guessId, exact: true }).tap();
+    }
+    await casino.getByRole("button", { name: "Cash out", exact: true }).tap();
+    state = await page.evaluate(() => window.miaplacidusTest!.getState());
+    expect(state.run.casinoStats.higherLowerPlayed).toBe(1);
+    expect(state.permanent.galacticCasino.higherLower).toBeNull();
+
+    await casino.getByTestId("casino-void-seer-play").tap();
+    state = await page.evaluate(() => window.miaplacidusTest!.getState());
+    expect(state.run.casinoStats.voidSeerPlayed).toBe(1);
 
     const dimensions = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,

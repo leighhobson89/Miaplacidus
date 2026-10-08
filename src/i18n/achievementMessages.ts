@@ -73,3 +73,5 @@ export type AchievementMessageKey = keyof (typeof messages)["en"];
 export function achievementText(locale: LocaleId, key: AchievementMessageKey): string {
   return messages[locale][key];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

@@ -22,6 +22,7 @@ import {
   eventTrackingNote,
   overviewStatisticLabel,
   runStatisticLabel,
+  statisticsNotApplicableLabel,
 } from "../i18n/statisticsMessages";
 import { topStatusText } from "../i18n/topStatusMessages";
 import { formatCurrency } from "./currencyFormatting";
@@ -127,6 +128,18 @@ export function SettingsStatisticsPane({
     lifetime: statNumber(lifetimeCasino[key]),
     ...(availableOwnerPaneIds.has("galactic-casino") ? { ownerPaneId: "galactic-casino" } : {}),
   });
+  const cosmicRipSourceRow = (
+    id: string,
+    label: string,
+    lifetime: string,
+    ownerPaneId: string,
+  ): StatisticsDisplayRow => ({
+    id,
+    label,
+    currentRun: statisticsNotApplicableLabel(locale),
+    lifetime,
+    ...(availableOwnerPaneIds.has(ownerPaneId) ? { ownerPaneId } : {}),
+  });
 
   const currentSystem = createStarCatalogue(GALAXY_SEED_DEFAULT).find(
     (star) =>
@@ -148,7 +161,7 @@ export function SettingsStatisticsPane({
     valueRow(
       "runTime",
       runStatisticLabel(locale, "runTime"),
-      formatDuration(locale, state.run.clock.simulationMs),
+      formatDuration(locale, state.run.clock.simulationMs, state.settings.notation),
     ),
     valueRow(
       "starSystem",
@@ -200,7 +213,10 @@ export function SettingsStatisticsPane({
     statRow("rebirths", statNumber(state.permanent.rebirthCount), "galactic-rebirth"),
   ];
   const overviewRows: readonly StatisticsDisplayRow[] = [
-    statRow("activeTime", formatDuration(locale, state.statistics.lifetimeActiveMs)),
+    statRow(
+      "activeTime",
+      formatDuration(locale, state.statistics.lifetimeActiveMs, state.settings.notation),
+    ),
     statRow("pioneer", state.run.pioneerName),
     statRow(
       "ascendencyPoints",
@@ -560,20 +576,58 @@ export function SettingsStatisticsPane({
     casinoRow("voidSeerWon", "voidSeerWon"),
   ];
   const cosmicRipRows: readonly StatisticsDisplayRow[] = [
-    statRow("cosmicRipTelemetry", statNumber(cosmicRip.telemetryData), "cosmic-rip-situation"),
-    statRow("gloryPoints", statNumber(state.permanent.gloryPoints), "cosmic-rip-situation"),
-    valueRow(
+    {
+      id: "cosmicRipGalacticPointsEarned",
+      label: settingsStatisticLabel(locale, "cosmicRipGalacticPointsEarned"),
+      currentRun: statisticsNotApplicableLabel(locale),
+      lifetime: statNumber(Math.max(0, state.permanent.settledSystemIds.length - 1)),
+      ...(availableOwnerPaneIds.has("cosmic-rip-situation")
+        ? { ownerPaneId: "cosmic-rip-situation" }
+        : {}),
+    },
+    cosmicRipSourceRow(
       "cosmicRipGpSpent",
-      overviewStatisticLabel(locale, "cosmicRipGpSpent"),
+      settingsStatisticLabel(locale, "cosmicRipGpSpent"),
       statNumber(state.statistics.lifetimeGalacticPointsSpent),
       "cosmic-rip-situation",
     ),
-    valueRow(
+    cosmicRipSourceRow(
       "cosmicRipTelemetryEarned",
-      overviewStatisticLabel(locale, "cosmicRipTelemetryEarned"),
+      settingsStatisticLabel(locale, "cosmicRipTelemetryEarned"),
       statNumber(state.statistics.lifetimeCosmicRipTelemetryDataEarned),
       "cosmic-rip-situation",
     ),
+    cosmicRipSourceRow(
+      "cosmicRipChapterUnlocked",
+      settingsStatisticLabel(locale, "cosmicRipChapterUnlocked"),
+      settingsStatisticLabel(locale, cosmicRip.unlocked ? "yes" : "no"),
+      "cosmic-rip-situation",
+    ),
+    cosmicRipSourceRow(
+      "cosmicRipScannerRestored",
+      settingsStatisticLabel(locale, "cosmicRipScannerRestored"),
+      settingsStatisticLabel(locale, cosmicRip.scannerRestored ? "yes" : "no"),
+      "cosmic-rip-situation",
+    ),
+    cosmicRipSourceRow(
+      "cosmicRipLocated",
+      settingsStatisticLabel(locale, "cosmicRipLocated"),
+      settingsStatisticLabel(locale, cosmicRip.ripFound ? "yes" : "no"),
+      "cosmic-rip-scanner-array",
+    ),
+    cosmicRipSourceRow(
+      "cosmicRipStabilised",
+      settingsStatisticLabel(locale, "cosmicRipStabilised"),
+      settingsStatisticLabel(
+        locale,
+        cosmicRip.researchedTechnologyIds.length === COSMIC_RIP_TECHNOLOGIES.length ? "yes" : "no",
+      ),
+      "cosmic-rip-rip",
+    ),
+  ];
+  const cosmicRipLiveRows: readonly StatisticsDisplayRow[] = [
+    statRow("cosmicRipTelemetry", statNumber(cosmicRip.telemetryData), "cosmic-rip-situation"),
+    statRow("gloryPoints", statNumber(state.permanent.gloryPoints), "cosmic-rip-situation"),
     statRow(
       "cosmicRipSectors",
       `${statNumber(cosmicRip.scannedSectorIndexes.length)} / ${statNumber(COSMIC_RIP_SECTOR_COUNT)}`,
@@ -582,29 +636,6 @@ export function SettingsStatisticsPane({
     statRow(
       "cosmicRipResearch",
       `${statNumber(cosmicRip.researchedTechnologyIds.length)} / ${statNumber(COSMIC_RIP_TECHNOLOGIES.length)}`,
-      "cosmic-rip-rip",
-    ),
-    statRow(
-      "cosmicRipChapterUnlocked",
-      settingsStatisticLabel(locale, cosmicRip.unlocked ? "yes" : "no"),
-      "cosmic-rip-situation",
-    ),
-    statRow(
-      "cosmicRipScannerRestored",
-      settingsStatisticLabel(locale, cosmicRip.scannerRestored ? "yes" : "no"),
-      "cosmic-rip-situation",
-    ),
-    statRow(
-      "cosmicRipLocated",
-      settingsStatisticLabel(locale, cosmicRip.ripFound ? "yes" : "no"),
-      "cosmic-rip-scanner-array",
-    ),
-    statRow(
-      "cosmicRipStabilised",
-      settingsStatisticLabel(
-        locale,
-        cosmicRip.researchedTechnologyIds.length === COSMIC_RIP_TECHNOLOGIES.length ? "yes" : "no",
-      ),
       "cosmic-rip-rip",
     ),
     statRow(
@@ -690,6 +721,10 @@ export function SettingsStatisticsPane({
       heading: settingsStatisticLabel(locale, "cosmicRipChapterSection"),
       rows: cosmicRipRows,
       note: cosmicRipTrackingNote(locale),
+    },
+    {
+      heading: settingsStatisticLabel(locale, "cosmicRipLiveStatusSection"),
+      rows: cosmicRipLiveRows,
     },
     { heading: settingsStatisticLabel(locale, "lifetime"), rows: lifetimeRows },
   ];

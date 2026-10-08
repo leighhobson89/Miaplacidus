@@ -42,6 +42,8 @@ type CasinoCopy = {
   readonly wins: string;
   readonly locked: string;
   readonly purchaseResult: string;
+  readonly doubleOrNothingWinNotification: string;
+  readonly doubleOrNothingLossNotification: string;
   readonly win: string;
   readonly loss: string;
   readonly specialReady: string;
@@ -125,6 +127,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     wins: "Wins",
     locked: "The Galactic Casino unlocks after you earn your first Ascendency Point.",
     purchaseResult: "Bought {amount} CP for {cost}.",
+    doubleOrNothingWinNotification: "WIN! Stake doubled.",
+    doubleOrNothingLossNotification: "LOSE! Better luck next time.",
     win: "Win",
     loss: "Loss",
     specialReady: "The wheel revealed a special prize. Choose and claim one below.",
@@ -206,6 +210,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     wins: "Victorias",
     locked: "El Casino galáctico se desbloquea al conseguir tu primer Punto de Ascendencia.",
     purchaseResult: "Has comprado {amount} PC por {cost}.",
+    doubleOrNothingWinNotification: "¡GANASTE! Apuesta duplicada.",
+    doubleOrNothingLossNotification: "¡PERDISTE! Mejor suerte la próxima vez.",
     win: "Victoria",
     loss: "Derrota",
     specialReady: "La ruleta ha revelado un premio especial. Elige uno y reclámalo.",
@@ -287,6 +293,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     wins: "Vitórias",
     locked: "O Casino galáctico desbloqueia após ganhares o primeiro Ponto de Ascendência.",
     purchaseResult: "Compraste {amount} PC por {cost}.",
+    doubleOrNothingWinNotification: "GANHOU! Aposta duplicada.",
+    doubleOrNothingLossNotification: "PERDEU! Mais sorte da próxima vez.",
     win: "Vitória",
     loss: "Derrota",
     specialReady: "A roda revelou um prémio especial. Escolhe e reclama um prémio abaixo.",
@@ -368,6 +376,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     wins: "Siege",
     locked: "Das galaktische Kasino wird nach dem ersten Aszendenzpunkt freigeschaltet.",
     purchaseResult: "{amount} CP für {cost} gekauft.",
+    doubleOrNothingWinNotification: "GEWONNEN! Einsatz verdoppelt.",
+    doubleOrNothingLossNotification: "VERLOREN! Viel Glück beim nächsten Mal.",
     win: "Gewonnen",
     loss: "Verloren",
     specialReady: "Das Rad zeigt einen Sonderpreis. Wähle unten einen Preis aus und hole ihn ab.",
@@ -449,6 +459,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     wins: "Vittorie",
     locked: "Il Casinò galattico si sblocca dopo il primo Punto di Ascendenza.",
     purchaseResult: "Hai comprato {amount} PC per {cost}.",
+    doubleOrNothingWinNotification: "VITTORIA! Puntata raddoppiata.",
+    doubleOrNothingLossNotification: "SCONFITTA! Più fortuna la prossima volta.",
     win: "Vittoria",
     loss: "Sconfitta",
     specialReady: "La ruota ha rivelato un premio speciale. Scegline uno e riscattalo.",
@@ -531,6 +543,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     wins: "Victoires",
     locked: "Le Casino galactique se débloque après votre premier Point d'Ascendance.",
     purchaseResult: "{amount} PC achetés pour {cost}.",
+    doubleOrNothingWinNotification: "GAGNÉ! Mise doublée.",
+    doubleOrNothingLossNotification: "PERDU! Meilleure chance la prochaine fois.",
     win: "Victoire",
     loss: "Défaite",
     specialReady: "La roue a révélé un prix spécial. Choisissez-en un et réclamez-le.",
@@ -649,3 +663,5 @@ export function casinoPrizeText(locale: LocaleId, prizeKey: string): string {
       .replace("{seconds}", String(Number(timeWarp[2]) / 1000));
   return prizeKey.replaceAll("_", " ");
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { COPY } as const;

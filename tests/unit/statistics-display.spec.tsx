@@ -6,7 +6,7 @@ import { SettingsStatisticsPane } from "../../src/app/SettingsStatisticsPane";
 import { selectRunApAnticipated } from "../../src/engine/selectors";
 import { createInitialGameState, type GameState } from "../../src/engine/state";
 import { settingsStatisticLabel } from "../../src/i18n/settingsMessages";
-import { overviewStatisticLabel, runStatisticLabel } from "../../src/i18n/statisticsMessages";
+import { runStatisticLabel, statisticsNotApplicableLabel } from "../../src/i18n/statisticsMessages";
 
 function stateWithScannedEncounters(): GameState {
   const initial = createInitialGameState({ pioneerName: "Statistics", seed: 821 });
@@ -90,6 +90,8 @@ describe("statistics display parity", () => {
       const card = (label: string, value: string) => `<dt>${label}</dt><dd>${value}</dd>`;
       const linkedCard = (paneId: string, label: string, value: string) =>
         `<dt><a href="#tab-${paneId}">${label}</a></dt><dd>${value}</dd>`;
+      const linkedPairCard = (paneId: string, label: string, lifetime: string) =>
+        `<dt><a href="#tab-${paneId}">${label}</a></dt><dd class="settings-stat-pair-values"><span><small>${settingsStatisticLabel(locale, "run")}</small><strong>${statisticsNotApplicableLabel(locale)}</strong></span><span><small>${settingsStatisticLabel(locale, "lifetime")}</small><strong>${lifetime}</strong></span></dd>`;
 
       expect(markup).toContain(
         linkedCard("research-tech-tree", settingsStatisticLabel(locale, "techsUnlocked"), "2"),
@@ -105,14 +107,45 @@ describe("statistics display parity", () => {
         );
       }
       expect(markup).toContain(
-        linkedCard(
+        linkedPairCard(
           "cosmic-rip-situation",
           settingsStatisticLabel(locale, "cosmicRipChapterUnlocked"),
           settingsStatisticLabel(locale, "yes"),
         ),
       );
       expect(markup).toContain(
-        linkedCard(
+        linkedPairCard(
+          "cosmic-rip-situation",
+          settingsStatisticLabel(locale, "cosmicRipGpSpent"),
+          "0",
+        ),
+      );
+      expect(markup).toContain(
+        linkedPairCard(
+          "cosmic-rip-situation",
+          settingsStatisticLabel(locale, "cosmicRipTelemetryEarned"),
+          "0",
+        ),
+      );
+      expect(markup).toContain(
+        linkedPairCard(
+          "cosmic-rip-situation",
+          settingsStatisticLabel(locale, "cosmicRipScannerRestored"),
+          settingsStatisticLabel(locale, "yes"),
+        ),
+      );
+      expect(markup).toContain(
+        linkedPairCard(
+          "cosmic-rip-scanner-array",
+          settingsStatisticLabel(locale, "cosmicRipLocated"),
+          settingsStatisticLabel(locale, "yes"),
+        ),
+      );
+      expect(markup).toContain(
+        `<dt><a href="#tab-cosmic-rip-situation">${settingsStatisticLabel(locale, "cosmicRipGalacticPointsEarned")}</a></dt>`,
+      );
+      expect(markup).toContain(
+        linkedPairCard(
           "cosmic-rip-rip",
           settingsStatisticLabel(locale, "cosmicRipStabilised"),
           settingsStatisticLabel(locale, "yes"),
@@ -128,10 +161,11 @@ describe("statistics display parity", () => {
       expect(markup).toContain(card(runStatisticLabel(locale, "apAnticipated"), "21"));
       expect(markup).not.toContain("AP anticipated is not tracked separately");
       const cosmicRipLinks: readonly [string, string][] = [
+        [settingsStatisticLabel(locale, "cosmicRipGalacticPointsEarned"), "cosmic-rip-situation"],
         [settingsStatisticLabel(locale, "cosmicRipTelemetry"), "cosmic-rip-situation"],
         [settingsStatisticLabel(locale, "gloryPoints"), "cosmic-rip-situation"],
-        [overviewStatisticLabel(locale, "cosmicRipGpSpent"), "cosmic-rip-situation"],
-        [overviewStatisticLabel(locale, "cosmicRipTelemetryEarned"), "cosmic-rip-situation"],
+        [settingsStatisticLabel(locale, "cosmicRipGpSpent"), "cosmic-rip-situation"],
+        [settingsStatisticLabel(locale, "cosmicRipTelemetryEarned"), "cosmic-rip-situation"],
         [settingsStatisticLabel(locale, "cosmicRipSectors"), "cosmic-rip-scanner-array"],
         [settingsStatisticLabel(locale, "cosmicRipResearch"), "cosmic-rip-rip"],
         [settingsStatisticLabel(locale, "cosmicRipChapterUnlocked"), "cosmic-rip-situation"],
@@ -142,6 +176,78 @@ describe("statistics display parity", () => {
       ];
       for (const [label, ownerPaneId] of cosmicRipLinks) {
         expect(markup).toContain(`<a href="#tab-${ownerPaneId}">${label}</a>`);
+      }
+    }
+  });
+
+  it("shows source Galactic Points Earned first with Not Applicable and the settled-system proxy", () => {
+    const initial = createInitialGameState({ pioneerName: "Statistics", seed: 821 });
+    const startingSystemId = initial.permanent.settledSystemIds[0]!;
+    const samples = [
+      { settledSystemIds: [startingSystemId], expected: "0" },
+      {
+        settledSystemIds: [startingSystemId, systemIdForStar(821, 1)],
+        expected: "1",
+      },
+      {
+        settledSystemIds: [
+          startingSystemId,
+          systemIdForStar(821, 1),
+          systemIdForStar(821, 2),
+          systemIdForStar(821, 3),
+        ],
+        expected: "3",
+      },
+    ];
+    const sourceRowIds = [
+      "cosmicRipGalacticPointsEarned",
+      "cosmicRipGpSpent",
+      "cosmicRipTelemetryEarned",
+      "cosmicRipChapterUnlocked",
+      "cosmicRipScannerRestored",
+      "cosmicRipLocated",
+      "cosmicRipStabilised",
+    ];
+    const liveRowIds = [
+      "cosmicRipTelemetry",
+      "gloryPoints",
+      "cosmicRipSectors",
+      "cosmicRipResearch",
+      "cosmicRipClosed",
+    ];
+
+    for (const locale of LOCALE_IDS) {
+      for (const sample of samples) {
+        const state: GameState = {
+          ...initial,
+          permanent: { ...initial.permanent, settledSystemIds: sample.settledSystemIds },
+          settings: { ...initial.settings, locale },
+        };
+        const markup = renderToStaticMarkup(<SettingsStatisticsPane state={state} />).replaceAll(
+          "&#x27;",
+          "'",
+        );
+        const sourceHeading = `<h4>${settingsStatisticLabel(locale, "cosmicRipChapterSection")}</h4>`;
+        const liveHeading = `<h4>${settingsStatisticLabel(locale, "cosmicRipLiveStatusSection")}</h4>`;
+        const lifetimeHeading = `<h4>${settingsStatisticLabel(locale, "lifetime")}</h4>`;
+        const sourceStart = markup.indexOf(sourceHeading);
+        const liveStart = markup.indexOf(liveHeading);
+        const lifetimeStart = markup.indexOf(lifetimeHeading, liveStart);
+        expect(sourceStart).toBeGreaterThanOrEqual(0);
+        expect(liveStart).toBeGreaterThan(sourceStart);
+        expect(lifetimeStart).toBeGreaterThan(liveStart);
+
+        const sourceMarkup = markup.slice(sourceStart, liveStart);
+        const liveMarkup = markup.slice(liveStart, lifetimeStart);
+        expect(
+          Array.from(sourceMarkup.matchAll(/data-statistic-id="([^"]+)"/g), (match) => match[1]),
+        ).toEqual(sourceRowIds);
+        expect(
+          Array.from(liveMarkup.matchAll(/data-statistic-id="([^"]+)"/g), (match) => match[1]),
+        ).toEqual(liveRowIds);
+        expect(sourceMarkup).toContain(
+          `<dt>${settingsStatisticLabel(locale, "cosmicRipGalacticPointsEarned")}</dt><dd class="settings-stat-pair-values"><span><small>${settingsStatisticLabel(locale, "run")}</small><strong>${statisticsNotApplicableLabel(locale)}</strong></span><span><small>${settingsStatisticLabel(locale, "lifetime")}</small><strong>${sample.expected}</strong></span></dd>`,
+        );
       }
     }
   });

@@ -252,7 +252,7 @@ export type GameCommand =
   | { readonly type: "onboarding.complete" }
   | { readonly type: "random-event.force"; readonly eventId: RandomEventId }
   | { readonly type: "news.ticker.force"; readonly category?: NewsCategory; readonly id?: number }
-  | { readonly type: "news.prize.claim"; readonly id: number }
+  | { readonly type: "news.prize.claim"; readonly id: number; readonly simulationMs?: number }
   | { readonly type: "news.wacky.activate"; readonly id: number }
   | MetaProgressionCommand
   | PhilosophyCommand
@@ -1325,7 +1325,11 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
             failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
           };
     case "news.prize.claim":
-      return Number.isSafeInteger(command.id) && checkNewsPrizeClaim(state, command.id)
+      return (
+        Number.isSafeInteger(command.id) &&
+        (command.simulationMs === undefined || Number.isFinite(command.simulationMs)) &&
+        checkNewsPrizeClaim(state, command.id, command.simulationMs)
+      )
         ? { ok: true }
         : {
             ok: false,
@@ -1516,8 +1520,12 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
           messageKey: "engine.error.invalid-command",
         });
       if (state.run.navigationAttentionInitialized) return success(state, [], state);
+      const visitedIds = new Set(state.permanent.navigationVisitedIds);
       const navigationAttentionIds = [
-        ...new Set([...state.run.navigationAttentionIds, ...command.pageIds]),
+        ...new Set([
+          ...state.run.navigationAttentionIds,
+          ...command.pageIds.filter((id) => !visitedIds.has(id)),
+        ]),
       ];
       return success(
         {
@@ -1541,8 +1549,12 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
           code: "invalid-command",
           messageKey: "engine.error.invalid-command",
         });
+      const visitedIds = new Set(state.permanent.navigationVisitedIds);
       const navigationAttentionIds = [
-        ...new Set([...state.run.navigationAttentionIds, ...command.pageIds]),
+        ...new Set([
+          ...state.run.navigationAttentionIds,
+          ...command.pageIds.filter((id) => !visitedIds.has(id)),
+        ]),
       ];
       if (navigationAttentionIds.length === state.run.navigationAttentionIds.length)
         return success(state, [], state);
@@ -1557,9 +1569,23 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
       const navigationAttentionIds = state.run.navigationAttentionIds.filter(
         (pageId) => pageId !== command.pageId,
       );
-      if (navigationAttentionIds.length === state.run.navigationAttentionIds.length)
+      const navigationVisitedIds = state.permanent.navigationVisitedIds.includes(command.pageId)
+        ? state.permanent.navigationVisitedIds
+        : [...state.permanent.navigationVisitedIds, command.pageId];
+      if (
+        navigationAttentionIds.length === state.run.navigationAttentionIds.length &&
+        navigationVisitedIds === state.permanent.navigationVisitedIds
+      )
         return success(state, [], state);
-      return success({ ...state, run: { ...state.run, navigationAttentionIds } }, [], state);
+      return success(
+        {
+          ...state,
+          run: { ...state.run, navigationAttentionIds },
+          permanent: { ...state.permanent, navigationVisitedIds },
+        },
+        [],
+        state,
+      );
     }
     const precondition = checkPreconditions(state, command);
     if (!precondition.ok) {
@@ -1578,7 +1604,7 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
         : reject(state, { code: "invalid-command", messageKey: "engine.error.invalid-command" });
     }
     if (command.type === "news.prize.claim") {
-      const applied = claimNewsPrize(state, command.id);
+      const applied = claimNewsPrize(state, command.id, command.simulationMs);
       if (!applied)
         return reject(state, {
           code: "invalid-command",

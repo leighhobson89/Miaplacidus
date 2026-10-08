@@ -1,7 +1,7 @@
-# Notification route audit: space, weather, saves, and battles
+# Notification route audit: space, weather, saves, battles, and Casino
 
 **Audit date:** 5 October 2026  
-**Purpose:** map Cosmic Forge notification categories to the remake's typed events, current notification routes, localization, and focused acceptance coverage. This is a static source audit; recommendations below are proposed implementation contracts, not claims that those routes already exist.
+**Purpose:** map Cosmic Forge notification categories to the remake's typed events, current notification routes, localization, and focused acceptance coverage. Implemented routes and proposed contracts are identified separately.
 
 ## Implementation follow-up
 
@@ -9,13 +9,19 @@ The event routes described below have now been implemented in `src/app/spaceEven
 
 ## Current remake path
 
-The remake renders notices through `src/app/NotificationStack.tsx`; `src/app/notificationScheduler.ts` limits visible categories to four, queues ordinary categories in order, and allows the existing `storage`, `debug`, and `achievement` multi-card groups. `SettingsPane` can disable the region. The current routed notices are:
+The remake renders notices through `src/app/NotificationStack.tsx`; `src/app/notificationScheduler.ts` limits visible categories to four, queues ordinary categories in order, and allows the `storage`, `debug`, and `achievement` multi-card groups without Cosmic Forge's four-card per-category cap. That missing card cap remains an open parity gap. `SettingsPane` can disable the region. The current routed notices are:
 
 | Remake event / source | Current route | Locale source |
 |---|---|---|
 | Economy technology learned (detected by the `App.tsx` state-diff effect) | `tech`, info | `technologyNotificationMessages.ts` |
 | Cosmic Rip technology learned (state-diff effect) | `cosmicRip`, info | `cosmicRipMessages.ts` |
 | `economy.fusion.completed` | `fuse` | `economyMessages.ts` |
+| Accepted manual `resource.sold` from Resource or Compound UI controls | `sold` for Resources, `special` for Compounds; one localized notice with displayed quantity, good name, and cash | `economySaleNotifications.ts`, `economyMessages.ts` |
+| Accepted `casino.game.played` for Double-or-Nothing `win` / `loss` (`casino.js:1000,1008`) | `galacticCasino`, info / error, 2500ms | `casinoEventNotifications.ts`, `casinoMessages.ts` |
+
+Manual sale notifications are dispatched once from `src/app/economySaleNotifications.ts` after an accepted sale event. The saved notification setting suppresses the notice when disabled. Automatic tick sales do not use this UI dispatcher and remain silent. The focused Hydrogen UI sale test passed 1/1 in 4.3 seconds in Chrome; typecheck passed. Other Cosmic Forge notification families remain outside this completed slice.
+
+Double-or-Nothing notices use the source-exact localized win and loss keys in all six locales. `App.tsx` subscribes the route to accepted engine events, so the notice is emitted from the global event path rather than the Casino click handler. Wheel and Higher-or-Lower events are ignored. Win uses the `info` type; loss uses `error`; both use the `galacticCasino` classification and 2500ms duration. The notification setting suppresses delivery, and the Casino pane does not repeat the result inline. Three focused unit tests passed; the focused Chrome Casino journey passed 1/1 in 9.8 seconds. Its first run exposed a stale screenshot after the current-status-row redesign; the screenshot was visually reviewed and refreshed before the clean no-update rerun passed. P-08 remains open for other notification families.
 
 At the time of this audit, `EngineResult.events` carried typed `SpaceEvent`s but `App.tsx` did not route them to notifications. The implementation follow-up above routes each emitted event once, including events produced by timer advancement; state-diffing the full game state could miss repeated events and duplicate notices after save replacement. Save outcomes remain outside the engine and are routed from the persistence/UI result.
 

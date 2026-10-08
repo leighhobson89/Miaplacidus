@@ -166,3 +166,5 @@ export function interstellarStatisticLabel(locale: LocaleId, id: InterstellarSta
 export function interstellarStatisticsTrackingNote(locale: LocaleId): string {
   return trackingNotes[locale];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { labels, trackingNotes } as const;

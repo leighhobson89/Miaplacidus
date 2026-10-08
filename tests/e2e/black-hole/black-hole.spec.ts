@@ -85,7 +85,11 @@ test("researches, charges, saves and activates the Black Hole through the player
   await blackHoleTab.click();
   const pane = page.getByTestId("black-hole-research");
   await expect(pane).toBeVisible();
-  await expect(pane).toContainText("3,000,000 research points");
+  await expect(pane).toContainText("3M research points");
+  const warpAnnouncement = page.getByTestId("black-hole-warp-announcement");
+  await expect(warpAnnouncement).toBeEmpty();
+  await expect(warpAnnouncement).toHaveAttribute("aria-live", "polite");
+  await expect(warpAnnouncement).toHaveAttribute("aria-atomic", "true");
   await pane.getByRole("button", { name: /Research Black Hole/ }).click();
 
   const readProgress = () =>
@@ -151,9 +155,16 @@ test("researches, charges, saves and activates the Black Hole through the player
     .toBe(true);
   await expect(chargeStatus).toHaveText(blackHoleText("en").ready);
   await expect(chargeProgress).toHaveCount(0);
+  const galacticTab = page.locator("#tab-galaxy");
+  const galacticAttention = galacticTab.locator(".attention-badge");
+  const blackHoleAttention = blackHoleTab.locator(".attention-badge");
+  const readyLabel = blackHoleText("en").ready;
+  await expect(galacticAttention).toHaveText(readyLabel);
+  await expect(blackHoleAttention).toHaveText(readyLabel);
   const activate = page.getByRole("button", { name: blackHoleText("en").activate });
   await expect(activate).toBeEnabled();
   await activate.click();
+  await expect(warpAnnouncement).toHaveText(blackHoleText("en").warping);
   await expect
     .poll(() =>
       page.evaluate(() => ({
@@ -163,5 +174,13 @@ test("researches, charges, saves and activates the Black Hole through the player
       })),
     )
     .toEqual({ active: true, multiplier: 5, remainingMs: 3_000 });
+  await expect
+    .poll(async () => ({
+      galactic: (await galacticAttention.allTextContents()).some((label) => label === readyLabel),
+      blackHole: (await blackHoleAttention.allTextContents()).some((label) => label === readyLabel),
+    }))
+    .toEqual({ galactic: false, blackHole: false });
   await captureVisualCheckpoint(page, testInfo, "black-hole-warp-active");
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(3_001));
+  await expect(warpAnnouncement).toBeEmpty();
 });

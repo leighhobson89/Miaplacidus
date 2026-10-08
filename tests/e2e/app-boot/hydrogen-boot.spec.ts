@@ -63,6 +63,9 @@ test("keyboard navigation follows the visible main-tab order @app-boot @keyboard
   expect(visibleTabLabels).toEqual(["Resources", "Research", "Settings", "Miaplaedia"]);
   expect(visibleTabLabels.every((label) => !/^[0-9]/.test(label))).toBe(true);
   await expect(freshGame.getByRole("tab", { name: "Energy", exact: true })).toHaveCount(0);
+  await expect(freshGame.getByRole("tab", { name: "Compounds", exact: true })).toHaveCount(0);
+  await expect(freshGame.getByRole("tab", { name: "Space Mining", exact: true })).toHaveCount(0);
+  await expect(freshGame.getByRole("tab", { name: "Interstellar", exact: true })).toHaveCount(0);
 
   const resourcesTab = freshGame.getByRole("tab", { name: /Resources/ });
   await resourcesTab.focus();

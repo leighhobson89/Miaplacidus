@@ -148,6 +148,78 @@ test("background audio can be off while active sound effects continue @settings 
   await expect.poll(async () => (await firstEffect())?.pauseCount).toBe(1);
 });
 
+test("main and child navigation play the source click cue @settings @audio", async ({
+  freshGame,
+}) => {
+  await freshGame.evaluate(() => {
+    const sources: string[] = [];
+    class MockAudio {
+      loop = false;
+      preload = "none";
+      volume = 1;
+      currentTime = 0;
+      paused = true;
+
+      constructor(readonly src: string) {
+        sources.push(src);
+      }
+
+      addEventListener(): void {}
+
+      play(): Promise<void> {
+        this.paused = false;
+        return Promise.resolve();
+      }
+
+      pause(): void {
+        this.paused = true;
+      }
+    }
+
+    const harness = window as Window & { __navigationAudioSources?: string[] };
+    Object.defineProperty(window, "Audio", {
+      configurable: true,
+      writable: true,
+      value: MockAudio,
+    });
+    harness.__navigationAudioSources = sources;
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { soundEffectsEnabled: true, backgroundAudioEnabled: false },
+    });
+    sources.length = 0;
+  });
+
+  const sources = () =>
+    freshGame.evaluate(
+      () => (window as Window & { __navigationAudioSources?: string[] }).__navigationAudioSources,
+    );
+  await freshGame.locator("#tab-research").click();
+  await expect(freshGame.locator("#tab-research")).toHaveAttribute("aria-selected", "true");
+  await expect
+    .poll(sources)
+    .toEqual(expect.arrayContaining([expect.stringContaining("clickButton.mp3")]));
+
+  await freshGame.evaluate(() => {
+    (window as Window & { __navigationAudioSources?: string[] }).__navigationAudioSources!.length =
+      0;
+  });
+  await freshGame.locator("#tab-settings").click();
+  await expect(freshGame.locator("#tab-settings")).toHaveAttribute("aria-selected", "true");
+  await expect
+    .poll(sources)
+    .toEqual(expect.arrayContaining([expect.stringContaining("clickButton.mp3")]));
+
+  await freshGame.evaluate(() => {
+    (window as Window & { __navigationAudioSources?: string[] }).__navigationAudioSources!.length =
+      0;
+  });
+  await freshGame.locator("#tab-settings-game-options").click();
+  await expect
+    .poll(sources)
+    .toEqual(expect.arrayContaining([expect.stringContaining("clickButton.mp3")]));
+});
+
 test("audio and visual preferences restore independently for each local pioneer @settings @audio @visual @save-slots", async ({
   freshGame,
 }) => {

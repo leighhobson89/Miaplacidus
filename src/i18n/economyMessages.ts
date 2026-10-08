@@ -11,6 +11,7 @@ type EconomyLabel =
   | "sellAll"
   | "saleAmount"
   | "salePreview"
+  | "saleNotification"
   | "storage"
   | "energyStorage"
   | "increaseStorage"
@@ -110,6 +111,7 @@ const en: Record<EconomyLabel, string> = {
   sellAll: "Sell all",
   saleAmount: "Sale amount",
   salePreview: "Sale preview",
+  saleNotification: "You sold {amount} {good} for {cash}!",
   storage: "Storage",
   energyStorage: "Energy Storage",
   increaseStorage: "Increase storage",
@@ -215,6 +217,7 @@ const es: Record<EconomyLabel, string> = {
   sellAll: "Vender todo",
   saleAmount: "Cantidad de venta",
   salePreview: "Vista previa de venta",
+  saleNotification: "¡Has vendido {amount} de {good} por {cash}!",
   storage: "Almacenamiento",
   energyStorage: "Almacenamiento de energía",
   increaseStorage: "Aumentar almacenamiento",
@@ -322,6 +325,7 @@ const pt: Record<EconomyLabel, string> = {
   sellAll: "Vender tudo",
   saleAmount: "Quantidade da venda",
   salePreview: "Prévia da venda",
+  saleNotification: "Vendeste {amount} de {good} por {cash}!",
   storage: "Armazenamento",
   energyStorage: "Armazenamento de energia",
   increaseStorage: "Aumentar armazenamento",
@@ -429,6 +433,7 @@ const de: Record<EconomyLabel, string> = {
   sellAll: "Alles verkaufen",
   saleAmount: "Verkaufsmenge",
   salePreview: "Verkaufswert",
+  saleNotification: "Du hast {amount} {good} für {cash} verkauft!",
   storage: "Lager",
   energyStorage: "Energiespeicher",
   increaseStorage: "Lager erweitern",
@@ -536,6 +541,7 @@ const it: Record<EconomyLabel, string> = {
   sellAll: "Vendi tutto",
   saleAmount: "Quantità da vendere",
   salePreview: "Anteprima vendita",
+  saleNotification: "Hai venduto {amount} di {good} per {cash}!",
   storage: "Deposito",
   energyStorage: "Deposito di energia",
   increaseStorage: "Aumenta deposito",
@@ -642,6 +648,7 @@ const fr: Record<EconomyLabel, string> = {
   sellAll: "Tout vendre",
   saleAmount: "Quantité à vendre",
   salePreview: "Aperçu de vente",
+  saleNotification: "Vous avez vendu {amount} de {good} pour {cash}!",
   storage: "Stockage",
   energyStorage: "Stockage d’énergie",
   increaseStorage: "Augmenter le stockage",
@@ -754,3 +761,5 @@ export function formatEconomyMessage(
     economyLabel(locale, key),
   );
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

@@ -141,7 +141,8 @@ test("economy headings, stock, and rates use the active theme's text palette @th
       const expected = new Map([
         [".eyebrow", muted],
         [".run-name", muted],
-        [".header-balances strong", ink],
+        [".global-context-bar .top-stat-value", ink],
+        [".top-status-bar .top-stat-value", ink],
         [".location-status-copy strong", ink],
         [".location-status-copy small", muted],
         [".game-nav .nav-tab:not(.is-selected)", muted],
@@ -419,11 +420,11 @@ test("all top-level tabs fit four viewport widths in Terminal @theme-tab-matrix"
 
   const tabIds = [
     "hydrogen",
-    "energy",
-    "research",
     "compounds",
-    "interstellar",
+    "research",
+    "energy",
     "space-mining",
+    "interstellar",
     "galaxy",
     "cosmic-rip",
     "settings",

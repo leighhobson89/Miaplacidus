@@ -54,6 +54,7 @@ import { EconomyStructureEmblem } from "./EconomyStructureEmblem";
 import { economyGoodName } from "./economyDisplay";
 import { RESOURCE_PANE_ORDER } from "./presentationNavigation";
 import { useGameNotifications } from "./NotificationStack";
+import { dispatchEconomySale } from "./economySaleNotifications";
 
 interface EconomyPanesProps {
   readonly tabId: string;
@@ -348,6 +349,7 @@ function ResourceCard({
   economyTick: EconomyTickPlan;
 }) {
   const locale = state.settings.locale;
+  const notify = useGameNotifications();
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
   const material = MATERIAL_CATALOG[id] as MaterialDefinition;
   const stock = state.run.goods[id];
@@ -456,9 +458,7 @@ function ResourceCard({
                 className="secondary-button"
                 disabled={!sale.enabled}
                 aria-describedby={saleReason ? `resource-${id}-sell-reason` : undefined}
-                onClick={() =>
-                  store.dispatch({ type: "resource.sell", goodId: id, amount: selection })
-                }
+                onClick={() => dispatchEconomySale(state, store, id, selection, notify)}
               >
                 {t("sell")} {name(locale, id)} · {money(state, sale.proceeds)}
               </button>
@@ -492,6 +492,7 @@ function ResourceHeroCard({
   readonly economyTick: EconomyTickPlan;
 }) {
   const locale = state.settings.locale;
+  const notify = useGameNotifications();
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
   const [saleChoice, setSaleChoice] = useState("all");
   const selection =
@@ -561,9 +562,7 @@ function ResourceHeroCard({
                 className="secondary-button"
                 disabled={!sale.enabled}
                 aria-describedby={saleReason ? `resource-${id}-sell-reason` : undefined}
-                onClick={() =>
-                  store.dispatch({ type: "resource.sell", goodId: id, amount: selection })
-                }
+                onClick={() => dispatchEconomySale(state, store, id, selection, notify)}
               >
                 {t("sell")} {name(locale, id)}
               </button>
@@ -1087,6 +1086,7 @@ function AllocationControls({
 
 function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabId">) {
   const locale = state.settings.locale;
+  const notify = useGameNotifications();
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
   const compoundsAvailable = state.run.economy.researchedTechnologies.includes("compounds");
   const economyTick = createEconomyTickPlan(state);
@@ -1395,11 +1395,7 @@ function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProp
                             disabled={!sale.enabled}
                             aria-describedby={saleReason ? `compound-${id}-sell-reason` : undefined}
                             onClick={() =>
-                              store.dispatch({
-                                type: "resource.sell",
-                                goodId: id,
-                                amount: saleSelection,
-                              })
+                              dispatchEconomySale(state, store, id, saleSelection, notify)
                             }
                           >
                             {t("sell")} {name(locale, id)}
@@ -1479,6 +1475,7 @@ function CompoundGoodPane({
   readonly store: GameStore;
 }) {
   const locale = state.settings.locale;
+  const notify = useGameNotifications();
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
   const definition = COMPOUND_CATALOG[id];
   const [amount, setAmount] = useState(1);
@@ -1583,13 +1580,7 @@ function CompoundGoodPane({
                       className="secondary-button"
                       disabled={!sale.enabled}
                       aria-describedby={saleReason ? `compound-${id}-sell-reason` : undefined}
-                      onClick={() =>
-                        store.dispatch({
-                          type: "resource.sell",
-                          goodId: id,
-                          amount: saleSelection,
-                        })
-                      }
+                      onClick={() => dispatchEconomySale(state, store, id, saleSelection, notify)}
                     >
                       {t("sell")} {name(locale, id)}
                     </button>
@@ -1823,6 +1814,9 @@ function TechnologyPrerequisiteTree({
   const treeRef = useRef<HTMLDivElement>(null);
   const [graph, setGraph] = useState<TechnologyTreeGraph>({ width: 0, height: 0, edges: [] });
   const [zoom, setZoom] = useState(1);
+  const [focusedTechnologyId, setFocusedTechnologyId] = useState<TechId | null>(null);
+  const [hoveredTechnologyId, setHoveredTechnologyId] = useState<TechId | null>(null);
+  const activeTechnologyId = hoveredTechnologyId ?? focusedTechnologyId;
   const visibleIds = useMemo(
     () => new Set(technologies.map((technology) => technology.id)),
     [technologies],
@@ -1977,7 +1971,13 @@ function TechnologyPrerequisiteTree({
               {graph.edges.map((edge) => (
                 <path
                   key={`${edge.sourceId}-${edge.targetId}`}
-                  className="technology-map-edge"
+                  className={`technology-map-edge${
+                    activeTechnologyId === null
+                      ? ""
+                      : edge.sourceId === activeTechnologyId || edge.targetId === activeTechnologyId
+                        ? " is-related"
+                        : " is-muted"
+                  }`}
                   d={edge.path}
                   data-prerequisite-from={edge.sourceId}
                   data-prerequisite-to={edge.targetId}
@@ -2023,6 +2023,10 @@ function TechnologyPrerequisiteTree({
                           aria-describedby={tooltipId}
                           aria-disabled={!canResearch}
                           title={tooltipText}
+                          onFocus={() => setFocusedTechnologyId(technology.id)}
+                          onBlur={() => setFocusedTechnologyId(null)}
+                          onMouseEnter={() => setHoveredTechnologyId(technology.id)}
+                          onMouseLeave={() => setHoveredTechnologyId(null)}
                           onClick={() => {
                             if (canResearch)
                               store.dispatch({

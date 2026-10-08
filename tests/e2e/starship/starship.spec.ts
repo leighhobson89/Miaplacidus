@@ -360,14 +360,19 @@ test("scans an orbiting destination once and persists stable hostility data @sta
 }) => {
   await startStarshipFixture(page, "space-starship-scanning");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.getByRole("tab", { name: "Starship construction" }).click();
 
   const pane = page.getByTestId("starship-pane");
   const scanButton = pane.getByTestId("starship-scan-system-button");
+  const scanAnnouncement = pane.getByTestId("starship-scan-announcement");
   await expect(scanButton).toBeEnabled();
+  await expect(scanAnnouncement).toBeEmpty();
   const before = await page.evaluate(() => window.miaplacidusTest!.getState());
   await scanButton.click();
   await expect(pane.getByTestId("starship-system-scan-results")).toBeVisible();
+  await expect(scanAnnouncement).toHaveAttribute("aria-live", "polite");
+  await expect(scanAnnouncement).toHaveAttribute("aria-atomic", "true");
+  await expect(scanAnnouncement).toHaveText(/Life detected|No life detected/);
 
   const scanned = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(scanned.run.space.systemEncounters).toHaveLength(1);

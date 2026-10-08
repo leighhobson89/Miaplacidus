@@ -437,6 +437,10 @@ export type SettingsStatisticId =
   | "unlockedAchievements"
   | "galacticCasinoSection"
   | "cosmicRipChapterSection"
+  | "cosmicRipLiveStatusSection"
+  | "cosmicRipGalacticPointsEarned"
+  | "cosmicRipGpSpent"
+  | "cosmicRipTelemetryEarned"
   | "casinoPointsSpent"
   | "doubleOrNothingPlayed"
   | "doubleOrNothingWon"
@@ -508,6 +512,10 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     unlockedAchievements: "Achievements unlocked",
     galacticCasinoSection: "Galactic Casino",
     cosmicRipChapterSection: "Cosmic Rip Chapter",
+    cosmicRipLiveStatusSection: "MIAPLACIDUS live status",
+    cosmicRipGalacticPointsEarned: "Galactic Points Earned",
+    cosmicRipGpSpent: "Galactic Points Spent",
+    cosmicRipTelemetryEarned: "Rip Telemetry Data Gained",
     casinoPointsSpent: "Casino points spent",
     doubleOrNothingPlayed: "Double or Nothing played",
     doubleOrNothingWon: "Double or Nothing won",
@@ -571,6 +579,10 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     unlockedAchievements: "Logros desbloqueados",
     galacticCasinoSection: "Casino galáctico",
     cosmicRipChapterSection: "Capítulo Cosmic Rip",
+    cosmicRipLiveStatusSection: "Estado actual de MIAPLACIDUS",
+    cosmicRipGalacticPointsEarned: "Puntos galácticos obtenidos",
+    cosmicRipGpSpent: "Puntos galácticos gastados",
+    cosmicRipTelemetryEarned: "Datos de telemetría de la grieta obtenidos",
     casinoPointsSpent: "Puntos de casino gastados",
     doubleOrNothingPlayed: "Doble o nada jugado",
     doubleOrNothingWon: "Doble o nada ganado",
@@ -634,6 +646,10 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     unlockedAchievements: "Conquistas desbloqueadas",
     galacticCasinoSection: "Casino galáctico",
     cosmicRipChapterSection: "Capítulo Cosmic Rip",
+    cosmicRipLiveStatusSection: "Estado atual de MIAPLACIDUS",
+    cosmicRipGalacticPointsEarned: "Pontos galácticos obtidos",
+    cosmicRipGpSpent: "Pontos galácticos gastos",
+    cosmicRipTelemetryEarned: "Dados de telemetria da fenda obtidos",
     casinoPointsSpent: "Pontos de casino gastos",
     doubleOrNothingPlayed: "Dobro ou nada jogado",
     doubleOrNothingWon: "Dobro ou nada ganho",
@@ -697,6 +713,10 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     unlockedAchievements: "Freigeschaltete Errungenschaften",
     galacticCasinoSection: "Galaktisches Casino",
     cosmicRipChapterSection: "Cosmic-Rip-Kapitel",
+    cosmicRipLiveStatusSection: "MIAPLACIDUS-Live-Status",
+    cosmicRipGalacticPointsEarned: "Verdiente galaktische Punkte",
+    cosmicRipGpSpent: "Galaktische Punkte ausgegeben",
+    cosmicRipTelemetryEarned: "Rip-Telemetriedaten erhalten",
     casinoPointsSpent: "Ausgegebene Casinopunkte",
     doubleOrNothingPlayed: "Doppelt oder nichts gespielt",
     doubleOrNothingWon: "Doppelt oder nichts gewonnen",
@@ -760,6 +780,10 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     unlockedAchievements: "Obiettivi sbloccati",
     galacticCasinoSection: "Casinò galattico",
     cosmicRipChapterSection: "Capitolo Cosmic Rip",
+    cosmicRipLiveStatusSection: "Stato attuale di MIAPLACIDUS",
+    cosmicRipGalacticPointsEarned: "Punti galattici ottenuti",
+    cosmicRipGpSpent: "Punti galattici spesi",
+    cosmicRipTelemetryEarned: "Dati di telemetria della frattura ottenuti",
     casinoPointsSpent: "Punti casinò spesi",
     doubleOrNothingPlayed: "Doppio o niente giocato",
     doubleOrNothingWon: "Doppio o niente vinto",
@@ -823,6 +847,10 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
     unlockedAchievements: "Succès débloqués",
     galacticCasinoSection: "Casino galactique",
     cosmicRipChapterSection: "Chapitre Cosmic Rip",
+    cosmicRipLiveStatusSection: "État actuel de MIAPLACIDUS",
+    cosmicRipGalacticPointsEarned: "Points galactiques gagnés",
+    cosmicRipGpSpent: "Points galactiques dépensés",
+    cosmicRipTelemetryEarned: "Données de télémétrie de la faille obtenues",
     casinoPointsSpent: "Points de casino dépensés",
     doubleOrNothingPlayed: "Double ou rien joué",
     doubleOrNothingWon: "Double ou rien gagné",
@@ -859,3 +887,5 @@ const statisticLabels: Record<LocaleId, Record<SettingsStatisticId, string>> = {
 export function settingsStatisticLabel(locale: LocaleId, id: SettingsStatisticId): string {
   return statisticLabels[locale][id];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages, extra, sections, statisticLabels } as const;

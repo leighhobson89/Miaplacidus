@@ -79,3 +79,5 @@ const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
 export function miaplacidusStoryText(locale: LocaleId): MiaplacidusStoryMessages {
   return STORY[locale];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { STORY } as const;

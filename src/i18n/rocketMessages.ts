@@ -306,3 +306,5 @@ export function rocketText(
     messages[locale][key],
   );
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

@@ -1,6 +1,7 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { formatNumber } from "../../../src/app/numberFormatting";
+import { COSMIC_RIP_TECHNOLOGIES } from "../../../src/content/cosmicRip";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { createEconomyTickPlan } from "../../../src/engine/economySimulation";
 import { currentWeatherForSystem } from "../../../src/engine/weather";
@@ -9,7 +10,7 @@ import { settingsStatisticLabel } from "../../../src/i18n/settingsMessages";
 import {
   cosmicRipTrackingNote,
   energyTrackingNote,
-  overviewStatisticLabel,
+  statisticsNotApplicableLabel,
 } from "../../../src/i18n/statisticsMessages";
 import {
   interstellarStatisticLabel,
@@ -103,28 +104,36 @@ const ENERGY_STATISTIC_OWNER_PANES = {
   battery3: "energy-storage",
 } as const;
 
-test("header balances and conditional status stats follow the source layout @presentation @status", async ({
+test("global and current-run status stats follow their two-row layout @presentation @status", async ({
   freshGame,
 }) => {
+  await expect(freshGame.getByTestId("global-stat-run-number")).toBeVisible();
+  await expect(freshGame.getByTestId("top-stat-gp")).toBeVisible();
+  await expect(freshGame.getByTestId("top-stat-ap")).toBeVisible();
+  await expect(freshGame.getByTestId("top-stat-cp")).toHaveCount(0);
   await expect(freshGame.getByTestId("top-stat-time")).toBeVisible();
   await expect(freshGame.getByTestId("top-stat-energy")).toHaveCount(0);
   await expect(freshGame.getByTestId("top-stat-power")).toHaveCount(0);
   await expect(freshGame.getByTestId("top-stat-antimatter")).toHaveCount(0);
   expect(
-    await freshGame.locator(".header-balances").evaluate((header) =>
-      Array.from(header.children).map((child) => {
-        if (child.matches("[data-testid='location-status']")) return "location";
-        if (child.matches("[data-testid='ascendency-balance']")) return "ap";
-        if (child.querySelector("[data-testid='cash-balance']")) return "cash";
-        if (child.querySelector("[data-testid='research-balance']")) return "research";
-        return "unexpected";
-      }),
-    ),
-  ).toEqual(["location", "ap", "cash", "research"]);
+    await freshGame
+      .getByTestId("global-context-bar")
+      .locator(":scope > *")
+      .evaluateAll((children) => children.map((child) => child.getAttribute("data-testid"))),
+  ).toEqual(["global-stat-run-number", "top-stat-gp", "top-stat-ap"]);
+  expect(
+    await freshGame
+      .getByTestId("run-status-bar")
+      .locator(":scope > *")
+      .evaluateAll((children) => children.map((child) => child.getAttribute("data-testid"))),
+  ).toEqual(["location-status", "top-stat-time", "top-stat-cash", "top-stat-rp", "top-stat-event"]);
+  await expect(freshGame.getByTestId("cash-balance")).toBeVisible();
+  await expect(freshGame.getByTestId("research-balance")).toBeVisible();
 
   await startMetaFixture(freshGame, "meta-megastructure-route");
   await expect(freshGame.getByTestId("top-stat-antimatter")).toBeVisible();
   await expect(freshGame.getByTestId("top-stat-antimatter")).not.toContainText("???");
+  await expect(freshGame.getByTestId("global-stat-megastructure-progress")).toBeVisible();
 });
 
 test("weather and star system sit beside cash and remain visible on mobile @presentation @status", async ({
@@ -138,22 +147,22 @@ test("weather and star system sit beside cash and remain visible on mobile @pres
   await expect(freshGame.locator("#location-status-tooltip")).toBeVisible();
   await location.locator(".location-status-summary").evaluate((element) => element.blur());
   const desktopPosition = await location.evaluate((element) => {
-    const apValue = document.querySelector('[data-testid="ascendency-balance"]');
+    const runtime = document.querySelector('[data-testid="top-stat-time"]');
     const cashValue = document.querySelector('[data-testid="cash-balance"]');
-    if (!apValue || !cashValue) throw new Error("AP or cash balance is missing.");
+    if (!runtime || !cashValue) throw new Error("Runtime or cash balance is missing.");
     const locationBounds = element.getBoundingClientRect();
-    const apBounds = apValue.getBoundingClientRect();
+    const runtimeBounds = runtime.getBoundingClientRect();
     const cashBounds = cashValue.getBoundingClientRect();
     return {
-      isBeforeAp: locationBounds.right <= apBounds.left,
-      isApBeforeCash: apBounds.right <= cashBounds.left,
-      gapToAp: apBounds.left - locationBounds.right,
-      gapToCash: cashBounds.left - apBounds.right,
+      isBeforeRuntime: locationBounds.right <= runtimeBounds.left,
+      isRuntimeBeforeCash: runtimeBounds.right <= cashBounds.left,
+      gapToRuntime: runtimeBounds.left - locationBounds.right,
+      gapToCash: cashBounds.left - runtimeBounds.right,
     };
   });
-  expect(desktopPosition.isBeforeAp).toBe(true);
-  expect(desktopPosition.isApBeforeCash).toBe(true);
-  expect(desktopPosition.gapToAp).toBeLessThan(32);
+  expect(desktopPosition.isBeforeRuntime).toBe(true);
+  expect(desktopPosition.isRuntimeBeforeCash).toBe(true);
+  expect(desktopPosition.gapToRuntime).toBeLessThan(32);
   expect(desktopPosition.gapToCash).toBeLessThan(32);
   await expect(freshGame.locator(".game-header")).toHaveScreenshot("status-header-desktop.png");
 
@@ -163,24 +172,24 @@ test("weather and star system sit beside cash and remain visible on mobile @pres
   await location.locator(".location-status-summary").focus();
   await expect(freshGame.locator("#location-status-tooltip")).toBeVisible();
   const mobilePosition = await location.evaluate((element) => {
-    const apValue = document.querySelector('[data-testid="ascendency-balance"]');
+    const runtime = document.querySelector('[data-testid="top-stat-time"]');
     const cashValue = document.querySelector('[data-testid="cash-balance"]');
-    if (!apValue || !cashValue) throw new Error("AP or cash balance is missing.");
+    if (!runtime || !cashValue) throw new Error("Runtime or cash balance is missing.");
     const locationBounds = element.getBoundingClientRect();
-    const apBounds = apValue.getBoundingClientRect();
+    const runtimeBounds = runtime.getBoundingClientRect();
     const cashBounds = cashValue.getBoundingClientRect();
     return {
-      isBeforeAp: locationBounds.right <= apBounds.left,
-      isApBeforeCash: apBounds.right <= cashBounds.left,
-      gapToAp: apBounds.left - locationBounds.right,
-      gapToCash: cashBounds.left - apBounds.right,
+      isBeforeRuntime: locationBounds.right <= runtimeBounds.left,
+      isRuntimeBeforeCash: runtimeBounds.right <= cashBounds.left,
+      gapToRuntime: runtimeBounds.left - locationBounds.right,
+      gapToCash: cashBounds.left - runtimeBounds.right,
       pageWidth: document.documentElement.scrollWidth,
       viewportWidth: document.documentElement.clientWidth,
     };
   });
-  expect(mobilePosition.isBeforeAp).toBe(true);
-  expect(mobilePosition.isApBeforeCash).toBe(true);
-  expect(mobilePosition.gapToAp).toBeLessThan(32);
+  expect(mobilePosition.isBeforeRuntime).toBe(true);
+  expect(mobilePosition.isRuntimeBeforeCash).toBe(true);
+  expect(mobilePosition.gapToRuntime).toBeLessThan(32);
   expect(mobilePosition.gapToCash).toBeLessThan(32);
   expect(mobilePosition.pageWidth).toBeLessThanOrEqual(mobilePosition.viewportWidth);
   await location.locator(".location-status-summary").evaluate((element) => element.blur());
@@ -208,17 +217,21 @@ test("localized weather and its tooltip fit beside cash at 390px @presentation @
     const tooltip = freshGame.locator("#location-status-tooltip");
     await expect(tooltip).toContainText(topStatusText(locale, "weather"));
     const layout = await location.evaluate((element) => {
+      const runtime = document.querySelector('[data-testid="top-stat-time"]');
       const cashValue = document.querySelector('[data-testid="cash-balance"]');
-      if (!cashValue) throw new Error("Cash balance is missing.");
+      if (!runtime || !cashValue) throw new Error("Runtime or cash balance is missing.");
       const locationBounds = element.getBoundingClientRect();
+      const runtimeBounds = runtime.getBoundingClientRect();
       const cashBounds = cashValue.getBoundingClientRect();
       return {
-        locationBeforeCash: locationBounds.right <= cashBounds.left,
+        locationBeforeRuntime: locationBounds.right <= runtimeBounds.left,
+        runtimeBeforeCash: runtimeBounds.right <= cashBounds.left,
         pageWidth: document.documentElement.scrollWidth,
         viewportWidth: document.documentElement.clientWidth,
       };
     });
-    expect(layout.locationBeforeCash).toBe(true);
+    expect(layout.locationBeforeRuntime).toBe(true);
+    expect(layout.runtimeBeforeCash).toBe(true);
     expect(layout.pageWidth).toBeLessThanOrEqual(layout.viewportWidth);
     await location.locator(".location-status-summary").evaluate((element) => element.blur());
   }
@@ -233,7 +246,7 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
 
   const statistics = settings.getByTestId("settings-statistics");
   await expect(statistics).toBeVisible();
-  await expect(statistics.locator(".settings-stat-card")).toHaveCount(119);
+  await expect(statistics.locator(".settings-stat-card")).toHaveCount(120);
   await expect(statistics.locator(".settings-stat-section h4")).toHaveText([
     "Overview",
     "Run",
@@ -247,6 +260,7 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     "Interstellar",
     "Galactic Casino",
     "Cosmic Rip Chapter",
+    "MIAPLACIDUS live status",
     "Lifetime",
   ]);
   const statisticsSection = (name: string) =>
@@ -396,11 +410,33 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     statistics.getByRole("heading", { name: "Cosmic Rip Chapter", level: 4, exact: true }),
   ).toBeVisible();
   const cosmicRip = statisticsSection("Cosmic Rip Chapter");
+  const cosmicRipSourceIds = await cosmicRip
+    .locator(".settings-stat-card")
+    .evaluateAll((cards) => cards.map((card) => card.getAttribute("data-statistic-id")));
+  expect(cosmicRipSourceIds).toEqual([
+    "cosmicRipGalacticPointsEarned",
+    "cosmicRipGpSpent",
+    "cosmicRipTelemetryEarned",
+    "cosmicRipChapterUnlocked",
+    "cosmicRipScannerRestored",
+    "cosmicRipLocated",
+    "cosmicRipStabilised",
+  ]);
+  const gpEarned = cosmicRip.locator('[data-statistic-id="cosmicRipGalacticPointsEarned"]');
+  await expect(gpEarned.locator(".settings-stat-pair-values small")).toHaveText([
+    settingsStatisticLabel("en", "run"),
+    settingsStatisticLabel("en", "lifetime"),
+  ]);
+  await expect(gpEarned.locator(".settings-stat-pair-values strong")).toHaveText([
+    statisticsNotApplicableLabel("en"),
+    "0",
+  ]);
   await expect(statisticCard(cosmicRip, "Cosmic Rip Chapter unlocked").locator("dd")).toHaveText(
     "No",
   );
   await expect(statisticCard(cosmicRip, "Cosmic Rip stabilised").locator("dd")).toHaveText("No");
-  await expect(statisticCard(cosmicRip, "Cosmic Rip closed").locator("dd")).toHaveText("No");
+  const cosmicRipLive = statisticsSection("MIAPLACIDUS live status");
+  await expect(statisticCard(cosmicRipLive, "Cosmic Rip closed").locator("dd")).toHaveText("No");
   await expect(statistics.getByText("Double or Nothing played", { exact: true })).toBeVisible();
   await expect(
     statistics.getByText("Near Space Scanner Array restored", { exact: true }),
@@ -425,6 +461,56 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     interstellarLayout.documentClientWidth,
   );
   expect(interstellarLayout.widestCard).toBeLessThanOrEqual(interstellarLayout.cardClientWidth);
+});
+
+test("maps Galactic Points Earned to the Cosmic Rip source row and settled-system count @settings @statistics @cosmic-rip-gp-earned", async ({
+  freshGame,
+}) => {
+  const openStatistics = async () => {
+    await freshGame.locator("#tab-settings").click();
+    const settings = freshGame.getByTestId("settings-pane");
+    await settings.locator("#tab-settings-statistics").click();
+    return settings.getByTestId("settings-statistics");
+  };
+  const assertSourceRow = async (settledCount: number, expectedLifetime: string) => {
+    expect(
+      await freshGame.evaluate(
+        () => window.miaplacidusTest!.getState().permanent.settledSystemIds.length,
+      ),
+    ).toBe(settledCount);
+    const statistics = await openStatistics();
+    const sourceSection = statistics
+      .getByRole("heading", { name: "Cosmic Rip Chapter", level: 4, exact: true })
+      .locator("xpath=..");
+    const sourceIds = await sourceSection
+      .locator(".settings-stat-card")
+      .evaluateAll((cards) => cards.map((card) => card.getAttribute("data-statistic-id")));
+    expect(sourceIds).toEqual([
+      "cosmicRipGalacticPointsEarned",
+      "cosmicRipGpSpent",
+      "cosmicRipTelemetryEarned",
+      "cosmicRipChapterUnlocked",
+      "cosmicRipScannerRestored",
+      "cosmicRipLocated",
+      "cosmicRipStabilised",
+    ]);
+    const row = sourceSection.locator('[data-statistic-id="cosmicRipGalacticPointsEarned"]');
+    await expect(row.locator(".settings-stat-pair-values small")).toHaveText([
+      "This run",
+      "Lifetime",
+    ]);
+    await expect(row.locator(".settings-stat-pair-values strong")).toHaveText([
+      statisticsNotApplicableLabel("en"),
+      expectedLifetime,
+    ]);
+    await expect(
+      statistics.getByRole("heading", { name: "MIAPLACIDUS live status", level: 4, exact: true }),
+    ).toBeVisible();
+  };
+
+  await assertSourceRow(1, "0");
+  await startMetaFixture(freshGame, "meta-cosmic-rip-route");
+  await assertSourceRow(2, "1");
 });
 
 test("Interstellar Statistics links navigate only to currently unlocked owner pages @settings @statistics @interstellar-statistics", async ({
@@ -733,6 +819,23 @@ test("Statistics links switch to material, compound, research, and Settings owne
 test("localizes Cosmic Rip lifetime statistics and tracking note in all shipped languages @settings @statistics @cosmic-rip-locale", async ({
   freshGame,
 }) => {
+  await startMetaFixture(freshGame, "meta-cosmic-rip-route");
+  const cosmicRipTechnologyCount = COSMIC_RIP_TECHNOLOGIES.length;
+  const cosmicRipValues = await freshGame.evaluate((technologyCount) => {
+    const state = window.miaplacidusTest!.getState();
+    return {
+      settledSystemCount: state.permanent.settledSystemIds.length,
+      gpSpent: state.statistics.lifetimeGalacticPointsSpent,
+      telemetryEarned: state.statistics.lifetimeCosmicRipTelemetryDataEarned,
+      chapterUnlocked: state.permanent.cosmicRip.unlocked,
+      scannerRestored: state.permanent.cosmicRip.scannerRestored,
+      located: state.permanent.cosmicRip.ripFound,
+      stabilised: state.permanent.cosmicRip.researchedTechnologyIds.length === technologyCount,
+    };
+  }, cosmicRipTechnologyCount);
+  expect(cosmicRipValues.settledSystemCount).toBe(2);
+  expect(cosmicRipValues.gpSpent).toBe(0);
+  expect(cosmicRipValues.telemetryEarned).toBe(0);
   for (const locale of LOCALE_IDS) {
     await setGameLocale(freshGame, locale);
     await freshGame.locator("#tab-settings").click();
@@ -746,14 +849,60 @@ test("localizes Cosmic Rip lifetime statistics and tracking note in all shipped 
         exact: true,
       })
       .locator("xpath=..");
-    const gpSpent = cosmicRip
-      .getByText(overviewStatisticLabel(locale, "cosmicRipGpSpent"), { exact: true })
-      .locator("xpath=..");
-    const telemetryEarned = cosmicRip
-      .getByText(overviewStatisticLabel(locale, "cosmicRipTelemetryEarned"), { exact: true })
-      .locator("xpath=..");
-    await expect(gpSpent.locator("dd")).toHaveText("0");
-    await expect(telemetryEarned.locator("dd")).toHaveText("0");
+    const gpEarned = cosmicRip.locator('[data-statistic-id="cosmicRipGalacticPointsEarned"]');
+    await expect(gpEarned.locator("dt")).toHaveText(
+      settingsStatisticLabel(locale, "cosmicRipGalacticPointsEarned"),
+    );
+    await expect(gpEarned.locator(".settings-stat-pair-values small")).toHaveText([
+      settingsStatisticLabel(locale, "run"),
+      settingsStatisticLabel(locale, "lifetime"),
+    ]);
+    await expect(gpEarned.locator(".settings-stat-pair-values strong")).toHaveText([
+      statisticsNotApplicableLabel(locale),
+      "1",
+    ]);
+    const assertSourceScope = async (id: string, label: string, value: string) => {
+      const row = cosmicRip.locator(`[data-statistic-id="${id}"]`);
+      await expect(row.locator("dt")).toHaveText(label);
+      await expect(row.locator(".settings-stat-pair-values small")).toHaveText([
+        settingsStatisticLabel(locale, "run"),
+        settingsStatisticLabel(locale, "lifetime"),
+      ]);
+      await expect(row.locator(".settings-stat-pair-values strong")).toHaveText([
+        statisticsNotApplicableLabel(locale),
+        value,
+      ]);
+    };
+    await assertSourceScope(
+      "cosmicRipGpSpent",
+      settingsStatisticLabel(locale, "cosmicRipGpSpent"),
+      String(cosmicRipValues.gpSpent),
+    );
+    await assertSourceScope(
+      "cosmicRipTelemetryEarned",
+      settingsStatisticLabel(locale, "cosmicRipTelemetryEarned"),
+      String(cosmicRipValues.telemetryEarned),
+    );
+    await assertSourceScope(
+      "cosmicRipChapterUnlocked",
+      settingsStatisticLabel(locale, "cosmicRipChapterUnlocked"),
+      settingsStatisticLabel(locale, cosmicRipValues.chapterUnlocked ? "yes" : "no"),
+    );
+    await assertSourceScope(
+      "cosmicRipScannerRestored",
+      settingsStatisticLabel(locale, "cosmicRipScannerRestored"),
+      settingsStatisticLabel(locale, cosmicRipValues.scannerRestored ? "yes" : "no"),
+    );
+    await assertSourceScope(
+      "cosmicRipLocated",
+      settingsStatisticLabel(locale, "cosmicRipLocated"),
+      settingsStatisticLabel(locale, cosmicRipValues.located ? "yes" : "no"),
+    );
+    await assertSourceScope(
+      "cosmicRipStabilised",
+      settingsStatisticLabel(locale, "cosmicRipStabilised"),
+      settingsStatisticLabel(locale, cosmicRipValues.stabilised ? "yes" : "no"),
+    );
     await expect(cosmicRip.getByText(cosmicRipTrackingNote(locale), { exact: true })).toBeVisible();
   }
 });

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { AnimationEvent } from "react";
 import type { NewsTickerEntry } from "../content/metaSignals";
+import { checkNewsPrizeClaim, newsPrizeClaimAmount } from "../engine/newsTicker";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
+import { economyLabel } from "../i18n/economyMessages";
 import { metaSignalText, newsCategoryName, newsEntryText } from "../i18n/metaSignalMessages";
 import type { LocaleNewsCopy } from "../i18n/sourceNewsCopy";
 
@@ -28,11 +30,24 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
   const [entry, setEntry] = useState<NewsTickerEntry | null>(latestEntry);
   const queuedEntriesRef = useRef<readonly NewsTickerEntry[]>([]);
   const [copy, setCopy] = useState<LocaleNewsCopy | null>(null);
-  const text = entry ? newsEntryText(locale, entry, copy ?? undefined) : "";
   const [activatedMessage, setActivatedMessage] = useState("");
   const [wackyEffect, setWackyEffect] = useState("");
   const [systemReducedMotion, setSystemReducedMotion] = useState(false);
   const reducedMotion = state.settings.reducedMotion || systemReducedMotion;
+  const currentEntry = entry
+    ? ([...state.run.newsTicker.entries].reverse().find(
+        (item) => tickerEntryKey(item) === tickerEntryKey(entry),
+      ) ?? entry)
+    : null;
+  const availablePrizeAmount =
+    currentEntry?.category === "prize" && !currentEntry.claimed
+      ? newsPrizeClaimAmount(state, currentEntry)
+      : null;
+  const displayEntry =
+    currentEntry?.category === "prize" && !currentEntry.claimed && availablePrizeAmount !== null
+      ? { ...currentEntry, prizeAmount: availablePrizeAmount }
+      : currentEntry;
+  const text = displayEntry ? newsEntryText(locale, displayEntry, copy ?? undefined) : "";
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -80,29 +95,44 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
 
   if (state.settings.newsTickerEnabled === false) return null;
 
-  const entryKey = entry ? `${entry.id}-${entry.simulationMs}` : "idle";
+  const entryKey = displayEntry ? `${displayEntry.id}-${displayEntry.simulationMs}` : "idle";
   const canClaim = Boolean(
-    entry &&
-    (entry.category === "prize" || entry.category === "oneOff") &&
-    !entry.claimed &&
-    !state.run.newsTicker.claimedPrizeIds.includes(entry.id),
+    displayEntry &&
+    (displayEntry.category === "prize" || displayEntry.category === "oneOff") &&
+    !displayEntry.claimed &&
+    checkNewsPrizeClaim(state, displayEntry.id, displayEntry.simulationMs),
+  );
+  const isClaimed = Boolean(
+    displayEntry?.claimed ||
+    (displayEntry?.category === "oneOff" &&
+      state.run.newsTicker.claimedPrizeIds.includes(displayEntry.id)),
+  );
+  const storageFull = Boolean(
+    currentEntry?.category === "prize" &&
+    !currentEntry.claimed &&
+    availablePrizeAmount === null,
   );
 
   function claimNews(): void {
-    if (entry && canClaim) store.dispatch({ type: "news.prize.claim", id: entry.id });
+    if (displayEntry && canClaim)
+      store.dispatch({
+        type: "news.prize.claim",
+        id: displayEntry.id,
+        simulationMs: displayEntry.simulationMs,
+      });
   }
 
-  function activateWacky(effect = wackyEffectClass(entry?.id ?? -1)): void {
-    if (!entry || entry.category !== "wacky" || activatedMessage === entryKey) return;
-    store.dispatch({ type: "news.wacky.activate", id: entry.id });
+  function activateWacky(effect = wackyEffectClass(displayEntry?.id ?? -1)): void {
+    if (!displayEntry || displayEntry.category !== "wacky" || activatedMessage === entryKey) return;
+    store.dispatch({ type: "news.wacky.activate", id: displayEntry.id });
     setActivatedMessage(entryKey);
     setWackyEffect(effect);
   }
 
   function renderMessage() {
-    if (!entry) return <span>{text}</span>;
-    if (entry.category === "wacky") {
-      if (entry.id === 1007) {
+    if (!displayEntry) return <span>{text}</span>;
+    if (displayEntry.category === "wacky") {
+      if (displayEntry.id === 1007) {
         const positiveMarks = /(?:👍(?:🏽)?)+/u.exec(text);
         const negativeMarks = /(?:👎(?:🏽)?)+/u.exec(text);
         if (positiveMarks?.index !== undefined && negativeMarks?.index !== undefined) {
@@ -151,11 +181,10 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
       );
     }
 
-    if (entry.category === "prize" || entry.category === "oneOff") {
+    if (displayEntry.category === "prize" || displayEntry.category === "oneOff") {
       const actionWord = copy?.here ?? metaSignalText(locale, "here");
       const actionAt = actionWord ? text.indexOf(actionWord) : -1;
       if (actionWord && actionAt >= 0) {
-        const isClaimed = entry.claimed || state.run.newsTicker.claimedPrizeIds.includes(entry.id);
         return (
           <span>
             {text.slice(0, actionAt)}
@@ -163,12 +192,17 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
               className="news-ticker-action news-ticker-claim"
               type="button"
               disabled={!canClaim}
-              aria-label={`${metaSignalText(locale, isClaimed ? "claimed" : "claim")}: ${text}`}
+              aria-label={`${metaSignalText(locale, isClaimed ? "claimed" : "claim")}: ${text}${storageFull ? `. ${economyLabel(locale, "collectStorageFull")}` : ""}`}
               onClick={claimNews}
             >
               {actionWord}
             </button>
             {text.slice(actionAt + actionWord.length)}
+            {storageFull ? (
+              <span className="news-ticker-claim-reason">
+                {` (${economyLabel(locale, "collectStorageFull")})`}
+              </span>
+            ) : null}
           </span>
         );
       }
@@ -177,15 +211,21 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
     return (
       <span>
         {text}
-        {entry.category === "prize" || entry.category === "oneOff" ? (
+        {displayEntry.category === "prize" || displayEntry.category === "oneOff" ? (
           <button
             className="news-ticker-action news-ticker-claim"
             type="button"
             disabled={!canClaim}
+            aria-label={`${metaSignalText(locale, isClaimed ? "claimed" : "claim")}: ${text}${storageFull ? `. ${economyLabel(locale, "collectStorageFull")}` : ""}`}
             onClick={claimNews}
           >
-            {canClaim ? metaSignalText(locale, "claim") : metaSignalText(locale, "claimed")}
+            {isClaimed ? metaSignalText(locale, "claimed") : metaSignalText(locale, "claim")}
           </button>
+        ) : null}
+        {storageFull ? (
+          <span className="news-ticker-claim-reason">
+            {` (${economyLabel(locale, "collectStorageFull")})`}
+          </span>
         ) : null}
       </span>
     );
@@ -196,7 +236,7 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
       className={`news-ticker-bar${activatedMessage === entryKey && wackyEffect ? ` news-effect-${wackyEffect}` : ""}`}
       aria-label={metaSignalText(locale, "news")}
       data-testid="news-ticker"
-      data-news-id={entry?.id}
+      data-news-id={displayEntry?.id}
     >
       <div className="news-ticker-window">
         <div
@@ -207,8 +247,10 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
           onAnimationEnd={advanceMessage}
         >
           <span className="news-ticker-copy">
-            {entry && <span className="sr-only">{newsCategoryName(locale, entry.category)}: </span>}
-            {entry ? renderMessage() : <span aria-hidden="true" />}
+            {displayEntry && (
+              <span className="sr-only">{newsCategoryName(locale, displayEntry.category)}: </span>
+            )}
+            {displayEntry ? renderMessage() : <span aria-hidden="true" />}
           </span>
         </div>
       </div>

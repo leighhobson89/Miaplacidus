@@ -857,3 +857,5 @@ export function metaPerkCopy(
   const pack = PACKS[locale];
   return [pack.perkNames[index] ?? perkId, pack.perkEffects[index] ?? ""];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { PACKS, REBIRTH_TEXT, MARKET_COPY } as const;

@@ -31,7 +31,7 @@ The intentional numerical deviation is production ordering: the remake computes 
 
 ## Evidence boundary
 
-The current E2E area covers a fresh Hydrogen route through the first Research purchase, Energy unlock and Diesel compound unlock; all eight material pages and six compound cards; every individual material and compound storage control; the single Hydrogen stock display and shared Compressor/tier Autobuyers disclosure; Fusion grouped with selling, including first-discovery and subsequent efficiency notices; removal of the duplicate bulk storage action; all autobuyer tiers and pause/resume controls; Water's secondary Concrete cost; all plant, battery, and science building cards; Power All and plant toggles; manual and automated technology purchases with accessible completion announcements; the manual completion announcement and economy screens in all six locales; permanent multipliers; Dyson infinite power; allocation controls for all eight resources; focused keyboard and pointer operation of the segmented cash/compound slider; all six automatic compound recipes from newly produced inputs; battery charge/discharge/recharge; energy trip/recovery; six-language screenshots of Hydrogen, Research, Energy, and Compounds; 390px document-width checks for those four tabs in all six locales; localized Energy and Compound child-page labels; notation; and economy save/reload. The save/reload case changes a resource balance and storage capacity, buys an autobuyer and power buildings, changes research, compound automation, an allocation share, locale, and notation, then compares all 14 material/compound balances and capacities plus the full upgrade/economy state after reload.
+The current E2E area covers a fresh Hydrogen route through the first Research purchase, Energy unlock and Diesel compound unlock; all eight material pages and six compound cards; every individual material and compound storage control; the single Hydrogen stock display and shared Compressor/tier Autobuyers disclosure; Fusion grouped with selling, including first-discovery and subsequent efficiency notices; removal of the duplicate bulk storage action; all autobuyer tiers and pause/resume controls; Water's secondary Concrete cost; all plant, battery, and science building cards; Power All and plant toggles; manual and automated technology purchases with accessible completion announcements; the manual completion announcement and economy screens in all six locales; permanent multipliers; Dyson infinite power; allocation controls for all eight resources; focused keyboard and pointer operation of the segmented cash/compound slider; all six automatic compound recipes from newly produced inputs; battery charge/discharge/recharge; energy trip/recovery; six-language screenshots of Hydrogen, Research, Energy, and Diesel Compound; 390px document-width checks for Hydrogen, Research, Energy, and all six Compound child panes in all six locales (the clean 8 October no-update Chrome run passed 1/1 in 1m 36s, verifying all 36 Compound child/locale checks; no mobile screenshots were added); localized Resource and Compound child-page headings/heroes at desktop width; notation; and economy save/reload. The save/reload case changes a resource balance and storage capacity, buys an autobuyer and power buildings, changes research, compound automation, an allocation share, locale, and notation, then compares all 14 material/compound balances and capacities plus the full upgrade/economy state after reload.
 
 The Tech Tree zoom case verifies both prerequisite edges into Advanced Power Generation, captures a screenshot panned to those dependencies, and confirms ArrowRight/ArrowDown scroll the named viewport on both axes after zooming. The complete graph, theme, and narrow-viewport review remains open under P-60.
 
@@ -76,3 +76,31 @@ The Energy journey now captures Research buildings and the Tech Tree as separate
 ## Hydrogen hero and Fusion layout review (5 October 2026)
 
 The `economy-fresh-hydrogen-compressor.png` and `economy-hydrogen-fusion-open.png` baselines were refreshed and visually reviewed at 1280px in Terminal. Sell controls sit without a separate card border inside the Hydrogen hero; the unlocked Fusion controls remain visible as a full-width section below Sell with a fine separator and no disclosure toggle. Hydrogen storage is the first full-width panel below the hero. The compressor screenshot shows no inline purchase-complete message. Both focused Chrome journeys passed 1/1 during snapshot refresh and again without snapshot updates; the active-Fusion journey also asserts the panel geometry and absence of a collapse control.
+
+## P-56 six-locale Compound phone checks (8 October 2026)
+
+The existing six-locale economy journey still checks localized headings and heroes for every material Resource and all six Compound child pages at its desktop viewport. After moving to 390×844, it now selects each Compound child in each locale and asserts that the matching tab is selected, that its pane, localized heading, and Hydrogen-style hero are visible, and that the document does not scroll wider than 390px. This adds 36 child-page/locale checks and does not add mobile screenshot baselines. Detailed Diesel recipe/action checks and the per-locale Compound screenshots remain Diesel-only.
+
+The no-update focused run first stopped at the existing `economy-scientific-notation.png` screenshot assertion: the baseline was 1280×1422 while the current full-page screenshot was 1280×1389 after the status-header layout change. The focused snapshot-refresh command regenerated the existing desktop screenshot checkpoints. I reviewed all six refreshed Diesel Compound locale screenshots; long translated Run Time labels are still truncated in some locales at 1280px and remain a P-56/P-59 issue.
+
+The snapshot-refresh run did not emit a final Playwright pass/fail summary before it was interrupted; the subsequent clean no-update Chrome rerun below supersedes that incomplete attempt. The Hydrogen and Diesel heading locators were narrowed to the source-matched page headings after the run exposed ambiguity in the older broad selectors.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL = 'chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO = '1'
+npm.cmd run test:e2e:focused -- tests/e2e/economy/economy.spec.ts -g "notation and language controls update live economy and technology readouts" --reporter=line --workers=1 --retries=0 --trace=off
+```
+
+Clean no-update Chrome result (8 October 2026): the command above exited 0 with `1 passed (1.6m)`. It selected each of the six Compound children in each of the six locales at 390px and verified the selected tab, visible pane, localized heading and hero, and document width no greater than 390px (36 child/locale checks). No mobile screenshots were added. The wider P-56 theme/viewport screenshot review remains open.
+
+## Hydrogen-matched Resource and Compound spacing follow-up (8 October 2026)
+
+The P-63 browser journey compares heading-to-hero and tab-navigation-to-heading gaps on all eight Resource and six Compound pages at desktop and 390px. The original mobile Compound baseline was stale after the P-59 mobile status row expanded the header; the 390px page height changed from 1,936px to 2,012px while the economy-page spacing remained consistent. Refreshed and reviewed the three Resource/Compound screenshots. The focused no-update Chrome run passed 1/1 in 11.8 seconds with a clean exit when the `dev:test` server ran separately and Playwright reused it.
+
+```powershell
+# Terminal 1
+npm.cmd run dev:test -- --host 127.0.0.1 --port 4173 --strictPort
+
+# Terminal 2
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/economy/economy.spec.ts -g "material and compound pages share the Hydrogen layout" --reporter=line --workers=1 --retries=0 --trace=off
+```

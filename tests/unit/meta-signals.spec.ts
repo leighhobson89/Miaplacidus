@@ -150,6 +150,216 @@ describe("meta achievements, events, and ticker", () => {
     expect(duplicate.accepted).toBe(false);
   });
 
+  it("caps a rolled prize to the room remaining when the player claims it", () => {
+    const start = createInitialGameState({ pioneerName: "Ticker claim room", seed: 521 });
+    const offer = transition(start, { type: "news.ticker.force", category: "prize", id: 2000 });
+    expect(offer.accepted).toBe(true);
+    const roomAtClaim = 3;
+    const offeredAmount = 10;
+    const stateAtClaim = {
+      ...offer.state,
+      run: {
+        ...offer.state.run,
+        goods: {
+          ...offer.state.run.goods,
+          hydrogen: {
+            ...offer.state.run.goods.hydrogen,
+            quantity: offer.state.run.goods.hydrogen.storageCapacity - roomAtClaim,
+          },
+        },
+        newsTicker: {
+          ...offer.state.run.newsTicker,
+          entries: offer.state.run.newsTicker.entries.map((entry) =>
+            entry.id === 2000 ? { ...entry, prizeAmount: offeredAmount } : entry,
+          ),
+        },
+      },
+    };
+    const offeredEntry = stateAtClaim.run.newsTicker.entries.find((entry) => entry.id === 2000)!;
+    expect(offeredEntry.prizeAmount).toBeGreaterThan(roomAtClaim);
+
+    const claim = transition(stateAtClaim, { type: "news.prize.claim", id: 2000 });
+    expect(claim.accepted).toBe(true);
+    expect(claim.events).toContainEqual({
+      type: "news.prize.claimed",
+      id: 2000,
+      goodId: "hydrogen",
+      amount: roomAtClaim,
+    });
+    expect(claim.state.run.goods.hydrogen.quantity).toBe(
+      claim.state.run.goods.hydrogen.storageCapacity,
+    );
+    expect(claim.state.run.newsTicker.entries.find((entry) => entry.id === 2000)).toMatchObject({
+      prizeAmount: roomAtClaim,
+      claimed: true,
+    });
+  });
+
+  it("rejects a prize claim without changing state when its resource store is full", () => {
+    const start = createInitialGameState({ pioneerName: "Ticker full store", seed: 522 });
+    const offer = transition(start, { type: "news.ticker.force", category: "prize", id: 2000 });
+    expect(offer.accepted).toBe(true);
+    const stateAtClaim = {
+      ...offer.state,
+      run: {
+        ...offer.state.run,
+        goods: {
+          ...offer.state.run.goods,
+          hydrogen: {
+            ...offer.state.run.goods.hydrogen,
+            quantity: offer.state.run.goods.hydrogen.storageCapacity,
+          },
+        },
+      },
+    };
+
+    expect(checkNewsPrizeClaim(stateAtClaim, 2000)).toBe(false);
+    const claim = transition(stateAtClaim, { type: "news.prize.claim", id: 2000 });
+    expect(claim.accepted).toBe(false);
+    expect(claim.events).toEqual([]);
+    expect(claim.state).toBe(stateAtClaim);
+  });
+
+  it("credits fractional prize room by the exact balance delta and production totals", () => {
+    const start = createInitialGameState({ pioneerName: "Ticker fractional room", seed: 523 });
+    const offer = transition(start, { type: "news.ticker.force", category: "prize", id: 2000 });
+    expect(offer.accepted).toBe(true);
+    const roomAtClaim = 0.5;
+    const offeredAmount = 10;
+    const stateAtClaim = {
+      ...offer.state,
+      run: {
+        ...offer.state.run,
+        goods: {
+          ...offer.state.run.goods,
+          hydrogen: {
+            ...offer.state.run.goods.hydrogen,
+            quantity: offer.state.run.goods.hydrogen.storageCapacity - roomAtClaim,
+          },
+        },
+        newsTicker: {
+          ...offer.state.run.newsTicker,
+          entries: offer.state.run.newsTicker.entries.map((entry) =>
+            entry.id === 2000 ? { ...entry, prizeAmount: offeredAmount } : entry,
+          ),
+        },
+      },
+    };
+    const offeredEntry = stateAtClaim.run.newsTicker.entries.find((entry) => entry.id === 2000)!;
+    const quantityBefore = stateAtClaim.run.goods.hydrogen.quantity;
+    const producedBefore = stateAtClaim.run.goodsProducedThisRun.hydrogen;
+    const lifetimeGoodBefore = stateAtClaim.statistics.lifetimeGoodsProducedByGood.hydrogen;
+    const lifetimeTotalBefore = stateAtClaim.statistics.lifetimeGoodsProduced;
+
+    const claim = transition(stateAtClaim, {
+      type: "news.prize.claim",
+      id: 2000,
+      simulationMs: offeredEntry.simulationMs,
+    });
+
+    expect(claim.accepted).toBe(true);
+    const prize = claim.events.find((event) => event.type === "news.prize.claimed");
+    expect(prize?.type).toBe("news.prize.claimed");
+    if (prize?.type !== "news.prize.claimed") return;
+    const balanceDelta = claim.state.run.goods.hydrogen.quantity - quantityBefore;
+    expect(prize.amount).toBe(roomAtClaim);
+    expect(balanceDelta).toBe(prize.amount);
+    expect(claim.state.run.goodsProducedThisRun.hydrogen - producedBefore).toBe(balanceDelta);
+    expect(
+      claim.state.statistics.lifetimeGoodsProducedByGood.hydrogen - lifetimeGoodBefore,
+    ).toBe(balanceDelta);
+    expect(claim.state.statistics.lifetimeGoodsProduced - lifetimeTotalBefore).toBe(balanceDelta);
+    expect(
+      claim.state.run.newsTicker.entries.find(
+        (entry) => entry.id === 2000 && entry.simulationMs === offeredEntry.simulationMs,
+      ),
+    ).toMatchObject({ prizeAmount: balanceDelta, claimed: true });
+  });
+
+  it("claims repeated prize IDs by displayed-entry time without blocking the other offer", () => {
+    const start = createInitialGameState({ pioneerName: "Ticker repeated prizes", seed: 524 });
+    const firstOffer = transition(start, {
+      type: "news.ticker.force",
+      category: "prize",
+      id: 2000,
+    });
+    expect(firstOffer.accepted).toBe(true);
+    const firstEntry = firstOffer.state.run.newsTicker.entries.at(-1)!;
+    const laterOfferState = {
+      ...firstOffer.state,
+      run: {
+        ...firstOffer.state.run,
+        clock: {
+          ...firstOffer.state.run.clock,
+          simulationMs: firstEntry.simulationMs + 1_000,
+        },
+      },
+    };
+    const secondOffer = transition(laterOfferState, {
+      type: "news.ticker.force",
+      category: "prize",
+      id: 2000,
+    });
+    expect(secondOffer.accepted).toBe(true);
+    const secondEntry = secondOffer.state.run.newsTicker.entries.at(-1)!;
+    expect(secondEntry.id).toBe(firstEntry.id);
+    expect(secondEntry.simulationMs).not.toBe(firstEntry.simulationMs);
+
+    const secondClaim = transition(secondOffer.state, {
+      type: "news.prize.claim",
+      id: secondEntry.id,
+      simulationMs: secondEntry.simulationMs,
+    });
+    expect(secondClaim.accepted).toBe(true);
+    expect(
+      secondClaim.state.run.newsTicker.entries.find(
+        (entry) => entry.id === firstEntry.id && entry.simulationMs === secondEntry.simulationMs,
+      )?.claimed,
+    ).toBe(true);
+    expect(
+      secondClaim.state.run.newsTicker.entries.find(
+        (entry) => entry.id === firstEntry.id && entry.simulationMs === firstEntry.simulationMs,
+      )?.claimed,
+    ).toBe(false);
+    expect(secondClaim.state.run.newsTicker.claimedPrizeIds).toEqual([firstEntry.id]);
+    expect(checkNewsPrizeClaim(secondClaim.state, firstEntry.id, firstEntry.simulationMs)).toBe(
+      true,
+    );
+
+    const firstClaim = transition(secondClaim.state, {
+      type: "news.prize.claim",
+      id: firstEntry.id,
+      simulationMs: firstEntry.simulationMs,
+    });
+    expect(firstClaim.accepted).toBe(true);
+    expect(
+      firstClaim.state.run.newsTicker.entries
+        .filter((entry) => entry.id === firstEntry.id)
+        .every((entry) => entry.claimed),
+    ).toBe(true);
+    expect(firstClaim.state.run.newsTicker.claimedPrizeIds).toEqual([firstEntry.id]);
+  });
+
+  it("can generate an ordinary headline again after every headline ID has been seen", () => {
+    const seenHeadlineIds = Array.from({ length: 200 }, (_, id) => id);
+    const start = createInitialGameState({ pioneerName: "Ticker repeats", seed: 520 });
+    const state = {
+      ...start,
+      run: {
+        ...start.run,
+        newsTicker: { ...start.run.newsTicker, seenIds: seenHeadlineIds },
+      },
+    };
+
+    const result = forceNewsTicker(state, "headline");
+
+    expect(result).not.toBeNull();
+    const entry = result!.state.run.newsTicker.entries.at(-1)!;
+    expect(entry.category).toBe("headline");
+    expect(seenHeadlineIds).toContain(entry.id);
+    expect(result!.state.run.newsTicker.seenIds).toEqual(seenHeadlineIds);
+  });
+
   it("keeps the exact prize amount and localized here action in fallback copy", () => {
     const start = createInitialGameState({ pioneerName: "Ticker", seed: 514 });
     const ticker = transition(start, { type: "news.ticker.force", category: "prize", id: 2000 });

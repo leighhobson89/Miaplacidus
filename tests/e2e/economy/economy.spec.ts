@@ -299,7 +299,7 @@ test("fresh Hydrogen progression reaches its first research through player contr
   const scienceKit = game.locator('[data-building-id="scienceKit"]');
   await scienceKit.getByRole("button", { name: "Buy", exact: true }).click();
   await expect(scienceKit).toContainText("Owned: 1");
-  await expect(game.locator(".header-balances")).toContainText("$5.00");
+  await expect(game.getByTestId("cash-balance")).toContainText("$5.00");
   await captureVisualCheckpoint(game, testInfo, "economy-fresh-science-kit");
 
   await game.getByRole("tab", { name: /Resources/ }).click();
@@ -489,8 +489,8 @@ test("fresh Hydrogen progression unlocks Energy and Compounds in source tab orde
       await expect(powerValue).toContainText("No Battery");
       expect(await visibleMainTabIds(game)).toEqual([
         "hydrogen",
-        "energy",
         "research",
+        "energy",
         "settings",
         "miaplaedia",
       ]);
@@ -498,9 +498,9 @@ test("fresh Hydrogen progression unlocks Energy and Compounds in source tab orde
     if (technologyId === "compounds") {
       expect(await visibleMainTabIds(game)).toEqual([
         "hydrogen",
-        "energy",
-        "research",
         "compounds",
+        "research",
+        "energy",
         "settings",
         "miaplaedia",
       ]);
@@ -685,6 +685,7 @@ test("material and compound pages share the Hydrogen layout and compounds have a
   const resourceRail = page.getByTestId("resource-rail");
   await expect(resourceRail).toBeVisible();
   let hydrogenHeaderGap = 0;
+  let hydrogenHeroGap = 0;
   for (const id of MATERIAL_IDS) {
     if (id !== "hydrogen") await page.getByTestId(`resource-rail-${id}`).click();
     const card = page.locator(`[data-resource-id="${id}"]`);
@@ -701,11 +702,16 @@ test("material and compound pages share the Hydrogen layout and compounds have a
         layout.locator(".pane-nav-scroll").boundingBox(),
         card.locator(".pane-heading h2").boundingBox(),
       ]);
+      const heroBounds = await card.locator(".hydrogen-hero").boundingBox();
       expect(navBounds).not.toBeNull();
       expect(headingBounds).not.toBeNull();
+      expect(heroBounds).not.toBeNull();
       const headingGap = headingBounds!.y - (navBounds!.y + navBounds!.height);
+      const heroGap = heroBounds!.y - (headingBounds!.y + headingBounds!.height);
       if (id === "hydrogen") hydrogenHeaderGap = headingGap;
       else expect(Math.abs(headingGap - hydrogenHeaderGap)).toBeLessThanOrEqual(2);
+      if (id === "hydrogen") hydrogenHeroGap = heroGap;
+      else expect(Math.abs(heroGap - hydrogenHeroGap)).toBeLessThanOrEqual(2);
     }
     await expectHydrogenStyleGoodLayout(card, {
       hasFusion: MATERIAL_CATALOG[id].fusionOutputs !== undefined,
@@ -726,10 +732,14 @@ test("material and compound pages share the Hydrogen layout and compounds have a
       compoundLayout.locator(".pane-nav-scroll").boundingBox(),
       card.locator(".pane-heading h2").boundingBox(),
     ]);
+    const heroBounds = await card.locator(".hydrogen-hero").boundingBox();
     expect(navBounds).not.toBeNull();
     expect(headingBounds).not.toBeNull();
+    expect(heroBounds).not.toBeNull();
     const headingGap = headingBounds!.y - (navBounds!.y + navBounds!.height);
+    const heroGap = heroBounds!.y - (headingBounds!.y + headingBounds!.height);
     expect(Math.abs(headingGap - hydrogenHeaderGap)).toBeLessThanOrEqual(2);
+    expect(Math.abs(heroGap - hydrogenHeroGap)).toBeLessThanOrEqual(2);
     await expectHydrogenStyleGoodLayout(card, { hasFusion: false, compound: true });
 
     const [railBounds, cardBounds] = await Promise.all([
@@ -743,6 +753,19 @@ test("material and compound pages share the Hydrogen layout and compounds have a
   await captureVisualCheckpoint(page, testInfo, "economy-hydrogen-style-compound-layouts");
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#tab-hydrogen").click();
+  await page.getByTestId("resource-rail-hydrogen").click();
+  const hydrogenMobileHeadingBounds = await page
+    .locator('[data-resource-id="hydrogen"] .pane-heading h2')
+    .boundingBox();
+  const hydrogenMobileHeroBounds = await page
+    .locator('[data-resource-id="hydrogen"] .hydrogen-hero')
+    .boundingBox();
+  expect(hydrogenMobileHeadingBounds).not.toBeNull();
+  expect(hydrogenMobileHeroBounds).not.toBeNull();
+  const hydrogenMobileHeroGap =
+    hydrogenMobileHeroBounds!.y -
+    (hydrogenMobileHeadingBounds!.y + hydrogenMobileHeadingBounds!.height);
   const expectPhoneLayout = async (card: Locator) => {
     await expect(card).toBeVisible();
     const [scrollWidth, viewportWidth, heroBounds, storageBounds] = await Promise.all([
@@ -756,6 +779,10 @@ test("material and compound pages share the Hydrogen layout and compounds have a
     expect(storageBounds).not.toBeNull();
     expect(Math.abs(heroBounds!.x - storageBounds!.x)).toBeLessThanOrEqual(2);
     expect(Math.abs(heroBounds!.width - storageBounds!.width)).toBeLessThanOrEqual(2);
+    const headingBounds = await card.locator(".pane-heading h2").boundingBox();
+    expect(headingBounds).not.toBeNull();
+    const heroGap = heroBounds!.y - (headingBounds!.y + headingBounds!.height);
+    expect(Math.abs(heroGap - hydrogenMobileHeroGap)).toBeLessThanOrEqual(2);
   };
 
   await page.locator("#tab-hydrogen").click();
@@ -1492,6 +1519,7 @@ test("Tech Tree zoom keeps the wide graph inside a two-axis scroll viewport @res
   await page.getByRole("tab", { name: /^Research/ }).click();
   await page.locator("#tab-research-tech-tree").click();
   const viewport = page.getByTestId("technology-tree-viewport");
+  const advancedPower = page.locator('[data-technology-id="advancedPowerGeneration"]');
   const advancedPowerEdges = page.locator(
     '.technology-map-edge[data-prerequisite-to="advancedPowerGeneration"]',
   );
@@ -1502,8 +1530,42 @@ test("Tech Tree zoom keeps the wide graph inside a two-axis scroll viewport @res
       .sort(),
   );
   expect(edgeSources).toEqual(["basicPowerGeneration", "giganticTurbines"]);
-  await page.locator('[data-technology-id="advancedPowerGeneration"]').scrollIntoViewIfNeeded();
+  await advancedPower.scrollIntoViewIfNeeded();
   await captureVisualCheckpoint(page, testInfo, "technology-tree-dependency-edges");
+  await advancedPower.focus();
+  await expect
+    .poll(() =>
+      advancedPowerEdges.evaluateAll((edges) =>
+        edges.every((edge) => edge.classList.contains("is-related")),
+      ),
+    )
+    .toBe(true);
+  const unrelatedEdges = page.locator(".technology-map-edge.is-muted");
+  await expect.poll(() => unrelatedEdges.count()).toBeGreaterThan(0);
+  await page.mouse.move(0, 0);
+  await expect
+    .poll(() =>
+      advancedPowerEdges.evaluateAll((edges) =>
+        edges.every((edge) => edge.classList.contains("is-related")),
+      ),
+    )
+    .toBe(true);
+  await advancedPower.blur();
+  await expect(
+    page.locator(".technology-map-edge.is-related, .technology-map-edge.is-muted"),
+  ).toHaveCount(0);
+  await advancedPower.hover();
+  await expect
+    .poll(() =>
+      advancedPowerEdges.evaluateAll((edges) =>
+        edges.every((edge) => edge.classList.contains("is-related")),
+      ),
+    )
+    .toBe(true);
+  await page.mouse.move(0, 0);
+  await expect(
+    page.locator(".technology-map-edge.is-related, .technology-map-edge.is-muted"),
+  ).toHaveCount(0);
   const initial = await viewport.evaluate((element) => ({
     scrollWidth: element.scrollWidth,
     clientWidth: element.clientWidth,
@@ -1676,7 +1738,9 @@ test("notation and language controls update live economy and technology readouts
   ] as const;
   for (const locale of locales) {
     await setGameLocale(page, locale.id);
-    await expect(page.locator("#pane-hydrogen .pane-heading h2")).toHaveText(locale.hydrogen);
+    await expect(page.locator("#panel-resources-hydrogen > .pane-heading h2")).toHaveText(
+      locale.hydrogen,
+    );
     await expect(page.getByTestId("hydrogen-quantity")).toContainText("E3");
     const resources = page.locator("#pane-hydrogen [data-resource-id]");
     await expect(resources).toHaveCount(MATERIAL_IDS.length);
@@ -1759,7 +1823,7 @@ test("notation and language controls update live economy and technology readouts
     }
     await page.locator("#tab-compounds-diesel").click();
     const diesel = page.locator('[data-compound-id="diesel"]');
-    await expect(diesel.locator("h3")).toHaveText(locale.diesel);
+    await expect(diesel.locator(".pane-heading h2")).toHaveText(locale.diesel);
     await expect(diesel).toContainText(locale.dieselRecipe);
     await expect(diesel.getByRole("button").first()).toBeEnabled();
     await expandAllDetails(page.locator("#pane-compounds"));
@@ -1776,6 +1840,25 @@ test("notation and language controls update live economy and technology readouts
       await expect(page.locator(`#pane-${tabId}`)).toBeVisible();
       const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(documentWidth, `${locale.id} ${tabId} at 390px`).toBeLessThanOrEqual(390);
+    }
+    await page.locator("#tab-compounds").click();
+    for (const id of COMPOUND_IDS) {
+      const childTab = page.locator(`#tab-compounds-${id}`);
+      await childTab.click();
+      await expect(childTab, `${locale.id} ${id} selected at 390px`).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+
+      const compound = page.locator(`#pane-compounds [data-compound-id="${id}"]`);
+      await expect(compound, `${locale.id} ${id} pane at 390px`).toBeVisible();
+      await expect(compound.locator(".pane-heading h2"), `${locale.id} ${id} heading`).toHaveText(
+        economyGoodName(locale.id, id),
+      );
+      await expect(compound.locator(".hydrogen-hero"), `${locale.id} ${id} hero`).toBeVisible();
+
+      const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+      expect(documentWidth, `${locale.id} ${id} at 390px`).toBeLessThanOrEqual(390);
     }
     if (desktopViewport) await page.setViewportSize(desktopViewport);
   }

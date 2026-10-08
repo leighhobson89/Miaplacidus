@@ -39,6 +39,19 @@ export function cosmicRipTrackingNote(locale: LocaleId): string {
   return cosmicRipTrackingNotes[locale];
 }
 
+const statisticsNotApplicableLabels: Record<LocaleId, string> = {
+  en: "N/A",
+  es: "N/D",
+  pt: "N/D",
+  de: "K.A.",
+  it: "N/D",
+  fr: "S.O.",
+};
+
+export function statisticsNotApplicableLabel(locale: LocaleId): string {
+  return statisticsNotApplicableLabels[locale];
+}
+
 export type RunStatisticLabelId =
   | "runTime"
   | "starSystem"
@@ -192,3 +205,12 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
 export function overviewStatisticLabel(locale: LocaleId, id: OverviewStatisticLabelId): string {
   return overviewStatisticLabels[locale][id];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = {
+  eventTrackingNotes,
+  cosmicRipTrackingNotes,
+  energyTrackingNotes,
+  statisticsNotApplicableLabels,
+  runStatisticLabels,
+  overviewStatisticLabels,
+} as const;

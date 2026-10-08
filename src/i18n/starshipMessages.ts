@@ -569,7 +569,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       battleinProgress: "Battaglia in corso; le flotte si scambiano colpi.",
       battlevictory: "Vittoria. La flotta nemica è stata sconfitta.",
       battledefeat: "Sconfitta. Ricostruisci le navi e torna in guerra per riprovare.",
-      battleRound: "Round {round}",
+      battleRound: "Turno {round}",
       playerBattleHealth: "Scafo della flotta del giocatore",
       enemyBattleHealth: "Scafo della flotta nemica",
       engageBattle: "Inizia la battaglia",
@@ -757,3 +757,5 @@ export function starshipText(
     messages[locale][key] ?? en[key],
   );
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

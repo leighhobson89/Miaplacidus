@@ -321,6 +321,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                                 formatCountdown(
                                   locale,
                                   technology.durationMs - progress.researchElapsedMs,
+                                  state.settings.notation,
                                 ),
                               )}
                             </small>

@@ -149,9 +149,32 @@ meaning/scope remains unresolved pending the owner's async choice. Current GP
 and telemetry balances, sector/research progress, and Rip Closed are remake-only
 snapshots/status. Translation-quality approval remains pending.
 
+8 October 2026: the Statistics display adds Galactic Points Earned first in the
+source group, with localized Run=N/A and Lifetime=`max(0, settledSystemIds.length - 1)`;
+the initial settled-system entry is the starting system. The five live
+Cosmic Rip balances/progress/status cards are under a separate MIAPLACIDUS
+live-status heading. Focused unit and localization validation passed 8/8 across
+two files; typecheck and targeted formatting passed. The first installed-Chrome
+attempt started all three `@interstellar-statistics` cases but returned no test
+summary after more than three minutes. It was interrupted at the request of the
+parent agent to free the browser for status-row checks; the runner exited 1 and
+port 4173 was confirmed free. No browser pass is claimed for this attempt.
+
+```powershell
+$env:MIAPLACIDUS_TEST_AREA = "statistics"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+npm.cmd run test:e2e:focused -- --grep @interstellar-statistics --workers=1 --reporter=line tests/e2e/settings/settings-statistics.spec.ts
+```
+
 ```powershell
 $env:MIAPLACIDUS_TEST_AREA = "statistics"
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --grep @cosmic-rip --workers=1 --reporter=line tests/e2e/settings/settings-statistics.spec.ts
 ```
+
+8 October 2026 focused Cosmic Rip browser attempts (default Chromium project; no browser-channel environment override):
+
+- `npm.cmd run test:e2e:focused -- tests/e2e/settings/settings-statistics.spec.ts --grep "@cosmic-rip-gp-earned"` printed the dedicated test as passed (1/1, 3.7s), covering the source-row order, N/A current-run value, all-time values at one and two settled systems, and live-status separation. Playwright did not exit after the passing assertion; it was interrupted after about 60 seconds. Exit code was 1 after interruption; port 4173 was confirmed free. Treat the assertion as observed passing but the browser command as not cleanly completed.
+- `npm.cmd run test:e2e:focused -- tests/e2e/settings/settings-statistics.spec.ts --grep "@cosmic-rip-locale"` printed the six-locale case as failed at 1ms, then hung without the failure details. It was interrupted after about 60 seconds; exit code was 1 after interruption; port 4173 had zero listeners afterward. Six-locale unit coverage passes, but six-locale browser coverage is not established. Investigate the test failure/runner hang before claiming P-55 evidence.

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { COMPOUND_IDS, ECONOMIC_GOOD_IDS } from "../../src/content/ids";
+import { describe, expect, it, vi } from "vitest";
+import { withGameAudio } from "../../src/app/audio";
+import { COMPOUND_IDS, ECONOMIC_GOOD_IDS, type TechId } from "../../src/content/ids";
 import { LOCALE_IDS } from "../../src/content/ids";
 import { STARSHIP_MODULES } from "../../src/content/space";
 import { MEGASTRUCTURE_TECHNOLOGY_IDS, MEGASTRUCTURE_TRACKS } from "../../src/content/technology";
@@ -19,6 +20,7 @@ import {
 } from "../../src/engine/megastructures";
 import { createStarMapModel } from "../../src/engine/starMap";
 import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
+import { createGameStore } from "../../src/engine/store";
 import { generateStarSystemEncounter } from "../../src/engine/starSystemEncounters";
 import { ensureDiscoveredStarSystemProfiles } from "../../src/engine/starSystemProfiles";
 import { createTimerId } from "../../src/engine/timers";
@@ -297,6 +299,7 @@ describe("megastructure progression", () => {
             timerId: null,
             durationMs: 1,
             antimatterSpent: 1,
+            travelDistanceLy: null,
           },
           systemEncounters: [
             {
@@ -397,6 +400,7 @@ describe("megastructure progression", () => {
             timerId: null,
             durationMs: 1_000,
             antimatterSpent: 1,
+            travelDistanceLy: null,
           },
           systemEncounters: [guardian],
         },
@@ -432,6 +436,103 @@ describe("megastructure progression", () => {
     expect(retry.accepted).toBe(true);
     expect(retry.state.run.space.systemEncounters[0]?.battle.phase).toBe("inProgress");
     expect(retry.state.run.timers[battleTimerId]?.status).toBe("running");
+  });
+});
+
+describe("megastructure audio cues", () => {
+  it("plays source cues for each force-field stage and structure capture", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      readonly source: string;
+      loop = false;
+      paused = true;
+      preload = "none";
+      volume = 1;
+      currentTime = 0;
+      playCount = 0;
+
+      constructor(source: string) {
+        super();
+        this.source = source;
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        this.playCount += 1;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    vi.stubGlobal("Audio", MockAudio);
+    const playedForResearch = (base: GameState, technologyId: TechId) => {
+      MockAudio.instances = [];
+      const state = {
+        ...base,
+        settings: {
+          ...base.settings,
+          backgroundAudioEnabled: false,
+          soundEffectsEnabled: true,
+        },
+      };
+      expect(isValidGameState(state)).toBe(true);
+      const store = withGameAudio(createGameStore(state, { clock: { now: () => 0 } }));
+      try {
+        const result = store.dispatch({ type: "economy.research", technologyId });
+        expect(result.accepted).toBe(true);
+        return MockAudio.instances
+          .filter((audio) => audio.playCount > 0)
+          .map((audio) => audio.source.split("/").at(-1));
+      } finally {
+        store.dispose();
+      }
+    };
+
+    try {
+      const core = MEGASTRUCTURE_TRACKS.celestialProcessingCore;
+      expect(
+        playedForResearch(
+          factoryState({
+            megastructureId: "celestialProcessingCore",
+            researched: core.slice(0, 2),
+            researchPoints: 150_000,
+          }),
+          core[2]!,
+        ),
+      ).toEqual(["forcefieldTakedown.mp3"]);
+
+      const archive = MEGASTRUCTURE_TRACKS.galacticMemoryArchive;
+      const otherForceFieldTechs = Object.values(MEGASTRUCTURE_TRACKS)
+        .map((track) => track[2]!)
+        .filter((technologyId) => technologyId !== archive[2]);
+      expect(
+        playedForResearch(
+          factoryState({
+            megastructureId: "galacticMemoryArchive",
+            researched: [...otherForceFieldTechs, ...archive.slice(0, 2)],
+            researchPoints: 150_000,
+          }),
+          archive[2]!,
+        ),
+      ).toEqual(["forcefieldTakedownFinal.mp3"]);
+
+      expect(
+        playedForResearch(
+          factoryState({
+            megastructureId: "galacticMemoryArchive",
+            researched: archive.slice(0, 4),
+            researchPoints: 250_000,
+          }),
+          archive[4]!,
+        ),
+      ).toEqual(["megastructureCaptured.mp3"]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

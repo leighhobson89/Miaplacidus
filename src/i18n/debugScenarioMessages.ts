@@ -504,3 +504,5 @@ export function debugScenarioText(locale: LocaleId): DebugScenarioCopy {
 export function debugScenarioMessage(locale: LocaleId, key: DebugScenarioMessageKey): string {
   return COPY[locale][key];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { COPY } as const;

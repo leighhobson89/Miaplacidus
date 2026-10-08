@@ -118,3 +118,5 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
 export function energyStatisticLabel(locale: LocaleId, id: EnergyStatisticId): string {
   return labels[locale][id];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { labels } as const;

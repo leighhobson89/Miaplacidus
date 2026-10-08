@@ -133,6 +133,11 @@ export function StarshipPane({
   readonly view?: "starship" | "fleet-hangar" | "colonise";
 }) {
   const [feedbackText, setFeedbackText] = useState("");
+  const [scanAnnouncementState, setScanAnnouncementState] = useState<{
+    readonly systemId: string;
+    readonly rebirthCount: number;
+    readonly text: string;
+  } | null>(null);
   const [showLaunchWarning, setShowLaunchWarning] = useState(false);
   const launchDialogRef = useRef<HTMLDialogElement>(null);
   const space = state.run.space;
@@ -145,6 +150,11 @@ export function StarshipPane({
   const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
   const destinationSystemId = space.starship.destinationSystemId;
   const destination = catalogue.find((star) => star.id === destinationSystemId);
+  const scanAnnouncement =
+    scanAnnouncementState?.systemId === destinationSystemId &&
+    scanAnnouncementState.rebirthCount === state.permanent.rebirthCount
+      ? scanAnnouncementState.text
+      : "";
   const travelPlan = destinationSystemId ? starshipTravelPlan(state, destinationSystemId) : null;
   const starshipTimer = space.starship.timerId ? state.run.timers[space.starship.timerId] : null;
   const starshipRemainingMs = starshipTimer
@@ -178,6 +188,9 @@ export function StarshipPane({
   const encounter = space.systemEncounters.find(
     (record) => record.systemId === destinationSystemId,
   );
+  // The source keeps both the orbit scan control and its result details in
+  // Starship construction. Colonise remains a separate diplomacy page.
+  const showSystemScan = view === "starship";
   const systemIsSettled =
     destinationSystemId !== null && state.permanent.settledSystemIds.includes(destinationSystemId);
   const enemyFleetsCount = encounter
@@ -247,11 +260,25 @@ export function StarshipPane({
 
   function scanDestinationSystem(): void {
     const result = store.dispatch(scanCommand);
-    setFeedbackText(
-      result.accepted
-        ? starshipText(state.settings.locale, "scanComplete")
-        : starshipText(state.settings.locale, "scannerRequired"),
-    );
+    if (!result.accepted) {
+      setFeedbackText(starshipText(state.settings.locale, "scannerRequired"));
+      return;
+    }
+
+    const scannedEncounter = store
+      .getState()
+      .run.space.systemEncounters.find((record) => record.systemId === destinationSystemId);
+    setFeedbackText("");
+    setScanAnnouncementState({
+      systemId: destinationSystemId ?? "",
+      rebirthCount: state.permanent.rebirthCount,
+      text: scannedEncounter
+        ? starshipText(
+            state.settings.locale,
+            scannedEncounter.lifeDetected ? "lifeDetected" : "noLifeDetected",
+          )
+        : starshipText(state.settings.locale, "scanComplete"),
+    });
   }
 
   const starshipStatus =
@@ -552,7 +579,11 @@ export function StarshipPane({
                 data-remaining-ms={starshipRemainingMs}
               >
                 {starshipText(state.settings.locale, "journeyTimeRemaining", {
-                  time: formatDuration(state.settings.locale, starshipRemainingMs),
+                  time: formatDuration(
+                    state.settings.locale,
+                    starshipRemainingMs,
+                    state.settings.notation,
+                  ),
                 })}
               </p>
             )}
@@ -583,8 +614,16 @@ export function StarshipPane({
         <section
           className="starship-system-scan"
           data-testid="starship-system-scan"
-          hidden={view !== "colonise"}
+          hidden={!showSystemScan}
         >
+          <output
+            className="sr-only"
+            aria-live="polite"
+            aria-atomic="true"
+            data-testid="starship-scan-announcement"
+          >
+            {scanAnnouncement}
+          </output>
           <h4>{starshipText(state.settings.locale, "scanSystem")}</h4>
           {!scannerComplete ? (
             <p>{starshipText(state.settings.locale, "scannerRequired")}</p>

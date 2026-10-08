@@ -98,6 +98,6 @@ export function spaceNotificationText(
 ): string {
   return Object.entries(values).reduce(
     (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),
-    SPACE_NOTIFICATION_MESSAGES[locale][key] ?? en[key],
+    SPACE_NOTIFICATION_MESSAGES[locale][key],
   );
 }

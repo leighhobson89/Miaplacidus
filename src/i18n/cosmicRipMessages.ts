@@ -406,3 +406,5 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
 export function cosmicRipText(locale: LocaleId): CosmicRipMessages {
   return MESSAGES[locale];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { ERRORS, MESSAGES } as const;

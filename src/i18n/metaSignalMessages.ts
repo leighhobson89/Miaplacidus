@@ -370,3 +370,5 @@ export function newsEntryText(
   }
   return copy.headlines[entry.id] ?? messages[locale].headline;
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages, eventNames, journalLabels } as const;

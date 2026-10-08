@@ -14,6 +14,7 @@ import {
   PRIZE_NEWS_IDS,
   WACKY_NEWS_IDS,
   type NewsCategory,
+  type NewsTickerEntry,
 } from "../content/metaSignals";
 import { MEGASTRUCTURE_IDS } from "../content/technology";
 import { nextRandom, nextRandomInteger } from "./random";
@@ -164,9 +165,9 @@ function availableFor(state: GameState, category: NewsCategory): readonly number
         eligibleManuscriptClues(state).flatMap((candidate) => candidate.availableTemplateIds),
       ),
     );
-  return Array.from({ length: 200 }, (_, index) => index).filter(
-    (id) => !state.run.newsTicker.seenIds.includes(id),
-  );
+  // Cosmic Forge records viewed headlines for statistics but keeps the full
+  // no-prize catalogue eligible for every later draw.
+  return Array.from({ length: 200 }, (_, index) => index);
 }
 
 function selectCategory(state: GameState): {
@@ -409,35 +410,70 @@ function applyOneOff(state: GameState, id: number): GameState {
   return state;
 }
 
-export function checkNewsPrizeClaim(state: GameState, id: number): boolean {
-  const entry = state.run.newsTicker.entries.find((item) => item.id === id && !item.claimed);
-  return (
-    !!entry &&
-    (entry.category === "prize" || entry.category === "oneOff") &&
-    !state.run.newsTicker.claimedPrizeIds.includes(id)
+function newsPrizeAmountLimit(state: GameState, entry: NewsTickerEntry): number | null {
+  if (entry.category !== "prize" || !entry.prizeGoodId || !isEconomicGoodId(entry.prizeGoodId))
+    return null;
+  const good = state.run.goods[entry.prizeGoodId];
+  const room = good.storageCapacity - good.quantity;
+  if (room <= 0) return null;
+  return Math.max(1, Math.min(Math.floor(good.storageCapacity / 10), Math.floor(room)));
+}
+
+/** Returns the prize amount the player would receive if claimed in the current state. */
+export function newsPrizeClaimAmount(state: GameState, entry: NewsTickerEntry): number | null {
+  const amountLimit = newsPrizeAmountLimit(state, entry);
+  if (amountLimit === null) return null;
+  const requested =
+    typeof entry.prizeAmount === "number"
+      ? Math.min(amountLimit, entry.prizeAmount)
+      : nextRandomInteger(state.run.random, 1, amountLimit).value;
+  const good = state.run.goods[entry.prizeGoodId as EconomicGoodId];
+  const after = Math.min(good.storageCapacity, good.quantity + requested);
+  const credited = after - good.quantity;
+  return credited > 0 ? credited : null;
+}
+
+function findClaimEntryIndex(
+  state: GameState,
+  id: number,
+  simulationMs?: number,
+): number {
+  return state.run.newsTicker.entries.findIndex(
+    (item) =>
+      item.id === id &&
+      !item.claimed &&
+      (simulationMs === undefined || item.simulationMs === simulationMs),
   );
 }
 
-export function claimNewsPrize(state: GameState, id: number) {
-  if (!checkNewsPrizeClaim(state, id)) return null;
-  const entryIndex = state.run.newsTicker.entries.findIndex((item) => item.id === id);
+export function checkNewsPrizeClaim(state: GameState, id: number, simulationMs?: number): boolean {
+  const entryIndex = findClaimEntryIndex(state, id, simulationMs);
+  if (entryIndex < 0) return false;
+  const entry = state.run.newsTicker.entries[entryIndex]!;
+  if (entry.category === "oneOff") return !state.run.newsTicker.claimedPrizeIds.includes(id);
+  return entry.category === "prize" && newsPrizeClaimAmount(state, entry) !== null;
+}
+
+export function claimNewsPrize(state: GameState, id: number, simulationMs?: number) {
+  if (!checkNewsPrizeClaim(state, id, simulationMs)) return null;
+  const entryIndex = findClaimEntryIndex(state, id, simulationMs);
+  if (entryIndex < 0) return null;
   const entry = state.run.newsTicker.entries[entryIndex]!;
   let next = state;
   let event: NewsTickerEvent;
   if (entry.category === "prize") {
-    if (!entry.prizeGoodId || !isEconomicGoodId(entry.prizeGoodId)) return null;
+    const amountLimit = newsPrizeAmountLimit(state, entry);
+    if (!entry.prizeGoodId || !isEconomicGoodId(entry.prizeGoodId) || amountLimit === null)
+      return null;
     const goodId = entry.prizeGoodId;
     const good = state.run.goods[goodId];
-    const room = good.storageCapacity - good.quantity;
-    if (room <= 0) return null;
-    const amountLimit = Math.max(
-      1,
-      Math.min(Math.floor(good.storageCapacity / 10), Math.floor(room)),
-    );
     const amountRoll =
       typeof entry.prizeAmount === "number"
         ? { state: state.run.random, value: Math.min(amountLimit, entry.prizeAmount) }
         : nextRandomInteger(state.run.random, 1, amountLimit);
+    const nextQuantity = Math.min(good.storageCapacity, good.quantity + amountRoll.value);
+    const creditedAmount = nextQuantity - good.quantity;
+    if (creditedAmount <= 0) return null;
     next = {
       ...state,
       run: {
@@ -447,19 +483,25 @@ export function claimNewsPrize(state: GameState, id: number) {
           ...state.run.goods,
           [goodId]: {
             ...good,
-            quantity: Math.min(good.storageCapacity, good.quantity + amountRoll.value),
+            quantity: nextQuantity,
           },
         },
       },
     };
-    event = { type: "news.prize.claimed", id, goodId, amount: amountRoll.value };
+    event = { type: "news.prize.claimed", id, goodId, amount: creditedAmount };
   } else {
     next = applyOneOff(state, id);
     event = { type: "news.one-off.claimed", id };
   }
   const entries = [...next.run.newsTicker.entries];
-  entries[entryIndex] = { ...entries[entryIndex]!, claimed: true };
-  const claimedPrizeIds = [...next.run.newsTicker.claimedPrizeIds, id];
+  entries[entryIndex] = {
+    ...entries[entryIndex]!,
+    ...(event.type === "news.prize.claimed" ? { prizeAmount: event.amount } : {}),
+    claimed: true,
+  };
+  const claimedPrizeIds = next.run.newsTicker.claimedPrizeIds.includes(id)
+    ? next.run.newsTicker.claimedPrizeIds
+    : [...next.run.newsTicker.claimedPrizeIds, id];
   next = {
     ...next,
     run: { ...next.run, newsTicker: { ...next.run.newsTicker, entries, claimedPrizeIds } },

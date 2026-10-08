@@ -341,7 +341,7 @@ function RocketAssemblyCard({
                           ? rocketText(locale, "reasonNoGrid")
                           : rocketText(locale, "fuelingPaused")
                         : rocketText(locale, "fuelingTimeRemaining", {
-                            time: formatDuration(locale, fuelEtaMs),
+                            time: formatDuration(locale, fuelEtaMs, state.settings.notation),
                           })}
                     </p>
                   )}
@@ -428,7 +428,7 @@ function RocketAssemblyCard({
                 data-remaining-ms={journeyRemainingMs}
               >
                 {rocketText(locale, "journeyTimeRemaining", {
-                  time: formatDuration(locale, journeyRemainingMs),
+                  time: formatDuration(locale, journeyRemainingMs, state.settings.notation),
                 })}
               </p>
               <meter
@@ -700,7 +700,8 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
             data-testid="space-weather-timer"
             data-remaining-ms={weatherChangeInMs}
           >
-            {spaceText(locale, "weatherChangesIn")}: {formatDuration(locale, weatherChangeInMs)}
+            {spaceText(locale, "weatherChangesIn")}:{" "}
+            {formatDuration(locale, weatherChangeInMs, state.settings.notation)}
           </p>
         </div>
       )}
@@ -758,7 +759,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                   data-remaining-ms={surveyRemainingMs}
                 >
                   {spaceText(locale, "surveyTimeRemaining", {
-                    time: formatDuration(locale, surveyRemainingMs),
+                    time: formatDuration(locale, surveyRemainingMs, state.settings.notation),
                   })}
                 </p>
                 <meter

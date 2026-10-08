@@ -725,3 +725,5 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
 export function philosophyText(locale: LocaleId) {
   return COPY[locale];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { COPY } as const;

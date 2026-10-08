@@ -372,3 +372,5 @@ const additionalMessages: Readonly<
 export function starMapText(locale: LocaleId, key: StarMapMessageKey): string {
   return messages[locale][key] ?? additionalMessages[locale][key] ?? en[key];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages, additionalMessages } as const;

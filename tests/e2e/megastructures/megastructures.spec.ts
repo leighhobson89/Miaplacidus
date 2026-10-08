@@ -3,6 +3,91 @@ import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { MEGASTRUCTURE_TRACKS } from "../../../src/content/technology";
 
+test("reveals Rebirth after a destination scan without changing the selected page @ui-navigation @galactic", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-megastructure-route");
+
+  const initialState = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(initialState.run.space.systemEncounters).toHaveLength(0);
+  expect(initialState.run.space.ascendencyAwardedThisRun).toBe(true);
+
+  const galactic = page.locator("#tab-galaxy");
+  await galactic.click();
+  const market = page.locator("#tab-galactic-market");
+  await expect(market).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#tab-galactic-rebirth")).toHaveCount(0);
+
+  // The fixture starts one field milestone short of Miaplacidus route access.
+  await page.locator("#tab-galactic-megastructures").click();
+  const archive = page.getByTestId("megastructure-track-galacticMemoryArchive");
+  await archive.getByRole("button", { name: "Research stage" }).click();
+  await expect(page.getByTestId("megastructure-force-field")).toContainText("4/4");
+  await expect(page.locator("#tab-galactic-rebirth")).toHaveCount(0);
+  await market.click();
+  await expect(market).toHaveAttribute("aria-selected", "true");
+
+  await page.locator("#tab-interstellar").click();
+  const map = page.getByTestId("star-map-pane");
+  await map.getByRole("searchbox", { name: "Search stars" }).fill("Miaplacidus");
+  await map.locator(".star-map-search-results button").filter({ hasText: "Miaplacidus" }).click();
+  await map
+    .getByTestId("star-selection")
+    .getByRole("button", { name: "Set as destination" })
+    .click();
+
+  await page.locator("#tab-interstellar-starship").click();
+  const starship = page.getByTestId("starship-pane");
+  const scanButton = starship.getByTestId("starship-scan-system-button");
+  await expect(scanButton).toHaveCount(0);
+  await expect(page.locator("#tab-interstellar-colonise")).toHaveCount(0);
+  await starship.getByRole("button", { name: "Launch starship" }).click();
+  await page
+    .getByRole("dialog", { name: "Warning: point of no return" })
+    .getByRole("button", { name: "Confirm launch" })
+    .click();
+  const travelDuration = await page.evaluate(() => {
+    const state = window.miaplacidusTest!.getState();
+    return state.run.timers[state.run.space.starship.timerId!]!.durationMs;
+  });
+  await page.evaluate(
+    (durationMs) => window.miaplacidusTest!.advanceBy(durationMs + 1),
+    travelDuration,
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.starship.phase))
+    .toBe("orbiting");
+
+  await expect(scanButton).toBeVisible();
+  await expect(scanButton).toBeEnabled();
+  await scanButton.click();
+  await expect(starship.getByTestId("starship-system-scan-results")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().run.space.systemEncounters.length),
+    )
+    .toBe(1);
+
+  await expect(page.locator("#tab-interstellar")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#tab-interstellar-starship")).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  // This route has already awarded Ascendency Points this run, so Colonise
+  // remains correctly gated while the independent Rebirth gate opens.
+  await expect(page.locator("#tab-interstellar-colonise")).toHaveCount(0);
+  await expect(page.locator("#tab-galactic-rebirth")).toHaveCount(1);
+
+  await galactic.click();
+  await expect(page.locator("#tab-galactic-rebirth")).toBeVisible();
+  await expect(market).toHaveAttribute("aria-selected", "true");
+  const galacticChildIds = await page
+    .locator("#pane-galaxy .pane-nav-tab[role='tab']")
+    .evaluateAll((tabs) => tabs.map((tab) => tab.id));
+  expect(galacticChildIds[0]).toBe("tab-galactic-rebirth");
+  expect(galacticChildIds[1]).toBe("tab-galactic-market");
+});
+
 test("opens Miaplacidus and completes its homecoming story through the player route @megastructures", async ({
   page,
 }, testInfo) => {
