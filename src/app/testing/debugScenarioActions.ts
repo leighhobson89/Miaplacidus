@@ -23,9 +23,14 @@ import { permanentPerkPurchaseCount } from "../../content/economyRules";
 import { forceNewsTicker } from "../../engine/newsTicker";
 import { forceRandomEvent } from "../../engine/randomEvents";
 import { ensureDiscoveredStarSystemProfiles } from "../../engine/starSystemProfiles";
-import { generateAsteroid, pruneAsteroids } from "../../engine/spaceRules";
-import type { GameState } from "../../engine/state";
+import { generateAsteroid, isStarshipReady, pruneAsteroids } from "../../engine/spaceRules";
+import type { EngineResult } from "../../engine/commands";
+import { isValidGameState, type GameState } from "../../engine/state";
 import type { NewsCategory } from "../../content/metaSignals";
+import {
+  createLateGameHomecomingContinuationCheckpoint,
+  createLateGameNavigationCheckpoint,
+} from "./navigationCheckpoint";
 
 export const DEBUG_TIMEWARP_DURATIONS_MS = [1_000, 2_000, 3_000, 4_000, 5_000, 20_000] as const;
 export const DEBUG_TIMEWARP_MULTIPLIERS = [2, 5, 10, 20, 50, 200] as const;
@@ -75,6 +80,43 @@ export interface DebugScenarioOptions {
   readonly newsCategory?: DebugNewsCategory;
   readonly newsInterval?: DebugNewsInterval;
 }
+
+export type DebugScenarioStateAction = Exclude<
+  DebugScenarioId,
+  | "set-language"
+  | "trigger-event"
+  | "hold-enter-to-gain"
+  | "play-miaplacidus-cinematic"
+  | "play-end-game-cinematic"
+  | "set-news-ticker"
+>;
+
+export function isDebugScenarioStateAction(
+  action: DebugScenarioId,
+): action is DebugScenarioStateAction {
+  return (
+    action !== "set-language" &&
+    action !== "trigger-event" &&
+    action !== "hold-enter-to-gain" &&
+    action !== "play-miaplacidus-cinematic" &&
+    action !== "play-end-game-cinematic" &&
+    action !== "set-news-ticker"
+  );
+}
+
+export type DebugScenarioCommand =
+  | {
+      readonly type: "debug.scenario.apply";
+      readonly action: DebugScenarioStateAction;
+      readonly options?: DebugScenarioOptions;
+    }
+  | { readonly type: "debug.scenario.late-game-navigation" }
+  | { readonly type: "debug.scenario.homecoming-continuation" }
+  | {
+      readonly type: "debug.news-ticker.schedule";
+      readonly previous: GameState;
+      readonly options: DebugScenarioOptions;
+    };
 
 const GRANTABLE_TECHNOLOGY_IDS = TECHNOLOGY_CATALOG.filter(
   (technology) => !("special" in technology && technology.special === "megastructure"),
@@ -170,6 +212,7 @@ function addAsteroids(state: GameState): GameState {
   const asteroids = pruneAsteroids(
     [...state.run.space.asteroids, ...added],
     MAX_UNINTERACTED_ASTEROIDS,
+    state.run.space.selectedAsteroidId,
   );
   return {
     ...state,
@@ -255,10 +298,7 @@ function buildStarship(state: GameState): GameState {
 }
 
 function addFleetsAndEnvoy(state: GameState): GameState {
-  const requiredModulesBuilt = STARSHIP_MODULE_IDS.filter(
-    (id) => STARSHIP_MODULES[id].requiredForTravel,
-  ).every((id) => state.run.space.starshipModules[id].builtParts >= STARSHIP_MODULES[id].parts);
-  if (!requiredModulesBuilt) return state;
+  if (!isStarshipReady(state.run.space)) return state;
   const multiplier =
     FLEET_COMBAT_REPEATABLE_FACTOR **
     permanentPerkPurchaseCount(state.permanent.acquiredPerks, "laserIntensityResearch");
@@ -295,6 +335,68 @@ function debugNewsCategory(
   return category;
 }
 
+function debugNewsOptionsValid(options: DebugScenarioOptions): boolean {
+  const category = options.newsCategory ?? "random";
+  const interval = options.newsInterval ?? "default";
+  return (
+    ["random", "oneOff", "prize", "wackyEffects", "manuscriptClue"].includes(category) &&
+    ["default", 10_000, 20_000].includes(interval)
+  );
+}
+
+function hasNewTickerEntry(previous: GameState, current: GameState): boolean {
+  const previousEntries = previous.run.newsTicker.entries;
+  const currentEntries = current.run.newsTicker.entries;
+  const previousEntry = previousEntries.at(-1);
+  const currentEntry = currentEntries.at(-1);
+  return Boolean(
+    currentEntry &&
+    (previousEntries.length !== currentEntries.length ||
+      previousEntry?.id !== currentEntry.id ||
+      previousEntry?.category !== currentEntry.category ||
+      previousEntry?.simulationMs !== currentEntry.simulationMs),
+  );
+}
+
+/**
+ * Replaces a newly scheduled ticker with the configured development selection.
+ * The normal scheduler remains authoritative unless the chosen category is available.
+ */
+export function applyScheduledDebugNewsTicker(
+  previous: GameState,
+  current: GameState,
+  options: DebugScenarioOptions,
+): GameState | null {
+  if (!hasNewTickerEntry(previous, current) || !debugNewsOptionsValid(options)) return null;
+  const category = debugNewsCategory(options.newsCategory);
+  if (category === null) return null;
+
+  // Roll back only the default ticker's bookkeeping before selecting its replacement.
+  const selectionState: GameState = {
+    ...current,
+    permanent: {
+      ...current.permanent,
+      megastructures: {
+        ...current.permanent.megastructures,
+        manuscriptCluesShown: previous.permanent.megastructures.manuscriptCluesShown,
+      },
+    },
+    run: { ...current.run, newsTicker: previous.run.newsTicker },
+  };
+  const forced = forceNewsTicker(selectionState, category);
+  if (!forced) return null;
+
+  const interval = options.newsInterval ?? "default";
+  if (interval === "default") return forced.state;
+  return {
+    ...forced.state,
+    run: {
+      ...forced.state.run,
+      newsTicker: { ...forced.state.run.newsTicker, remainingMs: 40_000 + interval },
+    },
+  };
+}
+
 function prepareRunForStarshipLaunch(state: GameState): GameState {
   let next: GameState = {
     ...state,
@@ -304,7 +406,7 @@ function prepareRunForStarshipLaunch(state: GameState): GameState {
   next = grantAllTechnologies(next);
   next = buildLaunchPadScannerAndRockets(next);
   next = addAsteroids(next);
-  next = studyStar(next);
+  for (let count = 0; count < 5; count += 1) next = studyStar(next);
   next = {
     ...next,
     run: {
@@ -421,7 +523,7 @@ export function applyDebugScenario(
       };
     }
     case "add-fleets-envoy":
-      return addFleetsAndEnvoy(state);
+      return isStarshipReady(state.run.space) ? addFleetsAndEnvoy(state) : null;
     case "build-starship":
       return buildStarship(state);
     case "hold-enter-to-gain":
@@ -450,21 +552,72 @@ export function applyDebugScenario(
       return null;
     case "set-news-ticker": {
       const category = debugNewsCategory(options.newsCategory);
-      if (category === null) return null;
-      const forced = forceNewsTicker(state, category);
-      if (!forced) return null;
-      const interval = options.newsInterval ?? "default";
-      return {
-        ...forced.state,
-        run: {
-          ...forced.state.run,
-          newsTicker: {
-            ...forced.state.run.newsTicker,
-            remainingMs:
-              interval === "default" ? forced.state.run.newsTicker.remainingMs : interval,
-          },
-        },
-      };
+      return category === null || !debugNewsOptionsValid(options) ? null : state;
     }
+  }
+}
+
+function rejectedDebugCommand(
+  state: GameState,
+  code: "invalid-state" | "invalid-command",
+): EngineResult {
+  const failure =
+    code === "invalid-state"
+      ? ({ code: "invalid-state", messageKey: "engine.error.invalid-state" } as const)
+      : ({ code: "invalid-command", messageKey: "engine.error.invalid-command" } as const);
+  return {
+    accepted: false,
+    state,
+    events: [],
+    failure,
+  };
+}
+
+function acceptedDebugState(
+  current: GameState,
+  candidate: GameState | null,
+  resetForegroundClock = false,
+): EngineResult {
+  if (candidate === null) return rejectedDebugCommand(current, "invalid-command");
+  const clock = resetForegroundClock
+    ? {
+        ...candidate.run.clock,
+        wallNowMs: current.run.clock.wallNowMs,
+        foreground: true,
+        hiddenElapsedMs: 0,
+        pendingForegroundMs: 0,
+        pendingForegroundSegments: [],
+      }
+    : current.run.clock;
+  const state: GameState = {
+    ...candidate,
+    settings: current.settings,
+    run: {
+      ...candidate.run,
+      pioneerName: current.run.pioneerName,
+      clock,
+    },
+  };
+  if (!isValidGameState(state)) return rejectedDebugCommand(current, "invalid-state");
+  return { accepted: true, state, events: [] };
+}
+
+/** Reduce a typed, development-only scenario command before it enters the normal store publisher. */
+export function reduceDebugScenarioCommand(
+  state: GameState,
+  command: DebugScenarioCommand,
+): EngineResult {
+  switch (command.type) {
+    case "debug.scenario.apply":
+      return acceptedDebugState(state, applyDebugScenario(state, command.action, command.options));
+    case "debug.scenario.late-game-navigation":
+      return acceptedDebugState(state, createLateGameNavigationCheckpoint(state), true);
+    case "debug.scenario.homecoming-continuation":
+      return acceptedDebugState(state, createLateGameHomecomingContinuationCheckpoint(state), true);
+    case "debug.news-ticker.schedule":
+      return acceptedDebugState(
+        state,
+        applyScheduledDebugNewsTicker(command.previous, state, command.options),
+      );
   }
 }

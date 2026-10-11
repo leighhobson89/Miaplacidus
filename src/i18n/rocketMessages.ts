@@ -1,12 +1,18 @@
 import type { LocaleId } from "../content/ids";
 
 const en = {
+  launchPadHeaderHelp: "Build vessels to mine asteroids for valuable Antimatter.",
+  launchPadHelp:
+    "Build every required part to complete a rocket. Select an available asteroid on the Asteroids page, then open the completed Rocket page to fuel it, launch into orbit, and travel there.",
   assemblyTitle: "Rocket assembly",
   launchPadTitle: "Launch Pad",
   launchPadCost: "Construction cost",
   buildLaunchPad: "Build launch pad",
   launchPadBuilt: "Launch pad built",
   rocketLabel: "Rocket {index}",
+  rocketDefaultName: "Rocket {index}",
+  rocketPageDescription:
+    "Fuel this rocket, launch it into orbit, then send it to an available asteroid to mine Antimatter.",
   parts: "Parts built",
   buildPart: "Build one part",
   partCost: "Next part cost",
@@ -54,12 +60,18 @@ export type RocketMessageKey = keyof typeof en;
 const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, string>>>> = {
   en,
   es: {
+    launchPadHeaderHelp: "Construye naves para minar asteroides en busca de valiosa Antimateria.",
+    launchPadHelp:
+      "Construye todas las piezas necesarias para completar un cohete. Selecciona un asteroide disponible en la página Asteroides y después abre la página del cohete completado para repostarlo, lanzarlo a la órbita y viajar allí.",
     assemblyTitle: "Montaje de cohetes",
-    launchPadTitle: "Plataforma de lanzamiento",
+    launchPadTitle: "Plataforma de Lanzamiento",
     launchPadCost: "Coste de construcción",
     buildLaunchPad: "Construir plataforma",
     launchPadBuilt: "Plataforma construida",
     rocketLabel: "Cohete {index}",
+    rocketDefaultName: "Cohete {index}",
+    rocketPageDescription:
+      "Reposta este cohete, lánzalo a la órbita y envíalo a un asteroide disponible para extraer Antimateria.",
     parts: "Piezas construidas",
     buildPart: "Construir una pieza",
     partCost: "Coste de la siguiente pieza",
@@ -102,12 +114,18 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "El cohete regresó de {name}; el depósito está vacío.",
   },
   pt: {
+    launchPadHeaderHelp: "Constrói naves para minerar asteroides em busca de valiosa Antimatéria.",
+    launchPadHelp:
+      "Constrói todas as peças necessárias para concluir um foguete. Seleciona um asteroide disponível na página Asteroides e depois abre a página do foguete concluído para o abastecer, lançá-lo para a órbita e viajar até lá.",
     assemblyTitle: "Montagem de foguetes",
-    launchPadTitle: "Plataforma de lançamento",
+    launchPadTitle: "Plataforma de Lançamento",
     launchPadCost: "Custo de construção",
     buildLaunchPad: "Construir plataforma",
     launchPadBuilt: "Plataforma construída",
     rocketLabel: "Foguete {index}",
+    rocketDefaultName: "Foguetão {index}",
+    rocketPageDescription:
+      "Abasteça este foguete, coloque-o em órbita e envie-o para um asteroide disponível para extrair Antimatéria.",
     parts: "Peças construídas",
     buildPart: "Construir uma peça",
     partCost: "Custo da próxima peça",
@@ -150,12 +168,18 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "O foguete regressou de {name}; o depósito está vazio.",
   },
   de: {
+    launchPadHeaderHelp: "Baue Schiffe, um Asteroiden nach wertvoller Antimaterie abzubauen.",
+    launchPadHelp:
+      "Baue alle erforderlichen Teile, um eine Rakete fertigzustellen. Wähle auf der Asteroidenseite einen verfügbaren Asteroiden aus und öffne dann die Seite der fertigen Rakete, um sie zu betanken, in den Orbit zu bringen und dorthin zu fliegen.",
     assemblyTitle: "Raketenmontage",
-    launchPadTitle: "Startrampe",
+    launchPadTitle: "Startplattform",
     launchPadCost: "Baukosten",
     buildLaunchPad: "Startrampe bauen",
     launchPadBuilt: "Startrampe gebaut",
     rocketLabel: "Rakete {index}",
+    rocketDefaultName: "Rakete {index}",
+    rocketPageDescription:
+      "Betanke diese Rakete, bringe sie in den Orbit und schicke sie zu einem verfügbaren Asteroiden, um Antimaterie abzubauen.",
     parts: "Gebaute Teile",
     buildPart: "Ein Teil bauen",
     partCost: "Kosten des nächsten Teils",
@@ -199,12 +223,18 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "Die Rakete kehrte von {name} zurück; der Tank ist leer.",
   },
   it: {
+    launchPadHeaderHelp: "Costruisci navi per estrarre asteroidi in cerca di preziosa Antimateria.",
+    launchPadHelp:
+      "Costruisci tutte le parti necessarie per completare un razzo. Seleziona un asteroide disponibile nella pagina Asteroidi, poi apri la pagina del razzo completo per rifornirlo, lanciarlo in orbita e viaggiare fino a lì.",
     assemblyTitle: "Assemblaggio razzi",
-    launchPadTitle: "Piattaforma di lancio",
+    launchPadTitle: "Piattaforma di Lancio",
     launchPadCost: "Costo di costruzione",
     buildLaunchPad: "Costruisci piattaforma",
     launchPadBuilt: "Piattaforma costruita",
     rocketLabel: "Razzo {index}",
+    rocketDefaultName: "Razzo {index}",
+    rocketPageDescription:
+      "Rifornisci questo razzo, portalo in orbita e invialo verso un asteroide disponibile per estrarre Antimateria.",
     parts: "Parti costruite",
     buildPart: "Costruisci una parte",
     partCost: "Costo della prossima parte",
@@ -247,12 +277,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "Il razzo è tornato da {name}; il serbatoio è vuoto.",
   },
   fr: {
+    launchPadHeaderHelp:
+      "Construis des vaisseaux pour extraire des astéroïdes en quête d'Antimatière précieuse.",
+    launchPadHelp:
+      "Construisez toutes les pièces requises pour terminer une fusée. Choisissez un astéroïde disponible sur la page Astéroïdes, puis ouvrez la page de la fusée terminée pour la ravitailler, la lancer en orbite et voyager jusque-là.",
     assemblyTitle: "Assemblage des fusées",
-    launchPadTitle: "Plateforme de lancement",
+    launchPadTitle: "Pas de Tir",
     launchPadCost: "Coût de construction",
     buildLaunchPad: "Construire la plateforme",
     launchPadBuilt: "Plateforme construite",
     rocketLabel: "Fusée {index}",
+    rocketDefaultName: "Fusée {index}",
+    rocketPageDescription:
+      "Ravitaillez cette fusée, mettez-la en orbite et envoyez-la vers un astéroïde disponible pour extraire de l'Antimatière.",
     parts: "Pièces construites",
     buildPart: "Construire une pièce",
     partCost: "Coût de la prochaine pièce",
@@ -305,6 +342,14 @@ export function rocketText(
     (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),
     messages[locale][key],
   );
+}
+
+/** Mirrors Cosmic Forge's localized default name for an unrenamed Rocket 1-4. */
+export function localizedRocketUserName(locale: LocaleId, storedName: string): string {
+  const match = /^Rocket ([1-4])$/.exec(storedName.trim());
+  return match
+    ? rocketText(locale, "rocketDefaultName", { index: Number(match[1]) })
+    : storedName;
 }
 
 export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

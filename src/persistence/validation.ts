@@ -13,17 +13,17 @@ export function normalizePioneerName(input: string): { display: string; lookupKe
 }
 
 export function validatePioneerName(input: string): { display: string; lookupKey: string } {
-  if (typeof input !== "string") throw new SaveError("invalid-envelope", "Enter a pioneer name.");
+  if (typeof input !== "string") throw new SaveError("invalid-name", "Enter a pioneer name.");
   const name = normalizePioneerName(input);
-  if (!name.display) throw new SaveError("invalid-envelope", "Enter a pioneer name.");
+  if (!name.display) throw new SaveError("invalid-name", "Enter a pioneer name.");
   if ([...name.display].length > MAX_PIONEER_NAME_LENGTH)
     throw new SaveError(
-      "invalid-envelope",
+      "invalid-name",
       "Names can have up to " + MAX_PIONEER_NAME_LENGTH + " characters.",
     );
   if (hasControlCharacters(name.display))
-    throw new SaveError("invalid-envelope", "That name contains characters that cannot be used.");
-  if (!name.lookupKey) throw new SaveError("invalid-envelope", "Enter a pioneer name.");
+    throw new SaveError("invalid-name", "That name contains characters that cannot be used.");
+  if (!name.lookupKey) throw new SaveError("invalid-name", "Enter a pioneer name.");
   return name;
 }
 

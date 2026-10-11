@@ -27,7 +27,7 @@ import {
   type SpacePurchaseCost,
   type TelescopeSurvey,
 } from "../content/space";
-import { COMPOUND_IDS, GALAXY_SEED_DEFAULT, type SystemId } from "../content/ids";
+import { COMPOUND_IDS, GALAXY_SEED_DEFAULT, isSystemId, type SystemId } from "../content/ids";
 import {
   createStarCatalogue,
   distanceBetweenStars,
@@ -65,6 +65,7 @@ import type { GameState } from "./state";
 import { advanceTimers, createTimer, createTimerId, type TimerEvent } from "./timers";
 import {
   asteroidSearchDuration,
+  canScanStarshipDestination,
   generateAsteroid,
   pruneAsteroids,
   rocketPartCost,
@@ -80,7 +81,12 @@ import {
 } from "./spaceRules";
 import type { ClockStep } from "./clock";
 import type { TickPlan } from "./transactions";
-import type { SpaceCommand, SpaceCommandFailure, SpaceEvent } from "./spaceCommands";
+import type {
+  RapidExpansionOutcome,
+  SpaceCommand,
+  SpaceCommandFailure,
+  SpaceEvent,
+} from "./spaceCommands";
 import type { EngineEvent, PreconditionResult } from "./commands";
 import {
   advanceStarWeatherCycle,
@@ -352,6 +358,21 @@ export function checkSpacePreconditions(
   state: GameState,
   command: SpaceCommand,
 ): PreconditionResult {
+  if (command.type === "space.starship.arrival-notice.mark-notified") {
+    const starship = state.run.space.starship;
+    if (
+      !isSystemId(command.systemId) ||
+      starTypeForSystem(command.systemId) !== "O" ||
+      starship.phase !== "orbiting" ||
+      starship.destinationSystemId !== command.systemId
+    ) {
+      return reject({
+        code: "space-invalid-selection",
+        messageKey: "space.reason.invalid-selection",
+      });
+    }
+    return { ok: true };
+  }
   if (command.type === "space.asteroid.select") {
     if (
       command.asteroidId !== null &&
@@ -471,16 +492,7 @@ export function checkSpacePreconditions(
     );
   }
   if (command.type === "space.starship.system.scan") {
-    const starship = state.run.space.starship;
-    const destinationId = starship.destinationSystemId;
-    const scannerBuiltParts = state.run.space.starshipModules.stellarScanner.builtParts;
-    const alreadyScanned = state.run.space.systemEncounters.some(
-      (encounter) => encounter.systemId === destinationId,
-    );
-    return starship.phase === "orbiting" &&
-      destinationId !== null &&
-      scannerBuiltParts >= STARSHIP_MODULES.stellarScanner.parts &&
-      !alreadyScanned
+    return canScanStarshipDestination(state)
       ? { ok: true }
       : {
           ok: false,
@@ -989,11 +1001,10 @@ function rapidExpansionSystems(state: GameState, destinationSystemId: SystemId) 
   const allowedRoll = nextRandom(random);
   random = allowedRoll.state;
   const maximum = Math.floor(allowedRoll.value * 4);
-  if (maximum === 0) return { systemIds: [] as SystemId[], random };
 
   const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
   const destination = catalogue.find((star) => star.id === destinationSystemId);
-  if (!destination) return { systemIds: [] as SystemId[], random };
+  if (!destination) return { systemIds: [] as SystemId[], eligibleSystemCount: 0, random };
   const unavailable = new Set([
     ...state.permanent.settledSystemIds,
     ...state.run.expansionistExtraSystemIds,
@@ -1015,6 +1026,8 @@ function rapidExpansionSystems(state: GameState, destinationSystemId: SystemId) 
     100 - state.permanent.settledSystemIds.length - 1 - state.run.expansionistExtraSystemIds.length,
   );
   const count = Math.min(maximum, candidates.length, settlementCapacity);
+  const eligibleSystemCount = candidates.length;
+  if (count === 0) return { systemIds: [] as SystemId[], eligibleSystemCount, random };
   for (let index = 0; index < count; index += 1) {
     const selection = nextRandom(random);
     random = selection.state;
@@ -1031,7 +1044,7 @@ function rapidExpansionSystems(state: GameState, destinationSystemId: SystemId) 
     random = roll.state;
     if (roll.value * 100 <= fleetScore + distanceScore) captured.push(candidate.star.id);
   }
-  return { systemIds: captured, random };
+  return { systemIds: captured, eligibleSystemCount, random };
 }
 
 function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransition {
@@ -1138,6 +1151,29 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
       fleetCountAtHealth(enemyPools[fleetId], enemyHealth, encounter.enemyFleets[fleetId]),
     ]),
   ) as typeof encounter.enemyFleets;
+  const playerShipLosses = Object.fromEntries(
+    PLAYER_FLEET_IDS.map((fleetId) => [
+      fleetId,
+      Math.max(0, state.run.space.playerFleets[fleetId] - nextFleetCounts[fleetId]),
+    ]),
+  ) as Record<(typeof PLAYER_FLEET_IDS)[number], number>;
+  const enemyShipLosses = Object.fromEntries(
+    ENEMY_FLEET_IDS.map((fleetId) => [
+      fleetId,
+      Math.max(0, encounter.enemyFleets[fleetId] - nextEnemyFleets[fleetId]),
+    ]),
+  ) as Record<(typeof ENEMY_FLEET_IDS)[number], number>;
+  const casualties =
+    Object.values(playerShipLosses).some((losses) => losses > 0) ||
+    Object.values(enemyShipLosses).some((losses) => losses > 0)
+      ? {
+          type: "space.battle.casualties" as const,
+          systemId,
+          round: encounter.battle.round + 1,
+          playerShipLosses,
+          enemyShipLosses,
+        }
+      : null;
   const playersRemain = PLAYER_FLEET_IDS.some((fleetId) => nextFleetCounts[fleetId] > 0);
   const enemiesRemain = ENEMY_FLEET_IDS.some((fleetId) => nextEnemyFleets[fleetId] > 0);
   const result: "victory" | "defeat" | null = !playersRemain
@@ -1180,12 +1216,19 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
     },
   };
   let battleState = nextState;
+  let rapidExpansionOutcome: RapidExpansionOutcome | null = null;
   if (
     result === "victory" &&
     state.permanent.philosophyId === "expansionist" &&
     state.run.philosophyAbilityActive
   ) {
     const expansion = rapidExpansionSystems(state, systemId);
+    rapidExpansionOutcome =
+      expansion.systemIds.length > 0
+        ? { type: "captured", systemIds: expansion.systemIds }
+        : expansion.eligibleSystemCount > 0
+          ? { type: "capture-failed" }
+          : { type: "no-eligible-systems" };
     battleState = {
       ...nextState,
       run: {
@@ -1201,9 +1244,19 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
   return {
     state: battleState,
     events: [
+      ...(casualties ? [casualties] : []),
       ...(result === null
         ? [{ type: "space.battle.round", systemId, round: battle.round } as const]
         : [
+            ...(rapidExpansionOutcome
+              ? [
+                  {
+                    type: "space.rapid-expansion.resolved" as const,
+                    systemId,
+                    outcome: rapidExpansionOutcome,
+                  },
+                ]
+              : []),
             {
               type: "space.battle.finished",
               systemId,
@@ -1218,6 +1271,20 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
 }
 
 export function applySpaceCommand(state: GameState, command: SpaceCommand): SpaceTransition {
+  if (command.type === "space.starship.arrival-notice.mark-notified") {
+    const notifiedSystemIds = state.permanent.oTypeArrivalNarrativesNotifiedSystemIds;
+    if (notifiedSystemIds.includes(command.systemId)) return { state, events: [] };
+    return {
+      state: {
+        ...state,
+        permanent: {
+          ...state.permanent,
+          oTypeArrivalNarrativesNotifiedSystemIds: [...notifiedSystemIds, command.systemId],
+        },
+      },
+      events: [],
+    };
+  }
   if (command.type === "space.asteroid.select") {
     const asteroids = state.run.space.asteroids.map((asteroid) =>
       asteroid.id === command.asteroidId ? { ...asteroid, interacted: true } : asteroid,
@@ -1304,6 +1371,13 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
   if (command.type === "space.starship.launch") {
     const systemId = state.run.space.starship.destinationSystemId!;
     const plan = starshipTravelPlan(state, systemId)!;
+    const destinationAp = state.run.space.systemProfiles.find(
+      (profile) => profile.systemId === systemId,
+    )?.ascendencyPoints;
+    const anticipatedAp =
+      typeof destinationAp === "number" && Number.isFinite(destinationAp) && destinationAp > 0
+        ? destinationAp
+        : 0;
     const timerId = createTimerId("travel", "starship-journey");
     const timer = createTimer({ id: timerId, domain: "travel", durationMs: plan.durationMs });
     const run = payCost(state, { cash: 0, antimatter: plan.antimatter, materials: [] });
@@ -1315,6 +1389,7 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
           timers: { ...state.run.timers, [timerId]: timer },
           space: {
             ...run.space,
+            apAnticipatedThisRun: run.space.apAnticipatedThisRun + anticipatedAp,
             starship: {
               ...run.space.starship,
               phase: "travelling",
@@ -1383,6 +1458,16 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
       initialImpression,
       currentImpression: initialImpression,
     };
+    const destinationAp = state.run.space.systemProfiles.find(
+      (profile) => profile.systemId === systemId,
+    )?.ascendencyPoints;
+    const scanAnticipatedAp =
+      (generatedEncounter.civilizationLevel === "industrial" ||
+        generatedEncounter.civilizationLevel === "spacefaring") &&
+      typeof destinationAp === "number" &&
+      Number.isFinite(destinationAp)
+        ? destinationAp
+        : 0;
     return {
       state: {
         ...state,
@@ -1390,6 +1475,7 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
           ...state.run,
           space: {
             ...state.run.space,
+            apAnticipatedThisRun: state.run.space.apAnticipatedThisRun + scanAnticipatedAp,
             systemEncounters: [...state.run.space.systemEncounters, encounter],
           },
         },
@@ -1583,6 +1669,14 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
       warReady: false,
       warMode: false,
     };
+    const rapidExpansionSettlementOutcome: RapidExpansionOutcome | null =
+      !state.run.philosophyAbilityActive || state.permanent.philosophyId !== "expansionist"
+        ? null
+        : encounter.civilizationLevel === "none" || encounter.civilizationLevel === "unsentient"
+          ? { type: "peaceful-settlement" }
+          : encounter.attitude === "surrendered"
+            ? { type: "non-conquest" }
+            : null;
     return {
       state: {
         ...state,
@@ -1624,6 +1718,15 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
         },
       },
       events: [
+        ...(rapidExpansionSettlementOutcome
+          ? [
+              {
+                type: "space.rapid-expansion.resolved" as const,
+                systemId,
+                outcome: rapidExpansionSettlementOutcome,
+              },
+            ]
+          : []),
         {
           type: "space.system.settled",
           systemId,
@@ -1900,6 +2003,11 @@ export function completeSpaceJourneys(
       ...nextState,
       run: {
         ...nextState.run,
+        sourceSyntheticTechnologyMarkersThisRun:
+          nextState.permanent.rebirthCount === 0 &&
+          nextState.run.sourceSyntheticTechnologyMarkersThisRun === 0
+            ? addLifetimeCount(nextState.run.sourceSyntheticTechnologyMarkersThisRun, 1)
+            : nextState.run.sourceSyntheticTechnologyMarkersThisRun,
         space: {
           ...nextState.run.space,
           starshipDistanceTravelledThisRun: runDistance,
@@ -2082,9 +2190,11 @@ export function advanceSpaceMining(
   state: GameState,
   elapsedByRocket: Partial<Record<RocketId, number>>,
   elapsedMs: number,
+  isOfflineStep = false,
 ): SpaceTransition {
   let nextState = state;
   const events: (SpaceEvent | TimerEvent)[] = [];
+  let offlineAntimatterMined = 0;
   for (const rocketId of ROCKET_IDS) {
     const breakdown = nextState.run.randomEvents.activeEffects.find(
       (effect) => effect.id === "minerBrokeDown",
@@ -2114,6 +2224,7 @@ export function advanceSpaceMining(
     const amount = Math.min(asteroid.remainingAntimatter, ratePerSecond * (rocketElapsedMs / 1000));
     const remainingAntimatter = Math.max(0, asteroid.remainingAntimatter - amount);
     const depleted = remainingAntimatter === 0;
+    if (isOfflineStep) offlineAntimatterMined += amount;
     const asteroids = [...nextState.run.space.asteroids];
     asteroids[asteroidIndex] = { ...asteroid, remainingAntimatter, depleted };
     nextState = {
@@ -2126,12 +2237,14 @@ export function advanceSpaceMining(
           antimatterUnlocked: nextState.run.space.antimatterUnlocked || amount > 0,
           antimatterBoostActive: depleted ? false : nextState.run.space.antimatterBoostActive,
           antimatter: nextState.run.space.antimatter + amount,
-          antimatterMinedThisRun: nextState.run.space.antimatterMinedThisRun + amount,
+          antimatterMinedThisRun:
+            nextState.run.space.antimatterMinedThisRun + (isOfflineStep ? 0 : amount),
         },
       },
       statistics: {
         ...nextState.statistics,
-        lifetimeAntimatterMined: nextState.statistics.lifetimeAntimatterMined + amount,
+        lifetimeAntimatterMined:
+          nextState.statistics.lifetimeAntimatterMined + (isOfflineStep ? 0 : amount),
       },
     };
     if (amount > 0)
@@ -2163,6 +2276,29 @@ export function advanceSpaceMining(
       }
     }
   }
+  if (isOfflineStep) {
+    // Cosmic Forge floors the aggregate offline asteroid gain for both mined
+    // counters and does not count offline megastructure production there.
+    const offlineMinedForStatistics = Math.floor(offlineAntimatterMined);
+    if (offlineMinedForStatistics > 0) {
+      nextState = {
+        ...nextState,
+        run: {
+          ...nextState.run,
+          space: {
+            ...nextState.run.space,
+            antimatterMinedThisRun:
+              nextState.run.space.antimatterMinedThisRun + offlineMinedForStatistics,
+          },
+        },
+        statistics: {
+          ...nextState.statistics,
+          lifetimeAntimatterMined:
+            nextState.statistics.lifetimeAntimatterMined + offlineMinedForStatistics,
+        },
+      };
+    }
+  }
   const megastructureAntimatter =
     (megastructureAntimatterRatePerSecond(nextState) * elapsedMs) / 1000;
   if (megastructureAntimatter > 0) {
@@ -2175,13 +2311,15 @@ export function advanceSpaceMining(
           antimatterUnlocked: true,
           antimatter: nextState.run.space.antimatter + megastructureAntimatter,
           antimatterMinedThisRun:
-            nextState.run.space.antimatterMinedThisRun + megastructureAntimatter,
+            nextState.run.space.antimatterMinedThisRun +
+            (isOfflineStep ? 0 : megastructureAntimatter),
         },
       },
       statistics: {
         ...nextState.statistics,
         lifetimeAntimatterMined:
-          nextState.statistics.lifetimeAntimatterMined + megastructureAntimatter,
+          nextState.statistics.lifetimeAntimatterMined +
+          (isOfflineStep ? 0 : megastructureAntimatter),
       },
     };
   }
@@ -2192,16 +2330,17 @@ export function advanceRocketFuel(
   state: GameState,
   elapsedMs: number,
   powered: boolean,
-): GameState {
+): SpaceTransition {
   if (
     elapsedMs <= 0 ||
     !powered ||
     !state.run.economy.researchedTechnologies.includes("advancedFuels")
   )
-    return state;
+    return { state, events: [] };
   const fuelRatePerSecond = rocketFuelRatePerSecond(state);
   let changed = false;
   const rockets = { ...state.run.space.rockets };
+  const events: SpaceEvent[] = [];
   for (const rocketId of ROCKET_IDS) {
     const rocket = rockets[rocketId];
     if (!rocket.fuelPumpEnabled) continue;
@@ -2210,6 +2349,8 @@ export function advanceRocketFuel(
       capacity,
       rocket.fuelQuantity + (fuelRatePerSecond * elapsedMs) / 1000,
     );
+    if (rocket.fuelQuantity < capacity && fuelQuantity >= capacity)
+      events.push({ type: "space.rocket.fuel-ready", rocketId });
     rockets[rocketId] = {
       ...rocket,
       fuelQuantity,
@@ -2217,13 +2358,16 @@ export function advanceRocketFuel(
     };
     changed = true;
   }
-  if (!changed) return state;
+  if (!changed) return { state, events: [] };
   return {
-    ...state,
-    run: {
-      ...state.run,
-      space: { ...state.run.space, rockets },
+    state: {
+      ...state,
+      run: {
+        ...state.run,
+        space: { ...state.run.space, rockets },
+      },
     },
+    events,
   };
 }
 
@@ -2383,7 +2527,10 @@ function surveyCompletion(state: GameState, survey: TelescopeSurvey): SpaceTrans
   }
   if (survey === "pillageVoid") return completeVoidPillage(state);
   const safeAsteroidCount = state.run.space.asteroids.filter(
-    (asteroid) => asteroid.reservedBy === null && !asteroid.depleted && !asteroid.interacted,
+    (asteroid) =>
+      asteroid.reservedBy === null &&
+      !asteroid.depleted &&
+      asteroid.id !== state.run.space.selectedAsteroidId,
   ).length;
   if (safeAsteroidCount >= MAX_UNINTERACTED_ASTEROIDS) {
     return {
@@ -2427,6 +2574,7 @@ function surveyCompletion(state: GameState, survey: TelescopeSurvey): SpaceTrans
   const asteroids = pruneAsteroids(
     [...state.run.space.asteroids, generated.asteroid],
     MAX_UNINTERACTED_ASTEROIDS,
+    state.run.space.selectedAsteroidId,
   );
   return {
     state: {

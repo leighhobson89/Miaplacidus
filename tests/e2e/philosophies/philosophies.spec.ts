@@ -26,7 +26,8 @@ test("chooses a path after first star study and restores its ability and repeata
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
   await page.getByRole("button", { name: "Build telescope" }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  const studyStars = page.getByRole("button", { name: "Study stars", exact: true });
+  await studyStars.click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({
@@ -60,17 +61,30 @@ test("chooses a path after first star study and restores its ability and repeata
   }
   await captureVisualCheckpoint(page, testInfo, "philosophy-path-choice-artwork");
   await page.getByTestId("philosophy-choice").getByRole("button", { name: "Expansionist" }).click();
+  const selectionNotice = page
+    .getByTestId("game-notification")
+    .filter({ hasText: "You are an EXPANSIONIST!" });
+  await expect(selectionNotice).toHaveCount(1);
+  await expect(selectionNotice).toHaveClass(/notification-warning/);
+  await expect(selectionNotice).toHaveAttribute("data-classification", "special");
 
   await page.getByRole("tab", { name: "Research" }).click();
   await page.getByRole("tab", { name: "Philosophy" }).click();
   const philosophy = page.getByTestId("philosophy-pane");
   await expect(philosophy).toContainText("Expansionist");
   await expect(philosophy.locator('[data-philosophy-art="expansionist"]')).toBeVisible();
+  await expect(selectionNotice).toBeHidden();
   await captureVisualCheckpoint(page, testInfo, "philosophy-selected-path-artwork");
   await philosophy
     .locator('[data-philosophy-ability="rapidExpansion"]')
     .getByRole("button", { name: "Research" })
     .click();
+  const rapidExpansionNotice = page.getByTestId("game-notification").filter({
+    hasText: "ABILITY: You now have a chance of capturing up to 3 nearby Systems for every 1!",
+  });
+  await expect(rapidExpansionNotice).toHaveCount(1);
+  await expect(rapidExpansionNotice).toHaveClass(/notification-info/);
+  await expect(rapidExpansionNotice).toHaveAttribute("data-classification", "tech");
   await philosophy
     .locator('[data-philosophy-repeatable="warpDrive"]')
     .getByRole("button", { name: "Research" })
@@ -94,4 +108,44 @@ test("chooses a path after first star study and restores its ability and repeata
   await page.getByRole("tab", { name: "Philosophy" }).click();
   await expect(page.getByTestId("philosophy-pane")).toContainText("Expansionist");
   await expect.poll(readProgress).toEqual({ path: "expansionist", ability: true, rank: 1 });
+});
+
+test("returns focus to the star-study action after the philosophy choice @p16-focus", async ({
+  page,
+}) => {
+  await startSpaceFixture(page);
+  await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-telescope").click();
+  await page.getByRole("button", { name: "Build telescope" }).click();
+  const studyStars = page.getByRole("button", { name: "Study stars", exact: true });
+  await studyStars.click();
+  expect(
+    await page.evaluate(() =>
+      window.miaplacidusTest!.dispatch({ type: "timer.complete", timerId: "survey:star-study" }),
+    ),
+  ).toBe(true);
+
+  const choice = page.getByTestId("philosophy-choice");
+  await expect(choice).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Choose your civilization's philosophy" }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(choice).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Choose your civilization's philosophy" }),
+  ).toBeFocused();
+  expect(
+    await page.evaluate(() => {
+      const state = window.miaplacidusTest!.getState();
+      return {
+        choicePending: state.run.philosophyChoicePending,
+        philosophyId: state.permanent.philosophyId,
+      };
+    }),
+  ).toEqual({ choicePending: true, philosophyId: null });
+
+  await choice.getByRole("button", { name: "Expansionist", exact: true }).click();
+  await expect(choice).toHaveCount(0);
+  await expect(studyStars).toBeFocused();
 });

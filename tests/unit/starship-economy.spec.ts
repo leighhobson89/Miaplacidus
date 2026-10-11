@@ -109,7 +109,15 @@ describe("starship antimatter spending", () => {
   });
 
   it("blocks a one-unit shortfall and spends the exact distance quote on launch", () => {
-    const initial = createInitialGameState({ seed: 80 });
+    const initialState = createInitialGameState({ seed: 80 });
+    const previousLaunchCount = 7;
+    const initial: GameState = {
+      ...initialState,
+      statistics: {
+        ...initialState.statistics,
+        lifetimeStarshipsLaunched: previousLaunchCount,
+      },
+    };
     const catalogue = createStarCatalogue();
     const start = findStartingSystem(catalogue)!;
     const destination = catalogue.find((star) => star.name === "Sirius")!;
@@ -166,6 +174,7 @@ describe("starship antimatter spending", () => {
     expect(incompleteLaunch.accepted).toBe(false);
     expect(incompleteLaunch.failure?.code).toBe("space-starship-incomplete");
     expect(incompleteLaunch.state.run.space.antimatter).toBe(incomplete.run.space.antimatter);
+    expect(incompleteLaunch.state.statistics.lifetimeStarshipsLaunched).toBe(previousLaunchCount);
 
     const quote = starshipTravelPlan(ready, destination.id);
     expect(quote).not.toBeNull();
@@ -223,6 +232,7 @@ describe("starship antimatter spending", () => {
     expect(blocked.accepted).toBe(false);
     expect(blocked.failure).toMatchObject({ code: "insufficient-antimatter", required });
     expect(blocked.state.run.space.antimatter).toBe(required - 1);
+    expect(blocked.state.statistics.lifetimeStarshipsLaunched).toBe(previousLaunchCount);
 
     const exact: GameState = {
       ...selected.state,
@@ -238,7 +248,7 @@ describe("starship antimatter spending", () => {
       phase: "travelling",
       antimatterSpent: required,
     });
-    expect(launched.state.statistics.lifetimeStarshipsLaunched).toBe(1);
+    expect(launched.state.statistics.lifetimeStarshipsLaunched).toBe(previousLaunchCount + 1);
     expect(launched.events).toContainEqual({
       type: "space.starship.launched",
       systemId: destination.id,

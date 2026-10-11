@@ -7,6 +7,7 @@ async function startFixture(
     | "full"
     | "space-telescope"
     | "space-telescope-before-launch-pad"
+    | "space-starship-scanning"
     | "meta-cosmic-rip-route",
   pioneer: string,
 ): Promise<void> {
@@ -61,19 +62,66 @@ async function expectSelectedChildPanelAssociation(
     await expect(panel).toBeVisible();
     await expect(panel).toHaveAttribute("role", "tabpanel");
     await expect(panel).toHaveAttribute("aria-labelledby", tabId!);
+    expect(
+      await page
+        .locator(`#pane-${parentPaneId} h2:visible, #pane-${parentPaneId} h3:visible`)
+        .count(),
+      `${tabId} should show a page or section heading`,
+    ).toBeGreaterThan(0);
   }
 }
 
-test("keyboard focus stays with the selected main and child destination @app-boot @keyboard @ui-navigation", async ({
+async function expectMainPanelAssociation(
+  page: import("@playwright/test").Page,
+  tabIds: readonly string[],
+): Promise<void> {
+  for (const tabId of tabIds) {
+    const tab = page.locator(`#tab-${tabId}`);
+    await tab.click();
+    await expect(tab).toHaveAttribute("role", "tab");
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    const panel = page.locator(`#pane-${tabId}`);
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute("role", "tabpanel");
+    await expect(panel).toHaveAttribute("aria-labelledby", `tab-${tabId}`);
+  }
+}
+
+async function expectArrowRightMovesFocusToSelection(
+  page: import("@playwright/test").Page,
+  parentPaneId: string,
+): Promise<void> {
+  const tabs = page.locator(`#pane-${parentPaneId} .pane-nav-tab[role='tab']`);
+  const first = tabs.first();
+  const second = tabs.nth(1);
+  await expect(second).toBeVisible();
+  await first.focus();
+  await first.press("ArrowRight");
+  await expect(second).toHaveAttribute("aria-selected", "true");
+  await expect
+    .poll(() => page.evaluate(() => (document.activeElement as HTMLElement | null)?.id))
+    .toBe(await second.getAttribute("id"));
+}
+
+test("keyboard focus stays with the selected main and child destination @app-boot @keyboard @ui-navigation @p16-focus @p20-announcements", async ({
   page,
 }, testInfo) => {
   await startFixture(page, "full", "Keyboard Navigation Pioneer");
 
+  const mainTablist = page.getByRole("tablist", { name: "Game sections" });
+  await expect(mainTablist).toBeVisible();
   const resourcesTab = page.locator("#tab-hydrogen");
   const miaplaediaTab = page.locator("#tab-miaplaedia");
   await resourcesTab.focus();
   await resourcesTab.press("End");
   await expect(miaplaediaTab).toHaveAttribute("aria-selected", "true");
+  await expect(miaplaediaTab).toHaveAttribute("role", "tab");
+  await expect(miaplaediaTab).toHaveAttribute("aria-controls", "pane-miaplaedia");
+  await expect(page.locator("#pane-miaplaedia")).toHaveAttribute("role", "tabpanel");
+  await expect(page.locator("#pane-miaplaedia")).toHaveAttribute(
+    "aria-labelledby",
+    "tab-miaplaedia",
+  );
   await expect
     .poll(() => page.evaluate(() => (document.activeElement as HTMLElement | null)?.id))
     .toBe("tab-miaplaedia");
@@ -85,6 +133,7 @@ test("keyboard focus stays with the selected main and child destination @app-boo
     .toBe("tab-hydrogen");
 
   const resourceHydrogenTab = page.locator("#tab-resources-hydrogen");
+  await expect(page.getByRole("tablist", { name: "Gases" })).toBeVisible();
   await resourceHydrogenTab.focus();
   await resourceHydrogenTab.press("ArrowRight");
   const resourceHeliumTab = page.locator("#tab-resources-helium");
@@ -96,16 +145,24 @@ test("keyboard focus stays with the selected main and child destination @app-boo
   const resourceIronTab = page.locator("#tab-resources-iron");
   await resourceHeliumTab.press("End");
   await expect(resourceIronTab).toHaveAttribute("aria-selected", "true");
+  await expect(resourceIronTab).toHaveAttribute("role", "tab");
+  await expect(resourceIronTab).toHaveAttribute("aria-controls", "panel-resources-iron");
   await expect
     .poll(() => page.evaluate(() => (document.activeElement as HTMLElement | null)?.id))
     .toBe("tab-resources-iron");
   await expect(page.locator("#panel-resources-iron")).toBeVisible();
+  await expect(page.locator("#panel-resources-iron")).toHaveAttribute("role", "tabpanel");
+  await expect(page.locator("#panel-resources-iron")).toHaveAttribute(
+    "aria-labelledby",
+    "tab-resources-iron",
+  );
   await captureVisualCheckpoint(page, testInfo, "navigation-keyboard-resource-children");
 });
 
-test("progressive unlock states keep main tabs in source order @app-boot @ui-navigation @progression", async ({
+test("progressive unlock states keep main tabs in source order @app-boot @ui-navigation @progression @p65-miaplaedia-rail", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   await startFixture(page, "space-telescope", "Space Navigation Pioneer");
   const technologyUnlockedTabs = [
     ["Resources", "hydrogen"],
@@ -125,12 +182,42 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
   );
   for (const rocket of [1, 2, 3, 4])
     await expect(spaceMining.locator(`#tab-space-mining-rocket-${rocket}`)).toHaveCount(0);
+  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 8_000 });
   await captureVisualCheckpoint(page, testInfo, "navigation-technology-unlocks");
 
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [, id] of technologyUnlockedTabs) {
-    await page.locator(`#tab-${id}`).click();
+    const tab = page.locator(`#tab-${id}`);
+    await tab.click();
     await expect(page.locator(`#pane-${id}`)).toBeVisible();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    const tabBounds = await tab.evaluate((element) => {
+      const navigation = element.closest<HTMLElement>(".game-nav");
+      if (!navigation) throw new Error("The selected main tab is outside game navigation.");
+      const tabRect = element.getBoundingClientRect();
+      const navigationRect = navigation.getBoundingClientRect();
+      const visibleLeft = navigationRect.left + navigation.clientLeft;
+      return {
+        left: tabRect.left,
+        right: tabRect.right,
+        visibleLeft,
+        visibleRight: visibleLeft + navigation.clientWidth,
+        scrollLeft: navigation.scrollLeft,
+      };
+    });
+    expect(tabBounds.left, `${id} should be fully visible at 390px`).toBeGreaterThanOrEqual(
+      tabBounds.visibleLeft - 1,
+    );
+    expect(tabBounds.right, `${id} should be fully visible at 390px`).toBeLessThanOrEqual(
+      tabBounds.visibleRight + 1,
+    );
+    if (id === "miaplaedia") {
+      expect(
+        tabBounds.scrollLeft,
+        "Selecting Miaplaedia should scroll the main tab rail",
+      ).toBeGreaterThan(0);
+      await captureVisualCheckpoint(page, testInfo, "navigation-miaplaedia-selected-phone");
+    }
     const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(documentWidth, `${id} caused horizontal page overflow at 390px`).toBeLessThanOrEqual(
       390,
@@ -164,7 +251,15 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
       tabs.map((tab) => tab.getAttribute("aria-controls")?.replace("pane-", "")),
     );
   expect(fullOrderAtPhoneWidth).toEqual(allTabsUnlocked.map(([, id]) => id));
+  const casinoTooltipBounds = await page.locator("#top-stat-tooltip-cp").evaluate((element) => {
+    const { left, right } = element.getBoundingClientRect();
+    return { left, right };
+  });
+  expect(casinoTooltipBounds.left).toBeGreaterThanOrEqual(0);
+  expect(casinoTooltipBounds.right).toBeLessThanOrEqual(390);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.mouse.move(0, 0);
+  await expect(page.locator("#top-stat-tooltip-energy")).toBeHidden();
   await captureVisualCheckpoint(page, testInfo, "navigation-all-tabs-source-order-390");
 
   await startFixture(page, "space-telescope-before-launch-pad", "Telescope First Pioneer");
@@ -189,6 +284,7 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
     ["Miaplaedia", "miaplaedia"],
   ] as const;
   await expectTabSequence(page, metaUnlockedTabs);
+  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 8_000 });
   await captureVisualCheckpoint(page, testInfo, "navigation-meta-unlocks");
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -209,10 +305,123 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
-test("Energy, Space Mining, Galactic and Miaplaedia child tabs target their selected page @ui-navigation", async ({
+test("Casino points tooltip stays inside the phone viewport @ui-navigation @responsive", async ({
+  page,
+}) => {
+  await startFixture(page, "space-telescope", "Casino Tooltip Pioneer");
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
+  expect(
+    await page.evaluate(() => window.miaplacidusTest?.applyDebugAction("unlock-all-tabs")),
+  ).toBe(true);
+  await expect(page.getByTestId("top-stat-cp")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const bounds = await page.locator("#top-stat-tooltip-cp").evaluate((element) => {
+    const { left, right } = element.getBoundingClientRect();
+    return { left, right };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("Cosmic Rip child remains reachable at mobile width after meta unlocks @ui-navigation @responsive", async ({
+  page,
+}) => {
+  await startFixture(page, "meta-cosmic-rip-route", "Mobile Cosmic Rip Pioneer");
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
+  const cosmicRipState = await page.evaluate(() => {
+    const state = window.miaplacidusTest!.getState().permanent.cosmicRip;
+    return {
+      unlocked: state.unlocked,
+      scannerRestored: state.scannerRestored,
+      ripFound: state.ripFound,
+    };
+  });
+  expect(cosmicRipState).toEqual({ unlocked: true, scannerRestored: true, ripFound: true });
+
+  const metaUnlockedTabs = [
+    ["Resources", "hydrogen"],
+    ["Compounds", "compounds"],
+    ["Research", "research"],
+    ["Galactic", "galaxy"],
+    ["Cosmic Rip", "cosmic-rip"],
+    ["Settings", "settings"],
+    ["Miaplaedia", "miaplaedia"],
+  ] as const;
+  await expectTabSequence(page, metaUnlockedTabs);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [, id] of metaUnlockedTabs) {
+    await page.locator(`#tab-${id}`).click();
+    await expect(page.locator(`#pane-${id}`)).toBeVisible();
+  }
+
+  await page.locator("#tab-galaxy").click();
+  await page.locator("#tab-galactic-casino").click();
+  await page.locator("#tab-cosmic-rip").click();
+
+  const ripTab = page.locator("#tab-cosmic-rip-rip");
+  await expect(ripTab).toBeVisible();
+  await ripTab.click();
+  await expect(ripTab).toHaveAttribute("aria-selected", "true");
+});
+
+test("Energy tooltip stays inside the mobile viewport when hovered @ui-navigation @responsive", async ({
+  page,
+}) => {
+  await startFixture(page, "space-telescope", "Mobile Tooltip Pioneer");
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
+  expect(
+    await page.evaluate(() => window.miaplacidusTest?.applyDebugAction("unlock-all-tabs")),
+  ).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const energyStat = page.getByTestId("top-stat-energy");
+  await expect(energyStat).toBeVisible();
+  await energyStat.hover();
+  const tooltip = page.locator("#top-stat-tooltip-energy");
+  await expect(tooltip).toBeVisible();
+  const bounds = await tooltip.evaluate((element) => {
+    const { left, right } = element.getBoundingClientRect();
+    return { left, right };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("economy, space, meta, and guide child tabs target their selected page @ui-navigation @p15 @accessibility", async ({
   page,
 }) => {
   await startFixture(page, "space-telescope", "Page Association Pioneer");
+  await expect(page.getByRole("main")).toHaveCount(1);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "Game sections" })).toBeVisible();
+  await expectMainPanelAssociation(page, [
+    "hydrogen",
+    "compounds",
+    "research",
+    "energy",
+    "space-mining",
+    "settings",
+    "miaplaedia",
+  ]);
+
+  await page.locator("#tab-hydrogen").click();
+  await expectSelectedChildPanelAssociation(page, "hydrogen");
+
+  await page.locator("#tab-compounds").click();
+  await expectSelectedChildPanelAssociation(page, "compounds");
+  await expectArrowRightMovesFocusToSelection(page, "compounds");
+
+  await page.locator("#tab-research").click();
+  await expectSelectedChildPanelAssociation(page, "research");
+  await expectArrowRightMovesFocusToSelection(page, "research");
 
   await page.locator("#tab-energy").click();
   await expectSelectedChildPanelAssociation(page, "energy");
@@ -223,9 +432,47 @@ test("Energy, Space Mining, Galactic and Miaplaedia child tabs target their sele
   await page.locator("#tab-miaplaedia").click();
   await expectSelectedChildPanelAssociation(page, "miaplaedia");
 
+  await startFixture(page, "space-starship-scanning", "Interstellar Page Association Pioneer");
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
+  expect(
+    await page.evaluate(() => window.miaplacidusTest!.applyDebugAction("build-starship")),
+  ).toBe(true);
+  await page.locator("#tab-interstellar").click();
+  await page.locator("#tab-interstellar-starship").click();
+  await page.getByTestId("starship-scan-system-button").click();
+  await expect(page.locator("#tab-interstellar-colonise")).toBeVisible();
+  await expectMainPanelAssociation(page, ["interstellar"]);
+  const interstellarTabs = page.locator("#pane-interstellar .pane-nav-tab[role='tab']");
+  expect(await interstellarTabs.evaluateAll((tabs) => tabs.map((tab) => tab.id))).toEqual([
+    "tab-interstellar-star-map",
+    "tab-interstellar-star-data",
+    "tab-interstellar-starship",
+    "tab-interstellar-fleet-hangar",
+    "tab-interstellar-colonise",
+  ]);
+  expect(
+    await interstellarTabs.evaluateAll((tabs) =>
+      tabs.map((tab) => [tab.id, tab.getAttribute("data-source-option-id")]),
+    ),
+  ).toEqual([
+    ["tab-interstellar-star-map", "option1"],
+    ["tab-interstellar-star-data", "option2"],
+    ["tab-interstellar-starship", "option3"],
+    ["tab-interstellar-fleet-hangar", "option4"],
+    ["tab-interstellar-colonise", "option5"],
+  ]);
+  await expectSelectedChildPanelAssociation(page, "interstellar");
+
   await startFixture(page, "meta-cosmic-rip-route", "Meta Page Association Pioneer");
+  await expectMainPanelAssociation(page, ["galaxy", "cosmic-rip"]);
   await page.locator("#tab-galaxy").click();
   await expectSelectedChildPanelAssociation(page, "galaxy");
+
+  await page.locator("#tab-cosmic-rip").click();
+  await expectSelectedChildPanelAssociation(page, "cosmic-rip");
+  await expectArrowRightMovesFocusToSelection(page, "cosmic-rip");
 });
 
 test("renders Compounds sections and source option identities in menu order @app-boot @ui-navigation", async ({

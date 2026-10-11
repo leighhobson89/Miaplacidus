@@ -32,3 +32,27 @@ test("the storage purchase charges 149 Hydrogen and doubles capacity @resources"
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("0");
   await captureVisualCheckpoint(freshGame, testInfo, "hydrogen-storage-expanded");
 });
+
+test("the Hydrogen storage action is reachable and activatable by keyboard @resources @keyboard @p05", async ({
+  freshGame,
+}) => {
+  await freshGame.evaluate(() => window.miaplacidusTest!.runScenario("storage-ready"));
+  const collect = freshGame.getByRole("button", { name: "Collect 1 Hydrogen" });
+  const storageButton = freshGame.getByRole("button", { name: "Increase storage" });
+  await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("149");
+
+  await collect.focus();
+  let reachedByTab = false;
+  for (let index = 0; index < 20; index += 1) {
+    await freshGame.keyboard.press("Tab");
+    if (await storageButton.evaluate((button) => document.activeElement === button)) {
+      reachedByTab = true;
+      break;
+    }
+  }
+  expect(reachedByTab, "storage should appear in the keyboard tab order").toBe(true);
+  await freshGame.keyboard.press("Enter");
+
+  await expect(freshGame.getByTestId("hydrogen-capacity")).toHaveText("300");
+  await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("0");
+});

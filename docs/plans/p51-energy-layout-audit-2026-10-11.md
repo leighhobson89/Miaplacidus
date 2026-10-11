@@ -1,0 +1,5 @@
+# P-51 Energy child-page responsive layout audit (11 October 2026)
+
+Inspected Energy Summary, Batteries, and Power in `src/app/EconomyPanes.tsx` and `src/styles.css` against the existing layout assertions. No definite production-code width or clipping defect was supported by the source: the panel and cards declare `min-width: 0`, the card grid bounds its minimum track to the available width, the action grid uses `minmax(0, 1fr)`, and the Energy summary chart and legend use fluid sizing. Existing `energy-presentation-matrix.spec.ts` checks visible pane, panel, title, artwork, document, and internal panel bounds for all three pages at 1280, 390, and 320 pixels across all locales and themes; the focused French narrow test also checks a Battery card, price, action row, and RP tooltip.
+
+Added 768px to the existing Energy presentation matrix so the same assertions cover the tablet breakpoint as well. This is coverage-only: no Energy component or CSS change was justified by the inspected evidence. The matrix was not run, per task instructions.

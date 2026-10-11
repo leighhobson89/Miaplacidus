@@ -17,6 +17,8 @@ export interface ClockInput {
   readonly timeWarpRemainingMs?: number;
   readonly blackHoleAlwaysOn?: boolean;
   readonly blackHolePower?: number;
+  /** Limits synchronous foreground catch-up work for animation-frame callers. */
+  readonly maxForegroundSteps?: number;
 }
 
 export interface ClockStep {
@@ -43,6 +45,7 @@ export function createClockState(wallNowMs: number | null = null): ClockState {
     foreground: true,
     hiddenElapsedMs: 0,
     pendingForegroundMs: 0,
+    pendingForegroundSegments: [],
   };
 }
 
@@ -54,6 +57,14 @@ export function advanceClock(state: ClockState, input: ClockInput): ClockAdvance
   if (!validElapsed(input.wallNowMs)) {
     throw new RangeError("Clock wall time must be finite and non-negative.");
   }
+  const maxForegroundSteps = input.maxForegroundSteps ?? MAX_FOREGROUND_STEPS_PER_ADVANCE;
+  if (
+    !Number.isSafeInteger(maxForegroundSteps) ||
+    maxForegroundSteps < 1 ||
+    maxForegroundSteps > MAX_FOREGROUND_STEPS_PER_ADVANCE
+  ) {
+    throw new RangeError("Foreground step budget must be a positive integer no greater than four.");
+  }
   const effectiveWallNowMs =
     state.wallNowMs === null ? input.wallNowMs : Math.max(state.wallNowMs, input.wallNowMs);
   const wallDelta = state.wallNowMs === null ? 0 : effectiveWallNowMs - state.wallNowMs;
@@ -61,6 +72,7 @@ export function advanceClock(state: ClockState, input: ClockInput): ClockAdvance
   let simulationMs = state.simulationMs;
   let hiddenElapsedMs = state.hiddenElapsedMs;
   let pendingForegroundMs = state.pendingForegroundMs;
+  let pendingForegroundSegments = [...state.pendingForegroundSegments];
 
   if (wallDelta > 0) {
     steps.push({
@@ -75,7 +87,6 @@ export function advanceClock(state: ClockState, input: ClockInput): ClockAdvance
     hiddenElapsedMs = state.paused
       ? 0
       : Math.min(MAX_OFFLINE_ELAPSED_MS, hiddenElapsedMs + wallDelta);
-    pendingForegroundMs = state.paused ? 0 : pendingForegroundMs;
     return {
       state: {
         ...state,
@@ -83,6 +94,7 @@ export function advanceClock(state: ClockState, input: ClockInput): ClockAdvance
         foreground: false,
         hiddenElapsedMs,
         pendingForegroundMs,
+        pendingForegroundSegments,
       },
       steps,
     };
@@ -97,51 +109,58 @@ export function advanceClock(state: ClockState, input: ClockInput): ClockAdvance
 
   hiddenElapsedMs = 0;
   const foregroundDelta = returningFromHidden ? 0 : wallDelta;
-  if (!state.paused && (foregroundDelta > 0 || pendingForegroundMs > 0)) {
-    // Keep any backlog as one number and process only four 250 ms slices per
-    // call. This preserves elapsed time without an unbounded catch-up loop.
-    pendingForegroundMs = Math.min(pendingForegroundMs + foregroundDelta, MAX_OFFLINE_ELAPSED_MS);
+  if (!state.paused && foregroundDelta > 0) {
+    // Assign the multiplier when wall time enters the queue. Catch-up may run
+    // after a finite warp has expired, so each queued interval keeps its own
+    // original rate until its simulation step is applied.
+    const appendSegment = (elapsedMs: number, multiplier: number) => {
+      if (elapsedMs <= 0) return;
+      const previous = pendingForegroundSegments.at(-1);
+      if (previous?.multiplier === multiplier) {
+        pendingForegroundSegments[pendingForegroundSegments.length - 1] = {
+          elapsedMs: previous.elapsedMs + elapsedMs,
+          multiplier,
+        };
+      } else {
+        pendingForegroundSegments.push({ elapsedMs, multiplier });
+      }
+    };
+    const safeMultiplier = (value: number | undefined) =>
+      value !== undefined && Number.isFinite(value) && value > 0 ? value : 1;
+    const acceptedForegroundDelta = Math.min(
+      foregroundDelta,
+      Math.max(0, MAX_OFFLINE_ELAPSED_MS - pendingForegroundMs),
+    );
+    if (input.blackHoleAlwaysOn) {
+      appendSegment(acceptedForegroundDelta, safeMultiplier(input.blackHolePower));
+    } else if (input.timeWarpRemainingMs !== undefined) {
+      const warpMs = Math.min(acceptedForegroundDelta, Math.max(0, input.timeWarpRemainingMs));
+      appendSegment(warpMs, safeMultiplier(input.timeWarpMultiplier));
+      appendSegment(acceptedForegroundDelta - warpMs, 1);
+    } else {
+      appendSegment(acceptedForegroundDelta, safeMultiplier(input.timeWarpMultiplier));
+    }
+    pendingForegroundMs += acceptedForegroundDelta;
+  }
+
+  if (!state.paused && pendingForegroundMs > 0) {
     let count = 0;
-    let warpedWallElapsedMs = 0;
-    const configuredTimeWarpRemaining = input.timeWarpRemainingMs;
-    while (pendingForegroundMs > 0 && count < MAX_FOREGROUND_STEPS_PER_ADVANCE) {
-      const nominalElapsedMs = Math.min(MAX_FOREGROUND_STEP_MS, pendingForegroundMs);
-      const requestedMultiplier = input.blackHoleAlwaysOn
-        ? (input.blackHolePower ?? 1)
-        : (input.timeWarpMultiplier ?? 1);
-      const multiplier =
-        Number.isFinite(requestedMultiplier) && requestedMultiplier > 0 ? requestedMultiplier : 1;
-      const activeWarpRemaining =
-        configuredTimeWarpRemaining === undefined
-          ? Infinity
-          : Math.max(0, configuredTimeWarpRemaining - warpedWallElapsedMs);
-      const warpedChunkMs = Math.min(nominalElapsedMs, activeWarpRemaining);
-      if (warpedChunkMs > 0) {
-        const warpedChunkSimulationMs = warpedChunkMs * multiplier;
-        steps.push({
-          phase: "foreground",
-          elapsedMs: warpedChunkMs,
-          warpedElapsedMs: warpedChunkSimulationMs,
-          offlineElapsedMs: 0,
-        });
-        simulationMs += warpedChunkSimulationMs;
-        warpedWallElapsedMs += warpedChunkMs;
-      }
-      const normalChunkMs = nominalElapsedMs - warpedChunkMs;
-      if (normalChunkMs > 0) {
-        steps.push({
-          phase: "foreground",
-          elapsedMs: normalChunkMs,
-          warpedElapsedMs: normalChunkMs,
-          offlineElapsedMs: 0,
-        });
-        simulationMs += normalChunkMs;
-      }
-      pendingForegroundMs -= nominalElapsedMs;
+    while (pendingForegroundSegments.length > 0 && count < maxForegroundSteps) {
+      const segment = pendingForegroundSegments[0]!;
+      const elapsedMs = Math.min(MAX_FOREGROUND_STEP_MS, segment.elapsedMs);
+      const warpedElapsedMs = elapsedMs * segment.multiplier;
+      steps.push({ phase: "foreground", elapsedMs, warpedElapsedMs, offlineElapsedMs: 0 });
+      simulationMs += warpedElapsedMs;
+      pendingForegroundMs = Math.max(0, pendingForegroundMs - elapsedMs);
+      const remainder = segment.elapsedMs - elapsedMs;
+      if (remainder <= 1e-9) pendingForegroundSegments.shift();
+      else pendingForegroundSegments[0] = { ...segment, elapsedMs: remainder };
       count += 1;
     }
-  } else if (state.paused) {
-    pendingForegroundMs = 0;
+    if (pendingForegroundSegments.length === 0 || pendingForegroundMs <= 1e-9) {
+      pendingForegroundMs = 0;
+      pendingForegroundSegments = [];
+    }
   }
 
   if (!state.paused && rawOfflineElapsed > 0) {
@@ -164,13 +183,14 @@ export function advanceClock(state: ClockState, input: ClockInput): ClockAdvance
       simulationMs,
       hiddenElapsedMs,
       pendingForegroundMs,
+      pendingForegroundSegments,
     },
     steps,
   };
 }
 
 export function pauseClock(state: ClockState): ClockState {
-  return { ...state, paused: true, pendingForegroundMs: 0, hiddenElapsedMs: 0 };
+  return { ...state, paused: true, hiddenElapsedMs: 0 };
 }
 
 export function resumeClock(state: ClockState): ClockState {

@@ -42,6 +42,13 @@ const TICKER_SCROLL_DURATION_MS = 40_000;
 const TICKER_INTERVAL_MIN_MS = 20_000;
 const TICKER_INTERVAL_MAX_MS = 35_000;
 
+/** Matches Cosmic Forge slot 4's multiplier (base 1 plus the Voidborn repeatable rank). */
+export function oneOffApPrizeAmount(state: GameState): number {
+  return state.permanent.philosophyId === "voidborn" && state.permanent.rebirthCount > 0
+    ? 2 + state.permanent.philosophyRepeatableRanks.ascendencyPhilosophy
+    : 1;
+}
+
 export type NewsTickerEvent =
   | { readonly type: "news.ticker.created"; readonly id: number; readonly category: NewsCategory }
   | { readonly type: "news.wacky.activated"; readonly id: number }
@@ -236,6 +243,8 @@ export function forceNewsTicker(state: GameState, category?: NewsCategory, reque
     next = { ...next, run: { ...next.run, random: amountRoll.state } };
     prizeAmount = amountRoll.value;
   }
+  if (selectedCategory === "oneOff" && chosenId === 3013)
+    prizeAmount = oneOffApPrizeAmount(next);
   if (clueSystemId) {
     const megastructures = next.permanent.megastructures;
     const previouslyShown = megastructures.manuscriptCluesShown[clueSystemId] ?? [];
@@ -315,7 +324,7 @@ export function activateNewsWacky(state: GameState, id: number) {
   };
 }
 
-function applyOneOff(state: GameState, id: number): GameState {
+function applyOneOff(state: GameState, id: number, apAmount?: number): GameState {
   const news = state.run.newsTicker;
   const multiplyGoodsCapacity = (materials: boolean, compounds: boolean) => {
     const goods = { ...state.run.goods };
@@ -392,21 +401,38 @@ function applyOneOff(state: GameState, id: number): GameState {
           ...state.run.space,
           antimatter: state.run.space.antimatter + 100,
           antimatterUnlocked: true,
+          antimatterMinedThisRun: addLifetimeCount(
+            state.run.space.antimatterMinedThisRun,
+            100,
+          ),
         },
       },
+      statistics: {
+        ...state.statistics,
+        lifetimeAntimatterMined: addLifetimeCount(
+          state.statistics.lifetimeAntimatterMined,
+          100,
+        ),
+      },
     };
-  if (id === 3013)
+  if (id === 3013) {
+    const amount = apAmount ?? oneOffApPrizeAmount(state);
     return {
       ...state,
-      permanent: { ...state.permanent, ascendencyPoints: state.permanent.ascendencyPoints + 1 },
+      permanent: {
+        ...state.permanent,
+        ascendencyPoints: state.permanent.ascendencyPoints + amount,
+      },
       statistics: {
         ...state.statistics,
         lifetimeAscendencyPointsGained: addLifetimeCount(
           state.statistics.lifetimeAscendencyPointsGained,
-          1,
+          amount,
         ),
+        lifetimeSourceApGain: addLifetimeCount(state.statistics.lifetimeSourceApGain, amount),
       },
     };
+  }
   return state;
 }
 
@@ -433,11 +459,7 @@ export function newsPrizeClaimAmount(state: GameState, entry: NewsTickerEntry): 
   return credited > 0 ? credited : null;
 }
 
-function findClaimEntryIndex(
-  state: GameState,
-  id: number,
-  simulationMs?: number,
-): number {
+function findClaimEntryIndex(state: GameState, id: number, simulationMs?: number): number {
   return state.run.newsTicker.entries.findIndex(
     (item) =>
       item.id === id &&
@@ -459,6 +481,10 @@ export function claimNewsPrize(state: GameState, id: number, simulationMs?: numb
   const entryIndex = findClaimEntryIndex(state, id, simulationMs);
   if (entryIndex < 0) return null;
   const entry = state.run.newsTicker.entries[entryIndex]!;
+  const apPrizeAmount =
+    entry.category === "oneOff" && id === 3013
+      ? (entry.prizeAmount ?? oneOffApPrizeAmount(state))
+      : null;
   let next = state;
   let event: NewsTickerEvent;
   if (entry.category === "prize") {
@@ -490,13 +516,14 @@ export function claimNewsPrize(state: GameState, id: number, simulationMs?: numb
     };
     event = { type: "news.prize.claimed", id, goodId, amount: creditedAmount };
   } else {
-    next = applyOneOff(state, id);
+    next = applyOneOff(state, id, apPrizeAmount ?? undefined);
     event = { type: "news.one-off.claimed", id };
   }
   const entries = [...next.run.newsTicker.entries];
   entries[entryIndex] = {
     ...entries[entryIndex]!,
     ...(event.type === "news.prize.claimed" ? { prizeAmount: event.amount } : {}),
+    ...(apPrizeAmount !== null ? { prizeAmount: apPrizeAmount } : {}),
     claimed: true,
   };
   const claimedPrizeIds = next.run.newsTicker.claimedPrizeIds.includes(id)
@@ -504,7 +531,18 @@ export function claimNewsPrize(state: GameState, id: number, simulationMs?: numb
     : [...next.run.newsTicker.claimedPrizeIds, id];
   next = {
     ...next,
-    run: { ...next.run, newsTicker: { ...next.run.newsTicker, entries, claimedPrizeIds } },
+    run: {
+      ...next.run,
+      newsTicker: {
+        ...next.run.newsTicker,
+        entries,
+        claimedPrizeIds,
+      },
+    },
+    statistics: {
+      ...next.statistics,
+      lifetimeNewsTickerPrizeClaims: next.statistics.lifetimeNewsTickerPrizeClaims + 1,
+    },
   };
   return { state: next, events: [event] as readonly NewsTickerEvent[] };
 }

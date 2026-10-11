@@ -14,7 +14,10 @@ import { bTypeAutoBuyerBonusPerSecond } from "../../src/content/starTypeRules";
 import { permanentPerkPurchaseCount } from "../../src/content/economyRules";
 import { advanceCosmicRip } from "../../src/engine/cosmicRip";
 import { createTimer, createTimerId } from "../../src/engine/timers";
-import { createInitialStarSystemBattleState } from "../../src/content/space";
+import {
+  createInitialStarSystemBattleState,
+  ROCKET_PART_REQUIREMENTS,
+} from "../../src/content/space";
 import { generateStarSystemEncounter } from "../../src/engine/starSystemEncounters";
 import {
   decodeLocal,
@@ -287,6 +290,7 @@ describe("validated rebirth and ascendency purchases", () => {
       },
       statistics: {
         ...ready.statistics,
+        lifetimeActiveMs: 12_345,
         lifetimeResearchPointsEarned: 98.5,
         lifetimeScienceKitsBuilt: 8,
         lifetimeScienceClubsBuilt: 5,
@@ -298,6 +302,7 @@ describe("validated rebirth and ascendency purchases", () => {
         lifetimeRocketsBuilt: 4,
         lifetimeRocketsLaunched: 2,
         lifetimeStarshipsLaunched: 4,
+        lifetimeNewsTickerPrizeClaims: 6,
         lifetimeGoodsProducedByGood: {
           ...ready.statistics.lifetimeGoodsProducedByGood,
           hydrogen: 123,
@@ -306,6 +311,8 @@ describe("validated rebirth and ascendency purchases", () => {
       },
       run: {
         ...ready.run,
+        clock: { ...ready.run.clock, simulationMs: 67_890 },
+        newsTicker: { ...ready.run.newsTicker, seenIds: [1000, 1001, 3013] },
         researchPointsEarnedThisRun: 12.5,
         scienceKitsBuiltThisRun: 2,
         scienceClubsBuiltThisRun: 1,
@@ -315,9 +322,24 @@ describe("validated rebirth and ascendency purchases", () => {
           hydrogen: 12,
           water: 4,
         },
-        space: { ...ready.run.space, asteroidsMinedThisRun: 2 },
+        space: {
+          ...ready.run.space,
+          asteroidsMinedThisRun: 2,
+          launchPadBuilt: true,
+          rockets: {
+            ...ready.run.space.rockets,
+            rocket1: {
+              ...ready.run.space.rockets.rocket1,
+              builtParts: ROCKET_PART_REQUIREMENTS.rocket1,
+              phase: "ready" as const,
+            },
+          },
+        },
       },
     };
+    expect(readyWithCasino.run.space.rockets.rocket1.builtParts).toBe(
+      ROCKET_PART_REQUIREMENTS.rocket1,
+    );
     const destination = ready.permanent.settledSystemIds.at(-1);
     const result = transition(readyWithCasino, { type: "meta.rebirth" });
     expect(result.accepted).toBe(true);
@@ -329,6 +351,7 @@ describe("validated rebirth and ascendency purchases", () => {
       philosophyId: "constructor",
     });
     expect(result.state.run.space.currentSystemId).toBe(destination);
+    expect(result.state.run.newsTicker.seenIds).toEqual([1000, 1001, 3013]);
     expect(result.state.run.cash).toBe(10);
     expect(result.state.run.researchPoints).toBe(50);
     expect(result.state.run).toMatchObject({
@@ -338,6 +361,8 @@ describe("validated rebirth and ascendency purchases", () => {
       scienceLabsBuiltThisRun: 0,
     });
     expect(result.state.run.space.ascendencyAwardedThisRun).toBe(false);
+    expect(result.state.run.clock.simulationMs).toBe(0);
+    expect(result.state.run.space.rockets.rocket1.builtParts).toBe(0);
     expect(result.state.run.goods.hydrogen.quantity).toBe(0);
     expect(result.state.run.goods.hydrogen.storageCapacity).toBe(
       createInitialGameState().run.goods.hydrogen.storageCapacity,
@@ -346,6 +371,7 @@ describe("validated rebirth and ascendency purchases", () => {
     expect(result.state.run.upgrades).toEqual(createInitialGameState().run.upgrades);
     expect(result.state.settings).toEqual(readyWithCasino.settings);
     expect(result.state.statistics.lifetimeCashEarned).toBe(500);
+    expect(result.state.statistics.lifetimeActiveMs).toBe(12_345);
     expect(result.state.statistics).toMatchObject({
       lifetimeAscendencyPointsGained: 7,
       lifetimeResearchPointsEarned: 98.5,
@@ -358,6 +384,7 @@ describe("validated rebirth and ascendency purchases", () => {
       lifetimeRocketsBuilt: 4,
       lifetimeRocketsLaunched: 2,
       lifetimeStarshipsLaunched: 4,
+      lifetimeNewsTickerPrizeClaims: 6,
       lifetimeGoodsProducedByGood: { hydrogen: 123, water: 45 },
     });
     expect(result.state.run.goodsProducedThisRun).toEqual(
@@ -482,11 +509,13 @@ describe("validated rebirth and ascendency purchases", () => {
           ready.permanent.settledSystemIds.at(-1)!,
         ],
       },
+      statistics: { ...ready.statistics, lifetimeGalacticPointsSpent: 2 },
     };
     expect(firstRun.permanent.gloryPoints).toBe(30);
     const casinoReward = transition(firstRun, { type: "onboarding.complete" });
     expect(casinoReward.accepted).toBe(true);
     expect(casinoReward.state.permanent.gloryPoints).toBe(31);
+    expect(casinoReward.state.statistics.lifetimeGalacticPointsSpent).toBe(1);
     expect(casinoReward.state.permanent.achievements.unlockedIds).toContain("winAllCasinoGames");
     expect(
       transition(casinoReward.state, { type: "onboarding.complete" }).state.permanent.gloryPoints,
@@ -495,6 +524,7 @@ describe("validated rebirth and ascendency purchases", () => {
     const firstRebirth = transition(casinoReward.state, { type: "meta.rebirth" });
     expect(firstRebirth.accepted).toBe(true);
     expect(firstRebirth.state.permanent.gloryPoints).toBe(33);
+    expect(firstRebirth.state.statistics.lifetimeGalacticPointsSpent).toBe(0);
     expect(firstRebirth.state.permanent.ascendencyPoints).toBe(80);
     expect(firstRebirth.state.permanent.achievements.unlockedIds).toContain(
       "completeRunOnMiaplacidus",
@@ -585,6 +615,7 @@ describe("validated rebirth and ascendency purchases", () => {
       rebirthCount: 2,
       cosmicRip: { closed: true },
     });
+    expect(secondRebirth.state.statistics.lifetimeGalacticPointsSpent).toBe(25);
     expect(secondRebirth.state.permanent.achievements.unlockedIds).toContain("winAllCasinoGames");
     expect(secondRebirth.state.permanent.achievements.unlockedIds).toContain(
       "completeRunOnMiaplacidus",
@@ -711,6 +742,25 @@ describe("validated rebirth and ascendency purchases", () => {
     ).toBe("perk-maxed");
   });
 
+  it("counts each Nano Brokers compound-machining source marker from level II onward", () => {
+    const fresh = createInitialGameState();
+    const funded = {
+      ...fresh,
+      permanent: { ...fresh.permanent, ascendencyPoints: 200 },
+    };
+    const first = transition(funded, { type: "meta.perk.purchase", perkId: "nanoBrokers" });
+    expect(first.accepted).toBe(true);
+    expect(first.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(0);
+
+    const second = transition(first.state, { type: "meta.perk.purchase", perkId: "nanoBrokers" });
+    expect(second.accepted).toBe(true);
+    expect(second.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(1);
+
+    const third = transition(second.state, { type: "meta.perk.purchase", perkId: "nanoBrokers" });
+    expect(third.accepted).toBe(true);
+    expect(third.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(2);
+  });
+
   it("applies the two starter perks and jumpstart research after a later rebirth", () => {
     const ready = rebirthReadyState();
     const state = {
@@ -723,6 +773,7 @@ describe("validated rebirth and ascendency purchases", () => {
     const result = transition(state, { type: "meta.rebirth" });
     expect(result.accepted).toBe(true);
     expect(result.state.run.goods.hydrogen.quantity).toBe(50);
+    expect(result.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(1);
     expect(result.state.run.unlockedResources).toHaveLength(8);
     expect(result.state.run.goods.sodium.quantity).toBe(300);
     expect(result.state.run.goods.sodium.storageCapacity).toBeGreaterThanOrEqual(300);

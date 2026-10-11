@@ -1,5 +1,86 @@
+import { createRequire } from "node:module";
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { starshipTravelPlan } from "../../../src/engine/spaceMechanics";
+import type { GameState } from "../../../src/engine/state";
+import { canonicalJson, makeEnvelope, type SaveEnvelopeV1 } from "../../../src/persistence/schema";
+import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
+
+type StoredEntry = readonly [string, string];
+
+const { compressToUTF16, decompressFromUTF16 } = createRequire(import.meta.url)(
+  "lz-string",
+) as typeof import("lz-string");
+
+function saveWithAntimatter(entries: readonly StoredEntry[], quantity: number): StoredEntry[] {
+  const values = new Map(entries);
+  const slotId = values.get("miaplacidus:v1:lastStartedSlot") ?? null;
+  if (!slotId) throw new Error("The Star Map test save was not marked as the latest save.");
+  const commitId = values.get(`miaplacidus:v1:head:${slotId}`);
+  if (!commitId) throw new Error("The Star Map test save has no committed generation.");
+  const payloadKey = `miaplacidus:v1:slot:${slotId}:${commitId}`;
+  const payload = values.get(payloadKey);
+  if (!payload) throw new Error("The Star Map test save payload could not be read.");
+  const json = decompressFromUTF16(payload);
+  if (!json) throw new Error("The Star Map test save payload could not be decompressed.");
+  const envelope = JSON.parse(json) as SaveEnvelopeV1;
+  const state: GameState = {
+    ...envelope.state,
+    run: {
+      ...envelope.state.run,
+      space: { ...envelope.state.run.space, antimatter: quantity },
+    },
+  };
+  const updated = makeEnvelope({
+    slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: Math.max(Date.now(), envelope.savedAt),
+    revision: envelope.revision + 1,
+    state,
+  });
+  values.set(payloadKey, compressToUTF16(canonicalJson(updated)));
+  return [...values.entries()];
+}
+
+async function browserLocalStorageEntries(
+  page: import("@playwright/test").Page,
+): Promise<StoredEntry[]> {
+  return page.evaluate(() => {
+    const prefix = "miaplacidus:v1:";
+    const entries: StoredEntry[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(prefix)) continue;
+      const value = localStorage.getItem(key);
+      if (value !== null) entries.push([key, value]);
+    }
+    return entries;
+  });
+}
+
+async function openSavedPioneer(
+  context: import("@playwright/test").BrowserContext,
+  entries: readonly StoredEntry[],
+): Promise<import("@playwright/test").Page> {
+  const page = await context.newPage();
+  await page.addInitScript(
+    (storedEntries: StoredEntry[]) => {
+      const prefix = "miaplacidus:v1:";
+      const keys = Array.from({ length: localStorage.length }, (_, index) =>
+        localStorage.key(index),
+      ).filter((key): key is string => key?.startsWith(prefix) ?? false);
+      for (const key of keys) localStorage.removeItem(key);
+      for (const [key, value] of storedEntries) localStorage.setItem(key, value);
+    },
+    [...entries],
+  );
+  await page.goto("/");
+  await resumeSavedPioneer(page, "Star Map Pioneer");
+  await expect(page.locator("[data-app-ready]")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  return page;
+}
 
 async function startStarMapFixture(
   page: import("@playwright/test").Page,
@@ -79,25 +160,86 @@ test("searches stars, enforces study and home gates, and keeps geometry stable t
   await expect(map.getByTestId("star-distance")).toHaveText(initialDistance);
 });
 
+test("Star Map canvas has durable desktop and phone presentation captures @p66-visual-review", async ({
+  page,
+}, testInfo) => {
+  await startStarMapFixture(page, "space-starship-ready");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  const map = page.getByTestId("star-map-pane");
+  const canvas = map.getByTestId("star-map-canvas");
+  await expect(map).toBeVisible();
+  await expect(canvas).toBeVisible();
+  await expect(map.locator(".pane-heading h2")).toHaveText("Star Map");
+
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { locale: "en", themeId: "terminal" },
+    }),
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await captureVisualCheckpoint(page, testInfo, "phase6-star-map-terminal-desktop");
+
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { locale: "en", themeId: "light" },
+    }),
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await captureVisualCheckpoint(page, testInfo, "phase6-star-map-light-mobile");
+});
+
 test("pans the focused map with arrow keys @star-map @keyboard", async ({ page }) => {
   await startStarMapFixture(page);
   await page.getByRole("tab", { name: "Interstellar" }).click();
   const map = page.getByTestId("star-map-pane");
   const canvas = map.getByTestId("star-map-canvas");
+  const initialViewBox = await canvas.getAttribute("viewBox");
 
-  await map.getByRole("button", { name: "Zoom in" }).click();
+  const zoomIn = map.getByRole("button", { name: "Zoom in" });
+  await zoomIn.focus();
+  await page.keyboard.press("Enter");
+  await expect(canvas).toHaveAttribute("data-zoom", "1.25");
   await canvas.focus();
   await expect(canvas).toBeFocused();
   await expect(canvas).toHaveAttribute("tabindex", "0");
   await expect(canvas).toHaveAttribute("aria-describedby", "star-map-keyboard-help");
+  const zoomedViewBox = await canvas.getAttribute("viewBox");
 
-  const initialViewBox = await canvas.getAttribute("viewBox");
   await page.keyboard.press("ArrowRight");
   const movedRightViewBox = await canvas.getAttribute("viewBox");
-  expect(movedRightViewBox).not.toBe(initialViewBox);
+  expect(movedRightViewBox).not.toBe(zoomedViewBox);
 
   await page.keyboard.press("ArrowDown");
-  expect(await canvas.getAttribute("viewBox")).not.toBe(movedRightViewBox);
+  const movedDownViewBox = await canvas.getAttribute("viewBox");
+  expect(movedDownViewBox).not.toBe(movedRightViewBox);
+
+  await page.keyboard.press("ArrowLeft");
+  const movedLeftViewBox = await canvas.getAttribute("viewBox");
+  expect(movedLeftViewBox).not.toBe(movedDownViewBox);
+  expect(movedLeftViewBox).not.toBe(zoomedViewBox);
+
+  await page.keyboard.press("ArrowUp");
+  await expect(canvas).toBeFocused();
+  await expect(canvas).toHaveAttribute("viewBox", zoomedViewBox!);
+
+  const zoomOut = map.getByRole("button", { name: "Zoom out" });
+  await zoomOut.focus();
+  await page.keyboard.press("Enter");
+  await expect(canvas).toHaveAttribute("data-zoom", "1");
+
+  await zoomIn.focus();
+  await page.keyboard.press("Enter");
+  await expect(canvas).toHaveAttribute("data-zoom", "1.25");
+  await zoomIn.focus();
+  await page.keyboard.press("Enter");
+  await expect(canvas).toHaveAttribute("data-zoom", "1.5625");
+  const reset = map.getByRole("button", { name: "Reset map view" });
+  await reset.focus();
+  await page.keyboard.press("Enter");
+  await expect(canvas).toHaveAttribute("data-zoom", "1");
+  await expect(canvas).toHaveAttribute("viewBox", initialViewBox!);
 });
 
 test("keeps Star Map targets touch-sized and usable on a phone @star-map @touch", async ({
@@ -129,9 +271,13 @@ test("keeps Star Map targets touch-sized and usable on a phone @star-map @touch"
     const target = availableMarkers.find(({ name }) => name !== "Spica");
     expect(target).toBeDefined();
     const marker = map.getByTestId(target!.testId!);
+    await marker.scrollIntoViewIfNeeded();
     const markerBounds = await marker.boundingBox();
     expect(markerBounds?.width).toBeGreaterThanOrEqual(44);
     expect(markerBounds?.height).toBeGreaterThanOrEqual(44);
+    const viewport = page.viewportSize();
+    expect(markerBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(markerBounds!.y + markerBounds!.height).toBeLessThanOrEqual(viewport!.height);
     await page.touchscreen.tap(
       markerBounds!.x + markerBounds!.width / 2,
       markerBounds!.y + markerBounds!.height / 2,
@@ -147,6 +293,29 @@ test("keeps Star Map targets touch-sized and usable on a phone @star-map @touch"
 
     await map.getByRole("button", { name: "Zoom in" }).tap();
     await expect(canvas).toHaveAttribute("data-zoom", "1.25");
+
+    const bounds = await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    const touchStart = await canvas.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const candidates = [
+        [0.12, 0.86],
+        [0.82, 0.86],
+        [0.12, 0.14],
+        [0.82, 0.14],
+        [0.5, 0.5],
+      ];
+      for (const [xRatio, yRatio] of candidates) {
+        const x = rect.left + rect.width * xRatio!;
+        const y = rect.top + rect.height * yRatio!;
+        const hit = document.elementFromPoint(x, y);
+        if (hit?.closest(".star-map-hit-target")) continue;
+        if (hit && element.contains(hit)) return { x, y };
+      }
+      throw new Error("Could not find an unobstructed point on the Star Map canvas");
+    });
+    await map.getByRole("button", { name: "Reset map view" }).tap();
+    await expect(canvas).toHaveAttribute("viewBox", initialViewBox!);
     await map.getByRole("button", { name: "Zoom out" }).tap();
     await expect(canvas).toHaveAttribute("data-zoom", "1");
     await expect(canvas).toHaveAttribute("viewBox", initialViewBox!);
@@ -157,8 +326,203 @@ test("keeps Star Map targets touch-sized and usable on a phone @star-map @touch"
     await map.getByRole("button", { name: "Reset map view" }).tap();
     await expect(canvas).toHaveAttribute("data-zoom", "1");
     await expect(canvas).toHaveAttribute("viewBox", initialViewBox!);
+
+    await map.getByRole("button", { name: "Zoom in" }).tap();
+    const viewBoxBeforeTouchDrag = await canvas.getAttribute("viewBox");
+    const touch = await context.newCDPSession(page);
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ ...touchStart, id: 1, radiusX: 2, radiusY: 2, force: 1 }],
+    });
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { ...touchStart, x: touchStart.x - 48, id: 1, radiusX: 2, radiusY: 2, force: 1 },
+      ],
+    });
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect(canvas).not.toHaveAttribute("viewBox", viewBoxBeforeTouchDrag!);
+    await touch.detach();
   } finally {
     await context.close();
+  }
+});
+
+test("Star Data pairs each system's weather glyph with its chance @star-map", async ({ page }) => {
+  await startStarMapFixture(page, "space-manuscript-hidden");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  await page.locator("#tab-interstellar-star-data").click();
+
+  const starDataPage = page.locator("#panel-interstellar-star-data");
+  const pageHeading = starDataPage.locator(".pane-heading h2");
+  await expect(pageHeading).toHaveCount(1);
+  await expect(pageHeading).toHaveText("Star Data");
+  await expect(pageHeading).toBeVisible();
+  const artworkRow = starDataPage.locator(".page-artwork-row");
+  await expect(artworkRow).toHaveCount(1);
+  await expect(artworkRow).toBeVisible();
+  await expect(artworkRow.locator("[data-celestial-illustration='star-system']")).toBeVisible();
+
+  const rows = page.getByTestId("star-data-table").locator("tbody tr");
+  await expect(rows.first()).toBeVisible();
+  const rowCount = await rows.count();
+  for (let index = 0; index < rowCount; index += 1) {
+    const weather = rows.nth(index).locator("[data-testid^='star-data-weather-']");
+    await expect(weather).toBeVisible();
+    await expect(weather).toHaveAttribute("aria-label", /\d+%/);
+    await expect(weather).toContainText(/\d+%/);
+    await expect(weather.locator(".weather-symbol svg")).toBeVisible();
+  }
+});
+
+test("Star Map content is absent from every other Interstellar child @star-map @ui-navigation", async ({
+  page,
+}) => {
+  await startStarMapFixture(page, "space-starship-ready");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+
+  const tabIds = [
+    "tab-interstellar-star-map",
+    "tab-interstellar-star-data",
+    "tab-interstellar-starship",
+    "tab-interstellar-fleet-hangar",
+  ];
+  for (const tabId of tabIds) await expect(page.locator(`#${tabId}`)).toHaveCount(1);
+  await page.locator("#tab-interstellar-star-map").click();
+  await expect(page.getByTestId("star-map-pane")).toBeVisible();
+
+  for (const tabId of tabIds.filter((id) => id !== "tab-interstellar-star-map")) {
+    await page.locator(`#${tabId}`).click();
+    await expect(page.locator(`#${tabId}`)).toHaveAttribute("aria-selected", "true");
+    if (tabId === "tab-interstellar-star-data") {
+      await expect(page.getByTestId("star-data-view")).toBeVisible();
+    }
+    await expect(page.getByTestId("star-map-pane")).toBeHidden();
+  }
+});
+
+test("selected Star Map route shows readiness-colored distance and antimatter labels @star-map", async ({
+  page,
+}) => {
+  await startStarMapFixture(page, "space-starship-ready");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  const map = page.getByTestId("star-map-pane");
+  await map.getByRole("searchbox", { name: "Search stars" }).fill("Sirius");
+  await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
+
+  const route = map.getByTestId("star-map-selected-route");
+  await expect(route).toBeVisible();
+  await expect(route).toHaveClass(/green-ready-text/);
+  const routeLine = route.locator(".star-map-selected-route-line");
+  const routeLabel = route.getByTestId("star-map-selected-route-label");
+  await expect(routeLabel).toContainText("Distance:");
+  await expect(routeLabel).toContainText("Antimatter required:");
+  const midpoint = await routeLine.evaluate((line) => ({
+    x: (Number(line.getAttribute("x1")) + Number(line.getAttribute("x2"))) / 2,
+    y: (Number(line.getAttribute("y1")) + Number(line.getAttribute("y2"))) / 2,
+  }));
+  const labelPosition = await routeLabel.evaluate((label) => ({
+    x: Number(label.getAttribute("x")),
+    y: Number(label.getAttribute("y")),
+  }));
+  expect(labelPosition.x).toBeCloseTo(midpoint.x, 3);
+  expect(labelPosition.y).toBeCloseTo(midpoint.y - 8, 3);
+});
+
+test("P-13 keeps Star Map fare, balance, and destination action visible on narrow screens @p13-context @star-map", async ({
+  page,
+}) => {
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 740 });
+    await startStarMapFixture(page, "space-starship-ready");
+    const prepared = await page.evaluate(() =>
+      window.miaplacidusTest!.applyDebugAction("prepare-run-starship-launch"),
+    );
+    expect(prepared).toBe(true);
+    await page.getByRole("tab", { name: "Interstellar" }).click();
+    const map = page.getByTestId("star-map-pane");
+    await map.getByRole("searchbox", { name: "Search stars" }).fill("Sirius");
+    await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
+
+    const balance = page.getByTestId("top-stat-antimatter");
+    const selection = map.getByTestId("star-selection");
+    const fare = selection.getByTestId("star-route-antimatter");
+    const destinationAction = selection.getByRole("button", { name: /Set as destination: Sirius/ });
+    await expect(balance).toBeVisible();
+    await expect(selection).toBeVisible();
+    await expect(fare).toBeVisible();
+    await expect(destinationAction).toBeVisible();
+    await expect(destinationAction).toBeEnabled();
+
+    const geometry = await page.evaluate(() => ({
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      balanceRight: document
+        .querySelector('[data-testid="top-stat-antimatter"]')!
+        .getBoundingClientRect().right,
+      selectionRight: document
+        .querySelector('[data-testid="star-selection"]')!
+        .getBoundingClientRect().right,
+    }));
+    expect(geometry.documentWidth, `${width}px document width`).toBeLessThanOrEqual(
+      geometry.viewportWidth,
+    );
+    expect(geometry.balanceRight, `${width}px antimatter balance`).toBeLessThanOrEqual(width);
+    expect(geometry.selectionRight, `${width}px Star Map selection`).toBeLessThanOrEqual(width);
+  }
+});
+
+test("underfunded Star Map route labels use red-disabled styling @star-map", async ({ page }) => {
+  await startStarMapFixture(page, "space-starship-ready");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  const map = page.getByTestId("star-map-pane");
+  await map.getByRole("searchbox", { name: "Search stars" }).fill("Sirius");
+  await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
+  await map
+    .getByTestId("star-selection")
+    .getByRole("button", { name: "Set as destination" })
+    .click();
+
+  const savedState = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const destinationId = savedState.run.space.starship.destinationSystemId;
+  expect(destinationId).not.toBeNull();
+  const plan = starshipTravelPlan(savedState, destinationId!);
+  expect(plan).not.toBeNull();
+  expect(savedState.run.space.antimatter).toBeGreaterThanOrEqual(plan!.antimatter);
+
+  await saveNowFromSettings(page);
+  const shortfallEntries = saveWithAntimatter(
+    await browserLocalStorageEntries(page),
+    plan!.antimatter - 1,
+  );
+  const shortfallPage = await openSavedPioneer(page.context(), shortfallEntries);
+  try {
+    await shortfallPage.getByRole("tab", { name: "Interstellar" }).click();
+    const route = shortfallPage.getByTestId("star-map-selected-route");
+    await expect(route).toBeVisible();
+    await expect(route).toHaveAttribute("data-affordable", "false");
+    await expect(route).toHaveClass(/red-disabled-text/);
+
+    const routeLine = route.locator(".star-map-selected-route-line");
+    const routeLabel = route.getByTestId("star-map-selected-route-label");
+    await expect(routeLabel).toContainText("Distance:");
+    await expect(routeLabel).toContainText("Antimatter required:");
+    const midpoint = await routeLine.evaluate((line) => ({
+      x: (Number(line.getAttribute("x1")) + Number(line.getAttribute("x2"))) / 2,
+      y: (Number(line.getAttribute("y1")) + Number(line.getAttribute("y2"))) / 2,
+    }));
+    const labelPosition = await routeLabel.evaluate((label) => ({
+      x: Number(label.getAttribute("x")),
+      y: Number(label.getAttribute("y")),
+    }));
+    expect(labelPosition.x).toBeCloseTo(midpoint.x, 3);
+    expect(labelPosition.y).toBeCloseTo(midpoint.y - 8, 3);
+
+    const routeColor = await route.evaluate((element) => getComputedStyle(element).color);
+    expect(await routeLine.evaluate((line) => getComputedStyle(line).stroke)).toBe(routeColor);
+    expect(await routeLabel.evaluate((label) => getComputedStyle(label).fill)).toBe(routeColor);
+  } finally {
+    await shortfallPage.close();
   }
 });
 
@@ -291,11 +655,39 @@ test("filters and sorts Star Data, targets a discovered system, and focuses it o
     .not.toBeNull();
 
   await targetRow.locator("td:nth-child(8) button").click();
+  const mapPanel = interstellar.locator("#panel-interstellar-star-map");
   await expect(interstellar.getByRole("tab", { name: "Map" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
+  await expect(mapPanel).toBeFocused();
   await expect(map.getByTestId("star-selection").locator("h3")).toHaveText(targetName);
   await expect(map.getByTestId("star-route-antimatter")).toHaveText(expectedFuel);
   await expect(map.getByTestId("star-route-ap")).toHaveText(expectedAp);
+});
+
+test("Show on map moves focus to the selected Star Map panel @star-map @p16-focus", async ({
+  page,
+}) => {
+  await startStarMapFixture(page, "space-manuscript-hidden");
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  const interstellar = page.getByRole("tabpanel", { name: /Interstellar/ });
+  await interstellar.getByRole("tab", { name: /Star Data/ }).click();
+
+  const table = page.getByTestId("star-data-table");
+  const showOnMapButton = table.locator("tbody tr td:nth-child(8) button").first();
+  await expect(showOnMapButton).toBeEnabled();
+  const targetRow = showOnMapButton.locator("xpath=../..");
+  const targetName = (await targetRow.locator("th[scope='row']").innerText()).trim();
+  await showOnMapButton.click();
+
+  const mapPanel = interstellar.locator("#panel-interstellar-star-map");
+  await expect(interstellar.getByRole("tab", { name: "Map" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(mapPanel).toBeFocused();
+  await expect(page.getByTestId("star-map-pane").getByTestId("star-selection")).toContainText(
+    targetName,
+  );
 });

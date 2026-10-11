@@ -1,13 +1,29 @@
 import type { LocaleId } from "../content/ids";
+import type {
+  StarAnomalyId,
+  StarAttitude,
+  StarCivilizationLevel,
+  StarLifeformTrait,
+  StarThreatLevel,
+} from "../content/space";
 
 const en = {
-  title: "Starship construction",
+  title: "Starship",
+  starshipHeaderHelp:
+    "Here you can build and manage your Star Ship to travel to and scan studied Stars.",
   colonise: "Colonise",
+  coloniseHeaderHelp:
+    "Engage in Diplomacy and War to establish your new colony at {system} - Fleet Power: {fleetPower}",
+  coloniseDescription:
+    "Engage in Diplomacy and War to establish your new colony at {system} - Fleet Power: {playerPower}",
+  coloniseBuildFleets: "Build Your Fleets to Engage the Enemy! - Fleet Power:",
+  coloniseNoResistance: "Simply Settle at {system} with no resistance!",
+  coloniseBattleDescription:
+    "Defeat The Enemy! - Fleet Power: {playerPower} Enemy Fleet Power: {enemyPower}",
+  fleetHangarDescription: "Build your fleets to conquer visited Systems - Fleet Strength:",
   description: "Build the four required modules to prepare the starship for interstellar travel.",
   ready: "Ready for interstellar travel",
   building: "Construction in progress",
-  required: "Required module",
-  optional: "Optional module",
   parts: "Parts built",
   nextPartCost: "Next part cost",
   buildPart: "Build one part",
@@ -30,6 +46,7 @@ const en = {
     "Once launched, the starship cannot be recovered in this run. Check the destination and fuel cost before confirming.",
   travelling: "Travelling to {name}",
   journeyTimeRemaining: "Journey time remaining: {time}",
+  journeyProgress: "Starship journey progress",
   orbiting: "Orbiting {name}",
   noDestination: "Select a studied destination on the star map first.",
   ftlRequired: "Research FTL Travel Theory first.",
@@ -37,8 +54,26 @@ const en = {
   alreadyLaunched: "The starship has already launched this run.",
   pointOfNoReturnTitle: "Warning: point of no return",
   scanSystem: "Scan destination system",
+  scanActionHelp: "Click to Scan the destination Star for any life or threats that may be present.",
   scanComplete: "System scan complete",
-  scannerRequired: "Build the optional Stellar Scanner module to scan this system.",
+  scanReport: "System scan report",
+  scanMoreInfoLabel: "More information",
+  scanApHelp:
+    "This is the base AP amount that the System is worth, when travelled to from your current System. There are modifiers to this such as the type of battle undertaken there, which may give more AP, and there are yet other modifiers to this available in some Philosophies and Ascendency Perks.",
+  scanWeatherHelp:
+    "Weather Data can be read as Prevailing Weather Type - Not exact Science - If 57% Sunny for example then it is largely a sunny System, as all the other weather types are sharing at 43% probability, but if it is 26% Sunny then it is really saying it is a mixed climate as the other 3 types are sharing the other 74% Also shown is the type of compound received by collecting this System's Precipitation.",
+  scanCivilizationHelp:
+    "How advanced the Civilization is. This directly impacts the Civilizations Defense if they are SpaceFaring their unit defenses are twice as strong as if they are Industrial.",
+  scanDefenseHelp:
+    "The defense rating modifies the enemy ship's hitpoints. Whatever they would normally start with, they are reduced to this percentage when fighting. This number may be colored, meaning its value has been modified by an Anomaly in the System, which are described below in the Anomalies row. For comparison, the player always has 100% defense to start with.",
+  scanEnemyFleetsHelp:
+    "The number of each unit the enemy starts a battle with, this is not the same as the Fleet Power. A number may be colored, meaning its quantity has been modified by an Anomaly in the System, which are described below in the Anomalies row.",
+  scanThreatHelp:
+    "Threat Level modifies the defense level of the enemy units defending the System. Extreme threat get the full bonus (no reduction) High means it is 70% as strong as it would be if Extreme, Moderate is 40%, Low is 20% and None is 0% (only Unsentient or Lifeless Systems) The final calculated value is still shown to the right of this value, it is not modifying that value after the fact, but showing what has gone in to reaching that final value.",
+  scanUnavailable:
+    "The destination can be scanned after the ship reaches 70% of its journey or enters orbit.",
+  scanLimited:
+    "No Stellar Scanner is installed, so life, civilization, threat, and fleet readings are unknown.",
   lifeDetected: "Life detected",
   noLifeDetected: "No life detected",
   civilization: "Civilization",
@@ -47,18 +82,25 @@ const en = {
   threat: "Threat",
   defense: "Defense rating",
   attitude: "Attitude",
+  receptionStatusHelp:
+    "You can communicate with civilized species, unless they are Belligerent towards you.",
   impression: "Initial / current impression",
   patience: "Patience",
   enemyFleets: "Enemy fleets (air / land / sea)",
   enemyFleetPower: "Enemy fleet power",
+  fleetAir: "Air",
+  fleetLand: "Land",
+  fleetSea: "Sea",
   lifeformTraits: "Lifeform traits",
   anomalies: "Anomalies",
   envoyTitle: "Fleet Hangar",
-  envoyDescription: "Build one Envoy to open diplomatic channels with sentient civilizations.",
+  envoyDescription: "Build one Envoy, a one-time craft, to open diplomatic channels with sentient civilizations in discovered Systems.",
   buildEnvoy: "Build Envoy",
   envoyBuilt: "Envoy built.",
   envoyComplete: "Your Envoy is ready.",
   diplomacyTitle: "Diplomatic channels",
+  diplomacyOptionsHelp:
+    "If available, and Envoy built, click to try to intimidate or improve relations",
   diplomacyLocked:
     "Scan a sentient civilization and build an Envoy before opening diplomatic channels.",
   sendMessage: "Send a message",
@@ -77,6 +119,7 @@ const en = {
   enemyBattleHealth: "Enemy fleet hull",
   engageBattle: "Begin battle",
   settleSystem: "Settle this system",
+  settleNoResistance: "Simply settle at {system} with no resistance!",
   alreadySettled: "This system is already part of your settled territory.",
   settlementComplete: "System settled. Ascendency and Galactic Point rewards have been recorded.",
   messageReceptive: "The race welcomes your Envoy. Its impression of you has improved.",
@@ -111,6 +154,19 @@ const en = {
   fleetMarauder: "Marauder",
   fleetLandStalker: "Land Stalker",
   fleetNavalStrafer: "Naval Strafer",
+  fleetHangarHelpLabel: "Fleet Hangar help",
+  fleetHangarHeaderHelp: [
+    "Here you can build the Fleets that will conquer the System you are at or travelling to.",
+    "Envoys are non battle units that you build once to open up diplomacy with the enemy, not in all cases but in most.",
+    "Scouts are fast Air Units and can target enemy Air Units and Sea units with a Speed of 5.",
+    "Marauders are special Air Units that only the player has, and can target both enemy Land and Sea Units with a Speed of 4.",
+    "Land Stalkers are Land Units and can target enemy Air and Land Units with a Speed of 2.",
+    "Naval Strafers are Sea Units and can target Enemy Sea and Land Units with a Speed of 1.",
+  ].join("\n\n"),
+  fleetScoutDescription: "A cheap, light craft good in large numbers.",
+  fleetMarauderDescription: "A strong craft, designed for decimating enemy fleets.",
+  fleetLandStalkerDescription: "If they do not fly, they fear this awesome machine!",
+  fleetNavalStraferDescription: "Naval fleets can be devastated in a heartbeat!",
   plantPowerPlant1: "Basic Power Plant",
   plantPowerPlant2: "Solar Power Plant",
   plantPowerPlant3: "Advanced Power Plant",
@@ -123,13 +179,23 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
   {
     en,
     es: {
-      title: "Construcción de la nave estelar",
+      title: "Nave estelar",
+      starshipHeaderHelp:
+        "Aquí puedes construir y gestionar tu Nave Estelar para viajar a y escanear estrellas estudiadas.",
       colonise: "Colonizar",
+      coloniseHeaderHelp:
+        "Participa en Diplomacia y Guerra para establecer tu nueva colonia en {system} - Fuerza de Flota: {fleetPower}",
+      coloniseDescription:
+        "Emplea la diplomacia y la guerra para establecer tu nueva colonia en {system} - Poder de flota: {playerPower}",
+      coloniseBuildFleets: "¡Construye tus flotas para enfrentarte al enemigo! - Poder de flota:",
+      coloniseNoResistance: "¡Coloniza {system} sin ninguna resistencia!",
+      coloniseBattleDescription:
+        "¡Derrota al enemigo! - Poder de flota: {playerPower} Poder de flota enemiga: {enemyPower}",
+      fleetHangarDescription:
+        "Construye tus flotas para conquistar los sistemas visitados - Fuerza de la flota:",
       description: "Construye los cuatro módulos obligatorios para preparar el viaje interestelar.",
       ready: "Lista para viajar entre estrellas",
       building: "Construcción en curso",
-      required: "Módulo obligatorio",
-      optional: "Módulo opcional",
       parts: "Piezas construidas",
       nextPartCost: "Coste de la siguiente pieza",
       buildPart: "Construir una pieza",
@@ -152,6 +218,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Una vez lanzada, la nave estelar no se puede recuperar en esta partida. Comprueba el destino y el coste de combustible antes de confirmar.",
       travelling: "Viajando a {name}",
       journeyTimeRemaining: "Tiempo de viaje restante: {time}",
+      journeyProgress: "Progreso del viaje estelar",
       orbiting: "En órbita de {name}",
       noDestination: "Selecciona primero un destino estudiado en el mapa estelar.",
       ftlRequired: "Investiga primero la teoría de viajes FTL.",
@@ -159,9 +226,26 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       alreadyLaunched: "La nave estelar ya ha despegado en esta partida.",
       pointOfNoReturnTitle: "Aviso: punto sin retorno",
       scanSystem: "Escanear el sistema de destino",
+      scanActionHelp: "Haz clic para Escanear la Estrella de destino en busca de cualquier vida o amenaza que pueda estar presente.",
       scanComplete: "Escaneo del sistema completado",
-      scannerRequired:
-        "Construye el módulo opcional de escáner estelar para explorar este sistema.",
+      scanReport: "Informe de escaneo del sistema",
+      scanMoreInfoLabel: "Más información",
+      scanApHelp:
+        "Esta es la cantidad base de PA que vale el Sistema, cuando se viaja desde tu Sistema actual. Hay modificadores para esto como el tipo de batalla emprendida allí, que puede dar más PA, y hay otros modificadores disponibles en algunas Filosofías y Ventajas de Ascendencia.",
+      scanWeatherHelp:
+        "Los datos meteorológicos se pueden leer como Tipo de Clima Predominante - No es ciencia exacta - Si por ejemplo hay 57% de Sol, entonces es en gran parte un Sistema soleado, ya que todos los demás tipos de clima comparten el 43% de probabilidad, pero si es 26% de Sol, entonces realmente indica un clima mixto ya que los otros 3 tipos comparten el otro 74%. También se muestra el tipo de compuesto recibido al recolectar la Precipitación de este Sistema.",
+      scanCivilizationHelp:
+        "Qué tan avanzada está la Civilización. Esto impacta directamente la Defensa de la Civilización: si son Interestelares, sus defensas de unidad son el doble de fuertes que si son Industriales.",
+      scanDefenseHelp:
+        "La calificación de defensa modifica los puntos de vida de la nave enemiga. Cualquiera que sea su cantidad normal de inicio, se reducen a este porcentaje al luchar. Este número puede estar coloreado, lo que significa que su valor ha sido modificado por una Anomalía en el Sistema, que se describen a continuación en la fila de Anomalías. Para comparación, el jugador siempre tiene 100% de defensa al inicio.",
+      scanEnemyFleetsHelp:
+        "El número de cada unidad con la que el enemigo comienza una batalla, esto no es lo mismo que el Poder de Flota. Un número puede estar coloreado, lo que significa que su cantidad ha sido modificada por una Anomalía en el Sistema, que se describen a continuación en la fila de Anomalías.",
+      scanThreatHelp:
+        "El Nivel de Amenaza modifica el nivel de defensa de las unidades enemigas defendiendo el Sistema. Amenaza Extrema obtiene el bono completo (sin reducción). Alta significa que es 70% tan fuerte como sería si fuera Extrema, Moderada es 40%, Baja es 20% y Ninguna es 0% (solo Sistemas No Sensibles o Sin Vida). El valor calculado final aún se muestra a la derecha de este valor, no está modificando ese valor después del hecho, sino mostrando qué ha contribuido a alcanzar ese valor final.",
+      scanUnavailable:
+        "El destino se puede analizar cuando la nave haya recorrido el 70 % del viaje o esté en órbita.",
+      scanLimited:
+        "No hay un escáner estelar instalado, así que las lecturas de vida, civilización, amenaza y flotas son desconocidas.",
       lifeDetected: "Vida detectada",
       noLifeDetected: "No se detectó vida",
       civilization: "Civilización",
@@ -170,19 +254,25 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       threat: "Nivel de amenaza",
       defense: "Valor de defensa",
       attitude: "Actitud",
+      receptionStatusHelp:
+        "Puedes comunicarte con especies civilizadas, a menos que sean Beligerantes contigo.",
       impression: "Impresión inicial / actual",
       patience: "Paciencia",
       enemyFleets: "Flotas enemigas (aérea / terrestre / naval)",
       enemyFleetPower: "Poder de la flota enemiga",
+      fleetAir: "Aire",
+      fleetLand: "Tierra",
+      fleetSea: "Mar",
       lifeformTraits: "Rasgos de la forma de vida",
       anomalies: "Anomalías",
       envoyTitle: "Hangar de flotas",
-      envoyDescription:
-        "Construye un Enviado para abrir canales diplomáticos con civilizaciones conscientes.",
+      envoyDescription: "Construye un Enviado, una nave que solo se construye una vez, para abrir canales diplomáticos con civilizaciones sintientes en sistemas descubiertos.",
       buildEnvoy: "Construir Enviado",
       envoyBuilt: "Enviado construido.",
       envoyComplete: "Tu Enviado está listo.",
       diplomacyTitle: "Canales diplomáticos",
+      diplomacyOptionsHelp:
+        "Si está disponible, y el Enviado construido, haz clic para intentar intimidar o mejorar relaciones",
       diplomacyLocked:
         "Escanea una civilización consciente y construye un Enviado para abrir canales diplomáticos.",
       sendMessage: "Enviar un mensaje",
@@ -200,10 +290,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       playerBattleHealth: "Casco de la flota propia",
       enemyBattleHealth: "Casco de la flota enemiga",
       engageBattle: "Iniciar batalla",
-      settleSystem: "Asentar este sistema",
-      alreadySettled: "Este sistema ya forma parte de tu territorio asentado.",
+      settleSystem: "Colonizar este sistema",
+      settleNoResistance: "¡Coloniza {system} sin ninguna resistencia!",
+      alreadySettled: "Este sistema ya forma parte de tu territorio colonizado.",
       settlementComplete:
-        "Sistema asentado. Se han registrado las recompensas de Ascendencia y Puntos Galácticos.",
+        "Sistema colonizado. Se han registrado las recompensas de Ascendencia y Puntos Galácticos.",
       messageReceptive: "La raza recibe bien a tu Enviado. Su impresión de ti ha mejorado.",
       messageNeutral: "La raza intercambia saludos cautelosos. Su impresión de ti ha cambiado.",
       messageReserved: "La raza se mantiene reservada. Tu Enviado ha avanzado poco.",
@@ -235,11 +326,24 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       battleUnavailable:
         "Necesitas una nave de flota y no debe haber una batalla activa o terminada.",
       settlementUnavailable:
-        "Derrota a la flota hostil, gana la batalla o llega a un sistema sin defensores conscientes antes de asentarte.",
+        "Derrota a la flota hostil, gana la batalla o llega a un sistema sin defensores conscientes antes de colonizar el sistema.",
       fleetScout: "Explorador",
       fleetMarauder: "Saqueador",
       fleetLandStalker: "Acechador terrestre",
       fleetNavalStrafer: "Hostigador naval",
+      fleetHangarHelpLabel: "Ayuda del hangar de flotas",
+      fleetHangarHeaderHelp: [
+        "Aquí puedes construir las Flotas que conquistarán el Sistema en el que estás o al que estás viajando.",
+        "Los Enviados son unidades no de batalla que construyes una vez para abrir diplomacia con el enemigo, no en todos los casos pero en la mayoría.",
+        "Los Exploradores son unidades Aéreas rápidas y pueden apuntar a unidades Aéreas enemigas y unidades Marinas con una Velocidad de 5.",
+        "Los Merodeadores son unidades Aéreas especiales que solo el jugador tiene, y pueden apuntar tanto a unidades Terrestres enemigas como Marinas con una Velocidad de 4.",
+        "Los Acechadores Terrestres son unidades Terrestres y pueden apuntar a unidades Aéreas enemigas y Terrestres con una Velocidad de 2.",
+        "Los Fusileros Navales son unidades Marinas y pueden apuntar a Unidades Marinas enemigas y Terrestres con una Velocidad de 1.",
+      ].join("\n\n"),
+      fleetScoutDescription: "Una nave barata y ligera, buena en grandes números.",
+      fleetMarauderDescription: "Una nave fuerte, diseñada para diezmar flotas enemigas.",
+      fleetLandStalkerDescription: "¡Si no vuelan, temen esta máquina impresionante!",
+      fleetNavalStraferDescription: "¡Las flotas navales pueden ser devastadas en un instante!",
       plantPowerPlant1: "Central eléctrica básica",
       plantPowerPlant2: "Central solar",
       plantPowerPlant3: "Central eléctrica avanzada",
@@ -247,13 +351,23 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Asentar este sistema de tipo O desbloquea una bonificación de producción ×8 para {plant}.",
     },
     pt: {
-      title: "Construção da nave estelar",
+      title: "Nave estelar",
+      starshipHeaderHelp:
+        "Aqui podes construir e gerir a tua Nave Estelar para viajar e escanear estrelas estudadas.",
       colonise: "Colonizar",
+      coloniseHeaderHelp:
+        "Participa em Diplomacia e Guerra para estabelecer a tua nova colónia em {system} - Força da Frota: {fleetPower}",
+      coloniseDescription:
+        "Usa a diplomacia e a guerra para estabeleceres a tua nova colónia em {system} - Poder da frota: {playerPower}",
+      coloniseBuildFleets: "Constrói as tuas frotas para enfrentares o inimigo! - Poder da frota:",
+      coloniseNoResistance: "Coloniza {system} sem qualquer resistência!",
+      coloniseBattleDescription:
+        "Derrota o inimigo! - Poder da frota: {playerPower} Poder da frota inimiga: {enemyPower}",
+      fleetHangarDescription:
+        "Constrói as tuas frotas para conquistar os sistemas visitados - Poder da frota:",
       description: "Construa os quatro módulos obrigatórios para preparar a viagem interestelar.",
       ready: "Pronta para viajar entre estrelas",
       building: "Construção em curso",
-      required: "Módulo obrigatório",
-      optional: "Módulo opcional",
       parts: "Peças construídas",
       nextPartCost: "Custo da próxima peça",
       buildPart: "Construir uma peça",
@@ -276,6 +390,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Depois de lançada, a nave estelar não pode ser recuperada nesta partida. Confirme o destino e o custo de combustível.",
       travelling: "A viajar para {name}",
       journeyTimeRemaining: "Tempo de viagem restante: {time}",
+      journeyProgress: "Progresso da viagem estelar",
       orbiting: "Em órbita de {name}",
       noDestination: "Selecione primeiro um destino estudado no mapa estelar.",
       ftlRequired: "Pesquise primeiro a teoria de viagens FTL.",
@@ -283,8 +398,26 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       alreadyLaunched: "A nave estelar já foi lançada nesta partida.",
       pointOfNoReturnTitle: "Aviso: ponto sem retorno",
       scanSystem: "Analisar o sistema de destino",
+      scanActionHelp: "Clique para Escanear a Estrela de destino em busca de qualquer vida ou ameaça que possa estar presente.",
       scanComplete: "Análise do sistema concluída",
-      scannerRequired: "Construa o módulo opcional de scanner estelar para analisar este sistema.",
+      scanReport: "Relatório de análise do sistema",
+      scanMoreInfoLabel: "Mais informações",
+      scanApHelp:
+        "Esta é a quantidade base de PA que vale o Sistema ao viajar a partir do seu Sistema atual. Existem modificadores para isso, como o tipo de batalha travada lá, que pode conceder mais PA, além de outros modificadores disponíveis em algumas Filosofias e Vantagens de Ascendência.",
+      scanWeatherHelp:
+        "Os dados meteorológicos podem ser lidos como o Tipo de Clima Predominante - Não é uma ciência exata - Se, por exemplo, houver 57% de Sol, então é em grande parte um Sistema ensolarado, já que os outros tipos de clima compartilham os 43% restantes de probabilidade, mas se houver 26% de Sol, isso realmente indica um clima misto, já que os outros 3 tipos compartilham os outros 74%. O tipo de composto recebido ao coletar a Precipitação deste Sistema também é mostrado.",
+      scanCivilizationHelp:
+        "O quão avançada é a Civilização. Isso afeta diretamente a Defesa da Civilização: se forem Interestelares, suas defesas de unidade serão duas vezes mais fortes do que se forem Industriais.",
+      scanDefenseHelp:
+        "A classificação de defesa modifica os pontos de vida da nave inimiga. Seja qual for sua quantidade inicial normal, ela é reduzida para esta porcentagem durante o combate. Este número pode aparecer colorido, o que significa que seu valor foi modificado por uma Anomalia no Sistema, descrita abaixo na linha de Anomalias. Para comparação, o jogador sempre começa com 100% de defesa.",
+      scanEnemyFleetsHelp:
+        "O número de cada unidade com a qual o inimigo começa uma batalha; isso não é o mesmo que o Poder da Frota. Um número pode aparecer colorido, o que significa que sua quantidade foi modificada por uma Anomalia no Sistema, descrita abaixo na linha de Anomalias.",
+      scanThreatHelp:
+        "O Nível de Ameaça modifica o nível de defesa das unidades inimigas que defendem o Sistema. Ameaça Extrema recebe o bônus completo (sem redução). Alta significa que é 70% tão forte quanto seria se fosse Extrema, Moderada é 40%, Baixa é 20% e Nenhuma é 0% (apenas Sistemas Não Sencientes ou Sem Vida). O valor final calculado ainda é mostrado à direita deste valor; ele não está modificando esse valor depois do fato, mas mostrando o que contribuiu para chegar ao valor final.",
+      scanUnavailable:
+        "O destino pode ser analisado quando a nave tiver percorrido 70% da viagem ou estiver em órbita.",
+      scanLimited:
+        "Não há um Scanner Estelar instalado, por isso as leituras de vida, civilização, ameaça e frotas são desconhecidas.",
       lifeDetected: "Vida detetada",
       noLifeDetected: "Nenhuma vida detetada",
       civilization: "Civilização",
@@ -293,19 +426,25 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       threat: "Nível de ameaça",
       defense: "Classificação de defesa",
       attitude: "Atitude",
+      receptionStatusHelp:
+        "Você pode se comunicar com espécies civilizadas, a menos que sejam Beligerantes com você.",
       impression: "Impressão inicial / atual",
       patience: "Paciência",
       enemyFleets: "Frotas inimigas (aérea / terrestre / naval)",
       enemyFleetPower: "Poder da frota inimiga",
+      fleetAir: "Ar",
+      fleetLand: "Terra",
+      fleetSea: "Mar",
       lifeformTraits: "Características da forma de vida",
       anomalies: "Anomalias",
       envoyTitle: "Hangar da frota",
-      envoyDescription:
-        "Construa um Emissário para abrir canais diplomáticos com civilizações conscientes.",
+      envoyDescription: "Construa um Emissário, uma nave que só pode ser construída uma vez, para abrir canais diplomáticos com civilizações sencientes em sistemas descobertos.",
       buildEnvoy: "Construir Emissário",
       envoyBuilt: "Emissário construído.",
       envoyComplete: "O teu Emissário está pronto.",
       diplomacyTitle: "Canais diplomáticos",
+      diplomacyOptionsHelp:
+        "Se disponível e o Enviado estiver construído, clique para tentar intimidar ou melhorar as relações",
       diplomacyLocked:
         "Analise uma civilização consciente e construa um Emissário para abrir canais diplomáticos.",
       sendMessage: "Enviar mensagem",
@@ -323,10 +462,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       playerBattleHealth: "Casco da frota do jogador",
       enemyBattleHealth: "Casco da frota inimiga",
       engageBattle: "Iniciar batalha",
-      settleSystem: "Estabelecer neste sistema",
-      alreadySettled: "Este sistema já faz parte do teu território estabelecido.",
+      settleSystem: "Colonizar este sistema",
+      settleNoResistance: "Coloniza {system} sem qualquer resistência!",
+      alreadySettled: "Este sistema já faz parte do teu território colonizado.",
       settlementComplete:
-        "Sistema estabelecido. As recompensas de Ascendência e Pontos Galácticos foram registadas.",
+        "Sistema colonizado. As recompensas de Ascendência e Pontos Galácticos foram registadas.",
       messageReceptive: "A raça recebe bem o teu Emissário. A sua impressão de ti melhorou.",
       messageNeutral: "A raça troca saudações cautelosas. A sua impressão de ti mudou.",
       messageReserved: "A raça mantém-se reservada. O teu Emissário teve pouco progresso.",
@@ -357,11 +497,24 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       battleUnavailable:
         "É necessária uma nave de frota e não pode haver uma batalha ativa ou terminada.",
       settlementUnavailable:
-        "Derrota a frota hostil, vence a batalha ou chega a um sistema sem defensores conscientes antes de colonizar.",
+        "Derrota a frota hostil, vence a batalha ou chega a um sistema sem defensores conscientes antes de colonizar o sistema.",
       fleetScout: "Batedor",
       fleetMarauder: "Marauder",
       fleetLandStalker: "Perseguidor terrestre",
       fleetNavalStrafer: "Atacante naval",
+      fleetHangarHelpLabel: "Ajuda do hangar de frotas",
+      fleetHangarHeaderHelp: [
+        "Aqui você pode construir as Frotas que conquistarão o Sistema em que está ou para o qual está viajando.",
+        "Os Enviados são unidades que não participam de batalhas e que você constrói uma vez para abrir a diplomacia com o inimigo, não em todos os casos, mas na maioria deles.",
+        "Os Batedores são unidades Aéreas rápidas e podem atacar unidades Aéreas inimigas e unidades Navais com Velocidade 5.",
+        "Os Saqueadores são unidades Aéreas especiais que apenas o jogador possui e podem atacar unidades Terrestres e Navais inimigas com Velocidade 4.",
+        "Os Perseguidores Terrestres são unidades Terrestres e podem atacar unidades Aéreas e Terrestres inimigas com Velocidade 2.",
+        "Os Fuzileiros Navais são unidades Navais e podem atacar unidades Navais e Terrestres inimigas com Velocidade 1.",
+      ].join("\n\n"),
+      fleetScoutDescription: "Uma nave barata e leve, eficiente em grandes números.",
+      fleetMarauderDescription: "Uma nave poderosa, projetada para dizimar frotas inimigas.",
+      fleetLandStalkerDescription: "Se eles não voam, eles temem esta máquina impressionante!",
+      fleetNavalStraferDescription: "Frotas navais podem ser devastadas em um instante!",
       plantPowerPlant1: "Central elétrica básica",
       plantPowerPlant2: "Central solar",
       plantPowerPlant3: "Central elétrica avançada",
@@ -369,13 +522,23 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Estabelecer este sistema de tipo O desbloqueia um bónus de produção ×8 para {plant}.",
     },
     de: {
-      title: "Raumschiffbau",
+      title: "Raumschiff",
+      starshipHeaderHelp:
+        "Hier kannst du dein Sternenschiff bauen und verwalten, um zu untersuchten Sternen zu reisen und sie zu scannen.",
       colonise: "Kolonisieren",
+      coloniseHeaderHelp:
+        "Engagiere dich in Diplomatie und Krieg, um deine neue Kolonie zu errichten bei {system} - Flottenstärke: {fleetPower}",
+      coloniseDescription:
+        "Nutze Diplomatie und Krieg, um deine neue Kolonie bei {system} zu gründen - Flottenstärke: {playerPower}",
+      coloniseBuildFleets: "Baue deine Flotten, um den Feind anzugreifen! - Flottenstärke:",
+      coloniseNoResistance: "Siedle einfach bei {system} ohne Widerstand!",
+      coloniseBattleDescription:
+        "Besiege den Feind! - Flottenstärke: {playerPower} Feindliche Flottenstärke: {enemyPower}",
+      fleetHangarDescription:
+        "Baue deine Flotten, um besuchte Systeme zu erobern - Flottenstärke:",
       description: "Baue die vier Pflichtmodule für interstellare Reisen.",
       ready: "Bereit für interstellare Reisen",
       building: "Bau läuft",
-      required: "Pflichtmodul",
-      optional: "Optionales Modul",
       parts: "Gebaute Teile",
       nextPartCost: "Kosten des nächsten Teils",
       buildPart: "Ein Teil bauen",
@@ -398,6 +561,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Nach dem Start kann das Raumschiff in diesem Durchlauf nicht zurückgeholt werden. Prüfe Ziel und Treibstoffkosten.",
       travelling: "Unterwegs nach {name}",
       journeyTimeRemaining: "Verbleibende Reisezeit: {time}",
+      journeyProgress: "Raumschiff-Reisefortschritt",
       orbiting: "Im Orbit von {name}",
       noDestination: "Wähle zuerst ein erforschtes Ziel auf der Sternkarte.",
       ftlRequired: "Erforsche zuerst die FTL-Reisetheorie.",
@@ -405,8 +569,26 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       alreadyLaunched: "Das Raumschiff ist in diesem Durchlauf bereits gestartet.",
       pointOfNoReturnTitle: "Warnung: Punkt ohne Rückkehr",
       scanSystem: "Zielsystem scannen",
+      scanActionHelp: "Klicke, um den Zielstern auf Leben oder Bedrohungen zu scannen, die möglicherweise vorhanden sind.",
       scanComplete: "Systemscan abgeschlossen",
-      scannerRequired: "Baue das optionale Sternenscanner-Modul, um dieses System zu scannen.",
+      scanReport: "Systemscan-Bericht",
+      scanMoreInfoLabel: "Weitere Informationen",
+      scanApHelp:
+        "Dies ist der Basis-AP-Betrag, den das System wert ist, wenn von deinem aktuellen System aus gereist wird. Es gibt Modifikatoren dafür, wie die Art der dort unternommenen Schlacht, die mehr AP geben kann, und es gibt noch andere Modifikatoren dafür in einigen Philosophien und Aszendenz-Vorteilen.",
+      scanWeatherHelp:
+        "Wetterdaten können als vorherrschender Wettertyp gelesen werden - Keine exakte Wissenschaft - Wenn zum Beispiel 57% Sonnig, dann ist es weitgehend ein sonniges System, da alle anderen Wettertypen 43% Wahrscheinlichkeit teilen, aber wenn es 26% Sonnig ist, dann bedeutet es wirklich, dass es ein gemischtes Klima ist, da die anderen 3 Typen die anderen 74% teilen. Es wird auch die Art der Verbindung angezeigt, die durch das Sammeln der Niederschläge dieses Systems erhalten wird.",
+      scanCivilizationHelp:
+        "Wie fortschrittlich die Zivilisation ist. Dies wirkt sich direkt auf die Verteidigung der Zivilisation aus: Wenn sie Raumfahrend sind, sind ihre Einheitsverteidigungen doppelt so stark wie wenn sie Industriell sind.",
+      scanDefenseHelp:
+        "Die Verteidigungsbewertung modifiziert die Trefferpunkte des feindlichen Schiffes. Was auch immer sie normalerweise haben, wird auf diesen Prozentsatz reduziert, wenn sie kämpfen. Diese Zahl kann farbig sein, was bedeutet, dass ihr Wert durch eine Anomalie im System modifiziert wurde, die unten in der Anomalien-Reihe beschrieben werden. Zum Vergleich: Der Spieler hat immer 100% Verteidigung zu Beginn.",
+      scanEnemyFleetsHelp:
+        "Die Anzahl jeder Einheit, mit der der Feind eine Schlacht beginnt, das ist nicht dasselbe wie die Flottenstärke. Eine Zahl kann farbig sein, was bedeutet, dass ihre Menge durch eine Anomalie im System modifiziert wurde, die unten in der Anomalien-Reihe beschrieben werden.",
+      scanThreatHelp:
+        "Die Bedrohungsstufe modifiziert die Verteidigungsstufe der feindlichen Einheiten, die das System verteidigen. Extreme Bedrohung erhält den vollen Bonus (keine Reduzierung). Hoch bedeutet, es ist 70% so stark wie es bei Extrem wäre, Moderat ist 40%, Niedrig ist 20% und Keine ist 0% (nur Unempfindliche oder Leblose Systeme). Der endgültige berechnete Wert wird immer noch rechts von diesem Wert angezeigt, es modifiziert diesen Wert nicht nachträglich, sondern zeigt, was dazu beigetragen hat, diesen endgültigen Wert zu erreichen.",
+      scanUnavailable:
+        "Das Ziel kann gescannt werden, sobald das Schiff 70 % der Reise zurückgelegt hat oder im Orbit ist.",
+      scanLimited:
+        "Es ist kein Sternenscanner installiert. Daher sind Messwerte zu Leben, Zivilisation, Bedrohung und Flotten unbekannt.",
       lifeDetected: "Leben entdeckt",
       noLifeDetected: "Kein Leben entdeckt",
       civilization: "Zivilisation",
@@ -415,19 +597,25 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       threat: "Bedrohungsstufe",
       defense: "Verteidigungswert",
       attitude: "Haltung",
+      receptionStatusHelp:
+        "Du kannst mit zivilisierten Spezies kommunizieren, es sei denn, sie sind dir gegenüber Kriegsbereit.",
       impression: "Erster / aktueller Eindruck",
       patience: "Geduld",
       enemyFleets: "Feindliche Flotten (Luft / Land / See)",
       enemyFleetPower: "Kampfkraft der feindlichen Flotte",
+      fleetAir: "Luft",
+      fleetLand: "Land",
+      fleetSea: "See",
       lifeformTraits: "Merkmale der Lebensform",
       anomalies: "Anomalien",
       envoyTitle: "Flottenhangar",
-      envoyDescription:
-        "Baue einen Gesandten, um diplomatische Kanäle zu intelligenten Zivilisationen zu öffnen.",
+      envoyDescription: "Baue einen Gesandten, ein nur einmal baubares Schiff, um diplomatische Kanäle zu fühlenden Zivilisationen in entdeckten Systemen zu öffnen.",
       buildEnvoy: "Gesandten bauen",
       envoyBuilt: "Gesandter gebaut.",
       envoyComplete: "Dein Gesandter ist bereit.",
       diplomacyTitle: "Diplomatische Kanäle",
+      diplomacyOptionsHelp:
+        "Wenn verfügbar und ein Gesandter gebaut ist, klicke, um zu versuchen, einzuschüchtern oder die Beziehungen zu verbessern",
       diplomacyLocked:
         "Scanne eine intelligente Zivilisation und baue einen Gesandten, um diplomatische Kanäle zu öffnen.",
       sendMessage: "Nachricht senden",
@@ -446,6 +634,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       enemyBattleHealth: "Hülle der feindlichen Flotte",
       engageBattle: "Schlacht beginnen",
       settleSystem: "System besiedeln",
+      settleNoResistance: "Siedle einfach bei {system} ohne Widerstand!",
       alreadySettled: "Dieses System gehört bereits zu deinem besiedelten Gebiet.",
       settlementComplete:
         "System besiedelt. Belohnungen für Aszendenz und galaktische Punkte wurden verbucht.",
@@ -484,11 +673,25 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       battleUnavailable:
         "Ein Flottenschiff wird benötigt; es darf keine aktive oder beendete Schlacht geben.",
       settlementUnavailable:
-        "Besiege die feindliche Flotte, gewinne die Schlacht oder erreiche ein System ohne bewusste Verteidiger, bevor du dich niederlässt.",
+        "Besiege die feindliche Flotte, gewinne die Schlacht oder erreiche ein System ohne bewusste Verteidiger, bevor du das System besiedelst.",
       fleetScout: "Aufklärer",
       fleetMarauder: "Marodeur",
       fleetLandStalker: "Landpirscher",
       fleetNavalStrafer: "Marinejäger",
+      fleetHangarHelpLabel: "Hilfe zum Flottenhangar",
+      fleetHangarHeaderHelp: [
+        "Hier kannst du die Flotten bauen, die das System erobern werden, in dem du dich befindest oder zu dem du reist.",
+        "Gesandte sind Nicht-Kampf-Einheiten, die du einmal baust, um Diplomatie mit dem Feind zu eröffnen, nicht in allen Fällen, aber in den meisten.",
+        "Späher sind schnelle Luft-Einheiten und können feindliche Luft-Einheiten und See-Einheiten mit einer Geschwindigkeit von 5 anvisieren.",
+        "Marodeure sind spezielle Luft-Einheiten, die nur der Spieler hat, und können sowohl feindliche Land- als auch See-Einheiten mit einer Geschwindigkeit von 4 anvisieren.",
+        "Landstalker sind Land-Einheiten und können feindliche Luft- und Land-Einheiten mit einer Geschwindigkeit von 2 anvisieren.",
+        "Marine-Straffer sind See-Einheiten und können feindliche See- und Land-Einheiten mit einer Geschwindigkeit von 1 anvisieren.",
+      ].join("\n\n"),
+      fleetScoutDescription: "Ein billiges, leichtes Schiff, gut in großer Zahl.",
+      fleetMarauderDescription:
+        "Ein starkes Schiff, entworfen zur Dezimierung feindlicher Flotten.",
+      fleetLandStalkerDescription: "Wenn sie nicht fliegen, fürchten sie diese geniale Maschine!",
+      fleetNavalStraferDescription: "Navalflotten können im Handumdrehen vernichtet werden!",
       plantPowerPlant1: "Einfaches Kraftwerk",
       plantPowerPlant2: "Solarkraftwerk",
       plantPowerPlant3: "Erweitertes Kraftwerk",
@@ -496,13 +699,23 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Die Besiedlung dieses O-Typ-Systems schaltet eine achtfache Produktion für {plant} frei.",
     },
     it: {
-      title: "Costruzione dell'astronave",
+      title: "Astronave",
+      starshipHeaderHelp:
+        "Qui puoi costruire e gestire la tua Nave Stellare per viaggiare verso e scansionare le stelle studiate.",
       colonise: "Colonizza",
+      coloniseHeaderHelp:
+        "Impegnati in Diplomazia e Guerra per stabilire la tua nuova colonia a {system} - Forza della Flotta: {fleetPower}",
+      coloniseDescription:
+        "Usa diplomazia e guerra per fondare la tua nuova colonia su {system} - Potenza della flotta: {playerPower}",
+      coloniseBuildFleets: "Costruisci le tue flotte per affrontare il nemico! - Potenza della flotta:",
+      coloniseNoResistance: "Colonizza semplicemente {system} senza alcuna resistenza!",
+      coloniseBattleDescription:
+        "Sconfiggi il nemico! - Potenza della flotta: {playerPower} Potenza della flotta nemica: {enemyPower}",
+      fleetHangarDescription:
+        "Costruisci le tue flotte per conquistare i sistemi visitati - Forza della flotta:",
       description: "Costruisci i quattro moduli necessari per il viaggio interstellare.",
       ready: "Pronta per il viaggio interstellare",
       building: "Costruzione in corso",
-      required: "Modulo necessario",
-      optional: "Modulo facoltativo",
       parts: "Parti costruite",
       nextPartCost: "Costo della prossima parte",
       buildPart: "Costruisci una parte",
@@ -525,6 +738,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Dopo il lancio, l'astronave non può essere recuperata in questa partita. Controlla destinazione e costo del carburante.",
       travelling: "In viaggio verso {name}",
       journeyTimeRemaining: "Tempo di viaggio rimanente: {time}",
+      journeyProgress: "Progresso del viaggio stellare",
       orbiting: "In orbita attorno a {name}",
       noDestination: "Seleziona prima una destinazione studiata sulla mappa stellare.",
       ftlRequired: "Ricerca prima la teoria dei viaggi FTL.",
@@ -532,9 +746,26 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       alreadyLaunched: "L'astronave è già stata lanciata in questa partita.",
       pointOfNoReturnTitle: "Attenzione: punto di non ritorno",
       scanSystem: "Analizza il sistema di destinazione",
+      scanActionHelp: "Clicca per Scansionare la Stella di destinazione per eventuali vite o minacce presenti.",
       scanComplete: "Scansione del sistema completata",
-      scannerRequired:
-        "Costruisci il modulo facoltativo Scanner stellare per analizzare questo sistema.",
+      scanReport: "Rapporto di scansione del sistema",
+      scanMoreInfoLabel: "Maggiori informazioni",
+      scanApHelp:
+        "Questo è l'importo base di PA che vale il Sistema, quando si viaggia dal tuo Sistema attuale. Ci sono modificatori per questo come il tipo di battaglia intrapresa lì, che può dare più PA, e ci sono altri modificatori disponibili in alcune Filosofie e Vantaggi di Ascendenza.",
+      scanWeatherHelp:
+        "I dati meteorologici possono essere letti come Tipo di Tempo Prevalente - Non è scienza esatta - Se per esempio c'è il 57% di Sole, allora è in gran parte un Sistema soleggiato, poiché tutti gli altri tipi di tempo condividono il 43% di probabilità, ma se è il 26% di Sole, allora in realtà indica un clima misto poiché gli altri 3 tipi condividono l'altro 74%. Viene anche mostrato il tipo di composto ricevuto raccogliendo le Precipitazioni di questo Sistema.",
+      scanCivilizationHelp:
+        "Quanto è avanzata la Civiltà. Questo impatta direttamente la Difesa della Civiltà: se sono Interstellari, le loro difese unità sono due volte più forti che se fossero Industriali.",
+      scanDefenseHelp:
+        "La valutazione di difesa modifica i punti vita della nave nemica. Qualunque sia la loro quantità normale di inizio, viene ridotta a questa percentuale quando combattono. Questo numero può essere colorato, il che significa che il suo valore è stato modificato da un'Anomalia nel Sistema, che sono descritte sotto nella riga delle Anomalie. Per confronto, il giocatore ha sempre il 100% di difesa all'inizio.",
+      scanEnemyFleetsHelp:
+        "Il numero di ogni unità con cui il nemico inizia una battaglia, questo non è la stessa cosa della Potenza della Flotta. Un numero può essere colorato, il che significa che la sua quantità è stata modificata da un'Anomalia nel Sistema, che sono descritte sotto nella riga delle Anomalie.",
+      scanThreatHelp:
+        "Il Livello di Minaccia modifica il livello di difesa delle unità nemiche che difendono il Sistema. Minaccia Estrema ottiene il bonus completo (nessuna riduzione). Alto significa che è al 70% di forza rispetto a come sarebbe se fosse Estrema, Moderato è il 40%, Basso è il 20% e Nessuno è lo 0% (solo Sistemi Non Sensibili o Senza Vita). Il valore finale calcolato viene comunque mostrato a destra di questo valore, non sta modificando quel valore dopo il fatto, ma mostrando cosa ha contribuito a raggiungere quel valore finale.",
+      scanUnavailable:
+        "La destinazione può essere analizzata quando l'astronave ha percorso il 70% del viaggio o è in orbita.",
+      scanLimited:
+        "Non è installato uno Scanner stellare, quindi i dati su vita, civiltà, minaccia e flotte sono sconosciuti.",
       lifeDetected: "Vita rilevata",
       noLifeDetected: "Nessuna vita rilevata",
       civilization: "Civiltà",
@@ -543,19 +774,25 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       threat: "Livello di minaccia",
       defense: "Valore difensivo",
       attitude: "Atteggiamento",
+      receptionStatusHelp:
+        "Puoi comunicare con specie civilizzate, a meno che non siano Belligeranti nei tuoi confronti.",
       impression: "Impressione iniziale / attuale",
       patience: "Pazienza",
       enemyFleets: "Flotte nemiche (aerea / terrestre / navale)",
       enemyFleetPower: "Potenza della flotta nemica",
+      fleetAir: "Aria",
+      fleetLand: "Terra",
+      fleetSea: "Mare",
       lifeformTraits: "Caratteristiche della forma di vita",
       anomalies: "Anomalie",
       envoyTitle: "Hangar della flotta",
-      envoyDescription:
-        "Costruisci un Inviato per aprire canali diplomatici con civiltà senzienti.",
+      envoyDescription: "Costruisci un Inviato, una nave costruibile una sola volta, per aprire canali diplomatici con civiltà senzienti nei Sistemi scoperti.",
       buildEnvoy: "Costruisci Inviato",
       envoyBuilt: "Inviato costruito.",
       envoyComplete: "Il tuo Inviato è pronto.",
       diplomacyTitle: "Canali diplomatici",
+      diplomacyOptionsHelp:
+        "Se disponibile, e l'Inviato costruito, clicca per provare a intimidire o migliorare le relazioni",
       diplomacyLocked:
         "Analizza una civiltà senziente e costruisci un Inviato per aprire canali diplomatici.",
       sendMessage: "Invia un messaggio",
@@ -573,10 +810,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       playerBattleHealth: "Scafo della flotta del giocatore",
       enemyBattleHealth: "Scafo della flotta nemica",
       engageBattle: "Inizia la battaglia",
-      settleSystem: "Insedia questo sistema",
+      settleSystem: "Colonizza questo sistema",
+      settleNoResistance: "Colonizza semplicemente {system} senza alcuna resistenza!",
       alreadySettled: "Questo sistema fa già parte del tuo territorio.",
       settlementComplete:
-        "Sistema insediato. Le ricompense di Ascendenza e Punti galattici sono state registrate.",
+        "Sistema colonizzato. Le ricompense di Ascendenza e Punti galattici sono state registrate.",
       messageReceptive: "La specie accoglie il tuo Inviato. La sua impressione di te è migliorata.",
       messageNeutral: "La specie si scambia saluti prudenti. La sua impressione di te è cambiata.",
       messageReserved: "La specie resta riservata. Il tuo Inviato ha ottenuto pochi progressi.",
@@ -608,11 +846,24 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       battleUnavailable:
         "Serve una nave della flotta e non deve esserci una battaglia attiva o conclusa.",
       settlementUnavailable:
-        "Sconfiggi la flotta ostile, vinci la battaglia o raggiungi un sistema senza difensori senzienti prima di insediarti.",
+        "Sconfiggi la flotta ostile, vinci la battaglia o raggiungi un sistema senza difensori senzienti prima di colonizzare il sistema.",
       fleetScout: "Ricognitore",
       fleetMarauder: "Predone",
       fleetLandStalker: "Predatore terrestre",
       fleetNavalStrafer: "Incursore navale",
+      fleetHangarHelpLabel: "Aiuto sull'hangar della flotta",
+      fleetHangarHeaderHelp: [
+        "Qui puoi costruire le Flotte che conquisteranno il Sistema in cui ti trovi o verso cui stai viaggiando.",
+        "Gli Inviati sono unità non da battaglia che costruisci una volta per aprire la diplomazia con il nemico, non in tutti i casi ma nella maggior parte.",
+        "Gli Esploratori sono unità Aeree veloci e possono bersagliare unità Aeree nemiche e unità Marine con una Velocità di 5.",
+        "I Predoni sono unità Aeree speciali che solo il giocatore ha, e possono bersagliare sia unità Terrestri nemiche che Marine con una Velocità di 4.",
+        "I Predatori Terrestri sono unità Terrestri e possono bersagliare unità Aeree nemiche e Terrestri con una Velocità di 2.",
+        "Gli Strafing Navali sono unità Marine e possono bersagliare unità Marine nemiche e Terrestri con una Velocità di 1.",
+      ].join("\n\n"),
+      fleetScoutDescription: "Una nave economica e leggera, efficace in gran numero.",
+      fleetMarauderDescription: "Una nave potente, progettata per decimare flotte nemiche.",
+      fleetLandStalkerDescription: "Se non volano, temono questa fantastica macchina!",
+      fleetNavalStraferDescription: "Le flotte navali possono essere devastate in un battito!",
       plantPowerPlant1: "Centrale elettrica base",
       plantPowerPlant2: "Centrale solare",
       plantPowerPlant3: "Centrale elettrica avanzata",
@@ -620,13 +871,23 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Insediare questo sistema di tipo O sblocca un bonus di produzione ×8 per {plant}.",
     },
     fr: {
-      title: "Construction du vaisseau stellaire",
+      title: "Vaisseau spatial",
+      starshipHeaderHelp:
+        "Ici tu peux construire et gérer ton Vaisseau Stellaire pour voyager vers et scanner les étoiles étudiées.",
       colonise: "Coloniser",
+      coloniseHeaderHelp:
+        "Engage-toi en Diplomatie et Guerre pour établir ta nouvelle colonie à {system} - Force de Flotte: {fleetPower}",
+      coloniseDescription:
+        "Usez de diplomatie et de guerre pour établir votre nouvelle colonie à {system} - Puissance de flotte: {playerPower}",
+      coloniseBuildFleets: "Construisez vos flottes pour affronter l'ennemi! - Puissance de flotte:",
+      coloniseNoResistance: "Colonisez simplement {system} sans aucune résistance!",
+      coloniseBattleDescription:
+        "Vainquez l'ennemi! - Puissance de flotte: {playerPower} Puissance de la flotte ennemie: {enemyPower}",
+      fleetHangarDescription:
+        "Construisez vos flottes pour conquérir les systèmes visités - Puissance de la flotte:",
       description: "Construisez les quatre modules requis pour le voyage interstellaire.",
       ready: "Prêt pour le voyage interstellaire",
       building: "Construction en cours",
-      required: "Module requis",
-      optional: "Module facultatif",
       parts: "Pièces construites",
       nextPartCost: "Coût de la prochaine pièce",
       buildPart: "Construire une pièce",
@@ -649,6 +910,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Après le lancement, le vaisseau ne peut pas être récupéré pendant cette partie. Vérifiez la destination et le coût en carburant.",
       travelling: "En route vers {name}",
       journeyTimeRemaining: "Temps de voyage restant : {time}",
+      journeyProgress: "Progression du voyage spatial",
       orbiting: "En orbite autour de {name}",
       noDestination: "Choisissez d'abord une destination étudiée sur la carte stellaire.",
       ftlRequired: "Recherchez d'abord la théorie du voyage FTL.",
@@ -656,9 +918,26 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       alreadyLaunched: "Le vaisseau est déjà parti pendant cette partie.",
       pointOfNoReturnTitle: "Attention : point de non-retour",
       scanSystem: "Scanner le système de destination",
+      scanActionHelp: "Cliquez pour Scanner l'Étoile de destination pour toute vie ou menace qui pourrait être présente.",
       scanComplete: "Analyse du système terminée",
-      scannerRequired:
-        "Construisez le module facultatif de scanneur stellaire pour analyser ce système.",
+      scanReport: "Rapport de scan du système",
+      scanMoreInfoLabel: "Plus d'informations",
+      scanApHelp:
+        "C'est le montant de base de PA que vaut le Système, lorsqu'on voyage depuis ton Système actuel. Il y a des modificateurs pour cela comme le type de bataille entreprise là-bas, qui peut donner plus de PA, et il y a d'autres modificateurs disponibles dans certaines Philosophies et Avantages d'Ascendance.",
+      scanWeatherHelp:
+        "Les données météorologiques peuvent être lues comme Type de Temps Prédominant - Ce n'est pas une science exacte - Si par exemple il y a 57% de Soleil, alors c'est largement un Système ensoleillé, car tous les autres types de temps partagent les 43% de probabilité, mais si c'est 26% de Soleil, alors cela signifie vraiment que c'est un climat mixte car les 3 autres types partagent les autres 74%. Le type de composé reçu en collectant les Précipitations de ce Système est également affiché.",
+      scanCivilizationHelp:
+        "Quelle est l'avancée de la Civilisation. Cela impacte directement la Défense de la Civilisation : s'ils sont Interstellaires, leurs défenses d'unité sont deux fois plus fortes que s'ils sont Industriels.",
+      scanDefenseHelp:
+        "L'évaluation de défense modifie les points de vie du vaisseau ennemi. Quelle que soit leur quantité normale de départ, elle est réduite à ce pourcentage lorsqu'ils combattent. Ce nombre peut être coloré, ce qui signifie que sa valeur a été modifiée par une Anomalie dans le Système, qui sont décrites ci-dessous dans la ligne des Anomalies. Pour comparaison, le joueur a toujours 100% de défense au début.",
+      scanEnemyFleetsHelp:
+        "Le nombre de chaque unité avec laquelle l'ennemi commence une bataille, ce n'est pas la même chose que la Puissance de Flotte. Un nombre peut être coloré, ce qui signifie que sa quantité a été modifiée par une Anomalie dans le Système, qui sont décrites ci-dessous dans la ligne des Anomalies.",
+      scanThreatHelp:
+        "Le Niveau de Menace modifie le niveau de défense des unités ennemies défendant le Système. Menace Extrême obtient le bonus complet (pas de réduction). Élevé signifie qu'il est à 70% aussi fort que ce serait s'il était Extrême, Modéré est à 40%, Faible est à 20% et Aucun est à 0% (systèmes seulement Non Sensibles ou Sans Vie). La valeur finale calculée est toujours affichée à droite de cette valeur, elle ne modifie pas cette valeur après coup, mais montre ce qui a contribué à atteindre cette valeur finale.",
+      scanUnavailable:
+        "La destination peut être scannée lorsque le vaisseau a parcouru 70 % du trajet ou se trouve en orbite.",
+      scanLimited:
+        "Aucun scanneur stellaire n'est installé ; les données sur la vie, la civilisation, la menace et les flottes sont inconnues.",
       lifeDetected: "Vie détectée",
       noLifeDetected: "Aucune vie détectée",
       civilization: "Civilisation",
@@ -667,19 +946,25 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       threat: "Niveau de menace",
       defense: "Valeur de défense",
       attitude: "Attitude",
+      receptionStatusHelp:
+        "Vous pouvez communiquer avec des espèces civilisées, à moins qu'elles ne soient Belligérantes envers vous.",
       impression: "Impression initiale / actuelle",
       patience: "Patience",
       enemyFleets: "Flottes ennemies (air / terre / mer)",
       enemyFleetPower: "Puissance de la flotte ennemie",
+      fleetAir: "Air",
+      fleetLand: "Terre",
+      fleetSea: "Mer",
       lifeformTraits: "Caractéristiques de la forme de vie",
       anomalies: "Anomalies",
       envoyTitle: "Hangar de flotte",
-      envoyDescription:
-        "Construisez un Émissaire pour ouvrir des canaux diplomatiques avec les civilisations intelligentes.",
+      envoyDescription: "Construisez un Émissaire, un vaisseau constructible une seule fois, pour ouvrir des canaux diplomatiques avec les civilisations sensibles des Systèmes découverts.",
       buildEnvoy: "Construire un Émissaire",
       envoyBuilt: "Émissaire construit.",
       envoyComplete: "Votre Émissaire est prêt.",
       diplomacyTitle: "Canaux diplomatiques",
+      diplomacyOptionsHelp:
+        "Si disponible, et l'Envoyé construit, cliquez pour essayer d'intimider ou d'améliorer les relations",
       diplomacyLocked:
         "Scannez une civilisation intelligente et construisez un Émissaire pour ouvrir des canaux diplomatiques.",
       sendMessage: "Envoyer un message",
@@ -698,21 +983,22 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       enemyBattleHealth: "Coque de la flotte ennemie",
       engageBattle: "Commencer la bataille",
       settleSystem: "Coloniser ce système",
+      settleNoResistance: "Colonisez simplement {system} sans aucune résistance!",
       alreadySettled: "Ce système fait déjà partie de votre territoire colonisé.",
       settlementComplete:
         "Système colonisé. Les récompenses d'Ascendance et de points galactiques ont été enregistrées.",
-      messageReceptive: "L'espèce accueille votre Émissaire. Son opinion de vous s'est améliorée.",
-      messageNeutral: "L'espèce échange des salutations prudentes. Son opinion de vous a changé.",
-      messageReserved: "L'espèce reste réservée. Votre Émissaire a peu progressé.",
-      messageBelligerent: "L'espèce rejette votre Émissaire et devient belliqueuse.",
-      harmonyReceptive: "Votre appel à l'harmonie réussit. L'espèce se montre réceptive.",
-      harmonyRebuff: "Votre appel à l'harmonie est rejeté. La patience diminue.",
-      harmonyBelligerent: "Votre appel à l'harmonie échoue. L'espèce devient belliqueuse.",
+      messageReceptive: "L'espèce accueille ton Émissaire. Son impression de toi s'est améliorée.",
+      messageNeutral: "L'espèce échange des salutations prudentes. Son impression de toi a changé.",
+      messageReserved: "L'espèce reste réservée. Ton Émissaire a peu progressé.",
+      messageBelligerent: "L'espèce rejette ton Émissaire et devient belliqueuse.",
+      harmonyReceptive: "Ton appel à l'harmonie réussit. L'espèce se montre réceptive.",
+      harmonyRebuff: "Ton appel à l'harmonie est rejeté. La patience diminue.",
+      harmonyBelligerent: "Ton appel à l'harmonie échoue. L'espèce devient belliqueuse.",
       bullyScared:
-        "Votre démonstration de force effraie la civilisation. Ses flottes sont réduites de moitié.",
+        "Ta démonstration de force effraie la civilisation. Ses flottes sont réduites de moitié.",
       bullySurrendered: "La civilisation se rend et dissout ses flottes.",
       bullyAttack: "La civilisation attaque. Ses défenses se renforcent et sa patience prend fin.",
-      bullyLaugh: "La civilisation rit de votre menace. Son opinion de vous se dégrade.",
+      bullyLaugh: "La civilisation rit de ta menace. Son impression de toi se dégrade.",
       vassalized: "La civilisation accepte la vassalisation et dissout ses flottes.",
       vassalizationFailed: "La civilisation refuse la vassalisation. La guerre devient possible.",
       buildFleetShip: "Construire un vaisseau",
@@ -734,11 +1020,25 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       battleUnavailable:
         "Un vaisseau de flotte est requis et aucune bataille ne doit être active ou terminée.",
       settlementUnavailable:
-        "Vainquez la flotte hostile, gagnez la bataille ou atteignez un système sans défenseurs conscients avant de vous installer.",
+        "Vainquez la flotte hostile, gagnez la bataille ou atteignez un système sans défenseurs conscients avant de coloniser le système.",
       fleetScout: "Éclaireur",
       fleetMarauder: "Maraudeur",
       fleetLandStalker: "Traqueur terrestre",
       fleetNavalStrafer: "Intercepteur naval",
+      fleetHangarHelpLabel: "Aide sur le hangar de flotte",
+      fleetHangarHeaderHelp: [
+        "Ici tu peux construire les Flottes qui conquerront le Système dans lequel tu es ou vers lequel tu voyages.",
+        "Les Émissaires sont des unités non de bataille que tu construis une fois pour ouvrir la diplomatie avec l'ennemi, pas dans tous les cas mais dans la plupart.",
+        "Les Éclaireurs sont des unités Aériennes rapides et peuvent cibler des unités Aériennes ennemies et des unités Marines avec une Vitesse de 5.",
+        "Les Maraudeurs sont des unités Aériennes spéciales que seul le joueur a, et peuvent cibler à la fois des unités Terrestres ennemies et Marines avec une Vitesse de 4.",
+        "Les Traqueurs Terrestres sont des unités Terrestres et peuvent cibler des unités Aériennes ennemies et Terrestres avec une Vitesse de 2.",
+        "Les Fusiliers Navals sont des unités Marines et peuvent cibler des unités Marines ennemies et Terrestres avec une Vitesse de 1.",
+      ].join("\n\n"),
+      fleetScoutDescription: "Un vaisseau bon marché et léger, efficace en grand nombre.",
+      fleetMarauderDescription: "Un vaisseau puissant, conçu pour décimer les flottes ennemies.",
+      fleetLandStalkerDescription:
+        "S'ils ne volent pas, ils craignent cette machine impressionnante!",
+      fleetNavalStraferDescription: "Les flottes navales peuvent être dévastées en un clin d'œil!",
       plantPowerPlant1: "Centrale électrique de base",
       plantPowerPlant2: "Centrale solaire",
       plantPowerPlant3: "Centrale électrique avancée",
@@ -746,6 +1046,343 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Coloniser ce système de type O débloque une production ×8 pour {plant}.",
     },
   };
+
+type StarshipScanTokenSets = {
+  civilization: StarCivilizationLevel;
+  threat: StarThreatLevel;
+  attitude: StarAttitude;
+  trait: StarLifeformTrait;
+  anomaly: StarAnomalyId;
+};
+
+type StarshipScanTokenLocale = {
+  readonly [Category in keyof StarshipScanTokenSets]: Readonly<
+    Record<StarshipScanTokenSets[Category], string>
+  >;
+};
+
+const scanTokens: Readonly<Record<LocaleId, StarshipScanTokenLocale>> = {
+  en: {
+    civilization: {
+      none: "None",
+      unsentient: "Unsentient",
+      industrial: "Industrial",
+      spacefaring: "Spacefaring",
+      robotic: "Robotic",
+    },
+    threat: { none: "None", low: "Low", moderate: "Moderate", high: "High", extreme: "Extreme" },
+    attitude: {
+      none: "None",
+      receptive: "Receptive",
+      neutral: "Neutral",
+      reserved: "Reserved",
+      belligerent: "Belligerent",
+      scared: "Scared",
+      surrendered: "Surrendered",
+    },
+    trait: {
+      notApplicable: "Not applicable",
+      aggressive: "Aggressive",
+      diplomatic: "Diplomatic",
+      terrans: "Terrans",
+      aquatic: "Aquatic",
+      aerialians: "Aerialians",
+      armored: "Armored",
+      hiveMind: "Hive mind",
+      powerSiphon: "Power siphon",
+      hypercharge: "Hypercharge",
+      mechanized: "Mechanized",
+    },
+    anomaly: {
+      electromagneticSurge: "Electromagnetic surge",
+      fortifiedMagneticField: "Fortified magnetic field",
+      plasmaInstability: "Plasma instability",
+      energyDampeningField: "Energy dampening field",
+      atmosphericDisturbance: "Atmospheric disturbance",
+      highAltitudeJetStreams: "High-altitude jet streams",
+      seismicInstability: "Seismic instability",
+      tectonicShift: "Tectonic shift",
+      deepOceanCurrents: "Deep-ocean currents",
+      darkMatterFlux: "Dark matter flux",
+      stalwart: "Stalwart",
+      brokenForceField: "Broken force field",
+      aiMasterRace: "AI master race",
+    },
+  },
+  es: {
+    civilization: {
+      none: "Ninguna",
+      unsentient: "Vida no consciente",
+      industrial: "Industrial",
+      spacefaring: "Civilización espacial",
+      robotic: "Robótica",
+    },
+    threat: {
+      none: "Ninguna",
+      low: "Baja",
+      moderate: "Moderada",
+      high: "Alta",
+      extreme: "Extrema",
+    },
+    attitude: {
+      none: "Ninguna",
+      receptive: "Receptiva",
+      neutral: "Neutral",
+      reserved: "Reservada",
+      belligerent: "Beligerante",
+      scared: "Asustada",
+      surrendered: "Rendida",
+    },
+    trait: {
+      notApplicable: "No aplicable",
+      aggressive: "Agresivos",
+      diplomatic: "Diplomáticos",
+      terrans: "Terrícolas",
+      aquatic: "Acuáticos",
+      aerialians: "Aéreos",
+      armored: "Blindados",
+      hiveMind: "Mente colmena",
+      powerSiphon: "Sifón de energía",
+      hypercharge: "Hiperpotencia",
+      mechanized: "Mecanizados",
+    },
+    anomaly: {
+      electromagneticSurge: "Sobrecarga electromagnética",
+      fortifiedMagneticField: "Campo magnético reforzado",
+      plasmaInstability: "Inestabilidad del plasma",
+      energyDampeningField: "Campo de atenuación energética",
+      atmosphericDisturbance: "Perturbación atmosférica",
+      highAltitudeJetStreams: "Corrientes en chorro de gran altitud",
+      seismicInstability: "Inestabilidad sísmica",
+      tectonicShift: "Desplazamiento tectónico",
+      deepOceanCurrents: "Corrientes oceánicas profundas",
+      darkMatterFlux: "Flujo de materia oscura",
+      stalwart: "Inquebrantable",
+      brokenForceField: "Campo de fuerza dañado",
+      aiMasterRace: "IA suprema",
+    },
+  },
+  pt: {
+    civilization: {
+      none: "Nenhuma",
+      unsentient: "Vida não senciente",
+      industrial: "Industrial",
+      spacefaring: "Civilização espacial",
+      robotic: "Robótica",
+    },
+    threat: {
+      none: "Nenhuma",
+      low: "Baixa",
+      moderate: "Moderada",
+      high: "Alta",
+      extreme: "Extrema",
+    },
+    attitude: {
+      none: "Nenhuma",
+      receptive: "Recetiva",
+      neutral: "Neutra",
+      reserved: "Reservada",
+      belligerent: "Beligerante",
+      scared: "Assustada",
+      surrendered: "Rendida",
+    },
+    trait: {
+      notApplicable: "Não aplicável",
+      aggressive: "Agressivos",
+      diplomatic: "Diplomáticos",
+      terrans: "Terranos",
+      aquatic: "Aquáticos",
+      aerialians: "Aéreos",
+      armored: "Blindados",
+      hiveMind: "Mente coletiva",
+      powerSiphon: "Sifão de energia",
+      hypercharge: "Hiper carga",
+      mechanized: "Mecanizados",
+    },
+    anomaly: {
+      electromagneticSurge: "Sobrecarga eletromagnética",
+      fortifiedMagneticField: "Campo magnético reforçado",
+      plasmaInstability: "Instabilidade do plasma",
+      energyDampeningField: "Campo de enfraquecimento de energia",
+      atmosphericDisturbance: "Perturbação atmosférica",
+      highAltitudeJetStreams: "Correntes de jato de alta altitude",
+      seismicInstability: "Instabilidade sísmica",
+      tectonicShift: "Deslocamento tectônico",
+      deepOceanCurrents: "Correntes oceânicas profundas",
+      darkMatterFlux: "Fluxo de matéria escura",
+      stalwart: "Inabalável",
+      brokenForceField: "Campo de força danificado",
+      aiMasterRace: "IA suprema",
+    },
+  },
+  de: {
+    civilization: {
+      none: "Keine",
+      unsentient: "Nicht empfindungsfähiges Leben",
+      industrial: "Industriell",
+      spacefaring: "Raumfahrend",
+      robotic: "Robotisch",
+    },
+    threat: {
+      none: "Keine",
+      low: "Gering",
+      moderate: "Mittel",
+      high: "Hoch",
+      extreme: "Extrem",
+    },
+    attitude: {
+      none: "Keine",
+      receptive: "Aufgeschlossen",
+      neutral: "Neutral",
+      reserved: "Zurückhaltend",
+      belligerent: "Kämpferisch",
+      scared: "Verängstigt",
+      surrendered: "Ergeben",
+    },
+    trait: {
+      notApplicable: "Nicht zutreffend",
+      aggressive: "Aggressiv",
+      diplomatic: "Diplomatisch",
+      terrans: "Terraner",
+      aquatic: "Aquatisch",
+      aerialians: "Aerialier",
+      armored: "Gepanzert",
+      hiveMind: "Schwarmbewusstsein",
+      powerSiphon: "Energieabsauger",
+      hypercharge: "Hyperladung",
+      mechanized: "Mechanisiert",
+    },
+    anomaly: {
+      electromagneticSurge: "Elektromagnetischer Sturm",
+      fortifiedMagneticField: "Verstärktes Magnetfeld",
+      plasmaInstability: "Plasmainstabilität",
+      energyDampeningField: "Energiedämpfungsfeld",
+      atmosphericDisturbance: "Atmosphärische Störung",
+      highAltitudeJetStreams: "Höhenströmungen",
+      seismicInstability: "Seismische Instabilität",
+      tectonicShift: "Tektonische Verschiebung",
+      deepOceanCurrents: "Tiefsee-Strömungen",
+      darkMatterFlux: "Dunkelmateriefluss",
+      stalwart: "Standhaft",
+      brokenForceField: "Beschädigtes Kraftfeld",
+      aiMasterRace: "Überlegene KI",
+    },
+  },
+  it: {
+    civilization: {
+      none: "Nessuna",
+      unsentient: "Vita non senziente",
+      industrial: "Industriale",
+      spacefaring: "Capace di viaggi spaziali",
+      robotic: "Robotica",
+    },
+    threat: {
+      none: "Nessuna",
+      low: "Bassa",
+      moderate: "Moderata",
+      high: "Alta",
+      extreme: "Estrema",
+    },
+    attitude: {
+      none: "Nessuna",
+      receptive: "Ricettiva",
+      neutral: "Neutrale",
+      reserved: "Riservata",
+      belligerent: "Belligerante",
+      scared: "Spaventata",
+      surrendered: "Arrendevole",
+    },
+    trait: {
+      notApplicable: "Non applicabile",
+      aggressive: "Aggressivi",
+      diplomatic: "Diplomatici",
+      terrans: "Terrestri",
+      aquatic: "Acquatici",
+      aerialians: "Aerei",
+      armored: "Corazzati",
+      hiveMind: "Mente alveare",
+      powerSiphon: "Sifone energetico",
+      hypercharge: "Ipercarica",
+      mechanized: "Meccanizzati",
+    },
+    anomaly: {
+      electromagneticSurge: "Sovratensione elettromagnetica",
+      fortifiedMagneticField: "Campo magnetico rinforzato",
+      plasmaInstability: "Instabilità del plasma",
+      energyDampeningField: "Campo di attenuazione energetica",
+      atmosphericDisturbance: "Perturbazione atmosferica",
+      highAltitudeJetStreams: "Correnti a getto d'alta quota",
+      seismicInstability: "Instabilità sismica",
+      tectonicShift: "Spostamento tettonico",
+      deepOceanCurrents: "Correnti oceaniche profonde",
+      darkMatterFlux: "Flusso di materia oscura",
+      stalwart: "Inespugnabile",
+      brokenForceField: "Campo di forza danneggiato",
+      aiMasterRace: "IA suprema",
+    },
+  },
+  fr: {
+    civilization: {
+      none: "Aucune",
+      unsentient: "Vie non sensible",
+      industrial: "Industrielle",
+      spacefaring: "Spatiale",
+      robotic: "Robotique",
+    },
+    threat: {
+      none: "Aucune",
+      low: "Faible",
+      moderate: "Modérée",
+      high: "Élevée",
+      extreme: "Extrême",
+    },
+    attitude: {
+      none: "Aucune",
+      receptive: "Réceptive",
+      neutral: "Neutre",
+      reserved: "Réservée",
+      belligerent: "Belligérante",
+      scared: "Effrayée",
+      surrendered: "Soumise",
+    },
+    trait: {
+      notApplicable: "Sans objet",
+      aggressive: "Agressifs",
+      diplomatic: "Diplomatiques",
+      terrans: "Terriens",
+      aquatic: "Aquatiques",
+      aerialians: "Aériens",
+      armored: "Blindés",
+      hiveMind: "Esprit collectif",
+      powerSiphon: "Siphon d'énergie",
+      hypercharge: "Hypercharge",
+      mechanized: "Mécanisés",
+    },
+    anomaly: {
+      electromagneticSurge: "Surtension électromagnétique",
+      fortifiedMagneticField: "Champ magnétique renforcé",
+      plasmaInstability: "Instabilité du plasma",
+      energyDampeningField: "Champ d'atténuation énergétique",
+      atmosphericDisturbance: "Perturbation atmosphérique",
+      highAltitudeJetStreams: "Courants-jets de haute altitude",
+      seismicInstability: "Instabilité sismique",
+      tectonicShift: "Déplacement tectonique",
+      deepOceanCurrents: "Courants océaniques profonds",
+      darkMatterFlux: "Flux de matière noire",
+      stalwart: "Inébranlable",
+      brokenForceField: "Champ de force endommagé",
+      aiMasterRace: "IA supérieure",
+    },
+  },
+};
+
+export function starshipScanTokenText<Category extends keyof StarshipScanTokenSets>(
+  locale: LocaleId,
+  category: Category,
+  id: StarshipScanTokenSets[Category],
+): string {
+  return scanTokens[locale][category][id];
+}
 
 export function starshipText(
   locale: LocaleId,
@@ -758,4 +1395,4 @@ export function starshipText(
   );
 }
 
-export const LOCALIZATION_VALIDATION_DATA = { messages } as const;
+export const LOCALIZATION_VALIDATION_DATA = { messages, scanTokens } as const;

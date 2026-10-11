@@ -18,5 +18,11 @@ describe("source News Ticker copy", () => {
     expect(sourceNewsCopy("es").headlines[0]).toContain("Hidrógeno");
     expect(sourceNewsCopy("pt").headlines[0]).toContain("Hidrogênio");
     expect(sourceNewsCopy("fr").headlines[0]).toContain("Hydrogène");
+    expect(sourceNewsCopy("fr").headlines).toContain(
+      "L'héritage de la rébellion inspire les générations futures.",
+    );
+    expect(sourceNewsCopy("fr").headlines).toContain(
+      "L'histoire de Miaplacidus devient une légende galactique.",
+    );
   });
 });

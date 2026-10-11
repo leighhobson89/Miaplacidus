@@ -43,6 +43,14 @@ import {
   upgradeGameStateV41,
   upgradeGameStateV42,
   upgradeGameStateV43,
+  upgradeGameStateV44,
+  upgradeGameStateV45,
+  upgradeGameStateV46,
+  upgradeGameStateV47,
+  upgradeGameStateV48,
+  upgradeGameStateV49,
+  upgradeGameStateV50,
+  upgradeGameStateV51,
   type LegacyPermanentState,
 } from "../engine/state";
 import { makeEnvelope, SaveError, type SaveEnvelopeV1 } from "./schema";
@@ -94,7 +102,15 @@ interface LegacyEnvelopeBase {
     | 40
     | 41
     | 42
-    | 43;
+    | 43
+    | 44
+    | 45
+    | 46
+    | 47
+    | 48
+    | 49
+    | 50
+    | 51;
   readonly slotId: string;
   readonly pioneerName: string;
   readonly createdAt: number;
@@ -160,7 +176,14 @@ function validateLegacyEnvelope(
     | 40
     | 41
     | 42
-    | 43,
+    | 43
+    | 44
+    | 45
+    | 46
+    | 47
+    | 48
+    | 49
+    | 50,
 ): LegacyEnvelopeBase {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new SaveError("invalid-envelope", "The earlier save is not a valid object.");
@@ -1110,6 +1133,150 @@ export function migrateSaveV43(
   verifyChecksum(envelope, checksumFor);
   const state = upgradeGameStateV43(envelope.state);
   if (!state) throw new SaveError("invalid-envelope", "The version 43 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV44(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 44);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV44(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 44 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV45(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 45);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV45(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 45 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV46(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 46);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV46(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 46 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV47(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 47);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV47(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 47 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV48(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 48);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV48(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 48 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV49(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 49);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV49(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 49 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV50(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 50);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV50(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 50 save state is invalid.");
+  return makeEnvelope({
+    slotId: envelope.slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: envelope.savedAt,
+    revision: envelope.revision,
+    state,
+  });
+}
+
+export function migrateSaveV51(
+  value: unknown,
+  checksumFor: (value: object) => string,
+): SaveEnvelopeV1 {
+  const envelope = validateLegacyEnvelope(value, 51);
+  verifyChecksum(envelope, checksumFor);
+  const state = upgradeGameStateV51(envelope.state);
+  if (!state) throw new SaveError("invalid-envelope", "The version 51 save state is invalid.");
   return makeEnvelope({
     slotId: envelope.slotId,
     pioneerName: envelope.pioneerName,

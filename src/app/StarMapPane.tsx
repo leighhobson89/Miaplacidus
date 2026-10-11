@@ -6,6 +6,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type CSSProperties,
 } from "react";
 import { createStarCatalogue, GALAXY_SEED_DEFAULT } from "../content";
 import { STAR_TYPE_IDS, type StarType } from "../content/starCatalogue";
@@ -13,6 +14,7 @@ import {
   createStarDataRows,
   filterStarDataRows,
   sortStarDataRows,
+  antimatterRequiredForDistance,
   type StarDataSortDirection,
   type StarDataSortKey,
   type StarDataRow,
@@ -24,11 +26,15 @@ import type { GameState } from "../engine/state";
 import { starMapText } from "../i18n/starMapMessages";
 import { starshipText } from "../i18n/starshipMessages";
 import { CelestialIllustration } from "./CelestialIllustration";
+import { PageArtworkRow } from "./PageArtworkRow";
 import { economyGoodName } from "./economyDisplay";
 import { formatNumber } from "./numberFormatting";
 import type { CommandFailure } from "../engine/commands";
 import type { GameStore } from "../engine/store";
 import type { SystemId } from "../content/ids";
+import { starshipTravelProgressFraction } from "../engine/spaceRules";
+import { WeatherIcon } from "./TopStatusBar";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface StarMapPaneProps {
   readonly state: GameState;
@@ -41,6 +47,16 @@ const MAP_WIDTH = 1200;
 const MAP_HEIGHT = 450;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
+const STAR_MAP_MODES = ["normal", "distance", "studied", "in-range"] as const;
+type StarMapMode = (typeof STAR_MAP_MODES)[number];
+const STAR_MAP_MODE_TEXT_KEYS: Readonly<
+  Record<StarMapMode, "mapModeNormal" | "mapModeDistance" | "mapModeStudied" | "mapModeInRange">
+> = {
+  normal: "mapModeNormal",
+  distance: "mapModeDistance",
+  studied: "mapModeStudied",
+  "in-range": "mapModeInRange",
+};
 
 interface PanState {
   readonly x: number;
@@ -78,6 +94,7 @@ interface StarDataTableProps {
   readonly locale: GameState["settings"]["locale"];
   readonly notation: GameState["settings"]["notation"];
   readonly rows: readonly StarDataRow[];
+  readonly settledSystemIds: readonly string[];
   readonly onShowOnMap: (systemId: string) => void;
   readonly onSetDestination: (systemId: SystemId) => void;
   readonly selectDestination: (systemId: SystemId) => StarDestinationSelection;
@@ -88,6 +105,7 @@ function StarDataTable({
   locale,
   notation,
   rows,
+  settledSystemIds,
   onShowOnMap,
   onSetDestination,
   selectDestination,
@@ -100,6 +118,14 @@ function StarDataTable({
   const filteredRows = useMemo(
     () => sortStarDataRows(filterStarDataRows(rows, query, starType), sortBy, sortDirection),
     [rows, query, starType, sortBy, sortDirection],
+  );
+  const settledSystemIdSet = useMemo(() => new Set(settledSystemIds), [settledSystemIds]);
+  const displayedRows = useMemo(
+    () => [
+      ...filteredRows.filter((row) => !settledSystemIdSet.has(row.systemId)),
+      ...filteredRows.filter((row) => settledSystemIdSet.has(row.systemId)),
+    ],
+    [filteredRows, settledSystemIdSet],
   );
   const number = (value: number) => formatNumber(locale, value, 0, notation);
   const sortLabels: Readonly<Record<StarDataSortKey, string>> = {
@@ -168,7 +194,7 @@ function StarDataTable({
           {sortDirection === "ascending" ? "↑" : "↓"}
         </button>
       </div>
-      {filteredRows.length === 0 ? (
+      {displayedRows.length === 0 ? (
         <p className="star-data-empty">{starMapText(locale, "noData")}</p>
       ) : (
         <>
@@ -184,26 +210,67 @@ function StarDataTable({
             <table className="star-data-table" data-testid="star-data-table">
               <thead>
                 <tr>
-                  <th scope="col">{starMapText(locale, "sortName")}</th>
+                  <th scope="col">
+                    <span className="star-data-header-label">
+                      {starMapText(locale, "sortName")}
+                      <InfoTooltip
+                        id="star-data-name-help"
+                        label={`${starMapText(locale, "sortName")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                        content={starMapText(locale, "starDataNameHelp")}
+                        testId="star-data-name-help"
+                      />
+                    </span>
+                  </th>
                   <th scope="col">{starMapText(locale, "distance")}</th>
                   <th scope="col">{starMapText(locale, "starType")}</th>
-                  <th scope="col">{starMapText(locale, "weather")}</th>
+                  <th scope="col">
+                    <span className="star-data-header-label">
+                      {starMapText(locale, "weather")}
+                      <InfoTooltip
+                        id="star-data-weather-help"
+                        label={`${starMapText(locale, "weather")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                        content={starMapText(locale, "starDataWeatherHelp")}
+                        testId="star-data-weather-help"
+                      />
+                    </span>
+                  </th>
                   <th scope="col">{starMapText(locale, "precipitation")}</th>
                   <th scope="col">{starMapText(locale, "fuel")}</th>
-                  <th scope="col">{starMapText(locale, "ascendency")}</th>
+                  <th scope="col">
+                    <span className="star-data-header-label">
+                      {starMapText(locale, "ascendency")}
+                      <InfoTooltip
+                        id="star-data-ap-help"
+                        label={`${starMapText(locale, "ascendency")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                        content={starshipText(locale, "scanApHelp")}
+                        testId="star-data-ap-help"
+                      />
+                    </span>
+                  </th>
                   <th scope="col">{starMapText(locale, "mapTarget")}</th>
                   <th scope="col">{starshipText(locale, "setDestination")}</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row) => {
+                {displayedRows.map((row) => {
                   const destination = selectDestination(row.systemId);
+                  const isSettled = settledSystemIdSet.has(row.systemId);
                   const failureText = destinationFailureText(locale, destination.failure);
                   const reasonId = `star-data-destination-reason-${row.systemId}`;
+                  const weatherIcon = row.weatherType === "sunny" ? "clear" : row.weatherType;
+                  const weatherLabel = `${starMapText(locale, row.weatherType)} ${number(row.weatherChance)}%`;
                   return (
-                    <tr key={row.systemId}>
+                    <tr key={row.systemId} className={isSettled ? "is-settled" : undefined}>
                       <th scope="row">
                         {row.name}
+                        {isSettled && (
+                          <span
+                            className="star-data-settled-marker"
+                            data-testid={`star-data-settled-${row.systemId}`}
+                          >
+                            {` (${starMapText(locale, "settled")})`}
+                          </span>
+                        )}
                         {row.revealedFactory && (
                           <span
                             className="star-data-factory-marker"
@@ -216,16 +283,38 @@ function StarDataTable({
                           </span>
                         )}
                       </th>
-                      <td>{formatDistance(locale, row.distanceLy, notation)}</td>
+                      <td>
+                        {isSettled
+                          ? starMapText(locale, "settled")
+                          : formatDistance(locale, row.distanceLy, notation)}
+                      </td>
                       <td>{row.starType}</td>
                       <td>
-                        {starMapText(locale, row.weatherType)} {number(row.weatherChance)}%
+                        {!isSettled && (
+                          <span
+                            className="star-data-weather-display"
+                            role="img"
+                            aria-label={weatherLabel}
+                            title={weatherLabel}
+                            data-testid={`star-data-weather-${row.systemId}`}
+                          >
+                            <span className={`weather-symbol weather-symbol-${weatherIcon}`}>
+                              <WeatherIcon weather={weatherIcon} />
+                            </span>
+                            <span>{number(row.weatherChance)}%</span>
+                          </span>
+                        )}
                       </td>
-                      <td>{economyGoodName(locale, row.precipitationGoodId)}</td>
+                      <td>{!isSettled && economyGoodName(locale, row.precipitationGoodId)}</td>
                       <td>
-                        {number(destination.route?.antimatterRequired ?? row.antimatterRequired)}
+                        {isSettled
+                          ? starMapText(locale, "settled")
+                          : number(destination.route?.antimatterRequired ?? row.antimatterRequired)}
                       </td>
-                      <td>{number(destination.route?.ascendencyPoints ?? row.ascendencyPoints)}</td>
+                      <td>
+                        {!isSettled &&
+                          number(destination.route?.ascendencyPoints ?? row.ascendencyPoints)}
+                      </td>
                       <td>
                         <button
                           type="button"
@@ -302,6 +391,7 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
       ? (selection.id ?? state.run.space.starship.destinationSystemId)
       : state.run.space.starship.destinationSystemId;
   const [query, setQuery] = useState("");
+  const [mapMode, setMapMode] = useState<StarMapMode>("normal");
   const [selectionFeedback, setSelectionFeedback] = useState("");
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
@@ -315,6 +405,12 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
   const matches = searchStarCatalogue(catalogue, query).filter(
     (star) => !hiddenFactoryIds.has(star.id),
   );
+  const searchEnabled = mapMode === "normal" || mapMode === "distance";
+  const showUnstudiedStars = searchEnabled;
+  const studiedMapNodes = model.filter((node) => node.studied);
+  const farthestStudiedDistance = Math.max(1, ...studiedMapNodes.map((node) => node.distanceLy));
+  const isNodeShown = (node: (typeof model)[number]) =>
+    node.visible && (showUnstudiedStars || node.studied);
   const dataRows = useMemo(
     () =>
       createStarDataRows(
@@ -475,6 +571,48 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
     ? selectStarDestination(state, selectedTargetCommand.systemId)
     : null;
   const selectedTargetAvailable = selectedTargetSelection?.enabled ?? false;
+  const starship = state.run.space.starship;
+  const travelProgress = starshipTravelProgressFraction(state);
+  const travelDestinationNode = starship.destinationSystemId
+    ? model.find((node) => node.id === starship.destinationSystemId && node.visible)
+    : undefined;
+  const isTravelling = starship.phase === "travelling";
+  const isOrbitingDestination = starship.phase === "orbiting";
+  const selectedRouteNode =
+    !isTravelling && !isOrbitingDestination && selectedNode && !selectedNode.current
+      ? selectedNode
+      : undefined;
+  const selectedRoute = selectedRouteNode
+    ? selectStarDestination(state, selectedRouteNode.id).route
+    : null;
+  const selectedRouteAffordable =
+    selectedRoute !== null && state.run.space.antimatter >= selectedRoute.antimatterRequired;
+  const travelArrowX =
+    currentNode && travelDestinationNode
+      ? currentNode.x + (travelDestinationNode.x - currentNode.x) * travelProgress
+      : 0;
+  const travelArrowY =
+    currentNode && travelDestinationNode
+      ? currentNode.y + (travelDestinationNode.y - currentNode.y) * travelProgress
+      : 0;
+  const travelAngle =
+    currentNode && travelDestinationNode
+      ? (Math.atan2(
+          travelDestinationNode.y - currentNode.y,
+          travelDestinationNode.x - currentNode.x,
+        ) *
+          180) /
+        Math.PI
+      : 0;
+  const orbitRadius = travelDestinationNode
+    ? Math.max(2.5, travelDestinationNode.size * 1.1) * 3
+    : 0;
+  const orbitArrowX = travelDestinationNode
+    ? travelDestinationNode.x + orbitRadius * Math.cos(Math.PI / 4)
+    : 0;
+  const orbitArrowY = travelDestinationNode
+    ? travelDestinationNode.y + orbitRadius * Math.sin(Math.PI / 4)
+    : 0;
 
   useEffect(() => {
     if (view !== "map" || !focusMapAfterDataNavigation.current) return;
@@ -495,7 +633,15 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
       >
         <header className="pane-heading">
           <div>
-            <h2>{starMapText(locale, "title")}</h2>
+            <div className="space-mining-title-row">
+              <h2 className="game-page-title">{starMapText(locale, "title")}</h2>
+              <InfoTooltip
+                id="star-map-page-help"
+                label={`${starMapText(locale, "title")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                content={starMapText(locale, "mapHeaderHelp")}
+                testId="star-map-page-help"
+              />
+            </div>
             <p className="pane-intro">{starMapText(locale, "description")}</p>
           </div>
           <p className="star-map-range">
@@ -504,13 +650,47 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
           </p>
         </header>
 
+        <PageArtworkRow>
+          <CelestialIllustration kind="star-system" />
+        </PageArtworkRow>
+
         <div className="star-map-toolbar">
+          <div
+            className="star-map-mode-controls"
+            role="group"
+            aria-label={starMapText(locale, "mapModesLabel")}
+          >
+            {STAR_MAP_MODES.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={`star-map-mode-button${mapMode === mode ? " green-ready-text" : ""}`}
+                aria-pressed={mapMode === mode}
+                onClick={() => {
+                  setMapMode(mode);
+                  if (mode === "studied" || mode === "in-range") setQuery("");
+                }}
+              >
+                {starMapText(locale, STAR_MAP_MODE_TEXT_KEYS[mode])}
+              </button>
+            ))}
+            <InfoTooltip
+              id="star-map-modes-help"
+              label={`${starMapText(locale, "mapModesLabel")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+              content={starMapText(locale, "mapModesHelp")}
+              testId="star-map-modes-help"
+            />
+          </div>
           <label htmlFor="star-map-search">{starMapText(locale, "searchLabel")}</label>
           <input
             id="star-map-search"
             type="search"
             autoComplete="off"
-            placeholder={starMapText(locale, "searchPlaceholder")}
+            disabled={!searchEnabled}
+            placeholder={starMapText(
+              locale,
+              searchEnabled ? "searchPlaceholder" : "searchUnavailableInMode",
+            )}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
@@ -583,8 +763,95 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
               <title>{starMapText(locale, "title")}</title>
               <rect x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} fill="var(--bg-color)" />
               <ellipse cx="590" cy="220" rx="520" ry="245" fill="url(#star-map-nebula)" />
+              {isTravelling && currentNode && travelDestinationNode && (
+                <g
+                  data-testid="starship-route-travel"
+                  data-travel-progress={travelProgress}
+                  aria-hidden="true"
+                >
+                  <line
+                    className="star-map-travel-line"
+                    x1={currentNode.x}
+                    y1={currentNode.y}
+                    x2={travelDestinationNode.x}
+                    y2={travelDestinationNode.y}
+                  />
+                  <path
+                    className="star-map-travel-arrow"
+                    data-testid="starship-route-ship-marker"
+                    d="M -8 -5 L 8 0 L -8 5 Z"
+                    transform={`translate(${travelArrowX} ${travelArrowY}) rotate(${travelAngle})`}
+                  />
+                </g>
+              )}
+              {isOrbitingDestination && travelDestinationNode && (
+                <g data-testid="starship-route-orbit" aria-hidden="true">
+                  <circle
+                    className="star-map-orbit-ring"
+                    cx={travelDestinationNode.x}
+                    cy={travelDestinationNode.y}
+                    r={orbitRadius}
+                  />
+                  <path
+                    className="star-map-orbit-arrow"
+                    data-testid="starship-route-orbit-arrow"
+                    d="M -8 -5 L 8 0 L -8 5 Z"
+                    transform={`translate(${orbitArrowX} ${orbitArrowY}) rotate(135)`}
+                  />
+                </g>
+              )}
+              {!isTravelling &&
+                !isOrbitingDestination &&
+                currentNode &&
+                selectedRouteNode &&
+                selectedRoute && (
+                  <g
+                    className={`star-map-selected-route ${selectedRouteAffordable ? "green-ready-text" : "red-disabled-text"}`}
+                    data-testid="star-map-selected-route"
+                    data-affordable={selectedRouteAffordable}
+                    aria-hidden="true"
+                  >
+                    <line
+                      className="star-map-selected-route-line"
+                      x1={currentNode.x}
+                      y1={currentNode.y}
+                      x2={selectedRouteNode.x}
+                      y2={selectedRouteNode.y}
+                    />
+                    <rect
+                      className="star-map-selected-route-label-backdrop"
+                      x={(currentNode.x + selectedRouteNode.x) / 2 - 112}
+                      y={(currentNode.y + selectedRouteNode.y) / 2 - 24}
+                      width="224"
+                      height="42"
+                      rx="5"
+                    />
+                    <text
+                      className="star-map-selected-route-label"
+                      data-testid="star-map-selected-route-label"
+                      x={(currentNode.x + selectedRouteNode.x) / 2}
+                      y={(currentNode.y + selectedRouteNode.y) / 2 - 8}
+                      textAnchor="middle"
+                    >
+                      <tspan>
+                        {starMapText(locale, "distance")}:{" "}
+                        {formatDistance(locale, selectedRoute.distanceLy, state.settings.notation)}
+                      </tspan>
+                      <tspan x={(currentNode.x + selectedRouteNode.x) / 2} dy="16">
+                        {starMapText(locale, "antimatterRequired")}:{" "}
+                        {formatNumber(
+                          locale,
+                          selectedRoute.antimatterRequired,
+                          0,
+                          state.settings.notation,
+                        )}
+                      </tspan>
+                    </text>
+                  </g>
+                )}
               {model.map((node) => {
                 if (!node.visible) {
+                  if (!showUnstudiedStars) return null;
                   return (
                     <circle
                       key={node.id}
@@ -596,14 +863,39 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
                     />
                   );
                 }
+                if (!isNodeShown(node)) return null;
                 const selected = node.id === selectedNode?.id;
                 const settled = state.permanent.settledSystemIds.includes(node.id);
                 const undisclosedFactory = hiddenFactoryIds.has(node.id);
+                const isHome = node.name === "Miaplacidus";
+                const separateStatusStyle = node.current || settled || isHome;
+                const distanceShare =
+                  mapMode === "distance" && node.studied && !separateStatusStyle
+                    ? Math.round((node.distanceLy / farthestStudiedDistance) * 100)
+                    : null;
+                // This matches the distance-based cost returned in the engine's route preview.
+                const inRangeFuel =
+                  mapMode === "in-range" && node.studied && !separateStatusStyle
+                    ? antimatterRequiredForDistance(node.distanceLy)
+                    : null;
+                const isOrbitingDestination =
+                  mapMode === "in-range" &&
+                  state.run.space.starship.phase === "orbiting" &&
+                  state.run.space.starship.destinationSystemId === node.id;
+                const outOfRange =
+                  inRangeFuel !== null &&
+                  !isOrbitingDestination &&
+                  state.run.space.antimatter < inRangeFuel;
                 return (
                   <g
                     key={node.id}
-                    className={`star-map-marker${node.current ? " is-current" : ""}${node.name === "Miaplacidus" ? " is-home" : ""}${settled ? " is-settled" : ""}${selected ? " is-selected" : ""}${!node.studied ? " is-locked" : ""}`}
+                    className={`star-map-marker${node.current ? " is-current" : ""}${isHome ? " is-home" : ""}${settled ? " is-settled" : ""}${selected ? " is-selected" : ""}${!node.studied ? " is-locked" : ""}${distanceShare !== null ? " is-distance-coded" : ""}${inRangeFuel !== null ? " is-in-range-coded" : ""}${outOfRange ? " is-out-of-range" : ""}${isOrbitingDestination ? " is-in-range-destination" : ""}`}
                     data-settled={settled}
+                    style={
+                      distanceShare === null
+                        ? undefined
+                        : ({ "--star-distance-share": `${distanceShare}%` } as CSSProperties)
+                    }
                   >
                     {selected && (
                       <circle
@@ -629,43 +921,41 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
               })}
             </svg>
             <div className="star-map-marker-overlay">
-              {model
-                .filter((node) => node.visible)
-                .map((node) => {
-                  const undisclosedFactory = hiddenFactoryIds.has(node.id);
-                  const markerUnavailableReason = undisclosedFactory
-                    ? starMapText(locale, "unidentifiedUnavailable")
-                    : node.name === "Miaplacidus"
-                      ? starMapText(locale, "homeLocked")
-                      : starMapText(locale, "studyFarther");
-                  const markerDisabled = !node.selectable || undisclosedFactory;
-                  const markerReasonId = `star-map-marker-reason-${node.id}`;
-                  return (
-                    <span key={node.id}>
-                      <button
-                        type="button"
-                        className="star-map-hit-target"
-                        data-testid={`star-marker-${node.id}`}
-                        data-system-id={node.id}
-                        data-distance-ly={node.distanceLy}
-                        style={{
-                          left: `${((node.x - viewX) / viewWidth) * 100}%`,
-                          top: `${((node.y - viewY) / viewHeight) * 100}%`,
-                        }}
-                        aria-label={`${undisclosedFactory ? starMapText(locale, "unidentifiedStar") : node.name}, ${starMapText(locale, "starType")} ${node.starType}, ${formatDistance(locale, node.distanceLy, state.settings.notation)}`}
-                        aria-disabled={markerDisabled}
-                        aria-describedby={markerDisabled ? markerReasonId : undefined}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => selectNodeAtPointer(event, node.id)}
-                      />
-                      {markerDisabled && (
-                        <span id={markerReasonId} className="sr-only">
-                          {markerUnavailableReason}
-                        </span>
-                      )}
-                    </span>
-                  );
-                })}
+              {model.filter(isNodeShown).map((node) => {
+                const undisclosedFactory = hiddenFactoryIds.has(node.id);
+                const markerUnavailableReason = undisclosedFactory
+                  ? starMapText(locale, "unidentifiedUnavailable")
+                  : node.name === "Miaplacidus"
+                    ? starMapText(locale, "homeLocked")
+                    : starMapText(locale, "studyFarther");
+                const markerDisabled = !node.selectable || undisclosedFactory;
+                const markerReasonId = `star-map-marker-reason-${node.id}`;
+                return (
+                  <span key={node.id}>
+                    <button
+                      type="button"
+                      className="star-map-hit-target"
+                      data-testid={`star-marker-${node.id}`}
+                      data-system-id={node.id}
+                      data-distance-ly={node.distanceLy}
+                      style={{
+                        left: `${((node.x - viewX) / viewWidth) * 100}%`,
+                        top: `${((node.y - viewY) / viewHeight) * 100}%`,
+                      }}
+                      aria-label={`${undisclosedFactory ? starMapText(locale, "unidentifiedStar") : node.name}, ${starMapText(locale, "starType")} ${node.starType}, ${formatDistance(locale, node.distanceLy, state.settings.notation)}`}
+                      aria-disabled={markerDisabled}
+                      aria-describedby={markerDisabled ? markerReasonId : undefined}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => selectNodeAtPointer(event, node.id)}
+                    />
+                    {markerDisabled && (
+                      <span id={markerReasonId} className="sr-only">
+                        {markerUnavailableReason}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
             <div className="star-map-zoom-controls" aria-label={starMapText(locale, "title")}>
               <button
@@ -805,14 +1095,26 @@ export function StarMapPane({ state, store, view, onShowOnMap }: StarMapPaneProp
       >
         <header className="pane-heading">
           <div>
-            <h2>{starMapText(locale, "dataView")}</h2>
+            <div className="space-mining-title-row">
+              <h2 className="game-page-title">{starMapText(locale, "dataView")}</h2>
+              <InfoTooltip
+                id="star-data-page-help"
+                label={`${starMapText(locale, "dataView")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                content={starMapText(locale, "dataHeaderHelp")}
+                testId="star-data-page-help"
+              />
+            </div>
             <p className="pane-intro">{starMapText(locale, "starDataDescription")}</p>
           </div>
         </header>
+        <PageArtworkRow>
+          <CelestialIllustration kind="star-system" />
+        </PageArtworkRow>
         <StarDataTable
           locale={locale}
           notation={state.settings.notation}
           rows={dataRows}
+          settledSystemIds={state.permanent.settledSystemIds}
           onShowOnMap={showOnMap}
           onSetDestination={setDestination}
           selectDestination={(systemId) => selectStarDestination(state, systemId)}

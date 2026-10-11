@@ -10,14 +10,16 @@ const messages: Record<
     title: string;
     description: string;
     news: string;
-    events: string;
+    activeTitle: string;
     active: string;
+    activeUntil: string;
     history: string;
     claim: string;
     claimed: string;
     here: string;
     activate: string;
-    noEvents: string;
+    noCompletedEvents: string;
+    noActiveEvents: string;
     prize: string;
     oneOff: string;
     wacky: string;
@@ -27,17 +29,19 @@ const messages: Record<
   }
 > = {
   en: {
-    title: "News & Events",
+    title: "Events",
     description: "The saved ticker, event effects, and recent history.",
     news: "News ticker",
-    events: "Random events",
+    activeTitle: "Active Events",
     active: "Active effects",
-    history: "Event history",
+    activeUntil: "Active Until",
+    history: "Event History",
     claim: "Claim",
     claimed: "Claimed",
     here: "here",
     activate: "Activate",
-    noEvents: "No random events have occurred.",
+    noCompletedEvents: "No completed timed events yet.",
+    noActiveEvents: "No active timed events.",
     prize: "A news service has a resource grant for",
     oneOff: "A special bulletin offers a permanent run upgrade",
     wacky: "The ticker offers a visual effect",
@@ -46,17 +50,19 @@ const messages: Record<
     remaining: "next report in",
   },
   es: {
-    title: "Noticias y eventos",
+    title: "Eventos",
     description: "El teletipo guardado, sus efectos y el historial reciente.",
     news: "Teletipo",
-    events: "Eventos aleatorios",
+    activeTitle: "Eventos Activos",
     active: "Efectos activos",
-    history: "Historial de eventos",
+    activeUntil: "Activo Hasta",
+    history: "Historial de Eventos",
     claim: "Reclamar",
     claimed: "Reclamado",
     here: "aquí",
     activate: "Activar",
-    noEvents: "Aún no han ocurrido eventos aleatorios.",
+    noActiveEvents: "No hay eventos temporales activos.",
+    noCompletedEvents: "Todavía no hay eventos temporales completados.",
     prize: "Un servicio de noticias ofrece un recurso:",
     oneOff: "Un boletín especial ofrece una mejora para esta partida",
     wacky: "El teletipo ofrece un efecto visual",
@@ -65,17 +71,19 @@ const messages: Record<
     remaining: "próxima noticia en",
   },
   pt: {
-    title: "Notícias e eventos",
+    title: "Eventos",
     description: "O ticker guardado, os seus efeitos e o histórico recente.",
     news: "Ticker de notícias",
-    events: "Eventos aleatórios",
+    activeTitle: "Eventos Ativos",
     active: "Efeitos ativos",
-    history: "Histórico de eventos",
+    activeUntil: "Ativo Até",
+    history: "Histórico de Eventos",
     claim: "Resgatar",
     claimed: "Resgatado",
     here: "aqui",
     activate: "Ativar",
-    noEvents: "Ainda não ocorreram eventos aleatórios.",
+    noActiveEvents: "Não existem eventos temporários ativos.",
+    noCompletedEvents: "Ainda não existem eventos temporários concluídos.",
     prize: "Um serviço de notícias oferece um recurso:",
     oneOff: "Um boletim especial oferece uma melhoria para esta partida",
     wacky: "O ticker oferece um efeito visual",
@@ -84,17 +92,19 @@ const messages: Record<
     remaining: "próxima notícia em",
   },
   de: {
-    title: "Nachrichten & Ereignisse",
+    title: "Ereignisse",
     description: "Gespeicherter Ticker, Ereigniseffekte und Verlauf.",
     news: "Nachrichtenticker",
-    events: "Zufallsereignisse",
+    activeTitle: "Aktive Ereignisse",
     active: "Aktive Effekte",
+    activeUntil: "Aktiv Bis",
     history: "Ereignisverlauf",
     claim: "Einlösen",
     claimed: "Eingelöst",
     here: "hier",
     activate: "Aktivieren",
-    noEvents: "Es gab noch keine Zufallsereignisse.",
+    noActiveEvents: "Keine aktiven zeitlich begrenzten Ereignisse.",
+    noCompletedEvents: "Noch keine abgeschlossenen zeitlich begrenzten Ereignisse.",
     prize: "Ein Nachrichtendienst bietet eine Ressource an:",
     oneOff: "Eine Sondermeldung bietet eine Verbesserung für diesen Durchlauf",
     wacky: "Der Ticker bietet einen visuellen Effekt",
@@ -103,17 +113,19 @@ const messages: Record<
     remaining: "nächste Meldung in",
   },
   it: {
-    title: "Notizie ed eventi",
+    title: "Eventi",
     description: "Ticker salvato, effetti degli eventi e cronologia recente.",
     news: "Ticker delle notizie",
-    events: "Eventi casuali",
+    activeTitle: "Eventi Attivi",
     active: "Effetti attivi",
-    history: "Cronologia eventi",
+    activeUntil: "Attivo Fino A",
+    history: "Cronologia Eventi",
     claim: "Riscatta",
     claimed: "Riscattato",
     here: "qui",
     activate: "Attiva",
-    noEvents: "Non si sono ancora verificati eventi casuali.",
+    noActiveEvents: "Nessun evento a tempo attivo.",
+    noCompletedEvents: "Nessun evento a tempo completato finora.",
     prize: "Un notiziario offre una risorsa:",
     oneOff: "Un bollettino speciale offre un potenziamento per questa partita",
     wacky: "Il ticker offre un effetto visivo",
@@ -122,17 +134,19 @@ const messages: Record<
     remaining: "prossima notizia tra",
   },
   fr: {
-    title: "Actualités et événements",
+    title: "Événements",
     description: "Le fil enregistré, les effets et l’historique récent.",
     news: "Fil d’actualités",
-    events: "Événements aléatoires",
+    activeTitle: "Événements Actifs",
     active: "Effets actifs",
-    history: "Historique des événements",
+    activeUntil: "Actif Jusqu'à",
+    history: "Historique des Événements",
     claim: "Récupérer",
     claimed: "Récupéré",
     here: "ici",
     activate: "Activer",
-    noEvents: "Aucun événement aléatoire ne s’est encore produit.",
+    noActiveEvents: "Aucun événement temporaire actif.",
+    noCompletedEvents: "Aucun événement temporaire terminé pour l'instant.",
     prize: "Un service d’actualités offre une ressource :",
     oneOff: "Une annonce spéciale offre une amélioration pour cette partie",
     wacky: "Le fil propose un effet visuel",
@@ -144,97 +158,96 @@ const messages: Record<
 
 const eventNames: Record<LocaleId, Record<RandomEventId, string>> = {
   en: {
-    powerPlantExplosion: "Power plant explosion",
-    batteryExplosion: "Battery explosion",
-    scienceTheft: "Science theft",
-    researchBreakthrough: "Research breakthrough",
-    rocketInstantArrival: "Instant rocket arrival",
-    starshipLostInSpace: "Starship lost in space",
-    antimatterReaction: "Antimatter reaction",
-    stockLoss: "Stock loss",
-    galacticMarketLockdown: "Galactic market lockdown",
-    endlessSummer: "Endless summer",
-    minerBrokeDown: "Miner breakdown",
-    supplyChainDisruption: "Supply chain disruption",
-    blackHoleInstability: "Black hole instability",
+    powerPlantExplosion: "Power Plant Explosion",
+    batteryExplosion: "Battery Explosion",
+    scienceTheft: "Science Theft",
+    researchBreakthrough: "Research Breakthrough",
+    rocketInstantArrival: "Rocket Instant Arrival",
+    starshipLostInSpace: "Starship Lost In Space",
+    antimatterReaction: "Antimatter Reaction",
+    stockLoss: "Stock Loss",
+    galacticMarketLockdown: "Galactic Market Lockdown",
+    endlessSummer: "Endless Summer",
+    minerBrokeDown: "Miner Broke Down",
+    supplyChainDisruption: "Supply Chain Disruption",
+    blackHoleInstability: "Black Hole Instability",
   },
   es: {
-    powerPlantExplosion: "Explosión de planta eléctrica",
+    powerPlantExplosion: "Explosión de planta de energía",
     batteryExplosion: "Explosión de batería",
     scienceTheft: "Robo de ciencia",
-    researchBreakthrough: "Avance científico",
-    rocketInstantArrival: "Llegada inmediata de cohete",
-    starshipLostInSpace: "Nave perdida en el espacio",
+    researchBreakthrough: "Avance en investigación",
+    rocketInstantArrival: "Llegada instantánea de cohete",
+    starshipLostInSpace: "Nave estelar perdida en el espacio",
     antimatterReaction: "Reacción de antimateria",
-    stockLoss: "Pérdida de existencias",
-    galacticMarketLockdown: "Cierre del mercado galáctico",
-    endlessSummer: "Verano interminable",
-    minerBrokeDown: "Avería minera",
-    supplyChainDisruption: "Interrupción de suministros",
+    stockLoss: "Pérdida en bolsa",
+    galacticMarketLockdown: "Confinamiento del mercado galáctico",
+    endlessSummer: "Verano eterno",
+    minerBrokeDown: "Minero averiado",
+    supplyChainDisruption: "Interrupción de la cadena de suministro",
     blackHoleInstability: "Inestabilidad del agujero negro",
   },
   pt: {
-    powerPlantExplosion: "Explosão de usina elétrica",
+    powerPlantExplosion: "Explosão de central elétrica",
     batteryExplosion: "Explosão de bateria",
-    scienceTheft: "Roubo científico",
-    researchBreakthrough: "Avanço científico",
-    rocketInstantArrival: "Chegada imediata de foguete",
-    starshipLostInSpace: "Nave perdida no espaço",
+    scienceTheft: "Roubo de ciência",
+    researchBreakthrough: "Avanço na investigação",
+    rocketInstantArrival: "Chegada instantânea do foguetão",
+    starshipLostInSpace: "Nave estelar perdida no espaço",
     antimatterReaction: "Reação de antimatéria",
-    stockLoss: "Perda de estoque",
-    galacticMarketLockdown: "Bloqueio do mercado galáctico",
-    endlessSummer: "Verão sem fim",
-    minerBrokeDown: "Falha na mineração",
-    supplyChainDisruption: "Interrupção da cadeia de suprimentos",
+    stockLoss: "Perda de stock",
+    galacticMarketLockdown: "Encerramento do Mercado Galáctico",
+    endlessSummer: "Verão Eterno",
+    minerBrokeDown: "Minerador avariado",
+    supplyChainDisruption: "Interrupção da cadeia de abastecimento",
     blackHoleInstability: "Instabilidade do buraco negro",
   },
   de: {
-    powerPlantExplosion: "Kraftwerksexplosion",
+    powerPlantExplosion: "Kraftwerks­explosion",
     batteryExplosion: "Batterieexplosion",
     scienceTheft: "Wissenschaftsdiebstahl",
     researchBreakthrough: "Forschungsdurchbruch",
     rocketInstantArrival: "Sofortige Raketenankunft",
-    starshipLostInSpace: "Raumschiff im All verloren",
+    starshipLostInSpace: "Raumschiff im Weltraum verloren",
     antimatterReaction: "Antimateriereaktion",
-    stockLoss: "Lagerverlust",
-    galacticMarketLockdown: "Galaktische Marktsperre",
+    stockLoss: "Börsenverlust",
+    galacticMarketLockdown: "Galaktischer Markt-Lockdown",
     endlessSummer: "Endloser Sommer",
-    minerBrokeDown: "Bergbauausfall",
+    minerBrokeDown: "Miner ausgefallen",
     supplyChainDisruption: "Lieferkettenstörung",
-    blackHoleInstability: "Instabiles Schwarzes Loch",
+    blackHoleInstability: "Schwarzes-Loch-Instabilität",
   },
   it: {
-    powerPlantExplosion: "Esplosione della centrale",
+    powerPlantExplosion: "Esplosione della centrale elettrica",
     batteryExplosion: "Esplosione della batteria",
-    scienceTheft: "Furto di scienza",
-    researchBreakthrough: "Scoperta scientifica",
-    rocketInstantArrival: "Arrivo immediato del razzo",
-    starshipLostInSpace: "Nave perduta nello spazio",
+    scienceTheft: "Furto scientifico",
+    researchBreakthrough: "Svolta nella ricerca",
+    rocketInstantArrival: "Arrivo istantaneo del razzo",
+    starshipLostInSpace: "Astronave persa nello spazio",
     antimatterReaction: "Reazione di antimateria",
-    stockLoss: "Perdita di scorte",
+    stockLoss: "Perdita in borsa",
     galacticMarketLockdown: "Blocco del mercato galattico",
     endlessSummer: "Estate infinita",
-    minerBrokeDown: "Guasto minerario",
-    supplyChainDisruption: "Interruzione della catena di fornitura",
+    minerBrokeDown: "Minatore guasto",
+    supplyChainDisruption: "Interruzione della catena di approvvigionamento",
     blackHoleInstability: "Instabilità del buco nero",
   },
   fr: {
-    powerPlantExplosion: "Explosion de centrale",
+    powerPlantExplosion: "Explosion de centrale électrique",
     batteryExplosion: "Explosion de batterie",
-    scienceTheft: "Vol de connaissances",
-    researchBreakthrough: "Percée scientifique",
-    rocketInstantArrival: "Arrivée immédiate d’une fusée",
-    starshipLostInSpace: "Vaisseau perdu dans l’espace",
+    scienceTheft: "Vol scientifique",
+    researchBreakthrough: "Percée de recherche",
+    rocketInstantArrival: "Arrivée instantanée de fusée",
+    starshipLostInSpace: "Vaisseau stellaire perdu dans l’espace",
     antimatterReaction: "Réaction d’antimatière",
-    stockLoss: "Perte de stock",
-    galacticMarketLockdown: "Blocage du marché galactique",
+    stockLoss: "Perte en bourse",
+    galacticMarketLockdown: "Confinement du marché galactique",
     endlessSummer: "Été sans fin",
-    minerBrokeDown: "Panne minière",
-    supplyChainDisruption: "Rupture de la chaîne d’approvisionnement",
+    minerBrokeDown: "Mineur en panne",
+    supplyChainDisruption: "Perturbation de la chaîne d’approvisionnement",
     blackHoleInstability: "Instabilité du trou noir",
   },
 };
-
 export type MetaSignalMessageKey = keyof (typeof messages)["en"];
 export function metaSignalText(locale: LocaleId, key: MetaSignalMessageKey): string {
   return messages[locale][key];
@@ -244,11 +257,19 @@ export function randomEventName(locale: LocaleId, id: RandomEventId): string {
 }
 const journalLabels: Record<
   LocaleId,
-  { ago: string; eventProbabilities: string; categories: Record<NewsCategory, string> }
+  {
+    ago: string;
+    eventProbabilities: string;
+    totalDuration: string;
+    instantDuration: string;
+    categories: Record<NewsCategory, string>;
+  }
 > = {
   en: {
     ago: "ago",
     eventProbabilities: "event probabilities",
+    totalDuration: "Total Duration",
+    instantDuration: "Instant",
     categories: {
       wacky: "Wacky",
       prize: "Prize",
@@ -260,6 +281,8 @@ const journalLabels: Record<
   es: {
     ago: "hace",
     eventProbabilities: "probabilidades de eventos",
+    totalDuration: "Duración Total",
+    instantDuration: "Instantáneo",
     categories: {
       wacky: "Insólita",
       prize: "Premio",
@@ -271,6 +294,8 @@ const journalLabels: Record<
   pt: {
     ago: "atrás",
     eventProbabilities: "probabilidades de eventos",
+    totalDuration: "Duração Total",
+    instantDuration: "Instantâneo",
     categories: {
       wacky: "Insólita",
       prize: "Prêmio",
@@ -282,6 +307,8 @@ const journalLabels: Record<
   de: {
     ago: "zuvor",
     eventProbabilities: "Ereigniswahrscheinlichkeiten",
+    totalDuration: "Gesamtdauer",
+    instantDuration: "Sofort",
     categories: {
       wacky: "Verrückt",
       prize: "Preis",
@@ -293,6 +320,8 @@ const journalLabels: Record<
   it: {
     ago: "fa",
     eventProbabilities: "probabilità degli eventi",
+    totalDuration: "Durata Totale",
+    instantDuration: "Istantaneo",
     categories: {
       wacky: "Bizzarra",
       prize: "Premio",
@@ -304,6 +333,8 @@ const journalLabels: Record<
   fr: {
     ago: "auparavant",
     eventProbabilities: "probabilités des événements",
+    totalDuration: "Durée Totale",
+    instantDuration: "Instantané",
     categories: {
       wacky: "Insolite",
       prize: "Prix",
@@ -313,7 +344,10 @@ const journalLabels: Record<
     },
   },
 };
-export function journalLabel(locale: LocaleId, key: "ago" | "eventProbabilities"): string {
+export function journalLabel(
+  locale: LocaleId,
+  key: "ago" | "eventProbabilities" | "totalDuration" | "instantDuration",
+): string {
   return journalLabels[locale][key];
 }
 export function newsCategoryName(locale: LocaleId, category: NewsCategory): string {
@@ -333,13 +367,13 @@ export function newsEntryText(
   locale: LocaleId,
   entry: NewsTickerEntry,
   copy?: LocaleNewsCopy,
+  formatQuantity: (value: number) => string = (value) =>
+    new Intl.NumberFormat(locale).format(value),
 ): string {
   if (!copy) {
     if (entry.category === "prize") {
       const amount =
-        typeof entry.prizeAmount === "number"
-          ? `${new Intl.NumberFormat(locale).format(entry.prizeAmount)} `
-          : "";
+        typeof entry.prizeAmount === "number" ? `${formatQuantity(entry.prizeAmount)} ` : "";
       return `${messages[locale].prize} ${amount}${entry.prizeGoodId ?? ""} ${messages[locale].here}.`;
     }
     if (entry.category === "oneOff") return `${messages[locale].oneOff} ${messages[locale].here}.`;
@@ -352,15 +386,13 @@ export function newsEntryText(
       return `${messages[locale].prize} ${entry.prizeGoodId ?? ""}.`;
     const template = copy.prizes[entry.id - 2000];
     return template
-      ? template
-          .replace("{amount}", new Intl.NumberFormat(locale).format(entry.prizeAmount))
-          .replace("{here}", copy.here)
+      ? template.replace("{amount}", formatQuantity(entry.prizeAmount)).replace("{here}", copy.here)
       : `${messages[locale].prize} ${entry.prizeGoodId ?? ""}.`;
   }
   if (entry.category === "oneOff")
     return (copy.oneOffs[entry.id - 3000] ?? `${messages[locale].oneOff}.`)
       .replace("{here}", copy.here)
-      .replace("{ap}", new Intl.NumberFormat(locale).format(1));
+      .replace("{ap}", formatQuantity(entry.prizeAmount ?? 1));
   if (entry.category === "wacky")
     return copy.wackyEffects[entry.id - 1000] ?? messages[locale].wacky;
   if (entry.category === "manuscriptClue") {

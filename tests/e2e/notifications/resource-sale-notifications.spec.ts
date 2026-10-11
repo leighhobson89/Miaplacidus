@@ -1,6 +1,6 @@
 import { expect, test } from "../_harness/fixtures";
 
-test("notifies one localized Hydrogen sale and respects the notification setting @notifications", async ({
+test("notifies one localized Hydrogen sale and respects the notification setting @notifications @p16-focus", async ({
   freshGame,
 }) => {
   const game = freshGame;
@@ -32,12 +32,14 @@ test("notifies one localized Hydrogen sale and respects the notification setting
   await expect(notificationsToggle).toBeChecked();
   await notificationsToggle.uncheck();
   await expect(notificationsToggle).not.toBeChecked();
+  await expect(notificationsToggle).toBeFocused();
   await expect
     .poll(() =>
       game.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
     )
     .toBe(false);
   await expect(notices).toHaveCount(0);
+  await expect(notificationsToggle).toBeFocused();
 
   await game.locator("#tab-hydrogen").click();
   await expect(
@@ -56,4 +58,26 @@ test("notifies one localized Hydrogen sale and respects the notification setting
     .poll(() => game.evaluate(() => window.miaplacidusTest!.getState().run.cash))
     .toBeGreaterThan(cashBeforeSecondSale);
   await expect(notices).toHaveCount(0);
+});
+
+test("keeps the selected Hydrogen sale control focused after its notice auto-dismisses @notifications @p16-focus", async ({
+  freshGame,
+}) => {
+  const game = freshGame;
+  const collect = game.getByRole("button", { name: "Collect 1 Hydrogen", exact: true });
+  const saleButton = game.getByRole("button", { name: "Sell", exact: true });
+  const notices = game.getByTestId("notification-stack").getByTestId("game-notification");
+
+  for (let unit = 0; unit < 3; unit += 1) await collect.click();
+  await saleButton.click();
+
+  const saleNotice = notices.first();
+  await expect(saleNotice).toContainText(/sold/i);
+  await expect(collect).toBeEnabled();
+  await collect.focus();
+  await expect(collect).toBeFocused();
+  await expect(saleNotice).not.toBeFocused();
+
+  await expect(notices).toHaveCount(0, { timeout: 5_000 });
+  await expect(collect).toBeFocused();
 });

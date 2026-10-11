@@ -1,6 +1,7 @@
 import type { EconomicGoodId, SystemId } from "../content/ids";
 import type {
   DiplomacyChoice,
+  EnemyFleetId,
   PlayerFleetId,
   RocketId,
   SpaceWeatherCondition,
@@ -20,6 +21,10 @@ export type SpaceCommand =
   | {
       readonly type: "space.starship.destination.select";
       readonly systemId: SystemId | null;
+    }
+  | {
+      readonly type: "space.starship.arrival-notice.mark-notified";
+      readonly systemId: SystemId;
     }
   | { readonly type: "space.starship.launch" }
   | { readonly type: "space.starship.system.scan" }
@@ -181,6 +186,13 @@ export type SpaceCommandFailure =
       readonly messageKey: "space.reason.diplomacy-unavailable";
     };
 
+export type RapidExpansionOutcome =
+  | { readonly type: "peaceful-settlement" }
+  | { readonly type: "non-conquest" }
+  | { readonly type: "captured"; readonly systemIds: readonly SystemId[] }
+  | { readonly type: "no-eligible-systems" }
+  | { readonly type: "capture-failed" };
+
 export type SpaceEvent =
   | { readonly type: "space.telescope.built" }
   | { readonly type: "space.asteroid.selected"; readonly asteroidId: string | null }
@@ -190,6 +202,7 @@ export type SpaceEvent =
       readonly rocketId: RocketId;
       readonly builtParts: number;
     }
+  | { readonly type: "space.rocket.fuel-ready"; readonly rocketId: RocketId }
   | {
       readonly type: "space.starship.module.part.built";
       readonly moduleId: StarshipModuleId;
@@ -221,12 +234,24 @@ export type SpaceEvent =
     }
   | { readonly type: "space.diplomacy.war-entered"; readonly systemId: SystemId }
   | { readonly type: "space.battle.started"; readonly systemId: SystemId }
+  | {
+      readonly type: "space.battle.casualties";
+      readonly systemId: SystemId;
+      readonly round: number;
+      readonly playerShipLosses: Readonly<Record<PlayerFleetId, number>>;
+      readonly enemyShipLosses: Readonly<Record<EnemyFleetId, number>>;
+    }
   | { readonly type: "space.battle.round"; readonly systemId: SystemId; readonly round: number }
   | {
       readonly type: "space.battle.finished";
       readonly systemId: SystemId;
       readonly result: "victory" | "defeat";
       readonly scannerBuilt: boolean;
+    }
+  | {
+      readonly type: "space.rapid-expansion.resolved";
+      readonly systemId: SystemId;
+      readonly outcome: RapidExpansionOutcome;
     }
   | {
       readonly type: "space.system.settled";
@@ -306,6 +331,7 @@ export function isSpaceCommand(command: { readonly type: string }): command is S
     command.type === "space.rocket.part.build" ||
     command.type === "space.starship.module.build" ||
     command.type === "space.starship.destination.select" ||
+    command.type === "space.starship.arrival-notice.mark-notified" ||
     command.type === "space.starship.launch" ||
     command.type === "space.starship.system.scan" ||
     command.type === "space.envoy.build" ||

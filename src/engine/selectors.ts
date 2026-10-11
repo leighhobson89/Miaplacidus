@@ -103,32 +103,25 @@ export interface TopStatusEventSelection {
   readonly remainingMs: number | null;
 }
 
-/**
- * Mirrors Cosmic Forge's AP anticipated counter: scanned systems with an
- * Industrial or Spacefaring civilization contribute that system profile's
- * base ascendency value once during the current run.
+/** Mirrors Cosmic Forge's run counter: each accepted launch adds base AP;
+ * an eligible Industrial or Spacefaring scan adds the same base AP again.
  */
 export function selectRunApAnticipated(state: GameState): number {
-  const eligibleSystemIds = new Set(
-    state.run.space.systemEncounters
-      .filter(
-        ({ civilizationLevel }) =>
-          civilizationLevel === "industrial" || civilizationLevel === "spacefaring",
-      )
-      .map(({ systemId }) => systemId),
-  );
-  const ascendencyPointsBySystemId = new Map(
-    state.run.space.systemProfiles.map(({ systemId, ascendencyPoints }) => [
-      systemId,
-      ascendencyPoints,
-    ]),
-  );
+  return state.run.space.apAnticipatedThisRun;
+}
 
-  let total = 0;
-  for (const systemId of eligibleSystemIds) {
-    total += ascendencyPointsBySystemId.get(systemId) ?? 0;
-  }
-  return total;
+/**
+ * Cosmic Forge's Techs Unlocked getters report the raw techUnlockedArray length.
+ * Its raw array length also includes run-local synthetic markers such as
+ * `apAwardedThisRun` and `compoundMachining`. MIAPLACIDUS stores those marker
+ * additions as run history without adding them to gameplay technology state.
+ */
+export function selectStatisticsUnlockedTechnologyCount(state: GameState): number {
+  return (
+    state.run.economy.researchedTechnologies.length +
+    Number(state.permanent.cosmicRip.unlocked) +
+    state.run.sourceSyntheticTechnologyMarkersThisRun
+  );
 }
 
 export interface InterstellarStatisticsSelection {
@@ -144,7 +137,7 @@ export interface InterstellarStatisticsSelection {
   readonly landStalker: number;
   readonly navalStrafer: number;
   readonly enemyName: string | null;
-  readonly enemyDefenceRemaining: number | null;
+  readonly enemyDefenceRemaining: number;
   readonly blackHoleDiscovered: boolean;
   readonly blackHoleAlwaysActive: boolean;
   readonly blackHoleStrength: number;
@@ -173,7 +166,7 @@ export function selectInterstellarStatistics(state: GameState): InterstellarStat
     landStalker: space.playerFleets.landStalker,
     navalStrafer: space.playerFleets.navalStrafer,
     enemyName: encounter?.raceName ?? null,
-    enemyDefenceRemaining: encounter ? enemyFleetPower(encounter.enemyFleets) : null,
+    enemyDefenceRemaining: encounter ? enemyFleetPower(encounter.enemyFleets) : 0,
     blackHoleDiscovered: state.permanent.blackHole.discovered,
     blackHoleAlwaysActive: state.permanent.blackHole.alwaysOn,
     blackHoleStrength: state.permanent.blackHole.power,
@@ -528,7 +521,7 @@ export function selectHydrogenAutobuyerPurchase(state: GameState): HydrogenPurch
   return purchaseSelection(
     state,
     { type: "hydrogen.autobuyer.purchase" },
-    hydrogenAutobuyerPrice(owned),
+    hydrogenAutobuyerPrice(owned, 0.95 ** philosophyRepeatableRank(state, "laserMining")),
   );
 }
 

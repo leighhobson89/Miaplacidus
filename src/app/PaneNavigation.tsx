@@ -6,6 +6,7 @@ export interface PaneNavigationItem {
   readonly label: string;
   readonly panelId?: string;
   readonly sourceOptionId?: `option${number}`;
+  readonly sourceOptionIds?: readonly `option${number}`[];
   readonly groupId?: string;
   readonly groupLabel?: string;
 }
@@ -161,6 +162,7 @@ export function PaneNavigation({
                         id={`tab-${item.id}`}
                         className={`pane-nav-tab${selected ? " is-selected" : ""}`}
                         data-source-option-id={item.sourceOptionId}
+                        data-source-option-ids={item.sourceOptionIds?.join(",")}
                         type="button"
                         role="tab"
                         aria-selected={selected}

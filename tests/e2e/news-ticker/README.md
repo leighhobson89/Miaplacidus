@@ -56,8 +56,8 @@ width. The six-locale catalog scan
 found and repaired 868 Windows-1252/UTF-8 encoding errors, plus the remaining
 French ligature and Czech-name sequences. The [random-events](../random-events/README.md)
 browser journey separately checks the saved journal and repeat-claim boundary.
-Translation-quality review, stochastic category-frequency measurement, and
-visual comparison of every effect remain part of P-34/P-54/P-56.
+Translation-quality review and visual comparison of every effect remain part
+of P-34/P-54/P-56. Deterministic category-frequency coverage is recorded below.
 
 6 October 2026 cadence follow-up: the first scheduled bulletin retains its
 20–35 second startup delay. Each displayed message now scrolls for the source
@@ -81,6 +81,57 @@ $env:MIAPLACIDUS_TEST_AREA = "news-ticker"
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/news-ticker/news-ticker.spec.ts
+```
+
+**P-05 ticker claim touch target (9 October 2026):** the installed-Chrome
+390x844 case positions an actual prize message in the ticker viewport, checks
+that the `here` claim has a 44px touch area, and taps above its visible text to
+claim the Hydrogen prize. The expected amount is added and the same `here`
+label becomes disabled at 50% opacity. The transparent target extension keeps
+the word's presentation intact; the 44px viewport keeps it inside the ticker's
+vertical clip without affecting the horizontal scroll animation. The focused
+case passed 1/1 in a five-case regression batch (5/5 in 15.2s) on port 4603.
+Three existing P-58 cases also passed in that batch: keyboard claims, localized
+prize copy, and full offscreen ticker motion with hover continuity. P-05 remains
+open for other mechanics controls.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_TEST_PORT='4603'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/news-ticker/p05-news-ticker-touch.spec.ts
+```
+
+9 October 2026 P-41 notation integration: the visible prize-message amount now
+follows the selected Condensed, Standard, or Scientific notation. Its focused
+installed-Chrome case passed 1/1 on port 4210. The combined P-41 economy and
+News Ticker subset passed 4/4 on Chrome port 4212. The later combined P-41
+subset across economy, News Ticker, and Galactic Casino passed 5/5 on Chrome
+port 4217. Economy checks cover large production-rate and cash readouts, exact
+live Run Time text under all three notations while the clock advances, and the
+Statistics stock boundary; they also confirm complete Run Time and cash values
+in accessible tooltips. The separate Run Time screenshot baseline check passed
+1/1 without updates on port 4214, with the Condensed, Standard, and Scientific
+captures reviewed. Broader review of other countdowns and currency-precision
+displays remains open. These focused cases do not sign off the broader P-41
+display audit.
+
+Run the notation integration case with installed Chrome:
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+$env:MIAPLACIDUS_TEST_PORT = "4210"
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "P-41 ticker prize amounts" tests/e2e/news-ticker/news-ticker.spec.ts
+```
+
+Run the combined notation subset with installed Chrome:
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+$env:MIAPLACIDUS_TEST_PORT = "4217"
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "P-41" tests/e2e/economy/economy.spec.ts tests/e2e/news-ticker/news-ticker.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts
 ```
 
 The timing unit check is `npm.cmd run test:unit:focused -- tests/unit/meta-signals.spec.ts`.
@@ -133,4 +184,121 @@ $env:MIAPLACIDUS_TEST_AREA = "news-ticker"
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "French and Italian ticker apostrophes" tests/e2e/news-ticker/news-ticker.spec.ts
+```
+
+8 October 2026 P-56 visual follow-up: the prize strip now has four checked-in
+screenshots covering Terminal and Light, English and French, and 1280px and
+390px in a cross-paired matrix. The focused installed-Chrome screenshot case
+passed 1/1 after advancing the deterministic simulation timestamp between
+forced prize messages, so the browser error guard remains clean. Visual review
+confirms the ready link is distinct without an underline and the French copy
+wraps cleanly at 390px. Wacky-effect appearance, the remaining seven themes,
+the other four locales, and wider P-56 combinations remain open.
+
+Run that screenshot case with installed Chrome:
+
+```powershell
+$env:MIAPLACIDUS_TEST_AREA = "news-ticker"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "the prize ticker keeps its visual treatment" tests/e2e/news-ticker/news-ticker.spec.ts
+```
+
+8 October 2026 startup timing note: Cosmic Forge schedules its first ticker
+message 20–35 seconds after startup (`cosmicForge/game.js`,
+`startNewsTickerTimer`); its live browser test confirms the timer is already
+scheduled at boot. The remake seeds the same 20–35 second initial countdown in
+`src/engine/state.ts`. The shell is intentionally blank during that delay; it
+does not need a fabricated opening headline or “No reports yet” prompt. The
+focused shell test asserts an empty ticker at startup, and the cadence journey
+advances the initial countdown before checking the first scheduled entry.
+
+8 October 2026 source Boo-effect follow-up: Cosmic Forge's wacky entry 1006
+gives `Boo!` a `.boo` class before activation; the source style masks it with a
+text-colored fill and a ready-color border, and clicking removes that mask. The
+remake now matches this reveal behavior while keeping the word keyboard
+accessible. Its Chrome regression asserts the initial fill/border and that
+Enter reveals the word.
+
+The first broad ticker rerun exposed two stale browser-test assumptions, not
+product regressions. The delayed-copy test tried to intercept `sourceNewsCopy`
+after app boot, but that module is already loaded through the app's static
+`casinoEventNotifications` dependency; the test now checks the rendered French
+claim and prize copy. The fallback text and localized `here` action remain
+covered for all six locales by `tests/unit/meta-signals.spec.ts` (20/20 passed).
+The hover test
+used the far-right window edge before the message reached it; it now positions
+the animation at 10 seconds, hovers the measured message bounds, and verifies
+that the animation clock keeps advancing. The four relevant Chrome journeys
+passed 4/4. With a separately managed test server, the complete ticker browser
+file passed 12/12 in 20.9 seconds. Typecheck, targeted formatting and diff
+checks passed. Run the focused browser area with:
+
+```powershell
+$env:MIAPLACIDUS_TEST_AREA = "news-ticker"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/news-ticker/news-ticker.spec.ts
+```
+
+9 October 2026 category-frequency follow-up: the focused unit spec uses
+20,000 distinct fixed seeds with all ticker categories eligible. It passed
+1 file / 2 tests. The sampled proportions are checked against the source
+targets: 3% one-off prizes (accepted range 2.5–3.5%), 10% prizes (9–11%),
+15% wacky prompts (14–16%), and 72% ordinary headline opportunities
+(71–73%). Among those ordinary opportunities, manuscript clues are checked
+at 25% (23–27% accepted range); the remainder are ordinary headlines. A
+second deterministic case exhausts one-off and prize eligibility and confirms
+either sampled category falls back to an ordinary headline. Translation
+quality and visual comparison across every effect remain open for P-58.
+
+9 October 2026 feedback-effect screenshot follow-up: the first checked-in
+feedback screenshots were sampled at the 50% midpoint of the 0.4-second
+animation. That intentionally moves the positive response above the clipped
+ticker window and shrinks the negative response, leaving a blank and tiny
+capture even though the live message is present. Cosmic Forge uses the same
+keyframes, so the remake behavior is intentional; this was a screenshot timing
+artifact, not a rendering defect. The visual cases now verify the message and
+running animation before freezing at 10% progress, where both choices remain
+legible. Both focused Chrome cases passed 2/2, and the updated positive and
+negative captures were visually reviewed.
+
+Run the visual cases with installed Chrome:
+
+```powershell
+$env:MIAPLACIDUS_TEST_AREA = "news-ticker-visual"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "captures the ticker (good|bad)-feedback effect" tests/e2e/news-ticker/news-ticker.spec.ts
+```
+
+9 October 2026 Phase 6 sign-off: the full installed-Chrome News Ticker browser
+area passed 26/26 after refreshing and visually reviewing the seven activated
+wacky-effect captures (wave, disco, bounce, fade, glitch, wobble, and Boo).
+The effect checks compare source animation subjects and keyframes. Positive and
+negative feedback tests assert their distinct source scale/translation keyframes
+instead of comparing a timing-sensitive intermediate animation frame; the
+refreshed feedback captures were also visually reviewed. Ticker behavior,
+prizes, manuscript clues, hover continuity, keyboard activation, reduced motion,
+phone width, and persisted settings are covered by the focused browser area.
+Human translation-quality approval and the wider presentation matrix remain
+tracked separately under P-53/P-54/P-56.
+
+Run the full focused browser area with installed Chrome:
+
+```powershell
+$env:MIAPLACIDUS_TEST_AREA = "news-ticker"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/news-ticker/news-ticker.spec.ts
+```
+
+**P-45 visible prize claim results (10 October 2026):** a focused installed-Chrome case switches through all six locales, forces a visible prize from the normal ticker flow, checks the localized amount and `here` action, then clicks it and verifies the exact stock payout plus the disabled, 50%-opacity claimed state. The case passed 1/1 in 7.7 seconds on isolated port 5394. Run it with:
+
+```powershell
+$env:MIAPLACIDUS_TEST_AREA = "news-ticker"
+$env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
+$env:MIAPLACIDUS_DISABLE_VIDEO = "1"
+$env:MIAPLACIDUS_TEST_PORT = "5394"
+npm.cmd run test:e2e:focused -- tests/e2e/news-ticker/news-ticker.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results/p45-news-prize-5394 -g "P-45 visible ticker prize claims"
 ```

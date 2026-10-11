@@ -3,10 +3,13 @@ import type { SpaceWeatherCondition } from "../content/space";
 export type CelestialIllustrationId =
   | "asteroid"
   | "black-hole"
+  | "colonised-surface"
   | "cosmic-rip"
   | "fleet"
   | "megastructure"
+  | "radio-telescope"
   | "rocket"
+  | "settings"
   | "star-system"
   | "weather"
   | "starship";
@@ -187,6 +190,24 @@ function artwork(kind: CelestialIllustrationId, weather: SpaceWeatherCondition) 
           <circle cx="44" cy="130" r="1.5" fill="var(--cyan)" />
         </g>
       );
+    case "colonised-surface":
+      return (
+        <g>
+          <path
+            d="M20 141c46-18 82-22 126-8 45 14 93 3 154-17v43H20v-18Z"
+            fill="var(--panel-raised)"
+            stroke="var(--blue)"
+            strokeWidth="3"
+            strokeLinejoin="round"
+          />
+          <path d="M48 128c38-12 71-14 103-4m27 11c33 4 65-3 93-13" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M201 53v83" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round" />
+          <path d="m204 58 42 8-42 19V58Z" fill="var(--green)" stroke="var(--cyan)" strokeWidth="2" strokeLinejoin="round" />
+          <circle cx="75" cy="91" r="4" fill="var(--cyan)" />
+          <circle cx="111" cy="69" r="2.5" fill="var(--blue)" />
+          <circle cx="272" cy="106" r="3" fill="var(--cyan)" />
+        </g>
+      );
     case "cosmic-rip":
       return (
         <g>
@@ -306,6 +327,25 @@ function artwork(kind: CelestialIllustrationId, weather: SpaceWeatherCondition) 
             strokeLinejoin="round"
           />
           <path d="m151 147 9 23 9-23" stroke="var(--cyan)" strokeWidth="4" strokeLinecap="round" />
+        </g>
+      );
+    case "radio-telescope":
+      return (
+        <g>
+          <path d="M64 48c12 52 61 85 109 73 32-8 55-35 60-67l-19-3c-4 24-21 43-45 49-35 9-72-15-81-53l-24 1Z" fill="var(--panel-raised)" stroke="var(--cyan)" strokeWidth="3" strokeLinejoin="round" />
+          <path d="m84 65 118-15m-111 31 112-17m-104 34 97-17m-82 31 71-15" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round" />
+          <path d="m140 111 22 33m-42 0h82m-38-33v33" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M221 33c20 7 31 20 34 39m-25-51c30 10 48 30 52 59m-43-77c38 12 61 39 66 78" stroke="var(--green)" strokeOpacity=".8" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="224" cy="49" r="4" fill="var(--green)" />
+        </g>
+      );
+    case "settings":
+      return (
+        <g>
+          <path d="m144 29 32 0 7 18c7 2 13 5 19 9l18-7 16 27-12 15c1 7 1 14 0 21l12 15-16 27-18-7c-6 4-12 7-19 9l-7 18h-32l-7-18c-7-2-13-5-19-9l-18 7-16-27 12-15c-1-7-1-14 0-21L84 96l16-27 18 7c6-4 12-7 19-9l7-18Z" fill="var(--panel-raised)" stroke="var(--cyan)" strokeWidth="3" strokeLinejoin="round" />
+          <circle cx="160" cy="107" r="37" fill="var(--panel)" stroke="var(--green)" strokeWidth="3" />
+          <circle cx="160" cy="107" r="15" fill="var(--green)" fillOpacity=".28" stroke="var(--green)" strokeWidth="3" />
+          <path d="M53 44h22m-11-11v22m151 96h31m-15-15v30" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round" />
         </g>
       );
     case "star-system":

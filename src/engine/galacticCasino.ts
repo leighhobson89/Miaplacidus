@@ -13,6 +13,7 @@ import {
 import { starTypeForSystem } from "../content/starCatalogue";
 import {
   ASTEROID_SCAN_TIMER_ID,
+  type RocketId,
   STAR_STUDY_TIMER_ID,
   VOID_PILLAGE_TIMER_ID,
 } from "../content/space";
@@ -60,6 +61,64 @@ export type CasinoFailure = {
   readonly messageKey: `casino.reason.${string}`;
 };
 
+/** Actual outcome payload used by Hilo notifications; values are captured at award time. */
+export type HigherLowerAward =
+  | { readonly type: "cp"; readonly amount: number }
+  | { readonly type: "cash" | "research"; readonly amount: number }
+  | { readonly type: "material"; readonly goodId: EconomicGoodId; readonly amount: number }
+  | {
+      readonly type: "material-doubled";
+      readonly goodId: EconomicGoodId;
+      readonly oldQuantity: number;
+      readonly newQuantity: number;
+    }
+  | { readonly type: "timewarp"; readonly multiplier: number; readonly durationMs: number }
+  | {
+      readonly type: "finished";
+      readonly activity: "asteroid-search" | "star-study" | "void-pillage";
+      readonly asteroidName?: string;
+    }
+  | {
+      readonly type: "finished-journey";
+      readonly vehicle: "rocket";
+      readonly rocketName: string;
+    }
+  | {
+      readonly type: "finished-journey";
+      readonly vehicle: "starship";
+      readonly destinationSystemId: string;
+    };
+
+export interface HigherLowerOutcome {
+  readonly prizeKey: string;
+  readonly won: boolean;
+  readonly award: HigherLowerAward | null;
+}
+
+/** Actual result of claiming a Wheel special prize, captured by the reducer. */
+export type WheelSpecialAward =
+  | { readonly type: "cp"; readonly amount: number }
+  | { readonly type: "research"; readonly amount: number }
+  | {
+      readonly type: "double";
+      readonly goodId: EconomicGoodId;
+      readonly oldQuantity: number;
+      readonly newQuantity: number;
+    }
+  | {
+      readonly type: "rocket-warp";
+      readonly rocketId: RocketId;
+      readonly rocketName: string;
+      readonly destination:
+        | { readonly type: "base" }
+        | { readonly type: "asteroid"; readonly name: string };
+    }
+  | { readonly type: "starship-warp"; readonly destinationSystemId: string }
+  | {
+      readonly type: "telescope-finished";
+      readonly activity: "asteroid-search" | "star-study" | "void-pillage";
+    };
+
 export type CasinoEvent =
   | {
       readonly type: "casino.points.purchased";
@@ -73,18 +132,26 @@ export type CasinoEvent =
       readonly result: string;
       readonly cpSpent: number;
       readonly cpAwarded: number;
+      /** Number of cards already revealed when a Hilo cashout was accepted. */
+      readonly revealedCount?: number;
+      /** Actual Hilo prize and award details captured by the reducer. */
+      readonly higherLowerOutcome?: HigherLowerOutcome;
     }
   | { readonly type: "casino.wheel.special-ready" }
   | {
       readonly type: "casino.wheel.special-claimed";
       readonly prize: CasinoSpecialPrize;
       readonly detail: string;
+      /** Typed actual award details captured at claim time for source-style notices. */
+      readonly award: WheelSpecialAward;
     }
   | {
       readonly type: "casino.higher-lower.revealed";
       readonly index: number;
       readonly card: CasinoCard;
       readonly correct: boolean;
+      /** Present only when the final card completes the round. */
+      readonly outcome?: HigherLowerOutcome;
     }
   | {
       readonly type: "casino.void-seer.result";
@@ -93,6 +160,8 @@ export type CasinoEvent =
       readonly second: number;
       readonly won: boolean;
       readonly detail: string;
+      /** Selected localized clue-template index, drawn from the game RNG. */
+      readonly clueTemplateIndex?: number;
     };
 
 const SUITS: readonly CasinoCardSuit[] = ["clubs", "diamonds", "hearts", "spades"];
@@ -105,7 +174,7 @@ export function isCasinoCommand(value: { readonly type: string }): value is Casi
 }
 
 export function casinoUnlocked(state: GameState): boolean {
-  return state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0;
+  return state.run.space.ascendencyAwardedThisRun;
 }
 
 function isGoodUnlocked(state: GameState, goodId: EconomicGoodId): boolean {
@@ -404,18 +473,26 @@ function applySpecialPrize(
   state: GameState;
   amount: number;
   detail: string;
+  hiloAward: HigherLowerAward | null;
+  wheelAward: WheelSpecialAward | null;
   completedEvents: readonly CasinoCompletionEvent[];
 } {
   let next = state;
   let amount = 0;
   let detail = prize;
+  let hiloAward: HigherLowerAward | null = null;
+  let wheelAward: WheelSpecialAward | null = null;
   let completedEvents: readonly CasinoCompletionEvent[] = [];
   if (prize === "special_100cp") {
     amount = 100;
+    hiloAward = { type: "cp", amount };
+    wheelAward = { type: "cp", amount };
     next = updateWallet(next, amount);
   } else if (prize === "special_100k_research") {
     next = { ...next, run: { ...next.run, researchPoints: next.run.researchPoints + 100_000 } };
     amount = 100_000;
+    hiloAward = { type: "research", amount };
+    wheelAward = { type: "research", amount };
   } else if (prize.startsWith("special_double_")) {
     const goodId = prize.slice("special_double_".length) as EconomicGoodId;
     if (ECONOMIC_GOOD_IDS.includes(goodId) && isGoodUnlocked(next, goodId)) {
@@ -431,14 +508,55 @@ function applySpecialPrize(
         },
       };
       amount = previous;
+      hiloAward = {
+        type: "material-doubled",
+        goodId,
+        oldQuantity: previous,
+        newQuantity: previous * 2,
+      };
+      wheelAward = {
+        type: "double",
+        goodId,
+        oldQuantity: previous,
+        newQuantity: previous * 2,
+      };
     } else {
       amount = 20;
+      hiloAward = { type: "cp", amount };
+      wheelAward = { type: "cp", amount };
       next = updateWallet(next, amount);
     }
   } else if (prize === "special_rocket_warp" || prize === "special_starship_warp") {
     const timerId = timerForSpecial(next, prize);
-    if (timerId) next = shortenTimer(next, timerId, 2_000);
-    else if (prize.startsWith("special_finish_")) {
+    if (timerId) {
+      const completed = completeTimerThroughNormalRules(next, timerId);
+      next = completed.state;
+      completedEvents = completed.events;
+      if (prize === "special_starship_warp") {
+        const destinationSystemId = state.run.space.starship.destinationSystemId;
+        if (destinationSystemId) wheelAward = { type: "starship-warp", destinationSystemId };
+      } else {
+        const rocketEntry = Object.entries(state.run.space.rockets).find(
+          ([, entry]) => entry.timerId === timerId,
+        );
+        if (rocketEntry) {
+          const [rocketIdValue, rocket] = rocketEntry;
+          const rocketId = rocketIdValue as RocketId;
+          const asteroid = rocket.targetAsteroidId
+            ? state.run.space.asteroids.find((entry) => entry.id === rocket.targetAsteroidId)
+            : undefined;
+          wheelAward = {
+            type: "rocket-warp",
+            rocketId,
+            rocketName: rocket.name,
+            destination:
+              rocket.phase === "returning"
+                ? { type: "base" }
+                : { type: "asteroid", name: asteroid?.name ?? "Destination" },
+          };
+        }
+      }
+    } else if (prize.startsWith("special_finish_")) {
       amount = 150;
       next = updateWallet(next, amount);
     }
@@ -452,19 +570,64 @@ function applySpecialPrize(
       const completed = completeTimerThroughNormalRules(next, timerId);
       next = completed.state;
       completedEvents = completed.events;
+      if (prize === "special_telescope_finish_asteroid_search") {
+        const discovered = completed.events.find(
+          (event) => event.type === "space.asteroid.discovered",
+        );
+        hiloAward = {
+          type: "finished",
+          activity: "asteroid-search",
+          ...(discovered?.type === "space.asteroid.discovered"
+            ? { asteroidName: discovered.name }
+            : {}),
+        };
+        wheelAward = { type: "telescope-finished", activity: "asteroid-search" };
+      } else {
+        const activity =
+          prize === "special_telescope_finish_star_study" ? "star-study" : "void-pillage";
+        hiloAward = {
+          type: "finished",
+          activity,
+        };
+        wheelAward = { type: "telescope-finished", activity };
+      }
     }
   } else if (
     prize === "special_finish_rocket_journey" ||
     prize === "special_finish_starship_journey"
   ) {
     const timerId = timerForSpecial(next, prize);
-    if (timerId) next = shortenTimer(next, timerId, 2_000);
-    else {
+    if (timerId) {
+      next = shortenTimer(next, timerId, 2_000);
+      if (prize === "special_finish_rocket_journey") {
+        const rocket = Object.values(state.run.space.rockets).find(
+          (entry) => entry.timerId === timerId,
+        );
+        if (rocket) {
+          hiloAward = {
+            type: "finished-journey",
+            vehicle: "rocket",
+            rocketName: rocket.name,
+          };
+        }
+      } else {
+        const destinationSystemId = state.run.space.starship.destinationSystemId;
+        if (destinationSystemId) {
+          hiloAward = {
+            type: "finished-journey",
+            vehicle: "starship",
+            destinationSystemId,
+          };
+        }
+      }
+    } else {
       amount = 150;
+      hiloAward = { type: "cp", amount };
+      detail = "cp:150";
       next = updateWallet(next, amount);
     }
   }
-  return { state: next, amount, detail, completedEvents };
+  return { state: next, amount, detail, hiloAward, wheelAward, completedEvents };
 }
 
 function randomTopUp(
@@ -510,24 +673,29 @@ function applyHigherLowerPrize(
   cpAwarded: number;
   won: boolean;
   detail: string;
+  award: HigherLowerAward | null;
   completedEvents: readonly CasinoCompletionEvent[];
 } {
   let next = state;
   let cpAwarded = 0;
   let won = true;
   let detail = prizeKey;
+  let award: HigherLowerAward | null = null;
   let completedEvents: readonly CasinoCompletionEvent[] = [];
   const cpMatch = /^hilo_cp_(\d+)$/.exec(prizeKey);
   if (cpMatch) {
     cpAwarded = Number(cpMatch[1]);
+    award = { type: "cp", amount: cpAwarded };
     next = updateWallet(next, cpAwarded);
   } else if (prizeKey.endsWith("_topup")) {
     const topUp = randomTopUp(next, prizeKey === "hilo_resource_topup" ? "resources" : "compounds");
     if (topUp) {
       next = topUp.state;
       detail = `${topUp.goodId}:${topUp.amount}`;
+      award = { type: "material", goodId: topUp.goodId, amount: topUp.amount };
     } else {
       cpAwarded = 5;
+      award = { type: "cp", amount: cpAwarded };
       next = updateWallet(next, cpAwarded);
       detail = "hilo_cp_5";
     }
@@ -538,13 +706,16 @@ function applyHigherLowerPrize(
     const pct = scale === "small" ? 0.02 : scale === "medium" ? 0.05 : 0.1;
     if (resource === "cash") {
       const amount = Math.floor(next.run.cash * pct);
-      if (amount > 0) next = { ...next, run: { ...next.run, cash: next.run.cash + amount } };
-      else won = false;
+      if (amount > 0) {
+        next = { ...next, run: { ...next.run, cash: next.run.cash + amount } };
+        award = { type: "cash", amount };
+      } else won = false;
     } else {
       const amount = Math.floor(next.run.researchPoints * pct);
-      if (amount > 0)
+      if (amount > 0) {
         next = { ...next, run: { ...next.run, researchPoints: next.run.researchPoints + amount } };
-      else won = false;
+        award = { type: "research", amount };
+      } else won = false;
     }
   } else if (
     ["hilo_research_flat", "hilo_research_big_flat", "hilo_research_mega"].includes(prizeKey)
@@ -556,9 +727,11 @@ function applyHigherLowerPrize(
           ? 100_000
           : 500_000;
     next = { ...next, run: { ...next.run, researchPoints: next.run.researchPoints + amount } };
+    award = { type: "research", amount };
   } else if (prizeKey === "hilo_cash_flat" || prizeKey === "hilo_cash_mega") {
     const amount = prizeKey === "hilo_cash_flat" ? 5_000 : 250_000;
     next = { ...next, run: { ...next.run, cash: next.run.cash + amount } };
+    award = { type: "cash", amount };
   } else if (prizeKey.startsWith("hilo_timewarp_")) {
     const [, , multiplier, durationMs] = prizeKey.split("_");
     next = {
@@ -568,12 +741,14 @@ function applyHigherLowerPrize(
         timeWarp: { multiplier: Number(multiplier), remainingMs: Number(durationMs) },
       },
     };
+    award = { type: "timewarp", multiplier: Number(multiplier), durationMs: Number(durationMs) };
   } else if (prizeKey.startsWith("special_")) {
     const special = applySpecialPrize(next, prizeKey);
     next = special.state;
     completedEvents = special.completedEvents;
     cpAwarded = special.amount;
-    if (special.amount === 0 && !completedEvents.length) {
+    award = special.hiloAward;
+    if (special.amount === 0 && !completedEvents.length && !special.hiloAward) {
       const tierSevenFinish = [
         "special_finish_rocket_journey",
         "special_finish_starship_journey",
@@ -583,17 +758,19 @@ function applyHigherLowerPrize(
       ].includes(prizeKey);
       if (tierSevenFinish) {
         cpAwarded = 150;
+        award = { type: "cp", amount: cpAwarded };
         next = updateWallet(next, cpAwarded);
         detail = "cp:150";
       } else {
         won = false;
         cpAwarded = 5;
+        award = { type: "cp", amount: cpAwarded };
         next = updateWallet(next, cpAwarded);
         detail = "hilo_cp_5";
       }
     }
   }
-  return { state: next, cpAwarded, won, detail, completedEvents };
+  return { state: next, cpAwarded, won, detail, award, completedEvents };
 }
 
 function addPlayedStats(state: GameState, gameId: CasinoGameId, spent: number): GameState {
@@ -825,7 +1002,12 @@ export function applyCasinoCommand(
     return {
       state: next,
       events: [
-        { type: "casino.wheel.special-claimed", prize: command.prize, detail: special.detail },
+        {
+          type: "casino.wheel.special-claimed",
+          prize: command.prize,
+          detail: special.detail,
+          award: special.wheelAward!,
+        },
       ],
       otherEvents: special.completedEvents,
     };
@@ -872,6 +1054,7 @@ export function applyCasinoCommand(
       : null;
     let next = replacement?.state ?? state;
     let otherEvents: readonly CasinoCompletionEvent[] = [];
+    let outcome: HigherLowerOutcome | undefined;
     if (!correct) {
       next = {
         ...next,
@@ -888,6 +1071,7 @@ export function applyCasinoCommand(
       });
     } else if (nextIndex === 8) {
       const prize = applyHigherLowerPrize(next, replacement!.key);
+      outcome = { prizeKey: replacement!.key, won: prize.won, award: prize.award };
       next = prize.state;
       otherEvents = prize.completedEvents;
       next = recordHistory(next, {
@@ -921,7 +1105,15 @@ export function applyCasinoCommand(
     }
     return {
       state: next,
-      events: [{ type: "casino.higher-lower.revealed", index: nextIndex, card, correct }],
+      events: [
+        {
+          type: "casino.higher-lower.revealed",
+          index: nextIndex,
+          card,
+          correct,
+          ...(outcome === undefined ? {} : { outcome }),
+        },
+      ],
       otherEvents,
     };
   }
@@ -962,6 +1154,12 @@ export function applyCasinoCommand(
           result: prize.won ? `cash-out:${prize.detail}` : `no-award:${prize.detail}`,
           cpSpent: 5,
           cpAwarded: prize.cpAwarded,
+          revealedCount: round.index + 1,
+          higherLowerOutcome: {
+            prizeKey: round.prizeKey!,
+            won: prize.won,
+            award: prize.award,
+          },
         },
       ],
       otherEvents: prize.completedEvents,
@@ -975,6 +1173,7 @@ export function applyCasinoCommand(
   next = secondDraw.state;
   const won = firstDraw.value === secondDraw.value;
   let detail = "loss";
+  let clueTemplateIndex: number | undefined;
   if (won) {
     next = markGameWon(next, "voidSeer");
     next = updateStats(next, "voidSeerWon", 1);
@@ -1003,6 +1202,9 @@ export function applyCasinoCommand(
         const draw = drawInteger(next, 0, eligible.length - 1);
         next = draw.state;
         detail = `o-type-clue:${eligible[draw.value]}`;
+        const templateDraw = drawInteger(next, 0, 2);
+        next = templateDraw.state;
+        clueTemplateIndex = templateDraw.value;
       } else detail = "o-type-clue";
     } else {
       const eligible = next.permanent.megastructures.ancientManuscripts
@@ -1016,6 +1218,9 @@ export function applyCasinoCommand(
         const draw = drawInteger(next, 0, eligible.length - 1);
         next = draw.state;
         detail = `manuscript-clue:${eligible[draw.value]}`;
+        const templateDraw = drawInteger(next, 0, 9);
+        next = templateDraw.state;
+        clueTemplateIndex = templateDraw.value;
       } else detail = "manuscript-clue";
     }
   }
@@ -1030,6 +1235,7 @@ export function applyCasinoCommand(
         second: secondDraw.value,
         won,
         detail,
+        ...(clueTemplateIndex === undefined ? {} : { clueTemplateIndex }),
       },
     ],
   };

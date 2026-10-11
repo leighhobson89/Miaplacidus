@@ -1,0 +1,153 @@
+# Phase 6 completion estimates
+
+Revised 11 October 2026 against the current checklist and implementation notes (11 open / 55 closed). Percentages estimate progress against each ticket's full acceptance scope; time ranges estimate focused one-agent work, including implementation and ticket-level review but excluding the final regression suite. The remaining estimates total about 1,665-2,410 minutes (27h 45m-40h 10m); parallel work may reduce elapsed time.
+
+P-22 assumes access to a physical device for the soft-keyboard check; device wait time is excluded. P-20 still needs spoken assistive-technology verification. P-29 assumes round-boundary battle-cue behavior is acceptable; strict per-impact timing would add at least four hours and may need a more detailed battle event model. P-31 remains parked until other non-performance Phase 6 work is complete. P-56 estimates the presentation matrix only; its performance follow-up remains parked. P-10 includes the natural unlock progression that seeded journeys cannot establish.
+
+## Open items
+
+Each ticket keeps its existing completion and time estimates; the bullets below break the remaining work into sign-off tasks.
+
+- P-22 — Startup and import accessibility — **85% complete** — **15-25 mins**.
+  - On a physical Android device, open the new-game and save-import screens with the native keyboard and inspect the name field, preview, and primary action.
+  - Repeat on a physical iOS device and check the same controls with its native keyboard.
+  - At each device's narrowest practical viewport, verify the active field and primary action remain visible as the keyboard opens and closes.
+  - Verify keyboard focus follows the intended name-entry, filtered-save selection, import preview, and confirmation order.
+  - Import a save while the keyboard is open and confirm the preview, success/error feedback, and next action remain reachable.
+  - Fix only reproduced device-specific clipping, focus, scroll, or viewport-resize defects, then repeat the affected device journey and record device/browser/outcome.
+- P-29 — Sound and music coverage — **85% complete** — **45-60 mins**.
+  - Compare the remake's round-boundary laser cadence with Cosmic Forge's per-shot guard and record whether the documented round-level adaptation is accepted.
+  - If acceptance requires per-impact timing, extend battle events with ordered impact timestamps and route laser cues from those timestamps without changing combat outcomes.
+  - Exercise a battle with normal ticks and a catch-up tick; verify each qualifying round queues once and the terminal exchange is included.
+  - Verify queued laser cues respect the source minimum interval and all cues drain after synchronous catch-up finishes.
+  - Exercise casualties in normal and terminal rounds; verify one explosion cue per confirmed loss and the final batch drains after the result.
+  - Toggle mute and zero volume, move focus away, and dispose audio while queues are pending; confirm no stale cue plays afterward.
+  - Run the focused queue/cadence checks, fix missed, duplicated, early, or stranded cues, and record the chosen cadence and evidence.
+- P-20 — Assistive notification coverage — **85% complete** — **45-75 mins**.
+  - With a screen reader, trigger an unaffordable purchase and verify its localized reason is spoken once without moving focus.
+  - With a screen reader, trigger a save conflict and verify the conflict and available resolution are announced while the controls remain usable.
+  - With a screen reader, finish a timer after navigating away and verify its global completion announcement is still spoken at the correct time.
+  - Check Save Manager lock loss and other cross-tab status changes while their owning page is inactive.
+  - Correct any reproduced role, politeness, atomicity, focus, duplication, or wording defect; record screen reader/browser versions and spoken results.
+- P-36 — Onboarding tutorial flow — **85% complete** — **60-90 mins**.
+  - Start one fresh save and complete every tutorial step through the final Miaplaedia step using the visible game controls.
+  - At each step, verify its action, read-time gate, destination, unlock condition, and Continue availability against the intended sequence.
+  - Confirm the Background Audio step requires changing the audio control and that the Tech Tree prompts enforce their intended read times.
+  - Save and reload during an active gated step; verify the same step resumes and completed actions are not replayed.
+  - Exercise Skip and normal completion; verify the completion achievement is issued once and subsequent loads do not repeat it.
+  - Load a pre-existing save and verify the tutorial is not introduced retroactively.
+  - Review every tutorial announcement with a screen reader, fix unclear/missing/repeated guidance, and record journey, resume, skip, and accessibility evidence.
+- P-45 — Six-language playthrough completeness — **85% complete** — **180-240 mins**.
+  - Complete the remaining startup and core-game route review in en, es, pt, de, it, and fr, recording each page/action family checked.
+  - Review Settings, notifications, Save & Loading/import, and error outcomes in all six locales, including success, conflict, and unavailable states.
+  - Review remaining gameplay action results, dynamic event text, and both ending routes in all six locales.
+  - For each reviewed route, verify placeholders, names, formatted values, grammatical variants, punctuation, apostrophes, and character encoding.
+  - Correct confirmed missing, wrong-locale, malformed, or misleading strings in the typed six-locale catalogues without changing mechanics.
+  - Add focused locale assertions for each correction and inspect the rendered result in all six locales, including long-text cases.
+  - Update the localization audit with route coverage, corrections, and source copy intentionally adapted or excluded.
+- P-55 — Source screen coverage parity — **75% complete** — **180-270 mins**.
+  - Obtain owner decisions for Run Time/Time Played, Star Ship Distance Travelled, and Enemy Total Defence Overcome before changing their semantics.
+  - Prepare matched source/remake states for each remaining row group and compare initial, triggered, saved/reloaded, and rebirth values.
+  - Verify each counter changes only on its accepted source-equivalent event and resets or persists at the same run boundary.
+  - Correct only confirmed value, label, unit, grouping, or scope mismatches; preserve rows already shown to match.
+  - Add focused selector/render assertions for each correction, covering Current Run and All Time where applicable.
+  - Update the parity audit with source references, comparison states, corrections, and owner-gated rows still unresolved.
+- P-51 — Translation and layout fit review — **70% complete** — **150-240 mins**.
+  - Review remaining menus and page families at 320, 390, 768, and 1280 CSS-pixel widths, including tables, tooltips, dialogs, and dynamic result cards.
+  - Repeat representative pages with enlarged text and the longest translations across en/es/pt/de/it/fr and all nine themes.
+  - Finish E-57 for every Resource and Compound price row, tooltip, purchase modal, and dynamic-cost state in all six locales.
+  - For each reviewed view, inspect focus visibility, wrapping, clipping, contrast, panel bounds, and horizontal overflow.
+  - Fix only defects reproduced with a recorded locale, theme, viewport, text size, and page state.
+  - Recapture each corrected case and check the adjacent target widths for regressions in clipping or overflow.
+  - Record tested combinations and unresolved findings separately from the P-56 screenshot inventory.
+- P-56 — Presentation screenshot matrix — **70% complete** — **180-300 mins**.
+  - List every major tab and child page, then track its capture coverage across nine themes, six locales, desktop, and narrow viewport sizes.
+  - Inspect captures for title scale, artwork row, spacing, alignment, responsive stacking, clipping, and theme contrast.
+  - Compare long translated labels and page titles at narrow and desktop widths across representative locales.
+  - Fix only presentation defects demonstrated in the matrix, preserving page ownership, tab order, and unlock visibility.
+  - Recapture every affected matrix cell and compare the corrected result against the same viewport/theme/locale state.
+  - Record coverage and sign-off gaps; keep the separately parked performance follow-up out of P-56.
+- P-44 — Cosmicopedia message mapping — **70% complete** — **240-360 mins**.
+  - Finish the source catalogue inventory and give every remaining Cosmic Forge text key a mapped, intentionally replaced, or excluded disposition.
+  - Map remaining notification messages to their exact owning pages or controls.
+  - For each mapped message, record its source key, target catalogue/key, placeholders, locale set, and page or control owner.
+  - Add missing typed strings in all six locales and preserve source placeholders, grammatical variants, and result distinctions.
+  - Inspect each changed family for correct rendered placement, substitution, active locale, and navigation ownership.
+  - Document every deliberate replacement/exclusion with its reason and update source/target references in the crosswalk.
+- P-31 — Asset loading optimization — **60% complete** — **90-150 mins**.
+  - Keep implementation parked until all other non-performance Phase 6 tickets are closed.
+  - Once unparked, measure production entry/chunk transfer sizes and inventory image/font formats and dimensions against the recorded baseline.
+  - Identify oversized assets and convert or resize only when the approved appearance is preserved.
+  - Preload only assets needed for startup and the first visible page; defer late-game-only assets until needed.
+  - Verify deferred artwork does not delay the active page, discard visited-pane state, or create a visible loading defect.
+  - Rebuild and compare entry and route transfer sizes, then inspect each changed asset in its owning page.
+  - Record before/after sizes, affected routes, visual result, and any remaining large asset.
+- P-10 — Representative unlock playthrough — **45% complete** — **480-600 mins**.
+  - Start one fresh canonical save and progress only through normal visible controls, with no debug commands or seeded late-game state.
+  - Follow natural research, manuscript/star study, starship construction, travel, scanning, and settlement until Galactic unlocks.
+  - At Galactic unlock, verify Galactic appears in order and its child pages—including Casino—remain gated until their actual prerequisites are met.
+  - Continue the same save through natural homecoming and story acknowledgement until Cosmic Rip unlocks.
+  - Verify Cosmic Rip and each child page appears only at its intended milestone and remains hidden beforehand.
+  - At each milestone, check locked top-level and child tabs are omitted while the relative order of visible pages remains stable.
+  - Check navigation attention markers appear for new destinations, clear when visited, and survive save/reload as specified.
+  - Record the canonical save, checkpoint after each unlock, any progression blocker, and evidence for the full natural progression route.
+
+## Closed items
+
+Names only, for reference.
+
+- P-01 — Source screen inventory
+- P-02 — Stable navigation and action IDs
+- P-03 — Ten-tab navigation
+- P-04 — Tab order and unlock history
+- P-05 — Keyboard and touch action access
+- P-06 — Action costs and disabled-state guidance
+- P-07 — Visible task and timer progress
+- P-08 — Notification and modal layering
+- P-09 — Save controls in Settings
+- P-11 — Responsive design targets
+- P-12 — Responsive layout and overflow
+- P-13 — Narrow-panel information visibility
+- P-14 — Touch and keyboard navigation controls
+- P-15 — Semantic accessibility and focus order
+- P-16 — Focus restoration and dialog dismissal
+- P-17 — Theme contrast and status cues
+- P-18 — Reduced-motion support
+- P-19 — Image alternatives
+- P-21 — Keyboard and touch journey testing
+- P-23 — Visual identity board
+- P-24 — Asset inventory
+- P-25 — Startup logo and artwork
+- P-26 — Core game illustrations and icons
+- P-27 — Space and endgame artwork
+- P-28 — Remaining visual assets
+- P-30 — Asset provenance manifest
+- P-32 — Release asset audit
+- P-33 — Nine-theme rebuild
+- P-34 — Theme layout review
+- P-35 — Save-aware start screen
+- P-37 — Miaplaedia guide documents
+- P-38 — Objective and next-unlock guidance
+- P-39 — Statistics views
+- P-40 — Settings structure
+- P-41 — Number notation coverage
+- P-42 — Audio controls
+- P-43 — Settings persistence scope
+- P-46 — Save-flow localization
+- P-47 — Dynamic localized values and labels
+- P-48 — Localization validation
+- P-49 — Live locale-switch stability
+- P-50 — Locale-aware display formatting
+- P-52 — Six-language review sample
+- P-53 — Translation review sign-off
+- P-54 — Focused presentation verification
+- P-57 — Deliberate UX change record
+- P-58 — News Ticker presentation
+- P-59 — Status row presentation
+- P-60 — Research and Tech Tree separation
+- P-61 — Live simulation display
+- P-62 — Debug scenario menu
+- P-63 — Resource and Compound layout parity
+- P-64 — Interstellar presentation follow-up
+- P-65 — Consistent page titles and artwork
+- P-66 — Owner-directed page identity and layout

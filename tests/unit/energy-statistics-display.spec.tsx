@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { ENERGY_BUILDINGS } from "../../src/content/economy";
 import { LOCALE_IDS } from "../../src/content/ids";
 import { SettingsStatisticsPane } from "../../src/app/SettingsStatisticsPane";
+import { createEconomyTickPlan } from "../../src/engine/economySimulation";
 import { createInitialGameState, type GameState } from "../../src/engine/state";
 import { energyStatisticLabel } from "../../src/i18n/energyStatisticsMessages";
 import { settingsStatisticLabel } from "../../src/i18n/settingsMessages";
@@ -22,18 +24,18 @@ const energyStatisticIds = [
 ] as const;
 
 const ownerPaneByEnergyStatistic: Record<(typeof energyStatisticIds)[number], string> = {
-  powerCurrent: "energy-storage",
-  totalEnergy: "energy-storage",
-  totalProduction: "energy-power-plant",
-  totalConsumption: "energy-power-plant",
-  totalBatteryStorage: "energy-storage",
-  energyTrips: "energy-storage",
-  basicPowerPlants: "energy-power-plant",
-  advancedPowerPlants: "energy-storage",
-  solarPowerPlants: "energy-storage",
-  sodiumIonBatteries: "energy-storage",
-  battery2: "energy-storage",
-  battery3: "energy-storage",
+  powerCurrent: "energy-summary",
+  totalEnergy: "energy-summary",
+  totalProduction: "energy-power",
+  totalConsumption: "energy-power",
+  totalBatteryStorage: "energy-batteries",
+  energyTrips: "energy-summary",
+  basicPowerPlants: "energy-power",
+  advancedPowerPlants: "energy-power",
+  solarPowerPlants: "energy-power",
+  sodiumIonBatteries: "energy-batteries",
+  battery2: "energy-batteries",
+  battery3: "energy-batteries",
 };
 
 function unlockedEnergyState(locale: GameState["settings"]["locale"]): GameState {
@@ -68,14 +70,52 @@ function statisticCard(markup: string, id: string): string {
 }
 
 describe("Energy Statistics display", () => {
+  it("matches the source nameplate production statistic when plants are disabled", () => {
+    const initial = unlockedEnergyState("en");
+    const state: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        upgrades: {
+          ...initial.run.upgrades,
+          powerPlant1: 2,
+          powerPlant2: 1,
+          powerPlant3: 3,
+        },
+        economy: {
+          ...initial.run.economy,
+          buildingEnabled: {
+            ...initial.run.economy.buildingEnabled,
+            powerPlant1: false,
+            powerPlant2: false,
+            powerPlant3: false,
+          },
+          power: { ...initial.run.economy.power, gridEnabled: false },
+        },
+      },
+    };
+    const sourceNameplateRate = Math.floor(
+      ENERGY_BUILDINGS.powerPlant1.ratePerSecond * 2 +
+        ENERGY_BUILDINGS.powerPlant2.ratePerSecond +
+        ENERGY_BUILDINGS.powerPlant3.ratePerSecond * 3,
+    );
+    const markup = renderToStaticMarkup(<SettingsStatisticsPane state={state} />);
+
+    expect(createEconomyTickPlan(state).generationPerSecond).toBe(0);
+    expect(statisticCard(markup, "totalProduction")).toContain(
+      `<strong>${sourceNameplateRate} kJ/s</strong>`,
+    );
+  });
+
   it("keeps all twelve source rows visible in order and localizes them in all six languages", () => {
     const lockedMarkup = renderToStaticMarkup(
       <SettingsStatisticsPane
         state={createInitialGameState({ pioneerName: "Locked Energy", seed: 773 })}
       />,
     );
-    expect(Array.from(lockedMarkup.matchAll(/data-statistic-id="([^"]+)"/g), (match) => match[1]))
-      .toEqual(expect.arrayContaining(energyStatisticIds));
+    expect(
+      Array.from(lockedMarkup.matchAll(/data-statistic-id="([^"]+)"/g), (match) => match[1]),
+    ).toEqual(expect.arrayContaining(energyStatisticIds));
     const lockedEnergyRows = Array.from(
       lockedMarkup.matchAll(/data-statistic-id="([^"]+)"/g),
       (match) => match[1],
@@ -88,7 +128,9 @@ describe("Energy Statistics display", () => {
     }
 
     for (const locale of LOCALE_IDS) {
-      const markup = renderToStaticMarkup(<SettingsStatisticsPane state={unlockedEnergyState(locale)} />);
+      const markup = renderToStaticMarkup(
+        <SettingsStatisticsPane state={unlockedEnergyState(locale)} />,
+      );
       const actualEnergyRows = Array.from(
         markup.matchAll(/data-statistic-id="([^"]+)"/g),
         (match) => match[1],
@@ -119,6 +161,23 @@ describe("Energy Statistics display", () => {
         );
         expect(values).toEqual(["0", "0"]);
       }
+    }
+  });
+
+  it("renders Times Tripped from its current-run and lifetime counters in all six languages", () => {
+    for (const locale of LOCALE_IDS) {
+      const initial = unlockedEnergyState(locale);
+      const state: GameState = {
+        ...initial,
+        run: { ...initial.run, energyTripsThisRun: 3 },
+        statistics: { ...initial.statistics, lifetimeEnergyTrips: 5 },
+      };
+      const markup = renderToStaticMarkup(<SettingsStatisticsPane state={state} />);
+      const card = statisticCard(markup, "energyTrips");
+      const values = Array.from(card.matchAll(/<strong>(.*?)<\/strong>/g), (match) => match[1]);
+
+      expect(card).toContain(energyStatisticLabel(locale, "energyTrips"));
+      expect(values).toEqual(["3", "5"]);
     }
   });
 });

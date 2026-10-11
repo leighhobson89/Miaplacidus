@@ -1,5 +1,11 @@
 import { expect, test } from "../_harness/fixtures";
 
+declare global {
+  interface Window {
+    __battleAudioSources?: string[];
+  }
+}
+
 type BattleFixture =
   | "space-battle-victory"
   | "space-battle-defeat"
@@ -27,6 +33,7 @@ async function startBattleFixture(
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
   await page.getByRole("tab", { name: "Interstellar" }).click();
+  await page.getByRole("tab", { name: /Colonise/ }).click();
 }
 
 async function advanceBattle(page: import("@playwright/test").Page): Promise<void> {
@@ -120,6 +127,71 @@ test("retains the starship and surviving enemy after defeat, then retries with r
   const retry = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(retry.run.space.systemEncounters[0]?.battle.phase).toBe("inProgress");
   expect(retry.run.space.starship.destinationSystemId).toBe(destinationBefore);
+});
+
+test("plays a ship-death explosion when a combat round destroys ships @battle @audio", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const sources: string[] = [];
+    class MockAudio {
+      loop = false;
+      preload = "none";
+      volume = 1;
+      currentTime = 0;
+      paused = true;
+
+      constructor(readonly src: string) {}
+
+      addEventListener(): void {}
+
+      play(): Promise<void> {
+        sources.push(this.src);
+        this.paused = false;
+        return Promise.resolve();
+      }
+
+      pause(): void {
+        this.paused = true;
+      }
+    }
+
+    Object.defineProperty(window, "Audio", {
+      configurable: true,
+      writable: true,
+      value: MockAudio,
+    });
+    window.__battleAudioSources = sources;
+  });
+  await startBattleFixture(page, "space-battle-defeat");
+  await page.evaluate(() => {
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { soundEffectsEnabled: true, backgroundAudioEnabled: false },
+    });
+    window.__battleAudioSources!.length = 0;
+  });
+  const pane = page.getByTestId("starship-pane");
+  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByTestId("starship-battle-engage-button").click();
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.miaplacidusTest!.getState().run.space.systemEncounters[0]?.battle.phase,
+      ),
+    )
+    .toBe("defeat");
+  const explosionSources = await page.evaluate(() =>
+    (window.__battleAudioSources ?? []).filter((source) =>
+      /shipBattleExplode[12]\.mp3/.test(source),
+    ),
+  );
+  expect(explosionSources).toHaveLength(1);
+  expect(
+    await page.evaluate(() => window.miaplacidusTest!.getState().run.space.playerFleets.scout),
+  ).toBe(0);
 });
 
 test("shows the vassalization success result through the envoy controls @diplomacy", async ({

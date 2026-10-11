@@ -45,6 +45,8 @@ export interface EconomyTickPlan {
     Record<"powerPlant1" | "powerPlant2" | "powerPlant3", number>
   >;
   readonly demandPerSecond: number;
+  /** Active load reported by Statistics, including loads while the grid is off. */
+  readonly statisticsConsumptionPerSecond: number;
   readonly unavailablePerSecond: number;
   readonly netRatesPerSecond: Readonly<Partial<Record<EconomicGoodId, number>>>;
   readonly capacityBlockedGoodIds: readonly EconomicGoodId[];
@@ -75,12 +77,18 @@ function netRates(
   );
 }
 
+const economyTickPlanByState = new WeakMap<GameState, EconomyTickPlan>();
+
 export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
+  const cached = economyTickPlanByState.get(state);
+  if (cached) return cached;
+
   const productionPerSecond: Partial<Record<EconomicGoodId, number>> = {};
   const poweredProduction: { goodId: EconomicGoodId; rate: number }[] = [];
   const fuel: FuelDemand[] = [];
   const productionAllocation: NonNullable<TickPlan["productionAllocation"]> = {};
   let demandPerSecond = 0;
+  let statisticsConsumptionPerSecond = 0;
   const gridRunning = state.run.economy.power.gridEnabled && !state.run.economy.power.tripped;
   const autoBuyerMultiplier =
     repeatedPerkMultiplier(state.permanent.acquiredPerks, "smartAutoBuyers", 1.5) *
@@ -125,7 +133,9 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
         activeRandomEventMultiplierForTarget(state, "supplyChainDisruption", goodId);
       if (definition.energyPerSecond > 0) {
         poweredRate += rate;
-        if (gridRunning) demandPerSecond += definition.energyPerSecond * count;
+        const buyerDemand = definition.energyPerSecond * count;
+        statisticsConsumptionPerSecond += buyerDemand;
+        if (gridRunning) demandPerSecond += buyerDemand;
       } else {
         freeRate += rate;
       }
@@ -198,8 +208,9 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
   let researchPerSecond = scienceCount("scienceKit") * SCIENCE_BUILDINGS.scienceKit.ratePerSecond;
   researchPerSecond += scienceCount("scienceClub") * SCIENCE_BUILDINGS.scienceClub.ratePerSecond;
   const labCount = scienceCount("scienceLab");
-  const labDemand = gridRunning ? SCIENCE_BUILDINGS.scienceLab.energyPerSecond * labCount : 0;
-  demandPerSecond += labDemand;
+  const labDemand = SCIENCE_BUILDINGS.scienceLab.energyPerSecond * labCount;
+  statisticsConsumptionPerSecond += labDemand;
+  if (gridRunning) demandPerSecond += labDemand;
   const surveyTimerId =
     state.run.space.activeSurvey === "asteroids"
       ? "survey:asteroid-scan"
@@ -210,19 +221,30 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
           : null;
   const surveyTimerRunning =
     surveyTimerId !== null && state.run.timers[surveyTimerId]?.status === "running";
-  if (gridRunning && !state.run.space.surveyPowerBlocked && surveyTimerRunning) {
-    demandPerSecond +=
-      state.run.space.activeSurvey === "asteroids"
-        ? 0.4
-        : state.run.space.activeSurvey === "stars"
-          ? 0.7
-          : VOID_PILLAGE_POWER_PER_SECOND;
+  const surveyDemand =
+    state.run.space.activeSurvey === "asteroids"
+      ? 0.4
+      : state.run.space.activeSurvey === "stars"
+        ? 0.7
+        : state.run.space.activeSurvey === "pillageVoid"
+          ? VOID_PILLAGE_POWER_PER_SECOND
+          : 0;
+  if (surveyDemand > 0 && surveyTimerId !== null) {
+    const timer = state.run.timers[surveyTimerId];
+    if (timer && timer.status !== "complete") {
+      statisticsConsumptionPerSecond += surveyDemand;
+    }
   }
-  if (gridRunning && state.run.economy.researchedTechnologies.includes("advancedFuels")) {
-    for (const rocketId of ROCKET_IDS) {
-      const rocket = state.run.space.rockets[rocketId];
-      if (rocket.fuelPumpEnabled && rocket.fuelQuantity < ROCKET_FUEL_CAPACITY[rocketId]) {
-        demandPerSecond += ROCKET_FUEL_PUMP_POWER[rocketId];
+  if (gridRunning && !state.run.space.surveyPowerBlocked && surveyTimerRunning) {
+    demandPerSecond += surveyDemand;
+  }
+  for (const rocketId of ROCKET_IDS) {
+    const rocket = state.run.space.rockets[rocketId];
+    if (rocket.fuelPumpEnabled && rocket.fuelQuantity < ROCKET_FUEL_CAPACITY[rocketId]) {
+      const pumpDemand = ROCKET_FUEL_PUMP_POWER[rocketId];
+      statisticsConsumptionPerSecond += pumpDemand;
+      if (gridRunning && state.run.economy.researchedTechnologies.includes("advancedFuels")) {
+        demandPerSecond += pumpDemand;
       }
     }
   }
@@ -348,14 +370,17 @@ export function createEconomyTickPlan(state: GameState): EconomyTickPlan {
           demandPerSecond - effectiveGenerationPerSecond - state.run.economy.power.quantity,
         )
       : 0;
-  return {
+  const plan = {
     tickPlan,
     researchPerSecond,
     generationPerSecond: effectiveGenerationPerSecond,
     generationByPlantPerSecond,
     demandPerSecond,
+    statisticsConsumptionPerSecond,
     unavailablePerSecond,
     netRatesPerSecond: netRates(preview, state.run.goods),
     capacityBlockedGoodIds: [...capacityBlockedGoods],
   };
+  economyTickPlanByState.set(state, plan);
+  return plan;
 }

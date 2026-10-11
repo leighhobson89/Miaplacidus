@@ -16,6 +16,8 @@ import { createInitialGameState, isValidGameState, type GameState } from "../../
 import { makeEnvelope } from "../../src/persistence/schema";
 import { decodeLocal, encodeLocal } from "../../src/persistence/codec";
 import { metaSignalText, newsEntryText } from "../../src/i18n/metaSignalMessages";
+import { sourceNewsCopy } from "../../src/i18n/sourceNewsCopy";
+import { formatNumber } from "../../src/app/numberFormatting";
 
 function withManuscripts(
   state: ReturnType<typeof createInitialGameState>,
@@ -113,6 +115,7 @@ describe("meta achievements, events, and ticker", () => {
     expect(result.state.run.randomEvents.history.at(-1)).toMatchObject({
       id: "scienceTheft",
       negative: true,
+      details: { kind: "researchHalved", amount: 25 },
     });
     const duplicate = transition(result.state, {
       type: "random-event.force",
@@ -148,6 +151,7 @@ describe("meta achievements, events, and ticker", () => {
     }
     const duplicate = transition(claim.state, { type: "news.prize.claim", id: 2000 });
     expect(duplicate.accepted).toBe(false);
+    expect(duplicate.state.statistics.lifetimeNewsTickerPrizeClaims).toBe(1);
   });
 
   it("caps a rolled prize to the room remaining when the player claims it", () => {
@@ -265,9 +269,9 @@ describe("meta achievements, events, and ticker", () => {
     expect(prize.amount).toBe(roomAtClaim);
     expect(balanceDelta).toBe(prize.amount);
     expect(claim.state.run.goodsProducedThisRun.hydrogen - producedBefore).toBe(balanceDelta);
-    expect(
-      claim.state.statistics.lifetimeGoodsProducedByGood.hydrogen - lifetimeGoodBefore,
-    ).toBe(balanceDelta);
+    expect(claim.state.statistics.lifetimeGoodsProducedByGood.hydrogen - lifetimeGoodBefore).toBe(
+      balanceDelta,
+    );
     expect(claim.state.statistics.lifetimeGoodsProduced - lifetimeTotalBefore).toBe(balanceDelta);
     expect(
       claim.state.run.newsTicker.entries.find(
@@ -311,6 +315,7 @@ describe("meta achievements, events, and ticker", () => {
       simulationMs: secondEntry.simulationMs,
     });
     expect(secondClaim.accepted).toBe(true);
+    expect(secondClaim.state.statistics.lifetimeNewsTickerPrizeClaims).toBe(1);
     expect(
       secondClaim.state.run.newsTicker.entries.find(
         (entry) => entry.id === firstEntry.id && entry.simulationMs === secondEntry.simulationMs,
@@ -332,6 +337,7 @@ describe("meta achievements, events, and ticker", () => {
       simulationMs: firstEntry.simulationMs,
     });
     expect(firstClaim.accepted).toBe(true);
+    expect(firstClaim.state.statistics.lifetimeNewsTickerPrizeClaims).toBe(2);
     expect(
       firstClaim.state.run.newsTicker.entries
         .filter((entry) => entry.id === firstEntry.id)
@@ -372,6 +378,30 @@ describe("meta achievements, events, and ticker", () => {
     }
   });
 
+  it("formats news prize and AP message quantities with the selected notation", () => {
+    const start = createInitialGameState({ pioneerName: "Ticker notation", seed: 524 });
+    const prizeResult = forceNewsTicker(start, "prize", 2000);
+    const oneOffResult = forceNewsTicker(start, "oneOff", 3013);
+    expect(prizeResult).not.toBeNull();
+    expect(oneOffResult).not.toBeNull();
+    const prize = {
+      ...prizeResult!.state.run.newsTicker.entries.at(-1)!,
+      prizeAmount: 1_100,
+    };
+    const oneOff = oneOffResult!.state.run.newsTicker.entries.at(-1)!;
+    const copy = sourceNewsCopy("en");
+
+    for (const notation of ["condensed", "standard", "scientific"] as const) {
+      const formatQuantity = (value: number) => formatNumber("en", value, 0, notation);
+      const prizeText = newsEntryText("en", prize, copy, formatQuantity);
+      const oneOffText = newsEntryText("en", oneOff, copy, formatQuantity);
+      expect(prizeText).toContain(formatQuantity(1_100));
+      expect(oneOffText).toContain(formatQuantity(1));
+      expect(prizeText).toContain(copy.here);
+      expect(oneOffText).toContain(copy.here);
+    }
+  });
+
   it("waits for one full ticker scroll and its randomized delay before the next message", () => {
     const start = createInitialGameState({ pioneerName: "Ticker timing", seed: 515 });
     const firstDelay = start.run.newsTicker.remainingMs;
@@ -408,8 +438,13 @@ describe("meta achievements, events, and ticker", () => {
     const claim = transition(bulletin.state, { type: "news.prize.claim", id: 3013 });
     expect(claim.accepted).toBe(true);
     expect(claim.state.permanent.ascendencyPoints).toBe(1);
+    expect(claim.state.statistics.lifetimeNewsTickerPrizeClaims).toBe(1);
     expect(claim.state.statistics.lifetimeAscendencyPointsGained).toBe(1);
-    expect(transition(claim.state, { type: "news.prize.claim", id: 3013 }).accepted).toBe(false);
+    expect(claim.state.statistics.lifetimeSourceApGain).toBe(1);
+    const duplicateClaim = transition(claim.state, { type: "news.prize.claim", id: 3013 });
+    expect(duplicateClaim.accepted).toBe(false);
+    expect(duplicateClaim.state.statistics.lifetimeNewsTickerPrizeClaims).toBe(1);
+    expect(duplicateClaim.state.statistics.lifetimeSourceApGain).toBe(1);
     const wacky = transition(state, { type: "news.ticker.force", category: "wacky", id: 1000 });
     expect(wacky.accepted).toBe(true);
     state = wacky.state;
@@ -494,7 +529,9 @@ describe("meta achievements, events, and ticker", () => {
     expect(claim.state.run.newsTicker.offeredOneOffIds).toEqual([3013]);
     expect(claim.state.run.newsTicker.claimedPrizeIds).toContain(3013);
     expect(claim.state.run.newsTicker.entries.at(-1)?.claimed).toBe(true);
-    expect(transition(claim.state, { type: "news.prize.claim", id: 3013 }).accepted).toBe(false);
+    const duplicateClaim = transition(claim.state, { type: "news.prize.claim", id: 3013 });
+    expect(duplicateClaim.accepted).toBe(false);
+    expect(duplicateClaim.state.statistics.lifetimeNewsTickerPrizeClaims).toBe(1);
   });
 
   it("selects a least-used eligible manuscript, records its clue, and reloads the history", () => {

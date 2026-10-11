@@ -8,7 +8,11 @@ import {
 import { LOCALE_IDS } from "../../src/content/ids";
 import { HOME_SYSTEM_NAME, createStarCatalogue } from "../../src/content/starCatalogue";
 import { transition } from "../../src/engine/commands";
-import { advanceCosmicRip, cosmicRipUpgradeCost } from "../../src/engine/cosmicRip";
+import {
+  advanceCosmicRip,
+  cosmicRipStabilityProgress,
+  cosmicRipUpgradeCost,
+} from "../../src/engine/cosmicRip";
 import { selectEconomyAction } from "../../src/engine/selectors";
 import { makeEnvelope, SAVE_SCHEMA_VERSION } from "../../src/persistence/schema";
 import { decodeLocal, encodeLocal } from "../../src/persistence/codec";
@@ -59,6 +63,32 @@ function readyToResearch() {
 }
 
 describe("Cosmic Rip", () => {
+  it("calculates overall stability from completed and active research", () => {
+    const initial = createInitialCosmicRipProgress();
+    expect(cosmicRipStabilityProgress(initial)).toBe(0);
+
+    const firstTechnology = COSMIC_RIP_TECHNOLOGIES[0];
+    const secondTechnology = COSMIC_RIP_TECHNOLOGIES[1];
+    const oneResearched = {
+      ...initial,
+      researchedTechnologyIds: [firstTechnology.id],
+    };
+    expect(cosmicRipStabilityProgress(oneResearched)).toBe(20);
+
+    const partialResearch = {
+      ...oneResearched,
+      activeResearchTechnologyId: secondTechnology.id,
+      researchElapsedMs: secondTechnology.durationMs / 2,
+    };
+    expect(cosmicRipStabilityProgress(partialResearch)).toBe(30);
+
+    const allResearched = {
+      ...initial,
+      researchedTechnologyIds: COSMIC_RIP_TECHNOLOGIES.map((technology) => technology.id),
+    };
+    expect(cosmicRipStabilityProgress(allResearched)).toBe(100);
+  });
+
   it("provides localized Cosmic Rip copy and failure feedback in every shipped language", () => {
     for (const locale of LOCALE_IDS) {
       const messages = cosmicRipText(locale);
@@ -468,7 +498,7 @@ describe("Cosmic Rip", () => {
     expect(reborn.state.statistics.lifetimeGalacticPointsSpent).toBe(13);
   });
 
-  it("credits rounded fractional telemetry gain but not telemetry spent on research", () => {
+  it("credits raw telemetry production independently of balance rounding and research spending", () => {
     const initialTelemetry = 10_000.123456786;
     const base = readyToResearch();
     const prepared: GameState = {
@@ -485,14 +515,11 @@ describe("Cosmic Rip", () => {
     const firstRoundedTelemetry = Number((initialTelemetry + 0.04).toFixed(8));
     const first = advanceCosmicRip(prepared, 1_000);
     expect(first.state.permanent.cosmicRip.telemetryData).toBe(firstRoundedTelemetry);
-    expect(first.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
-      firstRoundedTelemetry - initialTelemetry,
-      8,
-    );
+    expect(first.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(0.04, 12);
 
     const secondRoundedTelemetry = Number((firstRoundedTelemetry + 1).toFixed(8));
     const second = advanceCosmicRip(first.state, 25_000);
-    const totalCredited = secondRoundedTelemetry - initialTelemetry;
+    const totalCredited = 0.04 + 1;
     expect(second.state.permanent.cosmicRip.telemetryData).toBe(secondRoundedTelemetry);
     expect(second.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
       totalCredited,
@@ -510,6 +537,24 @@ describe("Cosmic Rip", () => {
     expect(started.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
       totalCredited,
       8,
+    );
+
+    const balanceBeyondFractionalPrecision: GameState = {
+      ...base,
+      permanent: {
+        ...base.permanent,
+        cosmicRip: {
+          ...base.permanent.cosmicRip,
+          sensorBuoyCount: 1,
+          telemetryData: 1_000_000_000_000_000,
+        },
+      },
+    };
+    const preciseCredit = advanceCosmicRip(balanceBeyondFractionalPrecision, 1_000);
+    expect(preciseCredit.state.permanent.cosmicRip.telemetryData).toBe(1_000_000_000_000_000);
+    expect(preciseCredit.state.statistics.lifetimeCosmicRipTelemetryDataEarned).toBeCloseTo(
+      0.04,
+      12,
     );
 
     const roundedWithoutProduction: GameState = {

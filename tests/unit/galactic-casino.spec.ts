@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ECONOMIC_GOOD_IDS, MATERIAL_IDS } from "../../src/content/ids";
 import { createInitialCasinoState } from "../../src/content/galacticCasino";
+import {
+  ROCKET_FUEL_CAPACITY,
+  ROCKET_PART_REQUIREMENTS,
+  type AsteroidState,
+} from "../../src/content/space";
 import { createInitialGameState, isValidGameState } from "../../src/engine/state";
 import { transition } from "../../src/engine/commands";
 import { createTimer, createTimerId } from "../../src/engine/timers";
@@ -79,12 +84,43 @@ function hiloDeck() {
   }));
 }
 
+function stateWithFinalHiloPrize(base: ReturnType<typeof casinoReadyState>, prizeKey: string) {
+  return {
+    ...base,
+    run: {
+      ...base.run,
+      casinoStats: { ...base.run.casinoStats, higherLowerPlayed: 1 },
+    },
+    permanent: {
+      ...base.permanent,
+      galacticCasino: {
+        ...base.permanent.galacticCasino,
+        casinoPoints: 42,
+        higherLower: { deck: hiloDeck(), index: 7, prizeKey },
+        lifetimeStats: {
+          ...base.permanent.galacticCasino.lifetimeStats,
+          higherLowerPlayed: 1,
+        },
+      },
+    },
+  };
+}
+
 describe("Galactic Casino economy and games", () => {
-  it("requires an AP award or at least one rebirth to unlock casino actions", () => {
+  it("requires an AP award in the current run to unlock casino actions", () => {
     const state = createInitialGameState({ seed: 5 });
     const blocked = transition(state, { type: "casino.wheel.spin" });
     expect(blocked.accepted).toBe(false);
     expect(blocked.failure?.code).toBe("casino-locked");
+
+    const afterRebirth = {
+      ...state,
+      permanent: { ...state.permanent, rebirthCount: 1 },
+    };
+    expect(afterRebirth.run.space.ascendencyAwardedThisRun).toBe(false);
+    const stillBlocked = transition(afterRebirth, { type: "casino.wheel.spin" });
+    expect(stillBlocked.accepted).toBe(false);
+    expect(stillBlocked.failure?.code).toBe("casino-locked");
   });
 
   it("unlocks Casino actions when the first run awards AP", () => {
@@ -109,7 +145,7 @@ describe("Galactic Casino economy and games", () => {
     expect(result.state.permanent.galacticCasino.casinoPoints).toBe(1);
   });
 
-  it("allows Casino actions after rebirth while resetting the CP wallet", () => {
+  it("blocks Casino actions after rebirth until this run awards AP", () => {
     const initial = createInitialGameState({ seed: 5 });
     const afterRebirth = {
       ...initial,
@@ -119,7 +155,23 @@ describe("Galactic Casino economy and games", () => {
     expect(afterRebirth.run.space.ascendencyAwardedThisRun).toBe(false);
     expect(afterRebirth.permanent.galacticCasino.casinoPoints).toBe(0);
 
-    const result = transition(afterRebirth, {
+    const blocked = transition(afterRebirth, {
+      type: "casino.points.buy",
+      goodId: "cash",
+      amount: 1,
+    });
+    expect(blocked.accepted).toBe(false);
+    expect(blocked.failure?.code).toBe("casino-locked");
+    expect(blocked.state.permanent.galacticCasino.casinoPoints).toBe(0);
+
+    const withCurrentRunAp = {
+      ...afterRebirth,
+      run: {
+        ...afterRebirth.run,
+        space: { ...afterRebirth.run.space, ascendencyAwardedThisRun: true },
+      },
+    };
+    const result = transition(withCurrentRunAp, {
       type: "casino.points.buy",
       goodId: "cash",
       amount: 1,
@@ -216,6 +268,12 @@ describe("Galactic Casino economy and games", () => {
     expect(claimed.state.permanent.galacticCasino.casinoPoints).toBe(1_099);
     expect(claimed.state.permanent.galacticCasino.wheelSpecialPending).toBe(false);
     expect(claimed.state.run.casinoStats.wheelSpecialWon).toBe(1);
+    expect(claimed.events).toContainEqual({
+      type: "casino.wheel.special-claimed",
+      prize: "special_100cp",
+      detail: "special_100cp",
+      award: { type: "cp", amount: 100 },
+    });
     expect(claimed.state.permanent.galacticCasino.history.at(-1)?.result).toBe(
       "special:special_100cp",
     );
@@ -240,6 +298,204 @@ describe("Galactic Casino economy and games", () => {
     expect(
       results.filter((result) => result !== "special-ready" && result !== "loss"),
     ).toHaveLength(7);
+  });
+
+  it("captures actual Wheel awards and instantly completes rocket and starship warps", () => {
+    const doublePending = transition(casinoReadyState(seedForWheelIndex(0)), {
+      type: "casino.wheel.spin",
+    }).state;
+    const doubled = transition(doublePending, {
+      type: "casino.wheel.claim",
+      prize: "special_double_hydrogen",
+    });
+    expect(doubled.accepted).toBe(true);
+    expect(doubled.events).toContainEqual({
+      type: "casino.wheel.special-claimed",
+      prize: "special_double_hydrogen",
+      detail: "special_double_hydrogen",
+      award: { type: "double", goodId: "hydrogen", oldQuantity: 1_000_000, newQuantity: 2_000_000 },
+    });
+
+    const base = casinoReadyState(seedForWheelIndex(0));
+    const rocketTimerId = createTimerId("travel", "rocket1-asteroid-journey");
+    const asteroid: AsteroidState = {
+      id: "asteroid-2",
+      name: "SPI-0002B",
+      systemId: "spica",
+      distance: 1_000,
+      rarity: "common",
+      extractionEase: 1,
+      remainingAntimatter: 700,
+      totalAntimatter: 700,
+      reservedBy: "rocket1",
+      depleted: false,
+      interacted: true,
+    };
+    const rocketState = {
+      ...base,
+      run: {
+        ...base.run,
+        timers: {
+          ...base.run.timers,
+          [rocketTimerId]: createTimer({ id: rocketTimerId, domain: "travel", durationMs: 10_000 }),
+        },
+        space: {
+          ...base.run.space,
+          launchPadBuilt: true,
+          antimatterUnlocked: true,
+          asteroids: [asteroid],
+          nextAsteroidSequence: 3,
+          rockets: {
+            ...base.run.space.rockets,
+            rocket1: {
+              ...base.run.space.rockets.rocket1,
+              name: "Prospector",
+              builtParts: ROCKET_PART_REQUIREMENTS.rocket1,
+              fuelQuantity: ROCKET_FUEL_CAPACITY.rocket1,
+              phase: "outbound" as const,
+              targetAsteroidId: asteroid.id,
+              timerId: rocketTimerId,
+            },
+          },
+        },
+      },
+    };
+    expect(isValidGameState(rocketState)).toBe(true);
+    const rocketPending = transition(rocketState, { type: "casino.wheel.spin" }).state;
+    const rocketClaim = transition(rocketPending, {
+      type: "casino.wheel.claim",
+      prize: "special_rocket_warp",
+    });
+    expect(rocketClaim.accepted, JSON.stringify(rocketClaim.failure)).toBe(true);
+    expect(rocketClaim.events).toContainEqual({
+      type: "casino.wheel.special-claimed",
+      prize: "special_rocket_warp",
+      detail: "special_rocket_warp",
+      award: {
+        type: "rocket-warp",
+        rocketId: "rocket1",
+        rocketName: "Prospector",
+        destination: { type: "asteroid", name: "SPI-0002B" },
+      },
+    });
+    expect(rocketClaim.state.run.timers[rocketTimerId]?.status).toBe("complete");
+    expect(rocketClaim.state.run.space.rockets.rocket1).toMatchObject({
+      phase: "mining",
+      timerId: null,
+      targetAsteroidId: asteroid.id,
+    });
+    expect(rocketClaim.state.run.space.asteroidsMinedThisRun).toBe(1);
+    expect(rocketClaim.state.statistics.lifetimeAsteroidsMined).toBe(1);
+    expect(rocketClaim.events).toContainEqual({
+      type: "space.rocket.arrived",
+      rocketId: "rocket1",
+      asteroidId: asteroid.id,
+    });
+    expect(rocketClaim.state.permanent.galacticCasino.casinoPoints).toBe(999);
+    expect(rocketClaim.state.permanent.galacticCasino.history.at(-1)?.cpAwarded).toBe(0);
+    const returningRocketState = {
+      ...rocketState,
+      run: {
+        ...rocketState.run,
+        space: {
+          ...rocketState.run.space,
+          rockets: {
+            ...rocketState.run.space.rockets,
+            rocket1: {
+              ...rocketState.run.space.rockets.rocket1,
+              phase: "returning" as const,
+            },
+          },
+        },
+      },
+    };
+    expect(isValidGameState(returningRocketState)).toBe(true);
+    const returningPending = transition(returningRocketState, { type: "casino.wheel.spin" }).state;
+    const returningClaim = transition(returningPending, {
+      type: "casino.wheel.claim",
+      prize: "special_rocket_warp",
+    });
+    expect(returningClaim.accepted, JSON.stringify(returningClaim.failure)).toBe(true);
+    expect(returningClaim.events).toContainEqual({
+      type: "casino.wheel.special-claimed",
+      prize: "special_rocket_warp",
+      detail: "special_rocket_warp",
+      award: {
+        type: "rocket-warp",
+        rocketId: "rocket1",
+        rocketName: "Prospector",
+        destination: { type: "base" },
+      },
+    });
+    expect(returningClaim.state.run.timers[rocketTimerId]?.status).toBe("complete");
+    expect(returningClaim.state.run.space.rockets.rocket1).toMatchObject({
+      phase: "ready",
+      timerId: null,
+      targetAsteroidId: null,
+      journeyCount: 1,
+    });
+    expect(returningClaim.state.run.space.asteroids[0]?.reservedBy).toBeNull();
+    expect(returningClaim.events).toContainEqual({
+      type: "space.rocket.returned",
+      rocketId: "rocket1",
+      asteroidId: asteroid.id,
+    });
+    expect(returningClaim.state.permanent.galacticCasino.casinoPoints).toBe(999);
+
+    const starshipTimerId = createTimerId("travel", "starship-journey");
+    const starshipState = {
+      ...base,
+      run: {
+        ...base.run,
+        timers: {
+          ...base.run.timers,
+          [starshipTimerId]: createTimer({
+            id: starshipTimerId,
+            domain: "travel",
+            durationMs: 10_000,
+          }),
+        },
+        space: {
+          ...base.run.space,
+          starship: {
+            destinationSystemId: "system:123:2",
+            phase: "travelling" as const,
+            timerId: starshipTimerId,
+            durationMs: 10_000,
+            antimatterSpent: 1,
+            travelDistanceLy: 1,
+          },
+        },
+      },
+    };
+    expect(isValidGameState(starshipState)).toBe(true);
+    const starshipPending = transition(starshipState, { type: "casino.wheel.spin" }).state;
+    const starshipClaim = transition(starshipPending, {
+      type: "casino.wheel.claim",
+      prize: "special_starship_warp",
+    });
+    expect(starshipClaim.accepted, JSON.stringify(starshipClaim.failure)).toBe(true);
+    expect(starshipClaim.events).toContainEqual({
+      type: "casino.wheel.special-claimed",
+      prize: "special_starship_warp",
+      detail: "special_starship_warp",
+      award: { type: "starship-warp", destinationSystemId: "system:123:2" },
+    });
+    expect(starshipClaim.state.run.timers[starshipTimerId]?.status).toBe("complete");
+    expect(starshipClaim.state.run.space.starship).toMatchObject({
+      phase: "orbiting",
+      destinationSystemId: "system:123:2",
+      timerId: null,
+      travelDistanceLy: null,
+    });
+    expect(starshipClaim.state.run.space.starshipDistanceTravelledThisRun).toBe(1);
+    expect(starshipClaim.state.statistics.lifetimeStarshipDistanceTravelled).toBe(1);
+    expect(starshipClaim.events).toContainEqual({
+      type: "space.starship.arrived",
+      systemId: "system:123:2",
+    });
+    expect(starshipClaim.state.permanent.galacticCasino.casinoPoints).toBe(999);
+    expect(starshipClaim.state.permanent.galacticCasino.history.at(-1)?.cpAwarded).toBe(0);
   });
 
   it("saves the Higher or Lower deck, charges once and settles a three-card cash-out", () => {
@@ -276,6 +532,9 @@ describe("Galactic Casino economy and games", () => {
     expect(current.permanent.galacticCasino.higherLower?.prizeKey).toBeTruthy();
     const cashedOut = transition(current, { type: "casino.higher-lower.cash-out" });
     expect(cashedOut.accepted).toBe(true);
+    expect(cashedOut.events).toContainEqual(
+      expect.objectContaining({ type: "casino.game.played", revealedCount: 3 }),
+    );
     expect(cashedOut.state.permanent.galacticCasino.higherLower).toBeNull();
     expect(cashedOut.state.run.casinoStats.higherLowerPlayed).toBe(1);
     expect(cashedOut.state.permanent.galacticCasino.history.at(-1)?.gameId).toBe("higherLower");
@@ -350,6 +609,159 @@ describe("Galactic Casino economy and games", () => {
     expect(result.state.run.casinoStats.higherLowerWon).toBe(1);
   });
 
+  it("shortens active Hilo rocket and starship journeys without also awarding fallback CP", () => {
+    const rocketTimerId = createTimerId("travel", "rocket1-asteroid-journey");
+    const asteroid: AsteroidState = {
+      id: "asteroid-2",
+      name: "SPI-0002B",
+      systemId: "spica",
+      distance: 1_000,
+      rarity: "common",
+      extractionEase: 1,
+      remainingAntimatter: 700,
+      totalAntimatter: 700,
+      reservedBy: "rocket1",
+      depleted: false,
+      interacted: true,
+    };
+    const rocketBase = casinoReadyState(seedForDrawIndex(0, 4));
+    const rocketState = stateWithFinalHiloPrize(rocketBase, "special_finish_rocket_journey");
+    const activeRocket = {
+      ...rocketState,
+      run: {
+        ...rocketState.run,
+        timers: {
+          ...rocketState.run.timers,
+          [rocketTimerId]: createTimer({ id: rocketTimerId, domain: "travel", durationMs: 10_000 }),
+        },
+        space: {
+          ...rocketState.run.space,
+          launchPadBuilt: true,
+          antimatterUnlocked: true,
+          asteroids: [asteroid],
+          nextAsteroidSequence: 3,
+          rockets: {
+            ...rocketState.run.space.rockets,
+            rocket1: {
+              ...rocketState.run.space.rockets.rocket1,
+              name: "Prospector",
+              builtParts: ROCKET_PART_REQUIREMENTS.rocket1,
+              fuelQuantity: ROCKET_FUEL_CAPACITY.rocket1,
+              phase: "outbound" as const,
+              targetAsteroidId: asteroid.id,
+              timerId: rocketTimerId,
+            },
+          },
+        },
+      },
+    };
+    expect(isValidGameState(activeRocket)).toBe(true);
+
+    const rocketResult = transition(activeRocket, {
+      type: "casino.higher-lower.guess",
+      direction: "higher",
+    });
+    expect(rocketResult.accepted, JSON.stringify(rocketResult.failure)).toBe(true);
+    expect(rocketResult.state.permanent.galacticCasino.casinoPoints).toBe(42);
+    expect(rocketResult.state.run.timers[rocketTimerId]?.durationMs).toBe(2_000);
+    expect(rocketResult.events).toContainEqual(
+      expect.objectContaining({
+        type: "casino.higher-lower.revealed",
+        index: 8,
+        correct: true,
+        outcome: {
+          prizeKey: "special_finish_rocket_journey",
+          won: true,
+          award: { type: "finished-journey", vehicle: "rocket", rocketName: "Prospector" },
+        },
+      }),
+    );
+    expect(rocketResult.state.permanent.galacticCasino.history.at(-1)?.cpAwarded).toBe(0);
+
+    const starshipTimerId = createTimerId("travel", "starship-journey");
+    const starshipBase = casinoReadyState(seedForDrawIndex(1, 4));
+    const starshipState = stateWithFinalHiloPrize(starshipBase, "special_finish_starship_journey");
+    const activeStarship = {
+      ...starshipState,
+      run: {
+        ...starshipState.run,
+        timers: {
+          ...starshipState.run.timers,
+          [starshipTimerId]: createTimer({
+            id: starshipTimerId,
+            domain: "travel",
+            durationMs: 10_000,
+          }),
+        },
+        space: {
+          ...starshipState.run.space,
+          starship: {
+            destinationSystemId: "system:123:2",
+            phase: "travelling" as const,
+            timerId: starshipTimerId,
+            durationMs: 10_000,
+            antimatterSpent: 1,
+            travelDistanceLy: 1,
+          },
+        },
+      },
+    };
+    expect(isValidGameState(activeStarship)).toBe(true);
+
+    const starshipResult = transition(activeStarship, {
+      type: "casino.higher-lower.guess",
+      direction: "higher",
+    });
+    expect(starshipResult.accepted, JSON.stringify(starshipResult.failure)).toBe(true);
+    expect(starshipResult.state.permanent.galacticCasino.casinoPoints).toBe(42);
+    expect(starshipResult.state.run.timers[starshipTimerId]?.durationMs).toBe(2_000);
+    expect(starshipResult.events).toContainEqual(
+      expect.objectContaining({
+        type: "casino.higher-lower.revealed",
+        index: 8,
+        correct: true,
+        outcome: {
+          prizeKey: "special_finish_starship_journey",
+          won: true,
+          award: {
+            type: "finished-journey",
+            vehicle: "starship",
+            destinationSystemId: "system:123:2",
+          },
+        },
+      }),
+    );
+    expect(starshipResult.state.permanent.galacticCasino.history.at(-1)?.cpAwarded).toBe(0);
+  });
+
+  it("awards 150 CP for Hilo rocket or starship finish prizes without an active trip", () => {
+    const cases = [
+      { prizeKey: "special_finish_rocket_journey", prizeIndex: 0 },
+      { prizeKey: "special_finish_starship_journey", prizeIndex: 1 },
+    ] as const;
+    for (const { prizeKey, prizeIndex } of cases) {
+      const base = casinoReadyState(seedForDrawIndex(prizeIndex, 4));
+      const state = stateWithFinalHiloPrize(base, prizeKey);
+      const result = transition(state, {
+        type: "casino.higher-lower.guess",
+        direction: "higher",
+      });
+      expect(result.accepted, JSON.stringify(result.failure)).toBe(true);
+      expect(result.state.permanent.galacticCasino.casinoPoints).toBe(192);
+      expect(result.events).toContainEqual(
+        expect.objectContaining({
+          type: "casino.higher-lower.revealed",
+          outcome: {
+            prizeKey,
+            won: true,
+            award: { type: "cp", amount: 150 },
+          },
+        }),
+      );
+      expect(result.state.permanent.galacticCasino.history.at(-1)?.cpAwarded).toBe(150);
+    }
+  });
+
   it("records a deterministic Void Seer match and applies its long-run antimatter award", () => {
     const state = casinoReadyState(seedForFirstDrawMatch(12));
     const result = transition(state, { type: "casino.void-seer.play", tier: 3 });
@@ -388,6 +800,12 @@ describe("Galactic Casino economy and games", () => {
     expect(result.state.run.timers[timerId]?.status).toBe("complete");
     expect(result.state.run.space.activeSurvey).toBeNull();
     expect(result.state.statistics.completedTimers).toBe(1);
+    expect(result.events).toContainEqual({
+      type: "casino.wheel.special-claimed",
+      prize: "special_telescope_finish_asteroid_search",
+      detail: "special_telescope_finish_asteroid_search",
+      award: { type: "telescope-finished", activity: "asteroid-search" },
+    });
     expect(isValidGameState(result.state)).toBe(true);
   });
 });

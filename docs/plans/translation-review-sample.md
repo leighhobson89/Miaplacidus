@@ -1,6 +1,6 @@
 # Six-language translation review sample
 
-Prepared for the project owner's quick quality review. These are current player-facing strings selected to cover startup, the core loop, a save failure, travel, and the ending. No owner approval is recorded yet.
+Prepared for the project owner's quick quality review. These are current player-facing strings selected to cover startup, the core loop, a save failure, travel, and the ending. The owner approved this sample as written on 9 October 2026, including the noted formality differences.
 
 The sample reads from `saveText(startNewGame)`, `settingsHelpText(early)`, `saveErrorText("quota")`, `starshipText(launch)`, and `miaplacidusStoryText(locale)`.
 
@@ -54,4 +54,4 @@ The sample reads from `saveText(startNewGame)`, `settingsHelpText(early)`, `save
 
 ## Owner review
 
-Please confirm that the six-language sample reads naturally and consistently for MIAPLACIDUS. In particular, the Portuguese core-loop guide uses informal address while the save failure uses formal commands, and French uses formal address in the save failure but informal address in the ending; decide whether these register changes are acceptable for the game.
+The owner approved the six-language sample as written on 9 October 2026, including the Portuguese informal core-loop guide alongside formal save-failure commands, and the French formal save failure alongside the informal ending.

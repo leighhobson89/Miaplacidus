@@ -1,5 +1,18 @@
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import type { LocaleId } from "../../../src/content/ids";
+import {
+  ROCKET_FUEL_CAPACITY,
+  STAR_STUDY_TIMER_ID,
+  VOID_PILLAGE_TIMER_ID,
+} from "../../../src/content/space";
+import { STAR_WEATHER_TIMER_ID } from "../../../src/engine/weather";
+import { rocketText } from "../../../src/i18n/rocketMessages";
+import { spaceText } from "../../../src/i18n/spaceMessages";
+import { spaceNotificationText } from "../../../src/i18n/spaceNotificationMessages";
+
+const ALL_LOCALES: readonly LocaleId[] = ["en", "es", "pt", "de", "it", "fr"];
 
 async function startSpaceFixture(
   page: import("@playwright/test").Page,
@@ -7,7 +20,9 @@ async function startSpaceFixture(
     | "space-telescope"
     | "space-late-game"
     | "space-rocket-part-shortfall"
-    | "space-rocket-part-exact" = "space-telescope",
+    | "space-rocket-part-exact"
+    | "space-voidborn-pillage" = "space-telescope",
+  locale: LocaleId = "en",
 ): Promise<void> {
   await page.addInitScript(() => {
     const prefix = "miaplacidus:v1:";
@@ -16,7 +31,7 @@ async function startSpaceFixture(
     ).filter((key): key is string => key?.startsWith(prefix) ?? false);
     for (const key of keys) localStorage.removeItem(key);
   });
-  await page.goto(`/?testSeed=20261003&testLocale=en&economyFixture=${fixture}`);
+  await page.goto(`/?testSeed=20261003&testLocale=${locale}&economyFixture=${fixture}`);
   await page.getByLabel("Pioneer name").fill("Space Telescope Pioneer");
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
@@ -70,7 +85,7 @@ test("explains why the antimatter boost is unavailable at zero mining rate @spac
   ).toBe(false);
 });
 
-test("builds a telescope, starts an asteroid scan, and keeps its timer in game state @space-telescope", async ({
+test("announces asteroid-search completion while another tab is selected @space-telescope @p20-announcements", async ({
   page,
 }) => {
   await startSpaceFixture(page);
@@ -78,13 +93,22 @@ test("builds a telescope, starts an asteroid scan, and keeps its timer in game s
   await page.locator("#tab-space-mining-telescope").click();
   const pane = page.getByTestId("space-mining-pane");
   await expect(pane).toBeVisible();
-  await expect(pane).toContainText("$10,000");
-  await expect(pane).toContainText("20,000 Iron");
+  await expect(pane).toContainText(`$${formatNumber("en", 10_000)}`);
+  await expect(pane).toContainText(`${formatNumber("en", 20_000)} Iron`);
   await page.getByRole("button", { name: "Build telescope" }).click();
+  const telescopeNotice = page.locator(
+    '[data-testid="game-notification"][data-classification="special"]',
+  );
+  await expect(telescopeNotice).toHaveText("Space Telescope Built!");
+  await expect(telescopeNotice).toHaveClass(/notification-info/);
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.telescopeBuilt))
     .toBe(true);
   await expect(pane).toContainText("Telescope built");
+  const initialAsteroidIds = await page.evaluate(() =>
+    window.miaplacidusTest!.getState().run.space.asteroids.map((asteroid) => asteroid.id),
+  );
+  await expect(telescopeNotice).toHaveCount(0);
   await page.getByRole("button", { name: "Scan for asteroids" }).click();
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
@@ -96,7 +120,332 @@ test("builds a telescope, starts an asteroid scan, and keeps its timer in game s
       ),
     )
     .toBe("running");
-  await expect(page.getByTestId("space-survey-progress")).toBeVisible();
+  const surveyProgress = page.getByRole("progressbar", { name: "Scanning", exact: true });
+  await expect(surveyProgress).toBeVisible();
+  await expect(surveyProgress).toHaveAttribute("aria-label", "Scanning");
+  const initialSurveyProgress = await surveyProgress.evaluate((element) => {
+    const progress = element as HTMLProgressElement;
+    return { value: progress.value, max: progress.max };
+  });
+  expect(initialSurveyProgress).toEqual({ value: expect.any(Number), max: 100 });
+  expect(initialSurveyProgress.value).toBeGreaterThanOrEqual(0);
+  expect(initialSurveyProgress.value).toBeLessThan(initialSurveyProgress.max);
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(() => surveyProgress.evaluate((progress) => (progress as HTMLProgressElement).value))
+    .toBeGreaterThan(initialSurveyProgress.value);
+
+  for (const locale of ALL_LOCALES) {
+    expect(
+      await page.evaluate(
+        (nextLocale) =>
+          window.miaplacidusTest!.applyDebugAction("set-language", { locale: nextLocale }),
+        locale,
+      ),
+    ).toBe(true);
+    const localizedProgress = page.getByRole("progressbar", {
+      name: spaceText(locale, "surveySearching"),
+      exact: true,
+    });
+    await expect(localizedProgress).toBeVisible();
+    await expect(localizedProgress).toHaveAttribute(
+      "aria-label",
+      spaceText(locale, "surveySearching"),
+    );
+  }
+  const remainingScanMs = Number(
+    await page.getByTestId("space-survey-countdown").getAttribute("data-remaining-ms"),
+  );
+  await page.locator("#tab-hydrogen").click();
+  await expect(page.locator("#pane-hydrogen")).toBeVisible();
+  await page.evaluate(
+    (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1_000),
+    remainingScanMs,
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
+    .toBeNull();
+  await expect(page.locator("#pane-hydrogen")).toBeVisible();
+  const completedDiscovery = await page.evaluate((previousIds) => {
+    const state = window.miaplacidusTest!.getState();
+    const asteroid = state.run.space.asteroids.find((entry) => !previousIds.includes(entry.id));
+    return asteroid ? { name: asteroid.name, rarity: asteroid.rarity } : null;
+  }, initialAsteroidIds);
+  const completedScan = completedDiscovery?.name ?? null;
+  const expectedNotification = completedDiscovery
+    ? spaceNotificationText(
+        "fr",
+        completedDiscovery.rarity === "legendary"
+          ? "legendaryAsteroidDiscovered"
+          : "asteroidDiscovered",
+        { asteroid: completedDiscovery.name },
+      )
+    : spaceNotificationText("fr", "asteroidScanMissed");
+  const notificationRegion = page.getByTestId("notification-stack");
+  const globalScanNotice = notificationRegion
+    .getByTestId("game-notification")
+    .filter({ hasText: completedDiscovery?.name ?? expectedNotification });
+  await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
+  await expect(globalScanNotice).toHaveRole("status");
+  await expect(globalScanNotice).toHaveAttribute("aria-atomic", "true");
+  await expect(globalScanNotice).toHaveText(expectedNotification);
+
+  await page.locator("#tab-space-mining").click();
+  const scanAnnouncement = page.getByTestId("space-feedback");
+  await expect(scanAnnouncement).toHaveRole("status");
+  await expect(scanAnnouncement).toHaveAttribute("aria-live", "polite");
+  await expect(scanAnnouncement).toHaveAttribute("aria-atomic", "true");
+  await expect(scanAnnouncement).toHaveText(
+    completedScan
+      ? spaceText("fr", "feedbackAsteroidFound", { name: completedScan })
+      : spaceText("fr", "feedbackScanMissed"),
+  );
+});
+
+test("shows telescope survey power loss as a pause and resumes the countdown @space-live-countdown", async ({
+  page,
+}) => {
+  await startSpaceFixture(page);
+  await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-telescope").click();
+  await page.getByRole("button", { name: "Build telescope" }).click();
+  await page.getByRole("button", { name: "Scan for asteroids" }).click();
+
+  const status = page.getByTestId("space-survey-status");
+  const countdown = page.getByTestId("space-survey-countdown");
+  const progress = page.getByTestId("space-survey-progress");
+  const readSurvey = () =>
+    page.evaluate(() => {
+      const state = window.miaplacidusTest!.getState();
+      const timer = state.run.timers["survey:asteroid-scan"];
+      return {
+        status: timer?.status ?? null,
+        elapsedMs: timer?.elapsedMs ?? null,
+        durationMs: timer?.durationMs ?? null,
+        powerBlocked: state.run.space.surveyPowerBlocked,
+      };
+    });
+
+  await expect(status).toHaveText(spaceText("en", "surveySearching"));
+  await expect(progress).toBeVisible();
+  await expect.poll(async () => (await readSurvey()).status).toBe("running");
+  const initialRemainingMs = Number(await countdown.getAttribute("data-remaining-ms"));
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(async () => Number(await countdown.getAttribute("data-remaining-ms")))
+    .toBeLessThan(initialRemainingMs);
+
+  await page.getByRole("tab", { name: "Energy" }).click();
+  await page.locator("#tab-energy-power").click();
+  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
+    )
+    .toBe(false);
+
+  await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-telescope").click();
+  await expect(status).toHaveText(spaceText("en", "surveyPowerBlocked"));
+  await expect(progress).toHaveAttribute("aria-label", spaceText("en", "surveyPowerBlocked"));
+  await expect.poll(async () => (await readSurvey()).status).toBe("paused");
+  const pausedSurvey = await readSurvey();
+  const pausedProgress = await progress.evaluate(
+    (element) => (element as HTMLProgressElement).value,
+  );
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(10_000));
+  await expect.poll(readSurvey).toEqual(pausedSurvey);
+  await expect
+    .poll(() => progress.evaluate((element) => (element as HTMLProgressElement).value))
+    .toBe(pausedProgress);
+
+  await page.getByRole("tab", { name: "Energy" }).click();
+  await page.locator("#tab-energy-power").click();
+  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
+    )
+    .toBe(true);
+  await page.getByRole("tab", { name: "Space Mining" }).click();
+  await page.locator("#tab-space-mining-telescope").click();
+  await expect(status).toHaveText(spaceText("en", "surveySearching"));
+  await expect.poll(async () => (await readSurvey()).status).toBe("running");
+  const resumedRemainingMs = Number(await countdown.getAttribute("data-remaining-ms"));
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(async () => Number(await countdown.getAttribute("data-remaining-ms")))
+    .toBeLessThan(resumedRemainingMs);
+});
+
+test("exposes live Star Study and Void Pillage progress across all locales @space-live-countdown @p20-announcements", async ({
+  page,
+}) => {
+  await startSpaceFixture(page);
+  await page.locator("#tab-space-mining").click();
+  await page.locator("#tab-space-mining-telescope").click();
+  await page.getByRole("button", { name: spaceText("en", "telescopeBuild") }).click();
+
+  await page.getByRole("button", { name: spaceText("en", "studyStars") }).click();
+  const studyProgress = page.getByRole("progressbar", {
+    name: spaceText("en", "surveyStudying"),
+    exact: true,
+  });
+  await expect(studyProgress).toBeVisible();
+  const initialStudy = await studyProgress.evaluate((element) => {
+    const progress = element as HTMLProgressElement;
+    return { value: progress.value, max: progress.max };
+  });
+  expect(initialStudy.max).toBe(100);
+  expect(initialStudy.value).toBeGreaterThanOrEqual(0);
+  expect(initialStudy.value).toBeLessThan(initialStudy.max);
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(() => studyProgress.evaluate((progress) => (progress as HTMLProgressElement).value))
+    .toBeGreaterThan(initialStudy.value);
+  for (const locale of ALL_LOCALES) {
+    expect(
+      await page.evaluate(
+        (nextLocale) =>
+          window.miaplacidusTest!.applyDebugAction("set-language", { locale: nextLocale }),
+        locale,
+      ),
+    ).toBe(true);
+    const localizedProgress = page.getByRole("progressbar", {
+      name: spaceText(locale, "surveyStudying"),
+      exact: true,
+    });
+    await expect(localizedProgress).toBeVisible();
+    await expect(localizedProgress).toHaveAttribute(
+      "aria-label",
+      spaceText(locale, "surveyStudying"),
+    );
+  }
+  const studyBeforeCompletion = await page.evaluate((timerId) => {
+    const state = window.miaplacidusTest!.getState();
+    const timer = state.run.timers[timerId];
+    return {
+      remainingMs: timer ? Math.max(0, timer.durationMs - timer.elapsedMs) : null,
+      starStudyRange: state.run.space.starStudyRange,
+    };
+  }, STAR_STUDY_TIMER_ID);
+  const spaceFeedback = page.getByTestId("space-feedback");
+  await expect(spaceFeedback).toHaveRole("status");
+  await expect(spaceFeedback).toHaveAttribute("aria-live", "polite");
+  await expect(spaceFeedback).toHaveAttribute("aria-atomic", "true");
+  expect(studyBeforeCompletion.remainingMs).not.toBeNull();
+  await page.evaluate(
+    (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1),
+    studyBeforeCompletion.remainingMs!,
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
+    .toBeNull();
+  const completedStudy = await page.evaluate(() => {
+    const state = window.miaplacidusTest!.getState();
+    return {
+      starStudyRange: state.run.space.starStudyRange,
+      notation: state.settings.notation,
+    };
+  });
+  expect(completedStudy.starStudyRange).toBeGreaterThan(studyBeforeCompletion.starStudyRange);
+  await expect(
+    page.getByRole("progressbar", {
+      name: spaceText("fr", "surveyStudying"),
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(spaceFeedback).toHaveText(
+    spaceText("fr", "feedbackStudyComplete", {
+      range: formatNumber("fr", completedStudy.starStudyRange, 0, completedStudy.notation),
+    }),
+  );
+
+  await startSpaceFixture(page, "space-voidborn-pillage");
+  await page.locator("#tab-space-mining").click();
+  await page.locator("#tab-space-mining-telescope").click();
+  const voidbornState = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(voidbornState.permanent.rebirthCount).toBe(1);
+  expect(voidbornState.permanent.philosophyId).toBe("voidborn");
+  expect(voidbornState.run.philosophyAbilityActive).toBe(true);
+  expect(voidbornState.run.space.telescopeBuilt).toBe(true);
+
+  await page.getByRole("button", { name: spaceText("en", "pillageVoid") }).click();
+  const pillageProgress = page.getByRole("progressbar", {
+    name: spaceText("en", "surveyPillaging"),
+    exact: true,
+  });
+  await expect(pillageProgress).toBeVisible();
+  const initialPillage = await pillageProgress.evaluate((element) => {
+    const progress = element as HTMLProgressElement;
+    return { value: progress.value, max: progress.max };
+  });
+  expect(initialPillage.max).toBe(100);
+  expect(initialPillage.value).toBeGreaterThanOrEqual(0);
+  expect(initialPillage.value).toBeLessThan(initialPillage.max);
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(() => pillageProgress.evaluate((progress) => (progress as HTMLProgressElement).value))
+    .toBeGreaterThan(initialPillage.value);
+  for (const locale of ALL_LOCALES) {
+    expect(
+      await page.evaluate(
+        (nextLocale) =>
+          window.miaplacidusTest!.applyDebugAction("set-language", { locale: nextLocale }),
+        locale,
+      ),
+    ).toBe(true);
+    const localizedProgress = page.getByRole("progressbar", {
+      name: spaceText(locale, "surveyPillaging"),
+      exact: true,
+    });
+    await expect(localizedProgress).toBeVisible();
+    await expect(localizedProgress).toHaveAttribute(
+      "aria-label",
+      spaceText(locale, "surveyPillaging"),
+    );
+  }
+  const pillageBeforeCompletion = await page.evaluate((timerId) => {
+    const state = window.miaplacidusTest!.getState();
+    const timer = state.run.timers[timerId];
+    return {
+      remainingMs: timer ? Math.max(0, timer.durationMs - timer.elapsedMs) : null,
+      completions: state.run.space.voidPillageCompletions,
+    };
+  }, VOID_PILLAGE_TIMER_ID);
+  await expect(spaceFeedback).toHaveRole("status");
+  await expect(spaceFeedback).toHaveAttribute("aria-live", "polite");
+  await expect(spaceFeedback).toHaveAttribute("aria-atomic", "true");
+  expect(pillageBeforeCompletion.remainingMs).not.toBeNull();
+  await page.evaluate(
+    (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1),
+    pillageBeforeCompletion.remainingMs!,
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
+    .toBeNull();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().run.space.voidPillageCompletions),
+    )
+    .toBeGreaterThan(pillageBeforeCompletion.completions);
+  await expect(
+    page.getByRole("progressbar", {
+      name: spaceText("fr", "surveyPillaging"),
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  const notificationRegion = page.getByTestId("notification-stack");
+  const pillageNotice = notificationRegion
+    .getByRole("status")
+    .filter({ hasText: spaceNotificationText("fr", "voidPillageComplete") });
+  await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
+  await expect(pillageNotice).toHaveCount(1);
+  await expect(pillageNotice).toHaveAttribute("aria-atomic", "true");
+  await expect(pillageNotice).toContainText(spaceNotificationText("fr", "voidPillageComplete"));
+  await expect(page.getByTestId("space-feedback")).not.toContainText(
+    spaceNotificationText("fr", "voidPillageComplete"),
+  );
 });
 
 test("keeps launch-pad weather separate from the telescope and shows precipitation in the header tooltip @space-live-countdown", async ({
@@ -123,12 +472,72 @@ test("keeps launch-pad weather separate from the telescope and shows precipitati
   await expect
     .poll(async () => Number(await weatherCountdown.getAttribute("data-remaining-ms")))
     .toBeLessThan(initialWeatherMs);
+  const weatherBeforeExpiry = await page.evaluate((timerId) => {
+    const state = window.miaplacidusTest!.getState();
+    const timer = state.run.timers[timerId];
+    return {
+      remainingMs: timer ? Math.max(0, timer.durationMs - timer.elapsedMs) : null,
+      cycleCount: state.run.space.weatherCycleCount,
+      condition: state.run.space.currentSystemWeather,
+    };
+  }, STAR_WEATHER_TIMER_ID);
+  expect(weatherBeforeExpiry.remainingMs).not.toBeNull();
+  await page.evaluate(
+    (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1),
+    weatherBeforeExpiry.remainingMs!,
+  );
+  let previousCycleCount = weatherBeforeExpiry.cycleCount;
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.weatherCycleCount))
+    .toBeGreaterThan(previousCycleCount);
+  previousCycleCount = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.space.weatherCycleCount,
+  );
+  let currentWeather = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.space.currentSystemWeather,
+  );
+  for (let cycle = 0; cycle < 8 && currentWeather === weatherBeforeExpiry.condition; cycle += 1) {
+    const nextWeatherMs = await page.evaluate((timerId) => {
+      const state = window.miaplacidusTest!.getState();
+      const timer = state.run.timers[timerId];
+      return timer ? Math.max(0, timer.durationMs - timer.elapsedMs) : null;
+    }, STAR_WEATHER_TIMER_ID);
+    expect(nextWeatherMs).not.toBeNull();
+    await page.evaluate(
+      (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1),
+      nextWeatherMs!,
+    );
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.miaplacidusTest!.getState().run.space.weatherCycleCount),
+      )
+      .toBeGreaterThan(previousCycleCount);
+    previousCycleCount = await page.evaluate(
+      () => window.miaplacidusTest!.getState().run.space.weatherCycleCount,
+    );
+    currentWeather = await page.evaluate(
+      () => window.miaplacidusTest!.getState().run.space.currentSystemWeather,
+    );
+  }
+  expect(currentWeather).not.toBe(weatherBeforeExpiry.condition);
+  const weatherLabelByCondition = {
+    clear: "weatherClear",
+    cloudy: "weatherCloudy",
+    rain: "weatherRain",
+    heavyRain: "weatherHeavyRain",
+    volcano: "weatherVolcano",
+  } as const;
+  await expect(page.getByTestId("space-current-weather")).toHaveText(
+    spaceText("en", weatherLabelByCondition[currentWeather]),
+  );
+  await expect(weatherCountdown).toHaveAttribute("data-remaining-ms", /[1-9]\d*/);
 
   await page.locator("#tab-space-mining-telescope").click();
   await page.getByRole("button", { name: "Build telescope" }).click();
   await page.getByRole("button", { name: "Scan for asteroids" }).click();
   const surveyCountdown = page.getByTestId("space-survey-countdown");
   await expect(surveyCountdown).toBeVisible();
+  await expect(surveyCountdown).toContainText("Survey time remaining:");
   const initialSurveyMs = Number(await surveyCountdown.getAttribute("data-remaining-ms"));
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
   await expect
@@ -145,11 +554,11 @@ test("explains the one-unit rocket-part shortfall through its associated reason 
 
   const rocket = page.getByTestId("rocket-card-rocket1");
   const buildPart = rocket.getByRole("button", { name: "Build one part" });
-  await expect(rocket).toContainText("3,000 Steel");
+  await expect(rocket).toContainText(`${formatNumber("en", 3_000)} Steel`);
   await expect(buildPart).toBeDisabled();
   await expect(buildPart).toHaveAttribute("aria-describedby", "rocket-rocket1-part-reason");
   await expect(page.locator("#rocket-rocket1-part-reason")).toHaveText(
-    "Not enough Steel. Required: 3,000.",
+    `Not enough Steel. Required: ${formatNumber("en", 3_000)}.`,
   );
 });
 
@@ -189,14 +598,14 @@ test("builds a rocket part at exact stock and charges every quoted cost @space-t
     cashBefore - 1_000,
   );
   const nextPartCost = rocket.locator(".cost-line");
-  await expect(nextPartCost).toContainText("$1,130");
-  await expect(nextPartCost).toContainText("1,130 Glass");
+  await expect(nextPartCost).toContainText(`$${formatNumber("en", 1_130)}`);
+  await expect(nextPartCost).toContainText(`${formatNumber("en", 1_130)} Glass`);
   await expect(nextPartCost).toContainText("791 Titanium");
-  await expect(nextPartCost).toContainText("3,390 Steel");
+  await expect(nextPartCost).toContainText(`${formatNumber("en", 3_390)} Steel`);
   await expect(buildPart).toBeDisabled();
   await expect(buildPart).toHaveAttribute("aria-describedby", "rocket-rocket1-part-reason");
   await expect(page.locator("#rocket-rocket1-part-reason")).toHaveText(
-    "Not enough Steel. Required: 3,390.",
+    `Not enough Steel. Required: ${formatNumber("en", 3_390)}.`,
   );
 });
 
@@ -346,6 +755,26 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
     )
     .toEqual({ phase: "outbound", selected: availableAsteroid!.id, reservedBy: "rocket1" });
 
+  const rocketTravelProgress = rocket.getByRole("progressbar", {
+    name: "Travelling to asteroid",
+    exact: true,
+  });
+  await expect(rocketTravelProgress).toBeVisible();
+  await expect(rocketTravelProgress).toHaveAttribute("aria-label", "Travelling to asteroid");
+  const initialRocketTravelProgress = await rocketTravelProgress.evaluate((element) => {
+    const progress = element as HTMLProgressElement;
+    return { value: progress.value, max: progress.max };
+  });
+  expect(initialRocketTravelProgress).toEqual({ value: expect.any(Number), max: 100 });
+  expect(initialRocketTravelProgress.value).toBeGreaterThanOrEqual(0);
+  expect(initialRocketTravelProgress.value).toBeLessThan(initialRocketTravelProgress.max);
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(() =>
+      rocketTravelProgress.evaluate((progress) => (progress as HTMLProgressElement).value),
+    )
+    .toBeGreaterThan(initialRocketTravelProgress.value);
+
   await page.locator("#tab-space-mining-rocket-2").click();
   const reservedTargetTravelButton = rocket2.getByRole("button", {
     name: "Travel to selected asteroid",
@@ -360,7 +789,7 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
   );
 });
 
-test("assembles a rocket, buys its powered fuel pump, and reports fuel progress @rockets @ui-navigation", async ({
+test("assembles a rocket, buys its powered fuel pump, and reports fuel progress @rockets @ui-navigation @p20-announcements", async ({
   page,
 }, testInfo) => {
   await startSpaceFixture(page);
@@ -370,6 +799,12 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
     await expect(page.locator(`#tab-space-mining-rocket-${rocket}`)).toHaveCount(0);
   }
   await page.getByRole("button", { name: "Build launch pad" }).click();
+  const launchPadNotice = page.locator(
+    '[data-testid="game-notification"][data-classification="special"]',
+  );
+  await expect(launchPadNotice).toHaveText("Launch Pad Built!");
+  await expect(launchPadNotice).toHaveClass(/notification-info/);
+  await expect(page.locator("#panel-space-mining .space-survey-status")).toHaveCount(0);
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.launchPadBuilt))
     .toBe(true);
@@ -390,6 +825,8 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
     await expect(page.locator(`#tab-space-mining-rocket-${otherRocket}`)).toHaveCount(0);
   }
   await page.locator("#tab-space-mining-rocket-1").click();
+  await expect(launchPadNotice).toHaveCount(0);
+  await page.mouse.move(0, 0);
   await captureVisualCheckpoint(page, testInfo, "space-rocket-1-ready");
 
   const desktopHeight = page.viewportSize()?.height ?? 720;
@@ -411,12 +848,48 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   expect(mobileGeometry.documentWidth).toBeLessThanOrEqual(mobileGeometry.viewportWidth);
   expect(mobileGeometry.cardLeft).toBeGreaterThanOrEqual(mobileGeometry.paneLeft);
   expect(mobileGeometry.cardRight).toBeLessThanOrEqual(mobileGeometry.paneRight);
+  await page.mouse.move(0, 0);
   await captureVisualCheckpoint(page, testInfo, "space-rocket-1-mobile");
   await page.setViewportSize({ width: 1280, height: desktopHeight });
 
   await rocket.getByRole("button", { name: "Buy fuel pump" }).click();
   const fuelEta = rocket.getByTestId("rocket-fuel-eta-rocket1");
+  const fuelProgress = rocket.getByRole("progressbar", {
+    name: "Antimatter fuel",
+    exact: true,
+  });
   await expect(fuelEta).toBeVisible();
+  await expect(fuelEta).toContainText("Time to full:");
+  await expect(fuelProgress).toBeVisible();
+  await expect(fuelProgress).toHaveAttribute("aria-label", "Antimatter fuel");
+  const initialFuelProgress = await fuelProgress.evaluate((element) => {
+    const progress = element as HTMLProgressElement;
+    return { value: progress.value, max: progress.max };
+  });
+  expect(initialFuelProgress.max).toBeGreaterThan(0);
+  expect(initialFuelProgress.max).toBe(ROCKET_FUEL_CAPACITY.rocket1);
+  expect(initialFuelProgress.value).toBeGreaterThanOrEqual(0);
+  expect(initialFuelProgress.value).toBeLessThan(initialFuelProgress.max);
+  for (const locale of ALL_LOCALES) {
+    expect(
+      await page.evaluate(
+        (nextLocale) =>
+          window.miaplacidusTest!.applyDebugAction("set-language", { locale: nextLocale }),
+        locale,
+      ),
+    ).toBe(true);
+    const localizedProgress = page.getByRole("progressbar", {
+      name: rocketText(locale, "fuelLevel"),
+      exact: true,
+    });
+    await expect(localizedProgress).toBeVisible();
+    await expect(localizedProgress).toHaveAttribute("aria-label", rocketText(locale, "fuelLevel"));
+  }
+  expect(
+    await page.evaluate(() =>
+      window.miaplacidusTest!.applyDebugAction("set-language", { locale: "en" }),
+    ),
+  ).toBe(true);
   const startingEtaMs = Number(await fuelEta.getAttribute("data-remaining-ms"));
   await expect
     .poll(() =>
@@ -436,15 +909,40 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   await expect
     .poll(async () => Number(await fuelEta.getAttribute("data-remaining-ms")))
     .toBeLessThan(startingEtaMs);
+  await expect
+    .poll(() => fuelProgress.evaluate((progress) => (progress as HTMLProgressElement).value))
+    .toBeGreaterThan(initialFuelProgress.value);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(fuelEta).toBeVisible();
+  await expect(fuelProgress).toBeVisible();
+  const mobileFuelGeometry = await page.evaluate(() => {
+    const card = document.querySelector<HTMLElement>("[data-testid='rocket-card-rocket1']");
+    const progress = document.querySelector<HTMLElement>(
+      "[data-testid='rocket-fuel-progress-rocket1']",
+    );
+    if (!card || !progress) throw new Error("Rocket fuel card and progress should be present");
+    const cardBounds = card.getBoundingClientRect();
+    const progressBounds = progress.getBoundingClientRect();
+    return {
+      cardLeft: cardBounds.left,
+      cardRight: cardBounds.right,
+      progressLeft: progressBounds.left,
+      progressRight: progressBounds.right,
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      viewportWidth: document.documentElement.clientWidth,
+    };
+  });
+  expect(mobileFuelGeometry.documentWidth).toBeLessThanOrEqual(mobileFuelGeometry.viewportWidth);
+  expect(mobileFuelGeometry.progressLeft).toBeGreaterThanOrEqual(mobileFuelGeometry.cardLeft);
+  expect(mobileFuelGeometry.progressRight).toBeLessThanOrEqual(mobileFuelGeometry.cardRight);
+  await page.setViewportSize({ width: 1280, height: desktopHeight });
 
   const fuelAtPowerLoss = await page.evaluate(
     () => window.miaplacidusTest!.getState().run.space.rockets.rocket1.fuelQuantity,
   );
   await page.getByRole("tab", { name: /Energy/ }).click();
-  await page.locator("#tab-energy-storage").click();
-  const powerGrid = page.getByRole("checkbox", { name: "Power grid" });
-  await expect(powerGrid).toBeChecked();
-  await powerGrid.uncheck();
+  await page.locator("#tab-energy-power").click();
+  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
@@ -471,8 +969,8 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   ).toBe(fuelAtPowerLoss);
 
   await page.getByRole("tab", { name: /Energy/ }).click();
-  await page.locator("#tab-energy-storage").click();
-  await powerGrid.check();
+  await page.locator("#tab-energy-power").click();
+  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
@@ -504,6 +1002,25 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   await expect
     .poll(async () => Number(await fuelEta.getAttribute("data-remaining-ms")))
     .toBeLessThan(resumedEtaMs);
+
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(5_000_000));
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.miaplacidusTest!.getState().run.space.rockets.rocket1.fuelQuantity,
+      ),
+    )
+    .toBe(10_000);
+  const fuelReadyNotice = page.locator(
+    '[data-testid="game-notification"][data-classification="rocket"]',
+  );
+  await expect(page.getByTestId("notification-stack")).toHaveAttribute("aria-live", "polite");
+  await expect(fuelReadyNotice).toHaveRole("status");
+  await expect(fuelReadyNotice).toHaveAttribute("aria-atomic", "true");
+  await expect(fuelReadyNotice).toHaveText("Rocket 1 is ready for Launch!");
+  await expect(fuelReadyNotice).toHaveClass(/notification-info/);
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect(fuelReadyNotice).toHaveCount(1);
 });
 
 test("shows the rocket's live outbound countdown on its page @space-live-countdown", async ({
@@ -515,9 +1032,90 @@ test("shows the rocket's live outbound countdown on its page @space-live-countdo
 
   const journeyCountdown = page.getByTestId("rocket-journey-countdown-rocket1");
   await expect(journeyCountdown).toBeVisible();
+  await expect(journeyCountdown).toContainText("Journey time remaining:");
+  const journeyProgress = page.getByRole("progressbar", {
+    name: "Travelling to asteroid",
+    exact: true,
+  });
+  await expect(journeyProgress).toBeVisible();
+  await expect(journeyProgress).toHaveAttribute("aria-label", rocketText("en", "outbound"));
+  const initialJourneyProgress = await journeyProgress.evaluate((element) => {
+    const progress = element as HTMLProgressElement;
+    return { value: progress.value, max: progress.max };
+  });
+  expect(initialJourneyProgress.max).toBe(100);
+  expect(initialJourneyProgress.value).toBeGreaterThanOrEqual(0);
+  expect(initialJourneyProgress.value).toBeLessThan(initialJourneyProgress.max);
   const initialRemainingMs = Number(await journeyCountdown.getAttribute("data-remaining-ms"));
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
   await expect
     .poll(async () => Number(await journeyCountdown.getAttribute("data-remaining-ms")))
     .toBeLessThan(initialRemainingMs);
+  await expect
+    .poll(() => journeyProgress.evaluate((progress) => (progress as HTMLProgressElement).value))
+    .toBeGreaterThan(initialJourneyProgress.value);
+  for (const locale of ALL_LOCALES) {
+    expect(
+      await page.evaluate(
+        (nextLocale) =>
+          window.miaplacidusTest!.applyDebugAction("set-language", { locale: nextLocale }),
+        locale,
+      ),
+    ).toBe(true);
+    const localizedProgress = page.getByRole("progressbar", {
+      name: rocketText(locale, "outbound"),
+      exact: true,
+    });
+    await expect(localizedProgress).toBeVisible();
+    await expect(localizedProgress).toHaveAttribute("aria-label", rocketText(locale, "outbound"));
+  }
+});
+
+test("shows localized live returning-rocket progress across all locales @space-live-countdown", async ({
+  page,
+}) => {
+  await startSpaceFixture(page, "space-returning-rocket");
+  await page.locator("#tab-space-mining").click();
+  await page.locator("#tab-space-mining-rocket-1").click();
+
+  const rocketState = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.space.rockets.rocket1,
+  );
+  expect(rocketState.phase).toBe("returning");
+  expect(rocketState.timerId).toBeTruthy();
+
+  const returningProgress = page.getByRole("progressbar", {
+    name: rocketText("en", "returning"),
+    exact: true,
+  });
+  await expect(returningProgress).toBeVisible();
+  await expect(returningProgress).toHaveAttribute("aria-label", rocketText("en", "returning"));
+  const initialProgress = await returningProgress.evaluate((element) => {
+    const progress = element as HTMLProgressElement;
+    return { value: progress.value, max: progress.max };
+  });
+  expect(initialProgress.max).toBe(100);
+  expect(initialProgress.value).toBeGreaterThanOrEqual(0);
+  expect(initialProgress.value).toBeLessThan(initialProgress.max);
+
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  await expect
+    .poll(() => returningProgress.evaluate((progress) => (progress as HTMLProgressElement).value))
+    .toBeGreaterThan(initialProgress.value);
+
+  for (const locale of ALL_LOCALES) {
+    expect(
+      await page.evaluate(
+        (nextLocale) =>
+          window.miaplacidusTest!.applyDebugAction("set-language", { locale: nextLocale }),
+        locale,
+      ),
+    ).toBe(true);
+    const localizedProgress = page.getByRole("progressbar", {
+      name: rocketText(locale, "returning"),
+      exact: true,
+    });
+    await expect(localizedProgress).toBeVisible();
+    await expect(localizedProgress).toHaveAttribute("aria-label", rocketText(locale, "returning"));
+  }
 });

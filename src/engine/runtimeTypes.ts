@@ -53,4 +53,8 @@ export interface ClockState {
   readonly foreground: boolean;
   readonly hiddenElapsedMs: number;
   readonly pendingForegroundMs: number;
+  readonly pendingForegroundSegments: readonly {
+    readonly elapsedMs: number;
+    readonly multiplier: number;
+  }[];
 }

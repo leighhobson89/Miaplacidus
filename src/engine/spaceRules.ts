@@ -18,6 +18,33 @@ import {
   type StarshipModuleId,
 } from "../content/space";
 import { ECONOMY_PRICE_MULTIPLIER } from "../content/economy";
+import type { GameState } from "./state";
+
+export const STARSHIP_SCAN_MIN_TRAVEL_PROGRESS = 0.7;
+
+/** Linear travel progress is also the distance fraction used by the Starship scanner. */
+export function starshipTravelProgressFraction(state: GameState): number {
+  const starship = state.run.space.starship;
+  if (starship.phase !== "travelling" || starship.timerId === null) return 0;
+  const timer = state.run.timers[starship.timerId];
+  if (!timer || timer.durationMs <= 0) return 0;
+  return Math.max(0, Math.min(1, timer.elapsedMs / timer.durationMs));
+}
+
+/** The destination may be scanned once the ship reaches the requested route fraction or orbit. */
+export function canScanStarshipDestination(state: GameState): boolean {
+  const starship = state.run.space.starship;
+  const destinationId = starship.destinationSystemId;
+  const alreadyScanned = state.run.space.systemEncounters.some(
+    (encounter) => encounter.systemId === destinationId,
+  );
+  if (!destinationId || alreadyScanned) return false;
+  return (
+    starship.phase === "orbiting" ||
+    (starship.phase === "travelling" &&
+      starshipTravelProgressFraction(state) >= STARSHIP_SCAN_MIN_TRAVEL_PROGRESS)
+  );
+}
 
 function drawInteger(random: RandomState, minimum: number, maximum: number) {
   const next = nextRandom(random);
@@ -412,19 +439,19 @@ export function asteroidExtractionRatePerSecond(extractionEase: number): number 
 export function pruneAsteroids(
   asteroids: readonly AsteroidState[],
   maximum: number,
+  selectedAsteroidId: string | null = null,
 ): readonly AsteroidState[] {
   const result = [...asteroids];
   let removable = result.filter(
-    (asteroid) => asteroid.reservedBy === null && !asteroid.depleted && !asteroid.interacted,
+    (asteroid) =>
+      asteroid.reservedBy === null && !asteroid.depleted && asteroid.id !== selectedAsteroidId,
   ).length;
   if (removable <= maximum) return result;
-  for (let index = 0; index < result.length && removable > maximum;) {
+  for (let index = result.length - 1; index >= 0 && removable > maximum; index -= 1) {
     const asteroid = result[index]!;
-    if (asteroid.reservedBy === null && !asteroid.depleted && !asteroid.interacted) {
+    if (asteroid.reservedBy === null && !asteroid.depleted && asteroid.id !== selectedAsteroidId) {
       result.splice(index, 1);
       removable -= 1;
-    } else {
-      index += 1;
     }
   }
   return result;

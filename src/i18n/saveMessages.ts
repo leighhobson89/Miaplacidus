@@ -10,6 +10,8 @@ export type SaveMessageKey =
   | "edit"
   | "cancel"
   | "choose"
+  | "otherPioneers"
+  | "selectSavedPioneerHint"
   | "empty"
   | "corrupt"
   | "confirmed"
@@ -27,6 +29,9 @@ export type SaveMessageKey =
   | "exportFirst"
   | "export"
   | "copy"
+  | "clipboardCopied"
+  | "clipboardCopyError"
+  | "clipboardReadError"
   | "download"
   | "import"
   | "importText"
@@ -39,7 +44,10 @@ export type SaveMessageKey =
   | "cancelImport"
   | "file"
   | "imported"
+  | "importedAsNew"
+  | "loaded"
   | "conflict"
+  | "readOnlyLock"
   | "errEmpty"
   | "errTooLarge"
   | "errFormat"
@@ -47,13 +55,17 @@ export type SaveMessageKey =
   | "errIntegrity"
   | "errFuture"
   | "errDuplicate"
+  | "errName"
   | "errCorrupt"
   | "errConflict"
   | "errQuota"
   | "errStorage"
+  | "errImport"
+  | "errNotFound"
   | "errGeneric"
   | "paste"
   | "autoSave"
+  | "autoSaveDisabledWarning"
   | "saveFrequency"
   | "every5Minutes"
   | "every15Minutes"
@@ -63,6 +75,7 @@ export type SaveMessageKey =
   | "saveAsNew"
   | "recover"
   | "recoverConfirm"
+  | "saveDeleted"
   | "capacity"
   | "recovered"
   | "leaveWarning"
@@ -70,7 +83,8 @@ export type SaveMessageKey =
   | "discardRun"
   | "portableSize"
   | "localSaveSize"
-  | "remainingCapacity";
+  | "remainingCapacity"
+  | "appData";
 
 const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
   en: {
@@ -82,11 +96,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     edit: "Edit selection",
     cancel: "Cancel",
     choose: "Choose a local pioneer",
-    empty: "No local saves yet. Confirm a name, then Start to create the first pioneer.",
+    otherPioneers: "Other saved pioneers",
+    selectSavedPioneerHint:
+      "To resume a saved pioneer, select it from the suggestions. Typing its name alone will not load that save.",
+    empty: "No other saved pioneers on this device.",
     corrupt: "Needs recovery",
     confirmed: "Ready to begin",
     confirmedName: "Confirmed pioneer",
-    manage: "Save manager",
+    manage: "Manage saves",
     saveNow: "Save now",
     saved: "Saved on this device",
     unsaved: "This run is temporary and has not been saved on this device.",
@@ -100,6 +117,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     exportFirst: "I exported this save or do not need it",
     export: "Portable save code",
     copy: "Copy code",
+    clipboardCopied: "Data copied to clipboard!",
+    clipboardCopyError:
+      "Error copying data! If on Chrome, this could be expected.  Select and copy the text string manually!",
+    clipboardReadError: "Could not read the clipboard. Paste the save code into the field instead.",
     download: "Download .txt",
     import: "Import a save",
     importText: "Paste a MIAPLACIDUS save code",
@@ -112,7 +133,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     cancelImport: "Cancel import",
     file: "Choose .txt save file",
     imported: "Save imported.",
+    importedAsNew: "Save imported. Choose its pioneer from the saved list to resume it.",
+    loaded: "Game loaded successfully!",
     conflict: "A local save already uses this pioneer name. Choose what to do.",
+    readOnlyLock:
+      "This tab cannot change the save because it does not hold the save lock. Reload or export this run before making changes.",
     errEmpty: "Paste a save code first.",
     errTooLarge: "This save exceeds the supported size.",
     errFormat: "This is not a marked MIAPLACIDUS save code.",
@@ -120,14 +145,18 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errIntegrity: "The save is incomplete or failed its integrity check.",
     errFuture: "This save was made by a newer game version.",
     errDuplicate: "Another local save already uses this name.",
+    errName: "Enter a valid pioneer name.",
     errCorrupt: "This save is damaged and needs recovery.",
     errConflict: "This save changed in another tab. Reload or export this run before saving.",
     errQuota:
       "Browser storage is full. The previous save remains available; export or remove a save to make room.",
     errStorage: "Browser storage is unavailable. This run is temporary; export it before leaving.",
-    errGeneric: "The save could not be completed. Your supplied code is still available to retry.",
+    errImport: "The save could not be imported. Check that its data is valid and try again.",
+    errNotFound: "No saved game data found.",
+    errGeneric: "That action could not be completed. Please try again.",
     paste: "Paste",
     autoSave: "Automatic saving",
+    autoSaveDisabledWarning: "AUTOSAVE IS OFF, REMEMBER TO BACK UP SAVES MANUALLY",
     saveFrequency: "Save interval",
     every5Minutes: "5 minutes",
     every15Minutes: "15 minutes",
@@ -137,6 +166,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     saveAsNew: "Save run as a new pioneer",
     recover: "Review recovery",
     recoverConfirm: "Restore this validated generation",
+    saveDeleted: "Save deleted. You can start a new game with the same pioneer name.",
     capacity:
       "A save keeps the previous and next generations until the new head is verified. Export or delete a save intentionally; no slot is removed automatically.",
     recovered: "The saved generation was restored. Review the pioneer before starting it.",
@@ -146,6 +176,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     portableSize: "Portable code size",
     localSaveSize: "Compressed local save",
     remainingCapacity: "Estimated space left after this save:",
+    appData: "App data",
   },
   es: {
     startNewGame: "EMPEZAR JUEGO NUEVO",
@@ -156,8 +187,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     edit: "Editar selección",
     cancel: "Cancelar",
     choose: "Elige un pionero local",
-    empty:
-      "Aún no hay partidas locales. Confirma un nombre y pulsa Comenzar para crear el primer pionero.",
+    otherPioneers: "Otros pioneros guardados",
+    selectSavedPioneerHint:
+      "Para reanudar un pionero guardado, selecciónalo en las sugerencias. Escribir solo su nombre no cargará esa partida.",
+    empty: "No hay otros pioneros guardados en este dispositivo.",
     corrupt: "Necesita recuperación",
     confirmed: "Listo para comenzar",
     confirmedName: "Pionero confirmado",
@@ -175,6 +208,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     exportFirst: "He exportado esta partida o no la necesito",
     export: "Código de partida",
     copy: "Copiar código",
+    clipboardCopied: "¡Datos copiados al portapapeles!",
+    clipboardCopyError:
+      "¡Error al copiar los datos! En Chrome esto puede ser normal. ¡Selecciona y copia el texto manualmente!",
+    clipboardReadError: "No se pudo leer el portapapeles. Pega el código de guardado en el campo.",
     download: "Descargar .txt",
     import: "Importar partida",
     importText: "Pega un código de MIAPLACIDUS",
@@ -187,7 +224,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     cancelImport: "Cancelar importación",
     file: "Elegir archivo .txt",
     imported: "Partida importada.",
+    importedAsNew: "Partida importada. Elige su pionero de la lista para reanudarla.",
+    loaded: "¡Partida cargada correctamente!",
     conflict: "Ya existe una partida local con este nombre. Elige qué hacer.",
+    readOnlyLock:
+      "Esta pestaña no puede cambiar la partida porque no tiene su bloqueo. Recarga o exporta esta sesión antes de modificarla.",
     errEmpty: "Pega primero un código.",
     errTooLarge: "La partida supera el tamaño permitido.",
     errFormat: "El código no está marcado como una partida de MIAPLACIDUS.",
@@ -195,6 +236,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errIntegrity: "La partida está incompleta o no supera la comprobación de integridad.",
     errFuture: "La partida se creó con una versión más reciente.",
     errDuplicate: "Ya existe otra partida local con este nombre.",
+    errName: "Introduce un nombre de pionero válido.",
     errCorrupt: "La partida está dañada y necesita recuperación.",
     errConflict:
       "La partida cambió en otra pestaña. Recárgala o exporta esta sesión antes de guardar.",
@@ -202,10 +244,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "El almacenamiento está lleno. La partida anterior sigue disponible; exporta o elimina una partida.",
     errStorage:
       "El almacenamiento no está disponible. Esta sesión es temporal; expórtala antes de salir.",
-    errGeneric:
-      "No se pudo completar la operación. El código sigue disponible para volver a intentarlo.",
+    errImport:
+      "No se pudo importar la partida. Comprueba que los datos sean válidos e inténtalo de nuevo.",
+    errNotFound: "No se encontraron datos de partida guardada.",
+    errGeneric: "No se pudo completar la operación. Inténtalo de nuevo.",
     paste: "Pegar",
     autoSave: "Guardado automático",
+    autoSaveDisabledWarning:
+      "EL GUARDADO AUTOMÁTICO ESTÁ DESACTIVADO, RECUERDA HACER COPIAS MANUALES",
     saveFrequency: "Intervalo de guardado",
     every5Minutes: "5 minutos",
     every15Minutes: "15 minutos",
@@ -215,6 +261,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     saveAsNew: "Guardar como pionero nuevo",
     recover: "Revisar recuperación",
     recoverConfirm: "Restaurar esta generación validada",
+    saveDeleted:
+      "Partida eliminada. Puedes empezar una partida nueva con el mismo nombre de pionero.",
     capacity:
       "Cada guardado conserva la generación anterior hasta verificar la nueva. Exporta o elimina partidas de forma intencionada; ninguna se borra automáticamente.",
     recovered: "Se restauró la generación guardada. Revisa el pionero antes de iniciarlo.",
@@ -224,6 +272,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     portableSize: "Tamaño del código portátil",
     localSaveSize: "Tamaño comprimido local",
     remainingCapacity: "Espacio estimado restante tras este guardado:",
+    appData: "Datos de la aplicación",
   },
   pt: {
     startNewGame: "COMEÇAR NOVO JOGO",
@@ -234,8 +283,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     edit: "Editar seleção",
     cancel: "Cancelar",
     choose: "Escolha um pioneiro local",
-    empty:
-      "Ainda não há salvamentos locais. Confirme um nome e comece para criar o primeiro pioneiro.",
+    otherPioneers: "Outros pioneiros guardados",
+    selectSavedPioneerHint:
+      "Para retomar um pioneiro guardado, selecione-o nas sugestões. Escrever apenas o nome não carrega esse salvamento.",
+    empty: "Não há outros pioneiros guardados neste dispositivo.",
     corrupt: "Precisa de recuperação",
     confirmed: "Pronto para começar",
     confirmedName: "Pioneiro confirmado",
@@ -253,6 +304,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     exportFirst: "Já exportei este salvamento ou não preciso dele",
     export: "Código portátil",
     copy: "Copiar código",
+    clipboardCopied: "Dados copiados para a área de transferência!",
+    clipboardCopyError:
+      "Erro ao copiar os dados! No Chrome isto pode ser normal. Seleciona e copia o texto manualmente!",
+    clipboardReadError:
+      "Não foi possível ler a área de transferência. Cola o código de gravação no campo.",
     download: "Baixar .txt",
     import: "Importar salvamento",
     importText: "Cole um código MIAPLACIDUS",
@@ -265,7 +321,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     cancelImport: "Cancelar importação",
     file: "Escolher arquivo .txt",
     imported: "Salvamento importado.",
+    importedAsNew: "Salvamento importado. Escolha o pioneiro na lista para o retomar.",
+    loaded: "Jogo carregado com sucesso!",
     conflict: "Já existe um salvamento local com este nome. Escolha uma ação.",
+    readOnlyLock:
+      "Esta aba não pode alterar o salvamento porque não possui o bloqueio. Recarregue ou exporte esta sessão antes de fazer alterações.",
     errEmpty: "Cole um código primeiro.",
     errTooLarge: "O salvamento excede o tamanho permitido.",
     errFormat: "Este código não está marcado como salvamento MIAPLACIDUS.",
@@ -273,6 +333,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errIntegrity: "O salvamento está incompleto ou falhou na verificação de integridade.",
     errFuture: "Este salvamento foi criado em uma versão mais recente.",
     errDuplicate: "Outro salvamento local já usa este nome.",
+    errName: "Insira um nome de pioneiro válido.",
     errCorrupt: "Este salvamento está danificado e precisa de recuperação.",
     errConflict:
       "O salvamento mudou em outra aba. Recarregue ou exporte esta sessão antes de salvar.",
@@ -280,9 +341,14 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "O armazenamento está cheio. O salvamento anterior continua disponível; exporte ou remova um salvamento.",
     errStorage:
       "O armazenamento não está disponível. Esta sessão é temporária; exporte antes de sair.",
-    errGeneric: "Não foi possível concluir. O código continua disponível para tentar novamente.",
+    errImport:
+      "Não foi possível importar o salvamento. Verifique se os dados estão corretos e tente novamente.",
+    errNotFound: "Não foram encontrados dados de jogo guardados.",
+    errGeneric: "Não foi possível concluir a operação. Tente novamente.",
     paste: "Colar",
     autoSave: "Salvamento automático",
+    autoSaveDisabledWarning:
+      "O GUARDADO AUTOMÁTICO ESTÁ DESATIVADO, LEMBRE-SE DE FAZER CÓPIAS MANUAIS",
     saveFrequency: "Intervalo de salvamento",
     every5Minutes: "5 minutos",
     every15Minutes: "15 minutos",
@@ -292,6 +358,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     saveAsNew: "Salvar como novo pioneiro",
     recover: "Revisar recuperação",
     recoverConfirm: "Restaurar esta geração validada",
+    saveDeleted:
+      "Salvamento excluído. Você pode começar um novo jogo com o mesmo nome de pioneiro.",
     capacity:
       "Cada salvamento mantém a geração anterior até verificar a nova. Exporte ou exclua salvamentos manualmente; nenhum slot é removido automaticamente.",
     recovered: "A geração salva foi restaurada. Revise o pioneiro antes de começar.",
@@ -301,6 +369,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     portableSize: "Tamanho do código portátil",
     localSaveSize: "Tamanho comprimido local",
     remainingCapacity: "Espaço estimado restante após este salvamento:",
+    appData: "Dados do aplicativo",
   },
   de: {
     startNewGame: "NEUES SPIEL STARTEN",
@@ -311,8 +380,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     edit: "Auswahl bearbeiten",
     cancel: "Abbrechen",
     choose: "Lokalen Pionier auswählen",
-    empty:
-      "Noch keine lokalen Spielstände. Bestätige einen Namen und starte, um den ersten Pionier anzulegen.",
+    otherPioneers: "Weitere gespeicherte Pioniere",
+    selectSavedPioneerHint:
+      "Um einen gespeicherten Pionier fortzusetzen, wähle ihn in den Vorschlägen aus. Die Eingabe seines Namens allein lädt diesen Spielstand nicht.",
+    empty: "Keine weiteren gespeicherten Pioniere auf diesem Gerät.",
     corrupt: "Wiederherstellung nötig",
     confirmed: "Bereit zum Start",
     confirmedName: "Bestätigter Pionier",
@@ -328,8 +399,13 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Beim Löschen wird dieser Pionier vom Gerät entfernt. Exportiere ihn vorher, falls du ihn später brauchst.",
     confirmDelete: "Löschen bestätigen",
     exportFirst: "Ich habe diesen Spielstand exportiert oder brauche ihn nicht",
-    export: "Mobiler Spielstandcode",
+    export: "Übertragbarer Spielstandcode",
     copy: "Code kopieren",
+    clipboardCopied: "Daten in die Zwischenablage kopiert!",
+    clipboardCopyError:
+      "Fehler beim Kopieren der Daten! In Chrome kann das normal sein. Markiere und kopiere den Text manuell!",
+    clipboardReadError:
+      "Die Zwischenablage konnte nicht gelesen werden. Füge den Spielstandcode in das Feld ein.",
     download: ".txt herunterladen",
     import: "Spielstand importieren",
     importText: "MIAPLACIDUS-Code einfügen",
@@ -342,7 +418,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     cancelImport: "Import abbrechen",
     file: ".txt-Spielstand auswählen",
     imported: "Spielstand importiert.",
+    importedAsNew: "Spielstand importiert. Wähle den Pionier in der Liste aus, um fortzufahren.",
+    loaded: "Spiel erfolgreich geladen!",
     conflict: "Ein lokaler Spielstand verwendet diesen Namen bereits. Wähle eine Aktion.",
+    readOnlyLock:
+      "Dieser Tab kann den Spielstand nicht ändern, weil er die Sperre nicht besitzt. Lade neu oder exportiere diesen Lauf, bevor du Änderungen vornimmst.",
     errEmpty: "Füge zuerst einen Spielstandcode ein.",
     errTooLarge: "Der Spielstand überschreitet die zulässige Größe.",
     errFormat: "Dieser Code ist nicht als MIAPLACIDUS-Spielstand gekennzeichnet.",
@@ -351,6 +431,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Der Spielstand ist unvollständig oder die Integritätsprüfung ist fehlgeschlagen.",
     errFuture: "Dieser Spielstand stammt aus einer neueren Spielversion.",
     errDuplicate: "Ein anderer lokaler Spielstand verwendet diesen Namen bereits.",
+    errName: "Gib einen gültigen Pioniernamen ein.",
     errCorrupt: "Dieser Spielstand ist beschädigt und muss wiederhergestellt werden.",
     errConflict:
       "Der Spielstand wurde in einem anderen Tab geändert. Lade neu oder exportiere diesen Lauf vor dem Speichern.",
@@ -358,10 +439,13 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Der Browserspeicher ist voll. Der vorherige Spielstand ist noch verfügbar; exportiere oder lösche einen Spielstand.",
     errStorage:
       "Browserspeicher ist nicht verfügbar. Dieser Lauf ist temporär; exportiere ihn vor dem Verlassen.",
-    errGeneric:
-      "Der Vorgang ist fehlgeschlagen. Der eingefügte Code bleibt für einen neuen Versuch erhalten.",
+    errImport:
+      "Der Spielstand konnte nicht importiert werden. Prüfe die Daten und versuche es erneut.",
+    errNotFound: "Keine gespeicherten Spieldaten gefunden.",
+    errGeneric: "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
     paste: "Einfügen",
     autoSave: "Automatisches Speichern",
+    autoSaveDisabledWarning: "AUTOMATISCHES SPEICHERN IST AUS, DENK AN MANUELLE SICHERUNGEN",
     saveFrequency: "Speicherintervall",
     every5Minutes: "5 Minuten",
     every15Minutes: "15 Minuten",
@@ -371,6 +455,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     saveAsNew: "Lauf als neuen Pionier speichern",
     recover: "Wiederherstellung prüfen",
     recoverConfirm: "Diese geprüfte Generation wiederherstellen",
+    saveDeleted:
+      "Spielstand gelöscht. Du kannst mit demselben Pioniernamen ein neues Spiel starten.",
     capacity:
       "Beim Speichern bleibt die vorherige Generation bestehen, bis die neue geprüft ist. Exportiere oder lösche Spielstände bewusst; kein Slot wird automatisch entfernt.",
     recovered:
@@ -382,6 +468,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     portableSize: "Größe des portablen Codes",
     localSaveSize: "Komprimierter lokaler Spielstand",
     remainingCapacity: "Geschätzter freier Speicher nach diesem Spielstand:",
+    appData: "App-Daten",
   },
   it: {
     startNewGame: "INIZIA NUOVA PARTITA",
@@ -392,8 +479,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     edit: "Modifica selezione",
     cancel: "Annulla",
     choose: "Scegli un pioniere locale",
-    empty:
-      "Non ci sono ancora salvataggi locali. Conferma un nome e inizia per creare il primo pioniere.",
+    otherPioneers: "Altri pionieri salvati",
+    selectSavedPioneerHint:
+      "Per riprendere un pioniere salvato, selezionalo tra i suggerimenti. Digitare solo il suo nome non caricherà quel salvataggio.",
+    empty: "Non ci sono altri pionieri salvati su questo dispositivo.",
     corrupt: "Richiede recupero",
     confirmed: "Pronto per iniziare",
     confirmedName: "Pioniere confermato",
@@ -411,6 +500,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     exportFirst: "Ho esportato questo salvataggio o non mi serve",
     export: "Codice portatile",
     copy: "Copia codice",
+    clipboardCopied: "Dati copiati negli appunti!",
+    clipboardCopyError:
+      "Errore nella copia dei dati! Su Chrome può essere normale. Seleziona e copia il testo manualmente!",
+    clipboardReadError:
+      "Impossibile leggere gli appunti. Incolla il codice di salvataggio nel campo.",
     download: "Scarica .txt",
     import: "Importa salvataggio",
     importText: "Incolla un codice MIAPLACIDUS",
@@ -423,7 +517,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     cancelImport: "Annulla importazione",
     file: "Scegli file .txt",
     imported: "Salvataggio importato.",
+    importedAsNew: "Salvataggio importato. Scegli il pioniere nell'elenco per riprenderlo.",
+    loaded: "Partita caricata con successo!",
     conflict: "Esiste già un salvataggio locale con questo nome. Scegli un'azione.",
+    readOnlyLock:
+      "Questa scheda non può modificare il salvataggio perché non ne detiene il blocco. Ricarica o esporta questa sessione prima di apportare modifiche.",
     errEmpty: "Incolla prima un codice.",
     errTooLarge: "Il salvataggio supera le dimensioni supportate.",
     errFormat: "Questo codice non è contrassegnato come salvataggio MIAPLACIDUS.",
@@ -431,6 +529,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errIntegrity: "Il salvataggio è incompleto o non supera il controllo d'integrità.",
     errFuture: "Il salvataggio proviene da una versione più recente.",
     errDuplicate: "Un altro salvataggio locale usa già questo nome.",
+    errName: "Inserisci un nome di pioniere valido.",
     errCorrupt: "Questo salvataggio è danneggiato e richiede recupero.",
     errConflict:
       "Il salvataggio è cambiato in un'altra scheda. Ricarica o esporta questa sessione prima di salvare.",
@@ -438,9 +537,13 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Lo spazio del browser è pieno. Il salvataggio precedente è disponibile; esporta o rimuovine uno.",
     errStorage:
       "Lo spazio del browser non è disponibile. Questa sessione è temporanea; esportala prima di uscire.",
-    errGeneric: "Operazione non riuscita. Il codice fornito è ancora disponibile per riprovare.",
+    errImport:
+      "Impossibile importare il salvataggio. Verifica che i dati siano corretti e riprova.",
+    errNotFound: "Nessun dato di salvataggio trovato.",
+    errGeneric: "Operazione non riuscita. Riprova.",
     paste: "Incolla",
     autoSave: "Salvataggio automatico",
+    autoSaveDisabledWarning: "IL SALVATAGGIO AUTOMATICO È DISATTIVO, RICORDA DI FARE COPIE MANUALI",
     saveFrequency: "Intervallo di salvataggio",
     every5Minutes: "5 minuti",
     every15Minutes: "15 minuti",
@@ -450,6 +553,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     saveAsNew: "Salva la partita come nuovo pioniere",
     recover: "Verifica il recupero",
     recoverConfirm: "Ripristina questa generazione verificata",
+    saveDeleted:
+      "Salvataggio eliminato. Puoi iniziare una nuova partita con lo stesso nome del pioniere.",
     capacity:
       "Ogni salvataggio conserva la generazione precedente finché la nuova non è verificata. Esporta o elimina i salvataggi manualmente; nessuno slot viene rimosso automaticamente.",
     recovered:
@@ -460,6 +565,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     portableSize: "Dimensione del codice portatile",
     localSaveSize: "Dimensione del salvataggio locale compresso",
     remainingCapacity: "Spazio stimato disponibile dopo questo salvataggio:",
+    appData: "Dati dell'app",
   },
   fr: {
     startNewGame: "NOUVELLE PARTIE",
@@ -470,8 +576,10 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     edit: "Modifier la sélection",
     cancel: "Annuler",
     choose: "Choisir un pionnier local",
-    empty:
-      "Aucune sauvegarde locale. Confirmez un nom puis commencez pour créer le premier pionnier.",
+    otherPioneers: "Autres pionniers enregistrés",
+    selectSavedPioneerHint:
+      "Pour reprendre un pionnier enregistré, sélectionnez-le dans les suggestions. Saisir son nom seul ne chargera pas cette sauvegarde.",
+    empty: "Aucun autre pionnier n'est enregistré sur cet appareil.",
     corrupt: "Récupération nécessaire",
     confirmed: "Prêt à commencer",
     confirmedName: "Pionnier confirmé",
@@ -489,6 +597,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     exportFirst: "J'ai exporté cette sauvegarde ou je n'en ai pas besoin",
     export: "Code de sauvegarde",
     copy: "Copier le code",
+    clipboardCopied: "Données copiées dans le presse-papiers!",
+    clipboardCopyError:
+      "Erreur lors de la copie des données! Sur Chrome, cela peut être normal. Sélectionnez et copiez le texte manuellement!",
+    clipboardReadError:
+      "Impossible de lire le presse-papiers. Collez le code de sauvegarde dans le champ.",
     download: "Télécharger .txt",
     import: "Importer une sauvegarde",
     importText: "Collez un code MIAPLACIDUS",
@@ -501,7 +614,11 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     cancelImport: "Annuler l'importation",
     file: "Choisir un fichier .txt",
     imported: "Sauvegarde importée.",
+    importedAsNew: "Sauvegarde importée. Choisissez le pionnier dans la liste pour la reprendre.",
+    loaded: "Partie chargée avec succès!",
     conflict: "Une sauvegarde locale utilise déjà ce nom. Choisissez une action.",
+    readOnlyLock:
+      "Cet onglet ne peut pas modifier la sauvegarde, car il n'en détient pas le verrou. Rechargez ou exportez cette partie avant d'y apporter des modifications.",
     errEmpty: "Collez d'abord un code.",
     errTooLarge: "Cette sauvegarde dépasse la taille autorisée.",
     errFormat: "Ce code n'est pas identifié comme une sauvegarde MIAPLACIDUS.",
@@ -509,6 +626,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errIntegrity: "La sauvegarde est incomplète ou la vérification d'intégrité a échoué.",
     errFuture: "Cette sauvegarde provient d'une version plus récente.",
     errDuplicate: "Une autre sauvegarde locale utilise déjà ce nom.",
+    errName: "Saisissez un nom de pionnier valide.",
     errCorrupt: "Cette sauvegarde est endommagée et doit être récupérée.",
     errConflict:
       "La sauvegarde a changé dans un autre onglet. Rechargez ou exportez cette partie avant d'enregistrer.",
@@ -516,9 +634,13 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Le stockage du navigateur est plein. La sauvegarde précédente est disponible ; exportez-en ou supprimez-en une.",
     errStorage:
       "Le stockage du navigateur est indisponible. Cette partie est temporaire ; exportez-la avant de quitter.",
-    errGeneric: "L'opération a échoué. Le code fourni reste disponible pour réessayer.",
+    errImport: "La sauvegarde n'a pas pu être importée. Vérifiez les données et réessayez.",
+    errNotFound: "Aucune donnée de sauvegarde trouvée.",
+    errGeneric: "L'opération n'a pas pu aboutir. Réessayez.",
     paste: "Coller",
     autoSave: "Enregistrement automatique",
+    autoSaveDisabledWarning:
+      "LA SAUVEGARDE AUTOMATIQUE EST DÉSACTIVÉE, PENSEZ À SAUVEGARDER MANUELLEMENT",
     saveFrequency: "Fréquence d'enregistrement",
     every5Minutes: "5 minutes",
     every15Minutes: "15 minutes",
@@ -528,6 +650,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     saveAsNew: "Enregistrer comme nouveau pionnier",
     recover: "Examiner la récupération",
     recoverConfirm: "Restaurer cette génération validée",
+    saveDeleted:
+      "Sauvegarde supprimée. Vous pouvez commencer une nouvelle partie avec le même nom de pionnier.",
     capacity:
       "Chaque sauvegarde conserve la génération précédente jusqu'à la validation de la nouvelle. Exportez ou supprimez les sauvegardes volontairement ; aucun slot n'est supprimé automatiquement.",
     recovered:
@@ -539,6 +663,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     portableSize: "Taille du code portable",
     localSaveSize: "Taille de la sauvegarde locale compressée",
     remainingCapacity: "Espace estimé restant après cette sauvegarde :",
+    appData: "Données de l'application",
   },
 };
 
@@ -559,11 +684,12 @@ export function saveErrorText(locale: LocaleId, code: SaveErrorCode | string): s
         "invalid-envelope": "errIntegrity",
         "future-version": "errFuture",
         "duplicate-name": "errDuplicate",
+        "invalid-name": "errName",
         "corrupt-slot": "errCorrupt",
         conflict: "errConflict",
         quota: "errQuota",
         "storage-unavailable": "errStorage",
-        "not-found": "errGeneric",
+        "not-found": "errNotFound",
       } as Record<string, SaveMessageKey>
     )[code] ?? "errGeneric";
   return saveText(locale, key);

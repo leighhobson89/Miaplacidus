@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ASTEROID_SCAN_TIMER_ID,
   LAUNCH_PAD_COST,
@@ -13,7 +13,6 @@ import {
   type TelescopeMode,
   type AsteroidRarity,
   type RocketId,
-  type RocketPhase,
   type SpaceWeatherCondition,
   type SpacePurchaseCost,
 } from "../content/space";
@@ -32,8 +31,11 @@ import { rocketPartCost } from "../engine/spaceRules";
 import { philosophyDiscountedSpaceCost, philosophyRepeatableRank } from "../engine/philosophy";
 import { permanentPerkPurchaseCount } from "../content/economyRules";
 import { currentWeatherForSystem, STAR_WEATHER_TIMER_ID } from "../engine/weather";
-import type { SpaceMiningPaneId } from "./presentationNavigation";
+import { spaceMiningPaneItems, type SpaceMiningPaneId } from "./presentationNavigation";
 import { CelestialIllustration } from "./CelestialIllustration";
+import { PageArtworkRow } from "./PageArtworkRow";
+import { InfoTooltip } from "./InfoTooltip";
+import { starshipText } from "../i18n/starshipMessages";
 
 interface SpaceMiningPaneProps {
   readonly state: GameState;
@@ -98,6 +100,7 @@ const SPACE_FAILURE_MESSAGES: Readonly<Record<string, SpaceMessageKey>> = {
   "space-automation-locked": "reasonAutomationLocked",
   "space-automation-unavailable": "reasonAutomationUnavailable",
   "space-pillage-locked": "reasonPillageLocked",
+  "space-invalid-selection": "reasonInvalidSelection",
 };
 
 function disabledReason(state: GameState, result: PreconditionResult): string | null {
@@ -123,7 +126,7 @@ function disabledReason(state: GameState, result: PreconditionResult): string | 
   const rocketMessage = ROCKET_FAILURE_MESSAGES[failure.code];
   if (rocketMessage) return rocketText(locale, rocketMessage);
   const spaceMessage = SPACE_FAILURE_MESSAGES[failure.code];
-  return spaceMessage ? spaceText(locale, spaceMessage) : null;
+  return spaceText(locale, spaceMessage ?? "reasonActionUnavailable");
 }
 
 function rocketPhaseText(
@@ -227,15 +230,17 @@ function RocketAssemblyCard({
     }
     const key = result.failure ? ROCKET_FAILURE_MESSAGES[result.failure.code] : undefined;
     setFeedback(
-      key && result.failure ? rocketText(locale, key) : (result.failure?.messageKey ?? ""),
+      key && result.failure
+        ? rocketText(locale, key)
+        : result.failure
+          ? spaceText(locale, "reasonActionUnavailable")
+          : "",
     );
   }
 
   return (
     <article className="space-rocket-card" data-testid={`rocket-card-${rocketId}`}>
       <div className="space-card-heading">
-        <h4>{rocketText(locale, "rocketLabel", { index: Number(rocketId.slice(-1)) })}</h4>
-        <CelestialIllustration kind="rocket" className="rocket-mark" />
         <span className="status-pill">{rocketPhaseText(state, rocket.phase)}</span>
       </div>
       <div className="space-rocket-rename">
@@ -324,11 +329,13 @@ function RocketAssemblyCard({
                       {number(state, rocket.fuelQuantity)} / {number(state, fuelCapacity)}
                     </strong>
                   </label>
-                  <meter
+                  <progress
+                    className="space-survey-progress"
                     id={`${rocketId}-fuel`}
-                    min={0}
                     max={fuelCapacity}
                     value={rocket.fuelQuantity}
+                    aria-label={rocketText(locale, "fuelLevel")}
+                    data-testid={`rocket-fuel-progress-${rocketId}`}
                   />
                   {fuelRemaining > 0 && (
                     <p
@@ -431,9 +438,8 @@ function RocketAssemblyCard({
                   time: formatDuration(locale, journeyRemainingMs, state.settings.notation),
                 })}
               </p>
-              <meter
+              <progress
                 className="space-survey-progress"
-                min={0}
                 max={100}
                 value={remainingPercent(state, journeyTimer.id)}
                 aria-label={rocketPhaseText(state, rocket.phase)}
@@ -492,21 +498,6 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
     state.permanent.rebirthCount > 0 &&
     state.permanent.philosophyId === "voidborn" &&
     state.run.philosophyAbilityActive;
-  const previousOutcomeState = useRef({
-    activeSurvey: space.activeSurvey,
-    starStudyRange: space.starStudyRange,
-    voidPillageCompletions: space.voidPillageCompletions,
-    asteroidIds: new Set(space.asteroids.map((asteroid) => asteroid.id)),
-    rocketPhases: Object.fromEntries(
-      ROCKET_IDS.map((rocketId) => [rocketId, space.rockets[rocketId].phase]),
-    ) as Record<RocketId, RocketPhase>,
-    rocketTargets: Object.fromEntries(
-      ROCKET_IDS.map((rocketId) => [rocketId, space.rockets[rocketId].targetAsteroidId]),
-    ) as Record<RocketId, string | null>,
-    rocketJourneys: Object.fromEntries(
-      ROCKET_IDS.map((rocketId) => [rocketId, space.rockets[rocketId].journeyCount]),
-    ) as Record<RocketId, number>,
-  });
   useEffect(
     () => () => {
       if (store.getState().run.space.antimatterBoostActive)
@@ -522,9 +513,6 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
   const scanReason = disabledReason(state, scan);
   const studyReason = disabledReason(state, study);
   const pillageReason = disabledReason(state, pillage);
-  const studyCompletedFeedback = spaceText(locale, "feedbackStudyComplete", {
-    range: number(state, space.starStudyRange),
-  });
   const surveyTimer =
     space.activeSurvey === "asteroids"
       ? state.run.timers[ASTEROID_SCAN_TIMER_ID]
@@ -537,70 +525,13 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
     ? Math.max(0, surveyTimer.durationMs - surveyTimer.elapsedMs)
     : 0;
 
-  useEffect(() => {
-    const previous = previousOutcomeState.current;
-    const nextIds = new Set(space.asteroids.map((asteroid) => asteroid.id));
-    const discovered = space.asteroids.find((asteroid) => !previous.asteroidIds.has(asteroid.id));
-    const arrived = ROCKET_IDS.find(
-      (rocketId) =>
-        previous.rocketPhases[rocketId] === "outbound" &&
-        space.rockets[rocketId].phase === "mining",
-    );
-    const returned = ROCKET_IDS.find(
-      (rocketId) =>
-        (previous.rocketPhases[rocketId] === "returning" &&
-          space.rockets[rocketId].phase === "ready") ||
-        space.rockets[rocketId].journeyCount > previous.rocketJourneys[rocketId],
-    );
-    const pillageCompleted = space.voidPillageCompletions > previous.voidPillageCompletions;
-    if (discovered) {
-      setFeedback(spaceText(locale, "feedbackAsteroidFound", { name: discovered.name }));
-    } else if (previous.activeSurvey === "asteroids" && space.activeSurvey !== "asteroids") {
-      setFeedback(spaceText(locale, "feedbackScanMissed"));
-    } else if (space.starStudyRange > previous.starStudyRange) {
-      setFeedback(studyCompletedFeedback);
-    } else if (pillageCompleted) {
-      setFeedback(spaceText(locale, "feedbackPillageComplete"));
-    } else if (arrived) {
-      const asteroid = space.asteroids.find(
-        (entry) => entry.id === space.rockets[arrived].targetAsteroidId,
-      );
-      if (asteroid) setFeedback(rocketText(locale, "arrived", { name: asteroid.name }));
-    } else if (returned) {
-      const asteroid = space.asteroids.find(
-        (entry) => entry.id === previous.rocketTargets[returned],
-      );
-      if (asteroid) setFeedback(rocketText(locale, "returned", { name: asteroid.name }));
-    }
-    previousOutcomeState.current = {
-      activeSurvey: space.activeSurvey,
-      starStudyRange: space.starStudyRange,
-      voidPillageCompletions: space.voidPillageCompletions,
-      asteroidIds: nextIds,
-      rocketPhases: Object.fromEntries(
-        ROCKET_IDS.map((rocketId) => [rocketId, space.rockets[rocketId].phase]),
-      ) as Record<RocketId, RocketPhase>,
-      rocketTargets: Object.fromEntries(
-        ROCKET_IDS.map((rocketId) => [rocketId, space.rockets[rocketId].targetAsteroidId]),
-      ) as Record<RocketId, string | null>,
-      rocketJourneys: Object.fromEntries(
-        ROCKET_IDS.map((rocketId) => [rocketId, space.rockets[rocketId].journeyCount]),
-      ) as Record<RocketId, number>,
-    };
-  }, [
-    locale,
-    studyCompletedFeedback,
-    space.activeSurvey,
-    space.asteroids,
-    space.rockets,
-    space.starStudyRange,
-    space.voidPillageCompletions,
-  ]);
-
-  function dispatch(command: Parameters<GameStore["dispatch"]>[0], message: string) {
+  function dispatch(command: Parameters<GameStore["dispatch"]>[0], message?: string) {
     const result = store.dispatch(command);
     if (result.accepted) {
-      setFeedback(message);
+      setFeedback(message ?? "");
+      if (command.type === "space.telescope.build") {
+        requestAnimationFrame(() => document.getElementById("space-scan-asteroids")?.focus());
+      }
       return;
     }
     const failure = result.failure;
@@ -625,6 +556,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
     } else if (failure.messageKey.startsWith("space.reason.")) {
       const key = failure.messageKey.slice("space.reason.".length);
       const keys = {
+        "invalid-selection": "reasonInvalidSelection",
         "technology-locked": "reasonTechnologyLocked",
         "telescope-required": "reasonTelescopeRequired",
         "telescope-built": "reasonTelescopeBuilt",
@@ -641,10 +573,10 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
           ? spaceText(locale, messageKey)
           : rocketMessageKey
             ? rocketText(locale, rocketMessageKey)
-            : failure.messageKey,
+            : spaceText(locale, "reasonActionUnavailable"),
       );
     } else {
-      setFeedback(failure.messageKey);
+      setFeedback(spaceText(locale, "reasonActionUnavailable"));
     }
   }
 
@@ -663,6 +595,73 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
         : space.activeSurvey === "pillageVoid"
           ? spaceText(locale, "surveyPillaging")
           : spaceText(locale, "surveyIdle");
+  const activePaneItem = spaceMiningPaneItems(locale, state).find((item) => item.id === activePane);
+  const paneTitle = activePaneItem?.label ?? spaceText(locale, "telescopeTitle");
+  const rocketPageDescription = activePane.startsWith("space-mining-rocket-")
+    ? rocketText(locale, "rocketPageDescription")
+    : null;
+  const pageHelp =
+    activePane === "space-mining-telescope"
+      ? {
+          id: "space-mining-telescope-help",
+          content: (
+            <>
+              <span>{spaceText(locale, "telescopeHeaderHelp")}</span>
+              <br />
+              <span>{spaceText(locale, "telescopeDescription")}</span>
+            </>
+          ),
+        }
+      : activePane === "space-mining-mining"
+        ? {
+            id: "space-mining-mining-help",
+            content: (
+              <>
+                <span>{spaceText(locale, "miningHeaderHelp")}</span>
+                <br />
+                <span>{spaceText(locale, "miningLayoutHelp")}</span>
+                <br />
+                <span>{spaceText(locale, "miningHelp")}</span>
+              </>
+            ),
+          }
+        : activePane === "space-mining-asteroids"
+          ? {
+              id: "space-mining-asteroids-help",
+              content: (
+                <>
+                  <span>{spaceText(locale, "asteroidsHeaderHelp")}</span>
+                  <br />
+                  <span>{spaceText(locale, "asteroidsTableHelp")}</span>
+                  <br />
+                  <span>{spaceText(locale, "asteroidDistanceHelp")}</span>
+                  <br />
+                  <span>{spaceText(locale, "asteroidComplexityHelp")}</span>
+                  <br />
+                  <span>{spaceText(locale, "asteroidAntimatterHelp")}</span>
+                  <br />
+                  <span>{spaceText(locale, "asteroidsHelp")}</span>
+                </>
+              ),
+            }
+          : activePane === "space-mining-launch-pad"
+            ? {
+                id: "space-mining-launch-pad-help",
+                content: (
+                  <>
+                    <span>{rocketText(locale, "launchPadHeaderHelp")}</span>
+                    <br />
+                    <span>{rocketText(locale, "launchPadHelp")}</span>
+                  </>
+                ),
+              }
+            : null;
+  const artworkKind =
+    activePane === "space-mining-telescope"
+      ? "radio-telescope"
+      : activePane === "space-mining-asteroids" || activePane === "space-mining-mining"
+        ? "asteroid"
+        : "rocket";
 
   return (
     <div
@@ -674,11 +673,23 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
       data-testid="space-mining-pane"
     >
       <div className="pane-heading">
-        <div>
-          <h2>{spaceText(locale, "title")}</h2>
-          <p className="pane-intro">{spaceText(locale, "telescopeDescription")}</p>
+        <div className="space-mining-title-row">
+          <h2 className="game-page-title">{paneTitle}</h2>
+          {pageHelp && (
+            <InfoTooltip
+              id={pageHelp.id}
+              label={`${paneTitle} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+              content={pageHelp.content}
+              testId={pageHelp.id}
+            />
+          )}
         </div>
+        {rocketPageDescription && <p className="pane-intro">{rocketPageDescription}</p>}
       </div>
+
+      <PageArtworkRow>
+        <CelestialIllustration kind={artworkKind} />
+      </PageArtworkRow>
 
       {activePane === "space-mining-launch-pad" && (
         <div className="space-weather-overview" data-testid="space-weather-overview">
@@ -708,14 +719,10 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
 
       <section
         className="space-card"
-        aria-labelledby="space-telescope-title"
+        aria-label={spaceText(locale, "telescopeTitle")}
         hidden={activePane !== "space-mining-telescope"}
       >
         <div className="space-card-heading">
-          <div>
-            <p className="eyebrow">{spaceText(locale, "surveyIdle")}</p>
-            <h3 id="space-telescope-title">{spaceText(locale, "telescopeTitle")}</h3>
-          </div>
           <span className={`status-pill${space.telescopeBuilt ? " is-ready" : ""}`}>
             {space.telescopeBuilt
               ? spaceText(locale, "telescopeBuilt")
@@ -729,17 +736,25 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <button
-              className="primary-button"
-              type="button"
-              disabled={!built.ok}
-              aria-describedby={builtReason ? "telescope-build-reason" : undefined}
-              onClick={() =>
-                dispatch({ type: "space.telescope.build" }, spaceText(locale, "feedbackBuilt"))
-              }
-            >
-              {spaceText(locale, "telescopeBuild")}
-            </button>
+            <div className="space-action-help-group">
+              <button
+                className="primary-button"
+                type="button"
+                disabled={!built.ok}
+                aria-describedby={builtReason ? "telescope-build-reason" : undefined}
+                onClick={() =>
+                  dispatch({ type: "space.telescope.build" }, spaceText(locale, "feedbackBuilt"))
+                }
+              >
+                {spaceText(locale, "telescopeBuild")}
+              </button>
+              <InfoTooltip
+                id="space-telescope-build-help"
+                label={`${spaceText(locale, "telescopeBuild")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                content={spaceText(locale, "telescopeBuildHelp")}
+                testId="space-telescope-build-help"
+              />
+            </div>
             {builtReason && (
               <p className="control-reason" id="telescope-build-reason">
                 {builtReason}
@@ -762,10 +777,9 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                     time: formatDuration(locale, surveyRemainingMs, state.settings.notation),
                   })}
                 </p>
-                <meter
+                <progress
                   className="space-survey-progress"
                   data-testid="space-survey-progress"
-                  min={0}
                   max={100}
                   value={remainingPercent(state, surveyTimer.id)}
                   aria-label={surveyState}
@@ -773,49 +787,81 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
               </>
             )}
             <div className="space-action-row">
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={!scan.ok}
-                aria-describedby={scanReason ? "telescope-scan-reason" : undefined}
-                onClick={() =>
-                  dispatch(
-                    { type: "space.telescope.scan.start" },
-                    spaceText(locale, "feedbackSurveyStarted"),
-                  )
-                }
-              >
-                {spaceText(locale, "scanAsteroids")}
-              </button>
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={!study.ok}
-                aria-describedby={studyReason ? "telescope-study-reason" : undefined}
-                onClick={() =>
-                  dispatch(
-                    { type: "space.telescope.study.start" },
-                    spaceText(locale, "feedbackSurveyStarted"),
-                  )
-                }
-              >
-                {spaceText(locale, "studyStars")}
-              </button>
-              {voidPillageAvailable && (
+              <div className="space-action-help-group">
                 <button
+                  id="space-scan-asteroids"
                   className="secondary-button"
                   type="button"
-                  disabled={!pillage.ok}
-                  aria-describedby={pillageReason ? "telescope-pillage-reason" : undefined}
+                  disabled={!scan.ok}
+                  aria-describedby={scanReason ? "telescope-scan-reason" : undefined}
                   onClick={() =>
                     dispatch(
-                      { type: "space.telescope.pillage.start" },
+                      { type: "space.telescope.scan.start" },
                       spaceText(locale, "feedbackSurveyStarted"),
                     )
                   }
                 >
-                  {spaceText(locale, "pillageVoid")}
+                  {spaceText(locale, "scanAsteroids")}
                 </button>
+                <InfoTooltip
+                  id="space-telescope-scan-help"
+                  label={`${spaceText(locale, "scanAsteroids")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  content={spaceText(locale, "telescopeScanHelp", {
+                    power: formatNumber(locale, 0.4, 1, state.settings.notation),
+                  })}
+                  testId="space-telescope-scan-help"
+                />
+              </div>
+              <div className="space-action-help-group">
+                <button
+                  id="telescope-study-stars"
+                  className="secondary-button"
+                  type="button"
+                  disabled={!study.ok}
+                  aria-describedby={studyReason ? "telescope-study-reason" : undefined}
+                  onClick={() =>
+                    dispatch(
+                      { type: "space.telescope.study.start" },
+                      spaceText(locale, "feedbackSurveyStarted"),
+                    )
+                  }
+                >
+                  {spaceText(locale, "studyStars")}
+                </button>
+                <InfoTooltip
+                  id="space-telescope-study-help"
+                  label={`${spaceText(locale, "studyStars")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  content={spaceText(locale, "telescopeStudyHelp", {
+                    power: formatNumber(locale, 0.7, 1, state.settings.notation),
+                  })}
+                  testId="space-telescope-study-help"
+                />
+              </div>
+              {voidPillageAvailable && (
+                <div className="space-action-help-group">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={!pillage.ok}
+                    aria-describedby={pillageReason ? "telescope-pillage-reason" : undefined}
+                    onClick={() =>
+                      dispatch(
+                        { type: "space.telescope.pillage.start" },
+                        spaceText(locale, "feedbackPillageStarted"),
+                      )
+                    }
+                  >
+                    {spaceText(locale, "pillageVoid")}
+                  </button>
+                  <InfoTooltip
+                    id="space-telescope-pillage-help"
+                    label={`${spaceText(locale, "pillageVoid")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                    content={spaceText(locale, "telescopePillageHelp", {
+                      power: formatNumber(locale, VOID_PILLAGE_POWER_PER_SECOND, 1, state.settings.notation),
+                    })}
+                    testId="space-telescope-pillage-help"
+                  />
+                </div>
               )}
             </div>
             <div className="space-power-costs">
@@ -902,16 +948,14 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
 
       <section
         className="space-card"
-        aria-labelledby="space-asteroids-title"
+        aria-label={
+          activePane === "space-mining-mining"
+            ? spaceText(locale, "miningTitle")
+            : spaceText(locale, "asteroidsTitle")
+        }
         hidden={activePane !== "space-mining-asteroids" && activePane !== "space-mining-mining"}
       >
         <div className="space-card-heading">
-          <h3 id="space-asteroids-title">
-            {spaceText(
-              locale,
-              activePane === "space-mining-mining" ? "miningTitle" : "asteroidsTitle",
-            )}
-          </h3>
           {activePane === "space-mining-asteroids" && (
             <span>{number(state, space.asteroids.length)}</span>
           )}
@@ -1023,6 +1067,9 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                         {spaceText(locale, "asteroidDistance")}: {number(state, asteroid.distance)}
                       </span>
                       <span>
+                        {spaceText(locale, "asteroidComplexity")}: {number(state, asteroid.extractionEase)}
+                      </span>
+                      <span>
                         {spaceText(locale, "antimatterRemaining")}:{" "}
                         {number(state, asteroid.remainingAntimatter)}
                       </span>
@@ -1036,19 +1083,15 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
       </section>
       <section
         className="space-card"
-        aria-labelledby="space-assembly-title"
+        aria-label={paneTitle}
         hidden={
           activePane === "space-mining-telescope" ||
           activePane === "space-mining-asteroids" ||
           activePane === "space-mining-mining"
         }
       >
-        <div className="space-card-heading">
-          <h3 id="space-assembly-title">{rocketText(locale, "assemblyTitle")}</h3>
-        </div>
         {!space.launchPadBuilt && activePane === "space-mining-launch-pad" ? (
           <>
-            <h4>{rocketText(locale, "launchPadTitle")}</h4>
             <ul className="space-cost-list" aria-label={rocketText(locale, "launchPadCost")}>
               {costLines(
                 state,
@@ -1068,9 +1111,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
               type="button"
               disabled={!launchPadBuildCheck.ok}
               aria-describedby={launchPadBuildReason ? "launch-pad-build-reason" : undefined}
-              onClick={() =>
-                dispatch({ type: "space.launch-pad.build" }, rocketText(locale, "launchPadBuilt"))
-              }
+              onClick={() => dispatch({ type: "space.launch-pad.build" })}
             >
               {rocketText(locale, "buildLaunchPad")}
             </button>
@@ -1084,9 +1125,6 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
           <p className="control-reason">{rocketText(locale, "reasonLaunchPadRequired")}</p>
         ) : (
           <>
-            {activePane === "space-mining-launch-pad" && (
-              <p className="space-survey-status">{rocketText(locale, "launchPadBuilt")}</p>
-            )}
             <div className="space-rocket-grid">
               {ROCKET_IDS.map((rocketId) => {
                 const rocket = space.rockets[rocketId];
@@ -1105,7 +1143,12 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
           </>
         )}
       </section>
-      <output className="live-feedback" aria-live="polite" data-testid="space-feedback">
+      <output
+        className="live-feedback"
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="space-feedback"
+      >
         {feedback}
       </output>
     </div>

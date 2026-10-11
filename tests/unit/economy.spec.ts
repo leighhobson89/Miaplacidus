@@ -44,6 +44,20 @@ describe("M-03 economy catalogue and shared rules", () => {
     }
   });
 
+  it("localizes the source-backed Advanced Hydrogen Compressor explanation in all six locales", () => {
+    const expected = {
+      en: "Add an Advanced Hydrogen Compressor for enhanced automation.",
+      es: "Añade un Compresor Avanzado de Hidrógeno para automatización mejorada.",
+      pt: "Adicione um Compressor Avançado de Hidrogênio para automação aprimorada.",
+      de: "Füge einen fortgeschrittenen Wasserstoffkompressor für verbesserte Automatisierung hinzu.",
+      it: "Aggiungi un Compressore Avanzato di Idrogeno per automazione migliorata.",
+      fr: "Ajoute un Compresseur Avancé d'Hydrogène pour une automatisation améliorée.",
+    } as const;
+    for (const locale of ["en", "es", "pt", "de", "it", "fr"] as const) {
+      expect(economyLabel(locale, "hydrogenAdvancedCompressorHelp")).toBe(expected[locale]);
+    }
+  });
+
   it("localizes first-time fusion discovery and both yield amounts in all six locales", () => {
     for (const locale of ["en", "es", "pt", "de", "it", "fr"] as const) {
       const message = economyLabel(locale, "fusionDiscoveredNotice");
@@ -761,6 +775,30 @@ describe("M-03 economy catalogue and shared rules", () => {
     };
 
     expect(createEconomyTickPlan(autoCreateState).capacityBlockedGoodIds).toContain("water");
+  });
+
+  it("reuses an economy plan for the same immutable state and recalculates after a state change", () => {
+    const initial = createInitialGameState();
+    const firstPlan = createEconomyTickPlan(initial);
+
+    expect(createEconomyTickPlan(initial)).toBe(firstPlan);
+
+    const hydrogenBuyerId = autobuyerUpgradeId("hydrogen", 1);
+    const producingState: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        upgrades: { ...initial.run.upgrades, [hydrogenBuyerId]: 1 },
+        economy: {
+          ...initial.run.economy,
+          autobuyerEnabled: { ...initial.run.economy.autobuyerEnabled, [hydrogenBuyerId]: true },
+        },
+      },
+    };
+    const producingPlan = createEconomyTickPlan(producingState);
+
+    expect(producingPlan).not.toBe(firstPlan);
+    expect(producingPlan.netRatesPerSecond.hydrogen).toBeGreaterThan(0);
   });
 
   it("matches the source ten-second Hydrogen, Science Kit and Plant 1 rates", () => {

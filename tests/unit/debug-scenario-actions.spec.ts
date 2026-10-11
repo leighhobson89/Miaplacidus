@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyScheduledDebugNewsTicker,
   applyDebugScenario,
   DEBUG_TIMEWARP_DURATIONS_MS,
   DEBUG_TIMEWARP_MULTIPLIERS,
@@ -15,12 +16,75 @@ import {
 } from "../../src/content/space";
 import { TECHNOLOGY_CATALOG } from "../../src/content/technology";
 import { createInitialGameState, isValidGameState } from "../../src/engine/state";
+import { createGameStore } from "../../src/engine/store";
+import { interstellarPaneItems } from "../../src/app/presentationNavigation";
+import { advanceNewsTicker } from "../../src/engine/newsTicker";
+import { reduceDebugScenarioCommand } from "../../src/app/testing/debugScenarioActions";
 
 function initialState() {
   return createInitialGameState({ pioneerName: "Debug Scenario", seed: 314159 });
 }
 
 describe("development scenario actions", () => {
+  it("publishes typed debug reductions through the existing store", () => {
+    const state = initialState();
+    const store = createGameStore(state, { clock: { now: () => 0 } });
+    const existingStore = store;
+    const previousSnapshot = store.getSnapshot();
+    let publications = 0;
+    store.subscribe(() => {
+      publications += 1;
+    });
+
+    expect(store.dispatchReducer).toBeDefined();
+    const result = store.dispatchReducer!((current) =>
+      reduceDebugScenarioCommand(current, {
+        type: "debug.scenario.apply",
+        action: "give-1b",
+      }),
+    );
+
+    expect(result.accepted).toBe(true);
+    expect(store).toBe(existingStore);
+    expect(store.getState()).toBe(result.state);
+    expect(store.getState().run.cash).toBe(state.run.cash + 1_000_000_000);
+    expect(store.getSnapshot().cash).toBe(state.run.cash + 1_000_000_000);
+    expect(store.getSnapshot()).not.toBe(previousSnapshot);
+    expect(publications).toBe(1);
+
+    const committedState = store.getState();
+    const invalidIdentity = store.dispatchReducer!((current) => ({
+      accepted: true,
+      state: {
+        ...current,
+        run: { ...current.run, pioneerName: "Different Pioneer" },
+      },
+      events: [],
+    }));
+    expect(invalidIdentity.accepted).toBe(false);
+    expect(store.getState()).toBe(committedState);
+    expect(publications).toBe(1);
+  });
+
+  it("keeps the homecoming continuation before settlement and Cosmic Rip unlock", () => {
+    const state = initialState();
+    const result = reduceDebugScenarioCommand(state, {
+      type: "debug.scenario.homecoming-continuation",
+    });
+
+    expect(result.accepted).toBe(true);
+    expect(isValidGameState(result.state)).toBe(true);
+    expect(result.state.run.pioneerName).toBe(state.run.pioneerName);
+    expect(result.state.run.space.ascendencyAwardedThisRun).toBe(false);
+    expect(result.state.permanent.rebirthCount).toBeGreaterThan(0);
+    expect(result.state.permanent.cosmicRip.unlocked).toBe(false);
+    expect(result.state.permanent.cosmicRip.ripFound).toBe(false);
+    expect(result.state.run.space.starship.phase).toBe("unlaunched");
+    expect(interstellarPaneItems("en", result.state).map((item) => item.id)).not.toContain(
+      "interstellar-colonise",
+    );
+  });
+
   it("changes only the selected locale and rejects an absent selection", () => {
     const state = initialState();
     for (const locale of LOCALE_IDS) {
@@ -140,18 +204,25 @@ describe("development scenario actions", () => {
     expect(state.run.randomEvents.history).toHaveLength(0);
   });
 
-  it("maps the wacky news category, uses the chosen interval and rejects unsupported feedback", () => {
+  it("configures future news scheduling without forcing a ticker or changing its countdown", () => {
     const state = initialState();
-    const next = applyDebugScenario(state, "set-news-ticker", {
+    const options = {
       newsCategory: "wackyEffects",
       newsInterval: 20_000,
-    })!;
-    expect(next.run.newsTicker.entries.at(-1)?.category).toBe("wacky");
-    expect(next.run.newsTicker.remainingMs).toBe(20_000);
+    } as const;
+    const initialEntries = state.run.newsTicker.entries;
+    const initialRemainingMs = state.run.newsTicker.remainingMs;
+    expect(applyDebugScenario(state, "set-news-ticker", options)).toBe(state);
+    expect(state.run.newsTicker.entries).toBe(initialEntries);
+    expect(state.run.newsTicker.remainingMs).toBe(initialRemainingMs);
     expect(applyDebugScenario(state, "set-news-ticker", { newsCategory: "feedback" })).toBeNull();
-    expect(
-      applyDebugScenario(state, "set-news-ticker", { newsCategory: "manuscriptClue" }),
-    ).toBeNull();
+    expect(applyDebugScenario(state, "set-news-ticker", { newsInterval: 5_000 })).toBeNull();
+
+    const ordinarySchedule = advanceNewsTicker(state, initialRemainingMs).state;
+    const configuredSchedule = applyScheduledDebugNewsTicker(state, ordinarySchedule, options);
+    expect(configuredSchedule?.run.newsTicker.entries.at(-1)?.category).toBe("wacky");
+    expect(configuredSchedule?.run.newsTicker.remainingMs).toBe(60_000);
+    expect(applyScheduledDebugNewsTicker(state, state, options)).toBeNull();
   });
 
   it("prepares a valid starship launch state and generates reproducible asteroid discoveries", () => {
@@ -175,12 +246,76 @@ describe("development scenario actions", () => {
     expect(next.run.space.asteroids).toHaveLength(10);
     expect(new Set(next.run.space.asteroids.map((asteroid) => asteroid.name)).size).toBe(10);
     expect(next.run.space.starStudyRange).toBeGreaterThan(state.run.space.starStudyRange);
+    let fiveStarStudies = state;
+    for (let count = 0; count < 5; count += 1)
+      fiveStarStudies = applyDebugScenario(fiveStarStudies, "study-star")!;
+    expect(next.run.space.starStudyRange).toBe(fiveStarStudies.run.space.starStudyRange);
+    expect(next.run.space.systemProfiles).toEqual(fiveStarStudies.run.space.systemProfiles);
     expect(state).toEqual(before);
   });
 
-  it("guards fleets until a starship exists and does not count completed rockets twice", () => {
+  it("adds ten reproducible asteroids through the dedicated action", () => {
     const state = initialState();
-    expect(applyDebugScenario(state, "add-fleets-envoy")).toBe(state);
+    const before = structuredClone(state);
+    const next = applyDebugScenario(state, "add-10-asteroids")!;
+
+    expect(next).toEqual(applyDebugScenario(state, "add-10-asteroids"));
+    expect(next.run.space.asteroids).toHaveLength(10);
+    expect(new Set(next.run.space.asteroids.map((asteroid) => asteroid.name)).size).toBe(10);
+    expect(next.statistics.lifetimeAsteroidsDiscovered).toBe(
+      state.statistics.lifetimeAsteroidsDiscovered + 10,
+    );
+    expect(next.run.random).not.toEqual(state.run.random);
+    expect(isValidGameState(next)).toBe(true);
+    expect(state).toEqual(before);
+  });
+
+  it("builds the starship and researches its module technologies through the dedicated action", () => {
+    const state = initialState();
+    const before = structuredClone(state);
+    const next = applyDebugScenario(state, "build-starship")!;
+
+    for (const id of STARSHIP_MODULE_IDS) {
+      expect(next.run.space.starshipModules[id].builtParts).toBe(STARSHIP_MODULES[id].parts);
+      expect(next.run.economy.researchedTechnologies).toContain(STARSHIP_MODULES[id].technology);
+    }
+    expect(next.run.space.telescopeBuilt).toBe(true);
+    expect(next.run.space.starship.phase).toBe(state.run.space.starship.phase);
+    expect(isValidGameState(next)).toBe(true);
+    expect(state).toEqual(before);
+  });
+
+  it("guards fleet grants until required starship modules are complete, regardless of the optional scanner", () => {
+    const state = initialState();
+    expect(applyDebugScenario(state, "add-fleets-envoy")).toBeNull();
+
+    const requiredModulesComplete = {
+      ...state,
+      run: {
+        ...state.run,
+        space: {
+          ...state.run.space,
+          starshipModules: Object.fromEntries(
+            STARSHIP_MODULE_IDS.map((id) => [
+              id,
+              {
+                builtParts: STARSHIP_MODULES[id].requiredForTravel ? STARSHIP_MODULES[id].parts : 0,
+              },
+            ]),
+          ) as typeof state.run.space.starshipModules,
+        },
+      },
+    };
+    expect(isValidGameState(requiredModulesComplete)).toBe(true);
+    expect(requiredModulesComplete.run.space.starshipModules.stellarScanner.builtParts).toBe(0);
+
+    const fleetGrant = applyDebugScenario(requiredModulesComplete, "add-fleets-envoy");
+    expect(fleetGrant).not.toBeNull();
+    expect(fleetGrant!.run.space.fleetEnvoyBuilt).toBe(true);
+    for (const fleetId of PLAYER_FLEET_IDS) {
+      expect(fleetGrant!.run.space.playerFleets[fleetId]).toBe(30);
+    }
+
     const next = applyDebugScenario(state, "build-launch-pad-scanner-rockets")!;
     const repeated = applyDebugScenario(next, "build-launch-pad-scanner-rockets")!;
     expect(repeated.statistics.lifetimeRocketsBuilt).toBe(next.statistics.lifetimeRocketsBuilt);

@@ -6,18 +6,35 @@ export async function startMetaFixture(
   fixture:
     | "meta-rebirth-ready"
     | "meta-market-ready"
+    | "meta-market-rebirth-ready"
     | "meta-market-action-reasons"
+    | "meta-market-action-reasons-rebirth-ready"
     | "meta-casino-ready"
     | "meta-casino-timewarp"
+    | "meta-casino-finish-rocket-journey"
     | "meta-post-rebirth-casino-access"
     | "meta-black-hole-discovered"
     | "meta-black-hole-underfunded"
+    | "meta-galactic-identity-matrix"
     | "meta-megastructure-route"
+    | "meta-megastructure-audio"
+    | `meta-megastructure-factory-${
+        | "celestialProcessingCore"
+        | "plasmaForge"
+        | "galacticMemoryArchive"
+        | "dysonSphere"}`
+    | `meta-megastructure-visual-${
+        | "celestialProcessingCore"
+        | "plasmaForge"
+        | "galacticMemoryArchive"
+        | "dysonSphere"}`
     | "meta-megastructure-research-reasons"
     | "meta-cosmic-rip-route"
+    | "meta-cosmic-rip-objective-scan"
     | "meta-cosmic-rip-restore-affordance"
     | "meta-cosmic-rip-action-affordances"
     | "meta-cosmic-rip-close-affordance"
+    | "meta-cosmic-rip-ending-ready"
     | "space-manuscript-hidden" = "meta-rebirth-ready",
 ): Promise<void> {
   await page.addInitScript(() => {

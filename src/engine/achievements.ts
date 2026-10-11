@@ -528,6 +528,23 @@ export function applyAchievementBoundary(
       state = { ...state, permanent: { ...state.permanent, achievements: updated } };
     }
     state = applyReward(state, definition.reward, !definition.resetOnRebirth);
+    if (
+      definition.id === "completeRunOnMiaplacidus" ||
+      definition.id === "winAllCasinoGames"
+    ) {
+      // Cosmic Forge refunds one GP for each of these achievements and removes
+      // that refunded point from its Galactic Points Spent statistic.
+      state = {
+        ...state,
+        statistics: {
+          ...state.statistics,
+          lifetimeGalacticPointsSpent: Math.max(
+            0,
+            state.statistics.lifetimeGalacticPointsSpent - 1,
+          ),
+        },
+      };
+    }
     unlockedEvents.push({ type: "achievement.unlocked", achievementId: definition.id });
   }
   // The state comparison is intentionally explicit: empty or rejected transitions cannot award.

@@ -4,18 +4,25 @@
   MATERIAL_IDS,
   autobuyerUpgradeId,
 } from "../../content/ids";
+import { COSMIC_RIP_TECHNOLOGIES } from "../../content/cosmicRip";
 import { COMPOUND_CATALOG, MATERIAL_CATALOG } from "../../content/economy";
 import { BLACK_HOLE_RESEARCH_PRICE } from "../../content/blackHole";
 import {
   ROCKET_IDS,
+  ROCKET_FUEL_CAPACITY,
   ROCKET_PART_REQUIREMENTS,
+  TELESCOPE_COST,
   STARSHIP_MODULES,
   STARSHIP_MODULE_IDS,
   createInitialStarSystemBattleState,
   PLAYER_FLEET_IDS,
 } from "../../content/space";
 import { createStarCatalogue } from "../../content/starCatalogue";
-import { MEGASTRUCTURE_TRACKS, TECHNOLOGY_CATALOG } from "../../content/technology";
+import {
+  MEGASTRUCTURE_TRACKS,
+  TECHNOLOGY_CATALOG,
+  type MegastructureId,
+} from "../../content/technology";
 import { createInitialGameState, type GameState } from "../../engine/state";
 import { ensureDiscoveredStarSystemProfiles } from "../../engine/starSystemProfiles";
 import { generateStarSystemEncounter } from "../../engine/starSystemEncounters";
@@ -24,6 +31,9 @@ import { nextRandomInteger } from "../../engine/random";
 
 type EconomyFixtureKind =
   | "full"
+  | "philosophy-notification-routes"
+  | "hydrogen-sale-currency-tail"
+  | "notation-coverage"
   | "research"
   | "infinite-power"
   | "power-deficit"
@@ -45,14 +55,21 @@ type EconomyFixtureKind =
   | "compound-automation"
   | "multipliers"
   | "space-telescope"
+  | "space-telescope-shortfall"
   | "space-telescope-before-launch-pad"
+  | "space-asteroid-mining"
   | "space-rocket-part-shortfall"
   | "space-rocket-part-exact"
+  | "space-rocket-fuel-pump"
   | "space-starship"
   | "space-starship-ready"
   | "space-starship-scanning"
+  | "space-starship-scanning-blind"
+  | "space-starship-o-arrival"
+  | "space-starship-factory-arrival"
   | "space-diplomacy"
   | "space-battle-victory"
+  | "space-rapid-expansion-victory"
   | "space-battle-defeat"
   | "space-diplomacy-power"
   | "space-diplomacy-power-fail"
@@ -60,34 +77,232 @@ type EconomyFixtureKind =
   | "space-bully-scared"
   | "space-bully-surrender"
   | "space-unoccupied"
+  | "space-megastructure-attention"
   | "space-manuscript-hidden"
   | "meta-rebirth-ready"
   | "meta-market-ready"
+  | "meta-market-rebirth-ready"
   | "meta-market-action-reasons"
+  | "meta-market-action-reasons-rebirth-ready"
   | "meta-casino-ready"
   | "meta-casino-timewarp"
+  | "meta-casino-finish-rocket-journey"
   | "meta-post-rebirth-casino-access"
   | "meta-black-hole-discovered"
   | "meta-black-hole-underfunded"
+  | "meta-galactic-identity-matrix"
   | "meta-megastructure-route"
+  | "meta-megastructure-audio"
+  | `meta-megastructure-factory-${MegastructureId}`
+  | `meta-megastructure-visual-${MegastructureId}`
   | "meta-megastructure-research-reasons"
   | "meta-cosmic-rip-route"
+  | "meta-cosmic-rip-objective-scan"
   | "meta-cosmic-rip-restore-affordance"
   | "meta-cosmic-rip-action-affordances"
   | "meta-cosmic-rip-close-affordance"
-  | "space-late-game";
+  | "meta-cosmic-rip-ending-ready"
+  | "space-late-game"
+  | "space-returning-rocket"
+  | "space-voidborn-pillage";
 
 /** Test-only start states used by click-driven browser tests to reach later economy systems. */
 export function createEconomyFixture(
   kind: EconomyFixtureKind,
   locale: GameState["settings"]["locale"],
 ): GameState {
+  if (kind === "space-starship-o-arrival" || kind === "space-starship-factory-arrival") {
+    const ready = createEconomyFixture("space-starship-ready", locale);
+    const catalogue = createStarCatalogue();
+    const destination =
+      kind === "space-starship-o-arrival"
+        ? catalogue.find((star) => star.starType === "O" && !star.initiallySettled)!
+        : catalogue.find((star) => star.name === "Sirius")!;
+    const timerId = createTimerId("travel", "arrival-narrative");
+    const factorySystemId = destination.id;
+    const manuscripts =
+      kind === "space-starship-factory-arrival"
+        ? [
+            {
+              position: 1 as const,
+              manuscriptSystemId: catalogue.find((star) => star.name === "Canopus")!.id,
+              factorySystemId,
+              megastructureId: "dysonSphere" as const,
+              reported: true,
+            },
+          ]
+        : ready.permanent.megastructures.ancientManuscripts;
+    return {
+      ...ready,
+      run: {
+        ...ready.run,
+        timers: {
+          ...ready.run.timers,
+          [timerId]: createTimer({ id: timerId, domain: "travel", durationMs: 1_000 }),
+        },
+        space: {
+          ...ready.run.space,
+          starStudyRange: 200,
+          systemProfiles: ensureDiscoveredStarSystemProfiles(
+            ready.run.space.systemProfiles,
+            ready.run.space.currentSystemId,
+            200,
+          ),
+          antimatter: 1_000_000,
+          starship: {
+            ...ready.run.space.starship,
+            destinationSystemId: destination.id,
+            phase: "travelling",
+            timerId,
+            durationMs: 1_000,
+            antimatterSpent: 1,
+            travelDistanceLy: 1,
+          },
+        },
+      },
+      permanent: {
+        ...ready.permanent,
+        megastructures: {
+          ...ready.permanent.megastructures,
+          ancientManuscripts: manuscripts,
+        },
+      },
+    };
+  }
   const spaceFixture = kind.startsWith("space-");
   const base = createInitialGameState({
     pioneerName: "Economy Test Pioneer",
     seed: 20261003,
     locale,
   });
+  if (kind === "philosophy-notification-routes") {
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        philosophyChoicePending: false,
+        researchPoints: 1_000_000,
+      },
+      permanent: { ...base.permanent, philosophyId: "constructor" },
+    };
+  }
+  if (kind === "hydrogen-sale-currency-tail") {
+    const hydrogen = base.run.goods.hydrogen;
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        goods: {
+          ...base.run.goods,
+          hydrogen: { ...hydrogen, quantity: 330, storageCapacity: 330 },
+        },
+      },
+    };
+  }
+  if (kind === "space-telescope-shortfall") {
+    const telescopeReady = createEconomyFixture("space-telescope", locale);
+    const ironRequired = TELESCOPE_COST.materials.find(({ goodId }) => goodId === "iron")!.amount;
+    return {
+      ...telescopeReady,
+      run: {
+        ...telescopeReady.run,
+        goods: {
+          ...telescopeReady.run.goods,
+          iron: { ...telescopeReady.run.goods.iron, quantity: ironRequired - 1 },
+        },
+      },
+    };
+  }
+  if (kind === "space-asteroid-mining") {
+    const lateGame = createEconomyFixture("space-late-game", locale);
+    const activeRocket = lateGame.run.space.rockets.rocket1;
+    const releasedRocket = lateGame.run.space.rockets.rocket4;
+    const removedTimerIds = new Set(
+      [activeRocket.timerId, releasedRocket.timerId].filter((id): id is string => id !== null),
+    );
+    const asteroidRarities = ["common", "uncommon", "rare", "legendary"] as const;
+    const asteroids = lateGame.run.space.asteroids.map((asteroid, index) =>
+      index === 3
+        ? {
+            ...asteroid,
+            rarity: asteroidRarities[index]!,
+            remainingAntimatter: 0,
+            reservedBy: null,
+            depleted: true,
+          }
+        : { ...asteroid, rarity: asteroidRarities[index]! },
+    );
+    return {
+      ...lateGame,
+      run: {
+        ...lateGame.run,
+        timers: Object.fromEntries(
+          Object.entries(lateGame.run.timers).filter(([id]) => !removedTimerIds.has(id)),
+        ),
+        space: {
+          ...lateGame.run.space,
+          asteroids,
+          selectedAsteroidId: asteroids[0]!.id,
+          rockets: {
+            ...lateGame.run.space.rockets,
+            rocket1: { ...activeRocket, phase: "mining", timerId: null },
+            rocket4: {
+              ...releasedRocket,
+              phase: "ready",
+              targetAsteroidId: null,
+              timerId: null,
+            },
+          },
+        },
+      },
+    };
+  }
+  if (kind === "notation-coverage") {
+    const complete = createEconomyFixture("full", locale);
+    const hydrogenTier4 = autobuyerUpgradeId("hydrogen", 4);
+    return {
+      ...complete,
+      statistics: {
+        ...complete.statistics,
+        lifetimeActiveMs: 1_999 * 86_400_000,
+        lifetimeCashEarned: 987_654_321_098.76,
+      },
+      run: {
+        ...complete.run,
+        clock: { ...complete.run.clock, simulationMs: 1_999 * 86_400_000 },
+        upgrades: { ...complete.run.upgrades, [hydrogenTier4]: 5 },
+        economy: {
+          ...complete.run.economy,
+          autobuyerEnabled: {
+            ...complete.run.economy.autobuyerEnabled,
+            [hydrogenTier4]: true,
+          },
+        },
+      },
+    };
+  }
+  if (kind === "meta-galactic-identity-matrix") {
+    const route = createEconomyFixture("meta-megastructure-route", locale);
+    const destination = createStarCatalogue().find((star) => !star.initiallySettled)!;
+    return {
+      ...route,
+      run: {
+        ...route.run,
+        space: {
+          ...route.run.space,
+          systemEncounters: [generateStarSystemEncounter(destination, false)],
+        },
+      },
+      permanent: {
+        ...route.permanent,
+        blackHole: {
+          ...route.permanent.blackHole,
+          discovered: true,
+          discoveryProbability: 3,
+        },
+      },
+    };
+  }
   if (kind === "meta-rebirth-ready") {
     const destination = createStarCatalogue().find((star) => !star.initiallySettled)!;
     return {
@@ -131,6 +346,20 @@ export function createEconomyFixture(
       },
     };
   }
+  if (kind === "meta-market-rebirth-ready") {
+    const market = createEconomyFixture("meta-market-ready", locale);
+    const destination = createStarCatalogue().find((star) => !star.initiallySettled)!;
+    return {
+      ...market,
+      run: {
+        ...market.run,
+        space: {
+          ...market.run.space,
+          systemEncounters: [generateStarSystemEncounter(destination, false)],
+        },
+      },
+    };
+  }
   if (kind === "meta-market-action-reasons") {
     return {
       ...base,
@@ -150,6 +379,20 @@ export function createEconomyFixture(
         rebirthCount: 1,
         ascendencyPoints: 3,
         gloryPoints: 1,
+      },
+    };
+  }
+  if (kind === "meta-market-action-reasons-rebirth-ready") {
+    const market = createEconomyFixture("meta-market-action-reasons", locale);
+    const destination = createStarCatalogue().find((star) => !star.initiallySettled)!;
+    return {
+      ...market,
+      run: {
+        ...market.run,
+        space: {
+          ...market.run.space,
+          systemEncounters: [generateStarSystemEncounter(destination, false)],
+        },
       },
     };
   }
@@ -213,6 +456,76 @@ export function createEconomyFixture(
             ],
             index: 7,
             prizeKey: "hilo_timewarp_100_12000",
+          },
+          lifetimeStats: {
+            ...casinoReady.permanent.galacticCasino.lifetimeStats,
+            higherLowerPlayed:
+              casinoReady.permanent.galacticCasino.lifetimeStats.higherLowerPlayed + 1,
+          },
+        },
+      },
+    };
+  }
+  if (kind === "meta-casino-finish-rocket-journey") {
+    const casinoReady = createEconomyFixture("meta-casino-ready", locale);
+    const timerId = createTimerId("travel", "rocket1-asteroid-journey");
+    const asteroidId = "asteroid-2";
+    const asteroid = {
+      id: asteroidId,
+      name: "SPI-0002B",
+      systemId: "spica",
+      distance: 1_000,
+      rarity: "common" as const,
+      extractionEase: 1,
+      remainingAntimatter: 700,
+      totalAntimatter: 700,
+      reservedBy: "rocket1" as const,
+      depleted: false,
+      interacted: true,
+    };
+    const higherLowerPlayed = casinoReady.run.casinoStats.higherLowerPlayed + 1;
+    return {
+      ...casinoReady,
+      run: {
+        ...casinoReady.run,
+        casinoStats: { ...casinoReady.run.casinoStats, higherLowerPlayed },
+        timers: {
+          ...casinoReady.run.timers,
+          [timerId]: createTimer({ id: timerId, domain: "travel", durationMs: 10_000 }),
+        },
+        space: {
+          ...casinoReady.run.space,
+          launchPadBuilt: true,
+          antimatterUnlocked: true,
+          asteroids: [asteroid],
+          nextAsteroidSequence: 3,
+          rockets: {
+            ...casinoReady.run.space.rockets,
+            rocket1: {
+              ...casinoReady.run.space.rockets.rocket1,
+              name: "Prospector",
+              builtParts: ROCKET_PART_REQUIREMENTS.rocket1,
+              fuelQuantity: ROCKET_FUEL_CAPACITY.rocket1,
+              phase: "outbound" as const,
+              targetAsteroidId: asteroidId,
+              journeyCount: 1,
+              timerId,
+            },
+          },
+        },
+      },
+      permanent: {
+        ...casinoReady.permanent,
+        galacticCasino: {
+          ...casinoReady.permanent.galacticCasino,
+          casinoPoints: 42,
+          higherLower: {
+            deck: [2, 3, 4, 5, 6, 7, 8, 9, 10].map((rank, index) => ({
+              rank,
+              suit: (["clubs", "diamonds", "hearts", "spades"] as const)[index % 4]!,
+            })),
+            index: 7,
+            prizeKey: "special_finish_rocket_journey",
           },
           lifetimeStats: {
             ...casinoReady.permanent.galacticCasino.lifetimeStats,
@@ -384,6 +697,78 @@ export function createEconomyFixture(
       statistics: { ...base.statistics, lifetimeAntimatterMined: 1_000_000 },
     };
   }
+  if (kind === "meta-megastructure-audio") {
+    const route = createEconomyFixture("meta-megastructure-route", locale);
+    const forceFieldTechnologies = Object.values(MEGASTRUCTURE_TRACKS).map((track) => track[2]!);
+    return {
+      ...route,
+      run: { ...route.run, researchPoints: 1_000_000 },
+      permanent: {
+        ...route.permanent,
+        megastructures: {
+          ...route.permanent.megastructures,
+          researchedTechnologyIds: route.permanent.megastructures.researchedTechnologyIds.filter(
+            (technologyId) => !forceFieldTechnologies.includes(technologyId),
+          ),
+        },
+      },
+    };
+  }
+  if (kind.startsWith("meta-megastructure-factory-")) {
+    const route = createEconomyFixture("meta-megastructure-route", locale);
+    const structureId = kind.slice("meta-megastructure-factory-".length) as MegastructureId;
+    const factory = route.permanent.megastructures.ancientManuscripts.find(
+      (record) => record.megastructureId === structureId,
+    );
+    if (!factory) return route;
+    return {
+      ...route,
+      run: {
+        ...route.run,
+        space: {
+          ...route.run.space,
+          currentSystemId: factory.factorySystemId,
+          weatherSystemId: factory.factorySystemId,
+        },
+      },
+    };
+  }
+  if (kind.startsWith("meta-megastructure-visual-")) {
+    const route = createEconomyFixture("meta-megastructure-route", locale);
+    const structureId = kind.slice("meta-megastructure-visual-".length) as MegastructureId;
+    const factory = route.permanent.megastructures.ancientManuscripts.find(
+      (record) => record.megastructureId === structureId,
+    );
+    if (!factory) return route;
+    const allStages = Object.values(MEGASTRUCTURE_TRACKS).flat();
+    const carriedStages = Object.values(MEGASTRUCTURE_TRACKS).flatMap((track) => track.slice(0, 3));
+    const carriedStageSet = new Set(carriedStages);
+    return {
+      ...route,
+      run: {
+        ...route.run,
+        space: {
+          ...route.run.space,
+          currentSystemId: factory.factorySystemId,
+          weatherSystemId: factory.factorySystemId,
+        },
+        economy: {
+          ...route.run.economy,
+          researchedTechnologies: [
+            ...route.run.economy.researchedTechnologies.filter((id) => !allStages.includes(id)),
+            ...carriedStages,
+          ],
+        },
+      },
+      permanent: {
+        ...route.permanent,
+        megastructures: {
+          ...route.permanent.megastructures,
+          researchedTechnologyIds: Array.from(carriedStageSet),
+        },
+      },
+    };
+  }
   if (kind === "meta-cosmic-rip-route") {
     return {
       ...base,
@@ -421,6 +806,27 @@ export function createEconomyFixture(
           scannedSectorIndexes: [4],
           ripFound: true,
           telemetryData: 200_000,
+        },
+      },
+    };
+  }
+  if (kind === "meta-cosmic-rip-objective-scan") {
+    const route = createEconomyFixture("meta-cosmic-rip-route", locale);
+    return {
+      ...route,
+      permanent: {
+        ...route.permanent,
+        gloryPoints: 20,
+        cosmicRip: {
+          ...route.permanent.cosmicRip,
+          scannerRestored: false,
+          ripLocationSectorIndex: 4,
+          scannedSectorIndexes: [],
+          ripFound: false,
+          telemetryData: 200_000,
+          activeResearchTechnologyId: null,
+          researchElapsedMs: 0,
+          researchedTechnologyIds: [],
         },
       },
     };
@@ -477,6 +883,21 @@ export function createEconomyFixture(
             "singularityStabilizer",
             "realityWeaveRegulator",
           ],
+        },
+      },
+    };
+  }
+  if (kind === "meta-cosmic-rip-ending-ready") {
+    const route = createEconomyFixture("meta-cosmic-rip-route", locale);
+    return {
+      ...route,
+      settings: { ...route.settings, notificationsEnabled: false },
+      permanent: {
+        ...route.permanent,
+        gloryPoints: 1,
+        cosmicRip: {
+          ...route.permanent.cosmicRip,
+          researchedTechnologyIds: COSMIC_RIP_TECHNOLOGIES.map(({ id }) => id),
         },
       },
     };
@@ -723,10 +1144,13 @@ export function createEconomyFixture(
   if (
     kind === "space-rocket-part-shortfall" ||
     kind === "space-rocket-part-exact" ||
+    kind === "space-rocket-fuel-pump" ||
     kind === "space-starship-ready" ||
     kind === "space-starship-scanning" ||
+    kind === "space-starship-scanning-blind" ||
     kind === "space-diplomacy" ||
     kind === "space-battle-victory" ||
+    kind === "space-rapid-expansion-victory" ||
     kind === "space-battle-defeat" ||
     kind === "space-diplomacy-power" ||
     kind === "space-diplomacy-power-fail" ||
@@ -734,13 +1158,18 @@ export function createEconomyFixture(
     kind === "space-bully-scared" ||
     kind === "space-bully-surrender" ||
     kind === "space-unoccupied" ||
-    kind === "space-late-game"
+    kind === "space-megastructure-attention" ||
+    kind === "space-late-game" ||
+    kind === "space-returning-rocket" ||
+    kind === "space-voidborn-pillage"
   ) {
     const scanningFixture =
       kind !== "space-starship-ready" &&
+      kind !== "space-rocket-fuel-pump" &&
       kind !== "space-rocket-part-shortfall" &&
       kind !== "space-rocket-part-exact";
-    const battleVictoryFixture = kind === "space-battle-victory";
+    const rapidExpansionFixture = kind === "space-rapid-expansion-victory";
+    const battleVictoryFixture = kind === "space-battle-victory" || rapidExpansionFixture;
     const battleDefeatFixture = kind === "space-battle-defeat";
     const poweredDiplomacyFixture = [
       "space-diplomacy-power",
@@ -750,7 +1179,8 @@ export function createEconomyFixture(
       "space-bully-surrender",
     ].includes(kind);
     const aggressiveDiplomacyFixture = kind === "space-diplomacy-aggressive";
-    const unoccupiedFixture = kind === "space-unoccupied";
+    const unoccupiedFixture =
+      kind === "space-unoccupied" || kind === "space-megastructure-attention";
     const battleFixture = battleVictoryFixture || battleDefeatFixture;
     const diplomacyEncounter: GameState["run"]["space"]["systemEncounters"][number] = {
       systemId: createStarCatalogue().find((star) => star.name === "Sirius")!.id,
@@ -791,7 +1221,9 @@ export function createEconomyFixture(
         {
           builtParts:
             STARSHIP_MODULES[moduleId].requiredForTravel ||
-            (scanningFixture && moduleId === "stellarScanner")
+            (scanningFixture &&
+              kind !== "space-starship-scanning-blind" &&
+              moduleId === "stellarScanner")
               ? STARSHIP_MODULES[moduleId].parts
               : 0,
         },
@@ -802,13 +1234,15 @@ export function createEconomyFixture(
       ...state,
       run: {
         ...state.run,
-        random: poweredDiplomacyFixture
-          ? {
-              seed:
-                kind === "space-diplomacy-power-fail" ? 5 : kind === "space-bully-scared" ? 2 : 1,
-              draws: 0,
-            }
-          : state.run.random,
+        random: rapidExpansionFixture
+          ? { seed: 1, draws: 0 }
+          : poweredDiplomacyFixture
+            ? {
+                seed:
+                  kind === "space-diplomacy-power-fail" ? 5 : kind === "space-bully-scared" ? 2 : 1,
+                draws: 0,
+              }
+            : state.run.random,
         space: {
           ...state.run.space,
           starStudyRange: 200,
@@ -823,7 +1257,9 @@ export function createEconomyFixture(
           starshipModules,
           fleetEnvoyBuilt: poweredDiplomacyFixture,
           systemEncounters:
-            kind !== "space-starship-scanning" && scanningFixture
+            kind !== "space-starship-scanning" &&
+            kind !== "space-starship-scanning-blind" &&
+            scanningFixture
               ? [diplomacyEncounter]
               : state.run.space.systemEncounters,
           playerFleets:
@@ -838,8 +1274,8 @@ export function createEconomyFixture(
               ? {
                   ...state.run.space.playerFleetCombatTotals,
                   scout: {
-                    attackPower: poweredDiplomacyFixture ? 20 : 6,
-                    defensePower: poweredDiplomacyFixture ? 20 : 6,
+                    attackPower: rapidExpansionFixture ? 1_000 : poweredDiplomacyFixture ? 20 : 6,
+                    defensePower: rapidExpansionFixture ? 1_000 : poweredDiplomacyFixture ? 20 : 6,
                   },
                 }
               : state.run.space.playerFleetCombatTotals,
@@ -860,6 +1296,34 @@ export function createEconomyFixture(
         lifetimeAntimatterMined: 1_000_000,
       },
     };
+    if (rapidExpansionFixture) {
+      return {
+        ...fixtureState,
+        run: { ...fixtureState.run, philosophyAbilityActive: true },
+        permanent: { ...fixtureState.permanent, philosophyId: "expansionist" },
+      };
+    }
+    if (kind === "space-megastructure-attention") {
+      const manuscriptSystemId = createStarCatalogue().find((star) => star.name === "Canopus")!.id;
+      return {
+        ...fixtureState,
+        permanent: {
+          ...fixtureState.permanent,
+          megastructures: {
+            ...fixtureState.permanent.megastructures,
+            ancientManuscripts: [
+              {
+                position: 1,
+                manuscriptSystemId,
+                factorySystemId: scanDestination.id,
+                megastructureId: "dysonSphere",
+                reported: true,
+              },
+            ],
+          },
+        },
+      };
+    }
     if (kind === "space-rocket-part-shortfall" || kind === "space-rocket-part-exact") {
       const steelQuantity = kind === "space-rocket-part-shortfall" ? 2_999 : 3_000;
       return {
@@ -888,7 +1352,47 @@ export function createEconomyFixture(
         },
       };
     }
-    if (kind !== "space-late-game") return fixtureState;
+    if (kind === "space-rocket-fuel-pump") {
+      return {
+        ...fixtureState,
+        run: {
+          ...fixtureState.run,
+          space: {
+            ...fixtureState.run.space,
+            launchPadBuilt: true,
+            rockets: {
+              ...fixtureState.run.space.rockets,
+              rocket1: {
+                ...fixtureState.run.space.rockets.rocket1,
+                builtParts: ROCKET_PART_REQUIREMENTS.rocket1,
+                phase: "ready",
+              },
+            },
+          },
+        },
+      };
+    }
+    if (kind === "space-voidborn-pillage") {
+      return {
+        ...fixtureState,
+        run: {
+          ...fixtureState.run,
+          philosophyChoicePending: false,
+          philosophyAbilityActive: true,
+          space: { ...fixtureState.run.space, telescopeBuilt: true },
+          economy: {
+            ...fixtureState.run.economy,
+            power: { ...fixtureState.run.economy.power, gridEnabled: true, infinitePower: true },
+          },
+        },
+        permanent: {
+          ...fixtureState.permanent,
+          rebirthCount: 1,
+          philosophyId: "voidborn",
+        },
+      };
+    }
+    if (kind !== "space-late-game" && kind !== "space-returning-rocket") return fixtureState;
 
     const asteroids = ROCKET_IDS.map((rocketId, index) => ({
       id: `asteroid-${index + 1}`,
@@ -931,7 +1435,7 @@ export function createEconomyFixture(
         ];
       }),
     );
-    return {
+    const lateGameFixture: GameState = {
       ...fixtureState,
       run: {
         ...fixtureState.run,
@@ -944,6 +1448,20 @@ export function createEconomyFixture(
           selectedAsteroidId: asteroids[0]!.id,
           nextAsteroidSequence: asteroids.length + 1,
           rockets,
+        },
+      },
+    };
+    if (kind !== "space-returning-rocket") return lateGameFixture;
+    return {
+      ...lateGameFixture,
+      run: {
+        ...lateGameFixture.run,
+        space: {
+          ...lateGameFixture.run.space,
+          rockets: {
+            ...lateGameFixture.run.space.rockets,
+            rocket1: { ...lateGameFixture.run.space.rockets.rocket1, phase: "returning" },
+          },
         },
       },
     };

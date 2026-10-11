@@ -1,37 +1,42 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { LocaleId } from "../content/ids";
 import type { GameState } from "../engine/state";
 import { decodePortable, encodeLocal, encodePortable } from "../persistence/codec";
 import { createSlotId, type SaveIndexEntry, type SaveRepository } from "../persistence/repository";
-import { makeEnvelope, SaveError, type SaveEnvelopeV1 } from "../persistence/schema";
+import {
+  makeEnvelope,
+  SaveError,
+  type SaveEnvelopeV1,
+  type SaveErrorCode,
+} from "../persistence/schema";
 import { saveErrorText, saveText, type SaveMessageKey } from "../i18n/saveMessages";
 import { translate } from "../i18n/messages";
 import { validatePioneerName } from "../persistence/validation";
 import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
 
-interface Props {
+export interface SaveManagerProps {
   readonly locale: LocaleId;
   readonly repository: SaveRepository | null;
   readonly slots: readonly SaveIndexEntry[];
   readonly activeSlotId: string;
   readonly revision: number;
   readonly state: GameState;
+  readonly readOnlyReasonCode: SaveErrorCode | null;
   readonly lockHeld: (slotId: string) => boolean;
   readonly acquireLock: (slotId: string) => Promise<(() => void) | null>;
-  readonly onSave: () => void;
   readonly onRename: (name: string) => void;
   readonly onReplaceActive: (envelope: SaveEnvelopeV1) => void;
   readonly onSaveAsNew: (name: string) => Promise<void>;
   readonly onSwitchTo: (name: string) => void;
   readonly onDeleted: () => void;
-  readonly onClose: () => void;
 }
 
-export function SaveManager(props: Props) {
+export function SaveManager(props: SaveManagerProps) {
   const { locale, repository, slots, activeSlotId, revision, state } = props;
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const t = (key: SaveMessageKey) => saveText(locale, key);
+  const formatInteger = (value: number) => new Intl.NumberFormat(locale).format(value);
+  const formatKilobytes = (bytes: number) => formatInteger(Math.ceil(bytes / 1024));
   const [name, setName] = useState(state.run.pioneerName);
   const [copyName, setCopyName] = useState("");
   const [code, setCode] = useState("");
@@ -42,10 +47,6 @@ export function SaveManager(props: Props) {
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  useEffect(() => {
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-  }, []);
-
   const activeEnvelope = useMemo(() => {
     let stored: SaveEnvelopeV1 | null = null;
     if (repository) {
@@ -73,10 +74,30 @@ export function SaveManager(props: Props) {
       ? (repository.findByName(preview.pioneerName).find((entry) => entry.status === "ready") ??
         null)
       : null;
+  const activeSlotReadOnlyReason = !repository
+    ? t("errStorage")
+    : !props.lockHeld(activeSlotId)
+      ? props.readOnlyReasonCode === "storage-unavailable"
+        ? t("errStorage")
+        : props.readOnlyReasonCode === "corrupt-slot"
+          ? t("errCorrupt")
+          : t("readOnlyLock")
+      : null;
+  const replaceReadOnlyReason =
+    matchingSlot?.slotId === activeSlotId ? activeSlotReadOnlyReason : null;
 
   function showError(errorValue: unknown) {
     const codeValue = errorValue instanceof SaveError ? errorValue.code : "unknown";
     setError(saveErrorText(locale, codeValue));
+    setNotice("");
+  }
+
+  function showImportError(errorValue: unknown) {
+    if (errorValue instanceof SaveError) {
+      showError(errorValue);
+      return;
+    }
+    setError(t("errImport"));
     setNotice("");
   }
 
@@ -109,12 +130,12 @@ export function SaveManager(props: Props) {
       } finally {
         release();
       }
-      setNotice(t("imported"));
+      setNotice(t("importedAsNew"));
       setError("");
       setPreview(null);
       setCode("");
     } catch (errorValue) {
-      showError(errorValue);
+      showImportError(errorValue);
     }
   }
 
@@ -137,14 +158,15 @@ export function SaveManager(props: Props) {
       } finally {
         release?.();
       }
-      if (matchingSlot.slotId === activeSlotId) props.onReplaceActive(updated);
-      setNotice(t("imported"));
+      const replacesActiveSave = matchingSlot.slotId === activeSlotId;
+      if (replacesActiveSave) props.onReplaceActive(updated);
+      setNotice(t(replacesActiveSave ? "loaded" : "imported"));
       setError("");
       setPreview(null);
       setCode("");
       setReplaceConfirmed(false);
     } catch (errorValue) {
-      showError(errorValue);
+      showImportError(errorValue);
     }
   }
 
@@ -165,17 +187,19 @@ export function SaveManager(props: Props) {
       setCode(await navigator.clipboard.readText());
       setError("");
     } catch {
-      setError(saveErrorText(locale, "storage-unavailable"));
+      setError(t("clipboardReadError"));
+      setNotice("");
     }
   }
 
   async function copyCode() {
     try {
       await navigator.clipboard.writeText(currentCode);
-      setNotice(t("copy"));
+      setNotice(t("clipboardCopied"));
       setError("");
     } catch {
-      setError(saveErrorText(locale, "storage-unavailable"));
+      setError(t("clipboardCopyError"));
+      setNotice("");
     }
   }
 
@@ -224,23 +248,15 @@ export function SaveManager(props: Props) {
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="save-manager"
+    <section
+      className="save-manager-inline"
       aria-labelledby="save-manager-title"
-      onClose={props.onClose}
+      data-testid="save-manager-inline"
     >
       <header className="save-manager-header">
-        <div>
-          <p className="eyebrow">{t("manage")}</p>
-          <h2 id="save-manager-title">{state.run.pioneerName}</h2>
-        </div>
-        <button className="text-button" type="button" onClick={() => dialogRef.current?.close()}>
-          {t("cancel")}
-        </button>
+        <h3 id="save-manager-title">{t("otherPioneers")}</h3>
       </header>
-      <section className="local-slot-list manager-slot-list" aria-label={t("choose")}>
-        <h3>{t("choose")}</h3>
+      <section className="local-slot-list manager-slot-list" aria-label={t("otherPioneers")}>
         {slots.filter((slot) => slot.status === "ready" && slot.slotId !== activeSlotId).length ===
         0 ? (
           <p>{t("empty")}</p>
@@ -277,6 +293,15 @@ export function SaveManager(props: Props) {
       <div className="save-manager-grid">
         <section className="save-manager-card">
           <h3>{t("rename")}</h3>
+          {activeSlotReadOnlyReason && (
+            <p
+              id="save-active-slot-readonly-reason"
+              className="save-warning"
+              data-testid="save-readonly-reason"
+            >
+              {activeSlotReadOnlyReason}
+            </p>
+          )}
           <label htmlFor="save-rename">{t("newName")}</label>
           <input
             id="save-rename"
@@ -288,17 +313,12 @@ export function SaveManager(props: Props) {
             className="secondary-button"
             type="button"
             disabled={!repository || !props.lockHeld(activeSlotId)}
+            aria-describedby={
+              activeSlotReadOnlyReason ? "save-active-slot-readonly-reason" : undefined
+            }
             onClick={rename}
           >
             {t("rename")}
-          </button>
-          <button
-            className="text-button"
-            type="button"
-            disabled={!repository || !props.lockHeld(activeSlotId)}
-            onClick={props.onSave}
-          >
-            {t("saveNow")}
           </button>
           <label htmlFor="save-copy-name">{t("newName")}</label>
           <input
@@ -319,6 +339,9 @@ export function SaveManager(props: Props) {
             className="text-button danger-button"
             type="button"
             disabled={!repository || !props.lockHeld(activeSlotId)}
+            aria-describedby={
+              activeSlotReadOnlyReason ? "save-active-slot-readonly-reason" : undefined
+            }
             onClick={() => setShowDelete(true)}
           >
             {t("delete")}
@@ -339,6 +362,9 @@ export function SaveManager(props: Props) {
                 className="danger-button"
                 type="button"
                 disabled={!repository || !props.lockHeld(activeSlotId) || !deleteConfirmed}
+                aria-describedby={
+                  activeSlotReadOnlyReason ? "save-active-slot-readonly-reason" : undefined
+                }
                 onClick={() => void deleteActive()}
               >
                 {t("confirmDelete")}
@@ -358,8 +384,8 @@ export function SaveManager(props: Props) {
             </button>
           </div>
           <p className="save-capacity">
-            {t("portableSize")}: {Math.ceil(currentCode.length / 1024)} KB. {t("localSaveSize")}:{" "}
-            {Math.ceil(localPayloadBytes / 1024)} KB.
+            {t("portableSize")}: {formatKilobytes(currentCode.length)} KB. {t("localSaveSize")}:{" "}
+            {formatKilobytes(localPayloadBytes)} KB.
           </p>
           {repository &&
             (() => {
@@ -378,8 +404,8 @@ export function SaveManager(props: Props) {
                     }
                     role={projected >= estimate.estimatedLimitBytes * 0.8 ? "alert" : undefined}
                   >
-                    {Math.ceil(estimate.appBytes / 1024)} KB app data. {t("remainingCapacity")}{" "}
-                    {new Intl.NumberFormat(locale).format(remaining)} KB. {t("capacity")}
+                    {t("appData")}: {formatKilobytes(estimate.appBytes)} KB.{" "}
+                    {t("remainingCapacity")} {formatInteger(remaining)} KB. {t("capacity")}
                   </p>
                 );
               } catch {
@@ -393,6 +419,10 @@ export function SaveManager(props: Props) {
         <label htmlFor="import-code">{t("importText")}</label>
         <textarea
           id="import-code"
+          autoCapitalize="none"
+          autoCorrect="off"
+          enterKeyHint="done"
+          spellCheck={false}
           value={code}
           onChange={(event) => {
             setCode(event.currentTarget.value);
@@ -446,6 +476,15 @@ export function SaveManager(props: Props) {
             {matchingSlot ? (
               <div className="import-conflict">
                 <p role="alert">{t("conflict")}</p>
+                {replaceReadOnlyReason && (
+                  <p
+                    id="save-replace-readonly-reason"
+                    className="save-warning"
+                    data-testid="save-replace-readonly-reason"
+                  >
+                    {replaceReadOnlyReason}
+                  </p>
+                )}
                 <label>
                   <input
                     type="checkbox"
@@ -461,6 +500,9 @@ export function SaveManager(props: Props) {
                     !repository ||
                     (matchingSlot.slotId === activeSlotId && !props.lockHeld(activeSlotId)) ||
                     !replaceConfirmed
+                  }
+                  aria-describedby={
+                    replaceReadOnlyReason ? "save-replace-readonly-reason" : undefined
                   }
                   onClick={() => void replaceMatching()}
                 >
@@ -500,6 +542,6 @@ export function SaveManager(props: Props) {
           </div>
         )}
       </section>
-    </dialog>
+    </section>
   );
 }

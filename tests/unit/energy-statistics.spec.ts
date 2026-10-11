@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { COMPOUND_IDS, ECONOMIC_GOOD_IDS, MATERIAL_IDS } from "../../src/content/ids";
+import { createStarCatalogue } from "../../src/content/starCatalogue";
 import { TECHNOLOGY_CATALOG } from "../../src/content/technology";
 import { transition } from "../../src/engine/commands";
 import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
 import type { TickPlan } from "../../src/engine/transactions";
+import { decodePortable, encodePortable } from "../../src/persistence/codec";
+import { makeEnvelope } from "../../src/persistence/schema";
 
 const buildingHistory = [
   {
@@ -174,7 +177,7 @@ describe("Energy Statistics counters", () => {
     expect(historySnapshot(plantOff.state)).toEqual(historySnapshot(purchased.state));
   });
 
-  it("counts each transition into the tripped state once, including after recovery", () => {
+  it("counts trip, recovery and retrip once and preserves the history through save and rebirth", () => {
     const initial = createInitialGameState({ pioneerName: "Trip Counter", seed: 91 });
     let state: GameState = {
       ...initial,
@@ -216,9 +219,9 @@ describe("Energy Statistics counters", () => {
     const stillTripped = trip();
     expect(stillTripped.state.run.energyTripsThisRun).toBe(2);
     expect(stillTripped.state.statistics.lifetimeEnergyTrips).toBe(4);
-    expect(stillTripped.events.filter((event) => event.type === "economy.power.tripped")).toHaveLength(
-      0,
-    );
+    expect(
+      stillTripped.events.filter((event) => event.type === "economy.power.tripped"),
+    ).toHaveLength(0);
     state = stillTripped.state;
 
     const recovered = transition(state, { type: "economy.power.toggle", enabled: false });
@@ -236,12 +239,53 @@ describe("Energy Statistics counters", () => {
     };
     const secondTrip = trip();
     expect(secondTrip.state.run.economy.power.tripped).toBe(true);
-    expect(secondTrip.events.filter((event) => event.type === "economy.power.tripped")).toHaveLength(
-      1,
-    );
+    expect(
+      secondTrip.events.filter((event) => event.type === "economy.power.tripped"),
+    ).toHaveLength(1);
     expect(secondTrip.state.run.energyTripsThisRun).toBe(3);
     expect(secondTrip.state.statistics.lifetimeEnergyTrips).toBe(5);
     expect(isValidGameState(secondTrip.state)).toBe(true);
+
+    const saved = decodePortable(
+      encodePortable(
+        makeEnvelope({
+          slotId: "11111111-1111-4111-8111-111111111111",
+          pioneerName: secondTrip.state.run.pioneerName,
+          createdAt: 1,
+          savedAt: 1,
+          revision: 1,
+          state: secondTrip.state,
+        }),
+      ),
+    ).state;
+    expect(saved.run.energyTripsThisRun).toBe(3);
+    expect(saved.statistics.lifetimeEnergyTrips).toBe(5);
+    expect(saved.run.economy.power.tripped).toBe(true);
+
+    const currentSystemId = saved.run.space.currentSystemId;
+    const destination = createStarCatalogue().find(
+      (star) =>
+        !star.initiallySettled &&
+        star.id !== currentSystemId &&
+        !saved.permanent.settledSystemIds.includes(star.id),
+    )!;
+    const rebirthReady: GameState = {
+      ...saved,
+      run: {
+        ...saved.run,
+        space: { ...saved.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...saved.permanent,
+        rebirthCount: 1,
+        settledSystemIds: [...saved.permanent.settledSystemIds, destination.id],
+      },
+    };
+    const reborn = transition(rebirthReady, { type: "meta.rebirth" });
+    expect(reborn.accepted).toBe(true);
+    expect(reborn.state.run.energyTripsThisRun).toBe(0);
+    expect(reborn.state.statistics.lifetimeEnergyTrips).toBe(5);
+    expect(isValidGameState(reborn.state)).toBe(true);
   });
 
   it("requires each run and lifetime counter to be a safe integer with lifetime at least run", () => {

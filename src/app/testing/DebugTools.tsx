@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import "./DebugTools.css";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GameCommand } from "../../engine/commands";
 import type { GameStore } from "../../engine/store";
 import type { GameState } from "../../engine/state";
@@ -7,23 +8,32 @@ import { LOCALE_IDS, autobuyerUpgradeId, type LocaleId } from "../../content/ids
 import { RANDOM_EVENT_IDS, type RandomEventId } from "../../content/metaSignals";
 import { randomEventEligible } from "../../engine/randomEvents";
 import { randomEventName } from "../../i18n/metaSignalMessages";
-import { STARSHIP_MODULES, STARSHIP_MODULE_IDS } from "../../content/space";
+import { isStarshipReady } from "../../engine/spaceRules";
 import { useGameSnapshot } from "../../ui/useGameSnapshot";
 import { translate, type MessageKey } from "../../i18n/messages";
 import { debugScenarioText, type DebugScenarioCopy } from "../../i18n/debugScenarioMessages";
 import {
   applyDebugScenario,
+  isDebugScenarioStateAction,
+  reduceDebugScenarioCommand,
   DEBUG_TIMEWARP_DURATIONS_MS,
   DEBUG_TIMEWARP_MULTIPLIERS,
+  type DebugScenarioCommand,
   type DebugNewsCategory,
   type DebugNewsInterval,
   type DebugScenarioId,
   type DebugScenarioOptions,
 } from "./debugScenarioActions";
-import { createLateGameNavigationCheckpoint } from "./navigationCheckpoint";
 
-type ScenarioId = "compressor-ready" | "storage-ready" | "late-game-navigation";
-type ResourceScenarioId = Exclude<ScenarioId, "late-game-navigation">;
+type ScenarioId =
+  | "compressor-ready"
+  | "storage-ready"
+  | "late-game-navigation"
+  | "late-game-homecoming-continuation";
+type ResourceScenarioId = Exclude<
+  ScenarioId,
+  "late-game-navigation" | "late-game-homecoming-continuation"
+>;
 
 interface DebugMetrics {
   readonly frames: number;
@@ -35,7 +45,6 @@ interface DebugToolsProps {
   readonly store: GameStore;
   readonly seed: number;
   advanceBy(milliseconds: number): void;
-  applyTestCheckpoint(state: GameState): boolean;
   readonly readFrameMetrics: () => DebugMetrics;
 }
 
@@ -46,7 +55,7 @@ interface DebugToolsComponentProps extends DebugToolsProps {
   readonly onTestLabClose: () => void;
 }
 
-interface DebugGateway extends Omit<DebugToolsProps, "applyTestCheckpoint"> {
+interface DebugGateway extends DebugToolsProps {
   dispatch(command: GameCommand): boolean;
   runScenario(scenario: ScenarioId): GameState;
   applyDebugAction(action: DebugScenarioId, options?: DebugScenarioOptions): boolean;
@@ -67,6 +76,7 @@ declare global {
 
 let debugCommandLog: string[] = [];
 let debugLogPioneerName: string | null = null;
+let debugNewsTickerOverride: DebugScenarioOptions | null = null;
 
 const LOCALE_NAMES: Readonly<Record<LocaleId, string>> = {
   en: "English",
@@ -77,55 +87,33 @@ const LOCALE_NAMES: Readonly<Record<LocaleId, string>> = {
   fr: "Français",
 };
 
-const ACTION_GROUPS = [
-  {
-    heading: "core",
-    actions: [
-      "set-language",
-      "timewarp",
-      "trigger-event",
-      "prepare-run-starship-launch",
-      "clear-weather",
-    ],
-  },
-  {
-    heading: "resources",
-    actions: [
-      "give-1b",
-      "give-100",
-      "give-1b-all-resources-compounds",
-      "give-1m-all-resources-compounds",
-      "give-1m-research",
-      "grant-all-techs",
-    ],
-  },
-  {
-    heading: "progression",
-    actions: ["study-star", "add-100-ap", "unlock-all-tabs", "add-10000-cp", "reset-gp-spent"],
-  },
-  {
-    heading: "space",
-    actions: [
-      "add-10-asteroids",
-      "build-launch-pad-scanner-rockets",
-      "gain-10000-antimatter",
-      "add-fleets-envoy",
-      "build-starship",
-    ],
-  },
-  {
-    heading: "endgame",
-    actions: [
-      "hold-enter-to-gain",
-      "play-miaplacidus-cinematic",
-      "play-end-game-cinematic",
-      "set-news-ticker",
-    ],
-  },
-] as const satisfies readonly {
-  heading: keyof DebugScenarioCopy;
-  actions: readonly DebugScenarioId[];
-}[];
+const ACTION_ORDER = [
+  "set-language",
+  "timewarp",
+  "trigger-event",
+  "prepare-run-starship-launch",
+  "clear-weather",
+  "give-1b",
+  "give-100",
+  "give-1b-all-resources-compounds",
+  "give-1m-all-resources-compounds",
+  "give-1m-research",
+  "grant-all-techs",
+  "add-10-asteroids",
+  "study-star",
+  "build-launch-pad-scanner-rockets",
+  "gain-10000-antimatter",
+  "add-100-ap",
+  "unlock-all-tabs",
+  "add-fleets-envoy",
+  "build-starship",
+  "hold-enter-to-gain",
+  "add-10000-cp",
+  "reset-gp-spent",
+  "play-miaplacidus-cinematic",
+  "play-end-game-cinematic",
+  "set-news-ticker",
+] as const satisfies readonly DebugScenarioId[];
 
 const ACTION_COPY_KEYS: Readonly<Record<DebugScenarioId, keyof DebugScenarioCopy>> = {
   "set-language": "setLanguage",
@@ -184,13 +172,41 @@ function applyExistingScenario(
 }
 
 export function installDebugGateway(props: DebugToolsProps): () => void {
-  const { applyTestCheckpoint, ...gatewayProps } = props;
   const pioneerName = props.store.getState().run.pioneerName;
   if (debugLogPioneerName !== pioneerName) {
     debugCommandLog = [];
+    debugNewsTickerOverride = null;
     debugLogPioneerName = pioneerName;
   }
   const commandLog = debugCommandLog;
+  let advancingByGateway = false;
+  let replacingScheduledTicker = false;
+  let observedState = props.store.getState();
+  const dispatchDebugCommand = (command: DebugScenarioCommand): boolean => {
+    const dispatchReducer = props.store.dispatchReducer;
+    return (
+      dispatchReducer?.((state) => reduceDebugScenarioCommand(state, command)).accepted ?? false
+    );
+  };
+  const replaceScheduledTicker = (previous: GameState) => {
+    if (!debugNewsTickerOverride || replacingScheduledTicker) return false;
+    replacingScheduledTicker = true;
+    try {
+      return dispatchDebugCommand({
+        type: "debug.news-ticker.schedule",
+        previous,
+        options: debugNewsTickerOverride,
+      });
+    } finally {
+      replacingScheduledTicker = false;
+    }
+  };
+  const unsubscribe = props.store.subscribe(() => {
+    const current = props.store.getState();
+    const previous = observedState;
+    observedState = current;
+    if (!advancingByGateway) replaceScheduledTicker(previous);
+  });
   const dispatch = (command: GameCommand): boolean => {
     commandLog.push(JSON.stringify(command));
     return props.store.dispatch(command).accepted;
@@ -214,30 +230,42 @@ export function installDebugGateway(props: DebugToolsProps): () => void {
       accepted = dispatch({ type: "settings.update", patch: { locale: options.locale } });
     } else if (action === "trigger-event" && options.eventId) {
       accepted = dispatch({ type: "random-event.force", eventId: options.eventId });
-    } else if (action !== "hold-enter-to-gain") {
-      const next = applyDebugScenario(props.store.getState(), action, options);
-      accepted = next !== null && applyTestCheckpoint(next);
+    } else if (action === "set-news-ticker") {
+      accepted = applyDebugScenario(props.store.getState(), action, options) !== null;
+      if (accepted) debugNewsTickerOverride = { ...options };
+    } else if (isDebugScenarioStateAction(action)) {
+      accepted = dispatchDebugCommand({ type: "debug.scenario.apply", action, options });
     }
     recordDebugAction(action, options, accepted);
     return accepted;
   };
   const gateway: DebugGateway = {
-    ...gatewayProps,
+    ...props,
     advanceBy(milliseconds) {
       commandLog.push(JSON.stringify({ type: "test.clock.advance", milliseconds }));
-      props.advanceBy(milliseconds);
+      const previous = props.store.getState();
+      advancingByGateway = true;
+      try {
+        props.advanceBy(milliseconds);
+      } finally {
+        advancingByGateway = false;
+      }
+      const current = props.store.getState();
+      observedState = current;
+      replaceScheduledTicker(previous);
     },
     dispatch,
     runScenario: (scenario) => {
-      if (scenario === "late-game-navigation") {
-        const checkpoint = createLateGameNavigationCheckpoint(props.store.getState());
-        if (!applyTestCheckpoint(checkpoint)) {
+      if (scenario === "late-game-navigation" || scenario === "late-game-homecoming-continuation") {
+        const command: DebugScenarioCommand =
+          scenario === "late-game-homecoming-continuation"
+            ? { type: "debug.scenario.homecoming-continuation" }
+            : { type: "debug.scenario.late-game-navigation" };
+        if (!dispatchDebugCommand(command)) {
           throw new Error("The late-game navigation checkpoint is only available in test builds.");
         }
-        commandLog.push(
-          JSON.stringify({ type: "test.checkpoint.apply", checkpoint: "late-game-navigation" }),
-        );
-        return checkpoint;
+        commandLog.push(JSON.stringify({ type: "test.checkpoint.apply", checkpoint: scenario }));
+        return clonedState(props.store);
       }
       return applyExistingScenario(props.store, scenario, dispatchBatch);
     },
@@ -248,6 +276,7 @@ export function installDebugGateway(props: DebugToolsProps): () => void {
   };
   window.miaplacidusTest = gateway;
   return () => {
+    unsubscribe();
     if (window.miaplacidusTest === gateway) delete window.miaplacidusTest;
   };
 }
@@ -275,6 +304,8 @@ export function DebugTools(props: DebugToolsComponentProps) {
   const { store, seed, open, testLabOpen, onClose, onTestLabClose, readFrameMetrics } = props;
   const scenarioDialogRef = useRef<HTMLDialogElement>(null);
   const labDialogRef = useRef<HTMLDialogElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const dialogsWereOpenRef = useRef(false);
   const hoveredButton = useRef<HTMLButtonElement | null>(null);
   const holdEnterEnabledRef = useRef(false);
   const snapshot = useGameSnapshot(store);
@@ -290,29 +321,38 @@ export function DebugTools(props: DebugToolsComponentProps) {
   const [newsInterval, setNewsInterval] = useState<DebugNewsInterval>("default");
   const [holdEnterEnabled, setHoldEnterEnabled] = useState(false);
   const [actionStatus, setActionStatus] = useState("");
-  const t = (key: MessageKey) => translate(snapshot.locale, key);
-  const copy = debugScenarioText(snapshot.locale);
-  const values = flatten(store.getState()).filter(([path]) =>
-    path.toLowerCase().includes(search.toLowerCase()),
-  );
 
   useEffect(() => {
     setSelectedLocale(snapshot.locale);
   }, [snapshot.locale]);
 
-  useEffect(() => {
-    const dialog = scenarioDialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    else if (!open && dialog.open) dialog.close();
-  }, [open]);
+  useLayoutEffect(() => {
+    const anyDialogOpen = open || testLabOpen;
+    const wasOpen = dialogsWereOpenRef.current;
+    if (anyDialogOpen && !wasOpen) {
+      const activeElement = document.activeElement;
+      returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+    }
 
-  useEffect(() => {
-    const dialog = labDialogRef.current;
-    if (!dialog) return;
-    if (testLabOpen && !dialog.open) dialog.showModal();
-    else if (!testLabOpen && dialog.open) dialog.close();
-  }, [testLabOpen]);
+    const scenarioDialog = scenarioDialogRef.current;
+    if (scenarioDialog) {
+      if (open && !scenarioDialog.open) scenarioDialog.showModal();
+      else if (!open && scenarioDialog.open) scenarioDialog.close();
+    }
+
+    const labDialog = labDialogRef.current;
+    if (labDialog) {
+      if (testLabOpen && !labDialog.open) labDialog.showModal();
+      else if (!testLabOpen && labDialog.open) labDialog.close();
+    }
+
+    if (!anyDialogOpen && wasOpen) {
+      const returnFocusTarget = returnFocusRef.current;
+      if (returnFocusTarget?.isConnected) returnFocusTarget.focus();
+      returnFocusRef.current = null;
+    }
+    dialogsWereOpenRef.current = anyDialogOpen;
+  }, [open, testLabOpen]);
 
   useEffect(() => {
     holdEnterEnabledRef.current = holdEnterEnabled;
@@ -374,6 +414,16 @@ export function DebugTools(props: DebugToolsComponentProps) {
     };
   }, []);
 
+  if (!open && !testLabOpen) return null;
+
+  const t = (key: MessageKey) => translate(snapshot.locale, key);
+  const copy = debugScenarioText(snapshot.locale);
+  const values = testLabOpen
+    ? flatten(store.getState()).filter(([path]) =>
+        path.toLowerCase().includes(search.toLowerCase()),
+      )
+    : [];
+
   function refreshCommandCount(): void {
     setCommandCount(window.miaplacidusTest?.getCommandLog().length ?? 0);
   }
@@ -415,10 +465,7 @@ export function DebugTools(props: DebugToolsComponentProps) {
     const selectedEventEligible =
       eventStates.find((entry) => entry.id === selectedEvent)?.eligible ?? false;
     const categorySupported = newsCategory !== "feedback";
-    const fleetEnvoyAvailable = STARSHIP_MODULE_IDS.every(
-      (id) =>
-        store.getState().run.space.starshipModules[id].builtParts >= STARSHIP_MODULES[id].parts,
-    );
+    const fleetEnvoyAvailable = isStarshipReady(store.getState().run.space);
     const isPlaceholder =
       action === "play-miaplacidus-cinematic" || action === "play-end-game-cinematic";
     let reason: string | null = null;
@@ -641,135 +688,134 @@ export function DebugTools(props: DebugToolsComponentProps) {
 
   return (
     <>
-      <dialog
-        ref={scenarioDialogRef}
-        className="debug-tools debug-scenario-menu"
-        data-testid="debug-scenario-menu"
-        aria-label={copy.menuTitle}
-        onCancel={(event) => {
-          event.preventDefault();
-          onClose();
-        }}
-        onClose={onClose}
-      >
-        <div className="debug-titlebar">
-          <strong>{copy.menuTitle}</strong>
-          <button type="button" className="debug-close" onClick={onClose}>
-            {copy.close}
-          </button>
-        </div>
-        <div className="debug-content">
-          <dl className="debug-meta">
-            <div>
-              <dt>{copy.seed}</dt>
-              <dd>{seed}</dd>
-            </div>
-            <div>
-              <dt>{copy.clock}</dt>
-              <dd>{Math.round(store.getState().run.clock.wallNowMs ?? 0)} ms</dd>
-            </div>
-            <div>
-              <dt>{copy.commandCount}</dt>
-              <dd>{commandCount}</dd>
-            </div>
-            <div>
-              <dt>{copy.fps}</dt>
-              <dd>{readFrameMetrics().framesPerSecond.toFixed(1)}</dd>
-            </div>
-          </dl>
-          <div className="debug-scenario-groups">
-            {ACTION_GROUPS.map((group) => (
-              <section className="debug-scenario-group" key={group.heading}>
-                <h3>{copy[group.heading]}</h3>
-                {group.actions.map(renderAction)}
-              </section>
-            ))}
-          </div>
-          <p className="debug-scenario-status" role="status" aria-live="polite">
-            {actionStatus}
-          </p>
-          <details className="debug-test-lab-link">
-            <summary>{copy.testLab}</summary>
-            <p>Numpad +</p>
-          </details>
-        </div>
-      </dialog>
-
-      <dialog
-        ref={labDialogRef}
-        className="debug-tools"
-        aria-label={t("test.title")}
-        onCancel={(event) => {
-          event.preventDefault();
-          onTestLabClose();
-        }}
-        onClose={onTestLabClose}
-      >
-        <div className="debug-titlebar">
-          <strong>{t("test.title")}</strong>
-          <button type="button" className="debug-close" onClick={onTestLabClose}>
-            {t("test.close")}
-          </button>
-        </div>
-        <div className="debug-content">
-          <dl className="debug-meta">
-            <div>
-              <dt>{t("test.seed")}</dt>
-              <dd>{seed}</dd>
-            </div>
-            <div>
-              <dt>{t("test.clock")}</dt>
-              <dd>{Math.round(store.getState().run.clock.wallNowMs ?? 0)} ms</dd>
-            </div>
-            <div>
-              <dt>{t("test.commands")}</dt>
-              <dd>{commandCount}</dd>
-            </div>
-            <div>
-              <dt>{t("test.fps")}</dt>
-              <dd>{readFrameMetrics().framesPerSecond.toFixed(1)}</dd>
-            </div>
-          </dl>
-          <div className="debug-actions">
-            <button type="button" onClick={() => runScenario("compressor-ready")}>
-              {t("test.ready")}
-            </button>
-            <button type="button" onClick={() => runScenario("storage-ready")}>
-              {t("test.storageReady")}
-            </button>
-            <button type="button" onClick={advanceClock}>
-              {t("test.advance")}
+      {open && (
+        <dialog
+          ref={scenarioDialogRef}
+          className="debug-tools debug-scenario-menu"
+          data-testid="debug-scenario-menu"
+          aria-label={copy.menuTitle}
+          onCancel={(event) => {
+            event.preventDefault();
+            onClose();
+          }}
+          onClose={onClose}
+        >
+          <div className="debug-titlebar">
+            <strong>{copy.menuTitle}</strong>
+            <button type="button" className="debug-close" onClick={onClose}>
+              {copy.close}
             </button>
           </div>
-          <label className="debug-search">
-            <span>{t("test.search")}</span>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
-            />
-          </label>
-          <section className="debug-variables" aria-label={t("test.search")}>
-            {values.slice(0, 50).map(([path, value]) => (
-              <div className="debug-variable" key={path}>
-                <code>{path}</code>
-                <span>{value}</span>
+          <div className="debug-content">
+            <dl className="debug-meta">
+              <div>
+                <dt>{copy.seed}</dt>
+                <dd>{seed}</dd>
               </div>
-            ))}
-            {values.length === 0 && <p>{t("test.search")}</p>}
-          </section>
-          <details className="debug-log">
-            <summary>{t("test.commands")}</summary>
-            <ol>
-              {(window.miaplacidusTest?.getCommandLog() ?? []).map((entry, index) => (
-                <li key={`${entry}-${index}`}>
-                  <code>{entry}</code>
-                </li>
+              <div>
+                <dt>{copy.clock}</dt>
+                <dd>{Math.round(store.getState().run.clock.wallNowMs ?? 0)} ms</dd>
+              </div>
+              <div>
+                <dt>{copy.commandCount}</dt>
+                <dd>{commandCount}</dd>
+              </div>
+              <div>
+                <dt>{copy.fps}</dt>
+                <dd>{readFrameMetrics().framesPerSecond.toFixed(1)}</dd>
+              </div>
+            </dl>
+            <div className="debug-scenario-groups">
+              <div className="debug-scenario-group">{ACTION_ORDER.map(renderAction)}</div>
+            </div>
+            <p className="debug-scenario-status" role="status" aria-live="polite">
+              {actionStatus}
+            </p>
+            <details className="debug-test-lab-link">
+              <summary>{copy.testLab}</summary>
+              <p>Numpad +</p>
+            </details>
+          </div>
+        </dialog>
+      )}
+
+      {testLabOpen && (
+        <dialog
+          ref={labDialogRef}
+          className="debug-tools"
+          aria-label={t("test.title")}
+          onCancel={(event) => {
+            event.preventDefault();
+            onTestLabClose();
+          }}
+          onClose={onTestLabClose}
+        >
+          <div className="debug-titlebar">
+            <strong>{t("test.title")}</strong>
+            <button type="button" className="debug-close" onClick={onTestLabClose}>
+              {t("test.close")}
+            </button>
+          </div>
+          <div className="debug-content">
+            <dl className="debug-meta">
+              <div>
+                <dt>{t("test.seed")}</dt>
+                <dd>{seed}</dd>
+              </div>
+              <div>
+                <dt>{t("test.clock")}</dt>
+                <dd>{Math.round(store.getState().run.clock.wallNowMs ?? 0)} ms</dd>
+              </div>
+              <div>
+                <dt>{t("test.commands")}</dt>
+                <dd>{commandCount}</dd>
+              </div>
+              <div>
+                <dt>{t("test.fps")}</dt>
+                <dd>{readFrameMetrics().framesPerSecond.toFixed(1)}</dd>
+              </div>
+            </dl>
+            <div className="debug-actions">
+              <button type="button" onClick={() => runScenario("compressor-ready")}>
+                {t("test.ready")}
+              </button>
+              <button type="button" onClick={() => runScenario("storage-ready")}>
+                {t("test.storageReady")}
+              </button>
+              <button type="button" onClick={advanceClock}>
+                {t("test.advance")}
+              </button>
+            </div>
+            <label className="debug-search">
+              <span>{t("test.search")}</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+              />
+            </label>
+            <section className="debug-variables" aria-label={t("test.search")}>
+              {values.slice(0, 50).map(([path, value]) => (
+                <div className="debug-variable" key={path}>
+                  <code>{path}</code>
+                  <span>{value}</span>
+                </div>
               ))}
-            </ol>
-          </details>
-        </div>
-      </dialog>
+              {values.length === 0 && <p>{t("test.search")}</p>}
+            </section>
+            <details className="debug-log">
+              <summary>{t("test.commands")}</summary>
+              <ol>
+                {(window.miaplacidusTest?.getCommandLog() ?? []).map((entry, index) => (
+                  <li key={`${entry}-${index}`}>
+                    <code>{entry}</code>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          </div>
+        </dialog>
+      )}
     </>
   );
 }

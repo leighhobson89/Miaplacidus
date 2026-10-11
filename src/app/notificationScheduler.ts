@@ -1,4 +1,5 @@
 export const MAX_VISIBLE_NOTIFICATION_CLASSIFICATIONS = 4;
+export const MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION = 4;
 
 export const MULTI_CARD_NOTIFICATION_CLASSIFICATIONS = new Set(["storage", "debug", "achievement"]);
 
@@ -26,8 +27,13 @@ export class NotificationScheduler<T extends ScheduledNotification> {
 
     const active = this.activeByClassification.get(classification);
     if (active && this.multiCardClassifications.has(classification)) {
-      this.activeByClassification.set(classification, [...active, notification]);
-      return [notification];
+      if (active.length < MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION) {
+        this.activeByClassification.set(classification, [...active, notification]);
+        return [notification];
+      }
+      const pending = this.pendingByClassification.get(classification) ?? [];
+      this.pendingByClassification.set(classification, [...pending, notification]);
+      return [];
     }
 
     const pending = this.pendingByClassification.get(classification) ?? [];
@@ -70,9 +76,17 @@ export class NotificationScheduler<T extends ScheduledNotification> {
 
       if (active) {
         if (this.multiCardClassifications.has(classification) && pending?.length) {
-          activated.push(...pending);
-          this.activeByClassification.set(classification, [...active, ...pending]);
-          this.pendingByClassification.delete(classification);
+          const availableSlots = MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION - active.length;
+          const promoted = pending.slice(0, availableSlots);
+          if (promoted.length > 0) {
+            activated.push(...promoted);
+            this.activeByClassification.set(classification, [...active, ...promoted]);
+            if (promoted.length === pending.length) {
+              this.pendingByClassification.delete(classification);
+            } else {
+              this.pendingByClassification.set(classification, pending.slice(promoted.length));
+            }
+          }
         }
         continue;
       }
@@ -82,7 +96,7 @@ export class NotificationScheduler<T extends ScheduledNotification> {
       }
 
       const newlyActive = this.multiCardClassifications.has(classification)
-        ? pending
+        ? pending.slice(0, MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION)
         : pending.slice(0, 1);
       activated.push(...newlyActive);
       this.activeByClassification.set(classification, newlyActive);

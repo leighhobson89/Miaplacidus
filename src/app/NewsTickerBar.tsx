@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { AnimationEvent } from "react";
 import type { NewsTickerEntry } from "../content/metaSignals";
-import { checkNewsPrizeClaim, newsPrizeClaimAmount } from "../engine/newsTicker";
+import {
+  checkNewsPrizeClaim,
+  newsPrizeClaimAmount,
+  oneOffApPrizeAmount,
+} from "../engine/newsTicker";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { economyLabel } from "../i18n/economyMessages";
 import { metaSignalText, newsCategoryName, newsEntryText } from "../i18n/metaSignalMessages";
 import type { LocaleNewsCopy } from "../i18n/sourceNewsCopy";
+import { formatNumber } from "./numberFormatting";
 
 interface NewsTickerBarProps {
   readonly state: GameState;
@@ -35,9 +40,9 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
   const [systemReducedMotion, setSystemReducedMotion] = useState(false);
   const reducedMotion = state.settings.reducedMotion || systemReducedMotion;
   const currentEntry = entry
-    ? ([...state.run.newsTicker.entries].reverse().find(
-        (item) => tickerEntryKey(item) === tickerEntryKey(entry),
-      ) ?? entry)
+    ? ([...state.run.newsTicker.entries]
+        .reverse()
+        .find((item) => tickerEntryKey(item) === tickerEntryKey(entry)) ?? entry)
     : null;
   const availablePrizeAmount =
     currentEntry?.category === "prize" && !currentEntry.claimed
@@ -46,8 +51,22 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
   const displayEntry =
     currentEntry?.category === "prize" && !currentEntry.claimed && availablePrizeAmount !== null
       ? { ...currentEntry, prizeAmount: availablePrizeAmount }
-      : currentEntry;
-  const text = displayEntry ? newsEntryText(locale, displayEntry, copy ?? undefined) : "";
+      : currentEntry?.category === "oneOff" &&
+          currentEntry.id === 3013 &&
+          typeof currentEntry.prizeAmount !== "number"
+        ? {
+            ...currentEntry,
+            prizeAmount:
+              currentEntry.claimed || state.run.newsTicker.claimedPrizeIds.includes(3013)
+                ? 1
+                : oneOffApPrizeAmount(state),
+          }
+        : currentEntry;
+  const text = displayEntry
+    ? newsEntryText(locale, displayEntry, copy ?? undefined, (value) =>
+        formatNumber(locale, value, 0, state.settings.notation),
+      )
+    : "";
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -108,9 +127,7 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
       state.run.newsTicker.claimedPrizeIds.includes(displayEntry.id)),
   );
   const storageFull = Boolean(
-    currentEntry?.category === "prize" &&
-    !currentEntry.claimed &&
-    availablePrizeAmount === null,
+    currentEntry?.category === "prize" && !currentEntry.claimed && availablePrizeAmount === null,
   );
 
   function claimNews(): void {
@@ -170,7 +187,7 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
       }
       return (
         <button
-          className="news-ticker-action news-ticker-wacky"
+          className={`news-ticker-action news-ticker-wacky${displayEntry.id === 1006 && activatedMessage !== entryKey ? " news-ticker-boo" : ""}`}
           type="button"
           disabled={activatedMessage === entryKey}
           aria-label={`${metaSignalText(locale, "activate")} ${text}`}

@@ -3,6 +3,11 @@ import { defineConfig, devices } from "@playwright/test";
 const area = process.env.MIAPLACIDUS_TEST_AREA;
 const browserChannel = process.env.MIAPLACIDUS_BROWSER_CHANNEL;
 const captureVideo = process.env.MIAPLACIDUS_DISABLE_VIDEO !== "1";
+const testPort = Number(process.env.MIAPLACIDUS_TEST_PORT ?? "4174");
+if (!Number.isInteger(testPort) || testPort < 1 || testPort > 65_535) {
+  throw new Error("MIAPLACIDUS_TEST_PORT must be an integer from 1 to 65535");
+}
+const testBaseUrl = `http://127.0.0.1:${testPort}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -21,7 +26,7 @@ export default defineConfig({
     ["json", { outputFile: "test-results/e2e-results.json" }],
   ],
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: testBaseUrl,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: captureVideo ? "retain-on-failure" : "off",
@@ -38,9 +43,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev:test -- --host 127.0.0.1 --port 4173 --strictPort",
-    url: "http://127.0.0.1:4173",
-    reuseExistingServer: !process.env.CI,
+    command: `npm run dev:test -- --host 127.0.0.1 --port ${testPort} --strictPort`,
+    url: testBaseUrl,
+    reuseExistingServer: false,
     timeout: 30_000,
     stdout: "pipe",
     stderr: "pipe",

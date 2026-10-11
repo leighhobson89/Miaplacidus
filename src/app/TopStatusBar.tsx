@@ -59,7 +59,11 @@ function TopStat({
     .filter(Boolean)
     .join(" ");
   return (
-    <div className="top-stat" data-testid={testId ?? `top-stat-${id}`}>
+    <div
+      className="top-stat"
+      data-testid={testId ?? `top-stat-${id}`}
+      data-tutorial-target={id === "cash" ? "cash-stat" : undefined}
+    >
       <span className="top-stat-label">{label}</span>
       {action ? (
         <button
@@ -169,7 +173,8 @@ export function GlobalContextBar({ state, locale }: Pick<Props, "state" | "local
   const megaTooltip = (
     <>
       <strong>
-        {translated(locale, "megastructures")}: {capturedIds.size}/{MEGASTRUCTURE_IDS.length}
+        {translated(locale, "megastructures")}: {number(capturedIds.size)}/
+        {number(MEGASTRUCTURE_IDS.length)}
       </strong>
       {MEGASTRUCTURE_IDS.map((id) => {
         const researched = MEGASTRUCTURE_TRACKS[id].filter((technologyId) =>
@@ -179,7 +184,7 @@ export function GlobalContextBar({ state, locale }: Pick<Props, "state" | "local
           <div key={id}>
             {structureNames[id]}:{" "}
             {translated(locale, capturedIds.has(id) ? "captured" : "notCaptured")} -{" "}
-            {number(researched)}/5
+            {number(researched)}/{number(5)}
           </div>
         );
       })}
@@ -216,7 +221,7 @@ export function GlobalContextBar({ state, locale }: Pick<Props, "state" | "local
           id="megastructure-progress"
           testId="global-stat-megastructure-progress"
           label={translated(locale, "megastructures")}
-          value={`${capturedIds.size}/${MEGASTRUCTURE_IDS.length}`}
+          value={`${number(capturedIds.size)}/${number(MEGASTRUCTURE_IDS.length)}`}
           tooltip={megaTooltip}
         />
       )}
@@ -309,7 +314,7 @@ function translated(
   return topStatusText(locale, key, values);
 }
 
-function WeatherIcon({
+export function WeatherIcon({
   weather,
 }: {
   readonly weather: ReturnType<typeof currentWeatherForSystem>;
@@ -669,6 +674,15 @@ export function TopStatusBar({ state, store, locale }: Props) {
       data-testid="run-status-bar"
       aria-label={translated(locale, "region")}
     >
+      <output
+        className="sr-only"
+        data-testid="power-trip-announcement"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
+        {power.tripped ? translated(locale, "tripped") : ""}
+      </output>
       <LocationStatus state={state} locale={locale} />
       <TopStat
         id="time"

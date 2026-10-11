@@ -1,15 +1,19 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
+import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import { COSMIC_RIP_TECHNOLOGIES } from "../../../src/content/cosmicRip";
+import { ENERGY_BUILDINGS } from "../../../src/content/economy";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { createEconomyTickPlan } from "../../../src/engine/economySimulation";
 import { currentWeatherForSystem } from "../../../src/engine/weather";
 import { energyStatisticLabel } from "../../../src/i18n/energyStatisticsMessages";
-import { settingsStatisticLabel } from "../../../src/i18n/settingsMessages";
+import { settingsSectionName, settingsStatisticLabel } from "../../../src/i18n/settingsMessages";
 import {
   cosmicRipTrackingNote,
   energyTrackingNote,
+  overviewStatisticLabel,
+  runStatisticLabel,
   statisticsNotApplicableLabel,
 } from "../../../src/i18n/statisticsMessages";
 import {
@@ -17,8 +21,25 @@ import {
   interstellarStatisticsTrackingNote,
 } from "../../../src/i18n/interstellarStatisticsMessages";
 import { topStatusText } from "../../../src/i18n/topStatusMessages";
-import { setGameLocale } from "../_harness/settings-controls";
+import { setGameLocale, setNumberNotation } from "../_harness/settings-controls";
 import { startMetaFixture } from "../_harness/meta-fixture";
+
+async function startStatisticsNotationFixture(page: Page): Promise<void> {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const prefix = "miaplacidus:v1:";
+    const keys = Array.from({ length: localStorage.length }, (_, index) =>
+      localStorage.key(index),
+    ).filter((key): key is string => key?.startsWith(prefix) ?? false);
+    for (const key of keys) localStorage.removeItem(key);
+  });
+  await page.goto("/?testSeed=20261003&testLocale=en&economyFixture=notation-coverage");
+  await page.getByLabel("Pioneer name").fill("Statistics Notation Pioneer");
+  await page.getByTestId("start-game").click();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
+}
 
 async function startEnergyStatisticsFixture(page: Page): Promise<void> {
   await page.goto("/");
@@ -48,6 +69,23 @@ async function startInterstellarStatisticsFixture(page: Page): Promise<void> {
   });
   await page.goto("/?testSeed=20261006&testLocale=en&economyFixture=space-battle-victory");
   await page.getByLabel("Pioneer name").fill("Interstellar Statistics Pioneer");
+  await page.getByTestId("start-game").click();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
+}
+
+async function startSettlementStatisticsFixture(page: Page): Promise<void> {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const prefix = "miaplacidus:v1:";
+    const keys = Array.from({ length: localStorage.length }, (_, index) =>
+      localStorage.key(index),
+    ).filter((key): key is string => key?.startsWith(prefix) ?? false);
+    for (const key of keys) localStorage.removeItem(key);
+  });
+  await page.goto("/?testSeed=20261003&testLocale=en&economyFixture=space-unoccupied");
+  await page.getByLabel("Pioneer name").fill("Settlement Statistics Pioneer");
   await page.getByTestId("start-game").click();
   await expect
     .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
@@ -90,18 +128,18 @@ const INTERSTELLAR_STATISTIC_IDS = [
 ] as const;
 
 const ENERGY_STATISTIC_OWNER_PANES = {
-  powerCurrent: "energy-storage",
-  totalEnergy: "energy-storage",
-  totalProduction: "energy-power-plant",
-  totalConsumption: "energy-power-plant",
-  totalBatteryStorage: "energy-storage",
-  energyTrips: "energy-storage",
-  basicPowerPlants: "energy-power-plant",
-  advancedPowerPlants: "energy-advanced-power-plant",
-  solarPowerPlants: "energy-solar-power-plant",
-  sodiumIonBatteries: "energy-storage",
-  battery2: "energy-storage",
-  battery3: "energy-storage",
+  powerCurrent: "energy-summary",
+  totalEnergy: "energy-summary",
+  totalProduction: "energy-power",
+  totalConsumption: "energy-power",
+  totalBatteryStorage: "energy-batteries",
+  energyTrips: "energy-summary",
+  basicPowerPlants: "energy-power",
+  advancedPowerPlants: "energy-power",
+  solarPowerPlants: "energy-power",
+  sodiumIonBatteries: "energy-batteries",
+  battery2: "energy-batteries",
+  battery3: "energy-batteries",
 } as const;
 
 test("global and current-run status stats follow their two-row layout @presentation @status", async ({
@@ -126,7 +164,14 @@ test("global and current-run status stats follow their two-row layout @presentat
       .getByTestId("run-status-bar")
       .locator(":scope > *")
       .evaluateAll((children) => children.map((child) => child.getAttribute("data-testid"))),
-  ).toEqual(["location-status", "top-stat-time", "top-stat-cash", "top-stat-rp", "top-stat-event"]);
+  ).toEqual([
+    "power-trip-announcement",
+    "location-status",
+    "top-stat-time",
+    "top-stat-cash",
+    "top-stat-rp",
+    "top-stat-event",
+  ]);
   await expect(freshGame.getByTestId("cash-balance")).toBeVisible();
   await expect(freshGame.getByTestId("research-balance")).toBeVisible();
 
@@ -139,8 +184,27 @@ test("global and current-run status stats follow their two-row layout @presentat
 test("weather and star system sit beside cash and remain visible on mobile @presentation @status", async ({
   freshGame,
 }) => {
+  await freshGame.locator("#tab-settings").click();
+  const settings = freshGame.getByTestId("settings-pane");
+  await settings.locator("#settings-weather-effects").uncheck();
+  await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-weather-effects", "off");
+  await freshGame.locator("#tab-hydrogen").click();
+
   const location = freshGame.getByTestId("location-status");
   const cash = freshGame.getByTestId("cash-balance");
+  const captureStatusHeader = async (name: string) => {
+    const header = await freshGame.locator(".game-header").boundingBox();
+    const runStatus = await freshGame.getByTestId("run-status-bar").boundingBox();
+    if (!header || !runStatus) throw new Error("Status header rows are missing.");
+    const x = Math.min(header.x, runStatus.x);
+    const y = Math.min(header.y, runStatus.y);
+    const right = Math.max(header.x + header.width, runStatus.x + runStatus.width);
+    const bottom = Math.max(header.y + header.height, runStatus.y + runStatus.height);
+    await expect(freshGame).toHaveScreenshot(name, {
+      clip: { x, y, width: right - x, height: bottom - y },
+    });
+  };
+
   await expect(location.locator("svg")).toBeVisible();
   await expect(freshGame.getByTestId("top-location-system")).toHaveText("Spica");
   await location.locator(".location-status-summary").focus();
@@ -164,7 +228,7 @@ test("weather and star system sit beside cash and remain visible on mobile @pres
   expect(desktopPosition.isRuntimeBeforeCash).toBe(true);
   expect(desktopPosition.gapToRuntime).toBeLessThan(32);
   expect(desktopPosition.gapToCash).toBeLessThan(32);
-  await expect(freshGame.locator(".game-header")).toHaveScreenshot("status-header-desktop.png");
+  await captureStatusHeader("status-header-desktop.png");
 
   await freshGame.setViewportSize({ width: 390, height: 844 });
   await expect(location).toBeVisible();
@@ -193,7 +257,7 @@ test("weather and star system sit beside cash and remain visible on mobile @pres
   expect(mobilePosition.gapToCash).toBeLessThan(32);
   expect(mobilePosition.pageWidth).toBeLessThanOrEqual(mobilePosition.viewportWidth);
   await location.locator(".location-status-summary").evaluate((element) => element.blur());
-  await expect(freshGame.locator(".game-header")).toHaveScreenshot("status-header-mobile.png");
+  await captureStatusHeader("status-header-mobile.png");
 });
 
 test("localized weather and its tooltip fit beside cash at 390px @presentation @status @locale", async ({
@@ -237,6 +301,129 @@ test("localized weather and its tooltip fit beside cash at 390px @presentation @
   }
 });
 
+test("P-41 formats the visible Statistics Run time in every notation @settings @statistics @notation", async ({
+  page,
+}) => {
+  await startStatisticsNotationFixture(page);
+  const simulationMs = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.clock.simulationMs,
+  );
+  expect(Math.floor(simulationMs / 86_400_000)).toBe(1_999);
+  const lifetimeActiveMs = await page.evaluate(
+    () => window.miaplacidusTest!.getState().statistics.lifetimeActiveMs,
+  );
+  expect(Math.floor(lifetimeActiveMs / 86_400_000)).toBe(1_999);
+
+  const expectedDayPrefixes = {
+    condensed: "1.9Kd",
+    standard: "1,999d",
+    scientific: "2E3d",
+  } as const;
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await page.locator("#tab-settings").click();
+    await page.locator("#tab-settings-statistics").click();
+
+    const runTime = page
+      .getByTestId("settings-statistics")
+      .locator('[data-statistic-id="runTime"] dd');
+    await expect(runTime).toContainText(expectedDayPrefixes[notation]);
+    const timePlayed = page
+      .getByTestId("settings-statistics")
+      .locator('[data-statistic-id="activeTime"] dd');
+    await expect(timePlayed).toContainText(expectedDayPrefixes[notation]);
+    expect(await page.evaluate(() => window.miaplacidusTest!.getState().settings.notation)).toBe(
+      notation,
+    );
+  }
+});
+
+test("P-41 formats current and lifetime Statistics Cash in every notation @settings @statistics @p41-statistics-cash-notation", async ({
+  page,
+}) => {
+  await startStatisticsNotationFixture(page);
+  const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const currentCash = state.run.cash;
+  const lifetimeCash = state.statistics.lifetimeCashEarned;
+  expect(currentCash).toBeGreaterThan(999);
+  expect(lifetimeCash).toBeGreaterThan(999);
+
+  const renderedCash = {
+    condensed: { current: "", lifetime: "" },
+    standard: { current: "", lifetime: "" },
+    scientific: { current: "", lifetime: "" },
+  };
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await page.locator("#tab-settings").click();
+    await page.locator("#tab-settings-statistics").click();
+
+    const statistics = page.getByTestId("settings-statistics");
+    const currentCashValue = statistics.locator('[data-statistic-id="cash"] dd');
+    const lifetimeCashValue = statistics.locator('[data-statistic-id="lifetimeCash"] dd');
+    const currencyId = state.settings.currencyId ?? "usd";
+    const expectedCurrentCash = formatCurrency("en", currentCash, currencyId, 2, notation);
+    const expectedLifetimeCash = formatCurrency("en", lifetimeCash, currencyId, 2, notation);
+    await expect(currentCashValue).toHaveText(expectedCurrentCash);
+    await expect(lifetimeCashValue).toHaveText(expectedLifetimeCash);
+    renderedCash[notation].current = await currentCashValue.innerText();
+    renderedCash[notation].lifetime = await lifetimeCashValue.innerText();
+    expect(await page.evaluate(() => window.miaplacidusTest!.getState().settings.notation)).toBe(
+      notation,
+    );
+  }
+
+  expect(renderedCash.scientific.current).not.toBe(renderedCash.standard.current);
+  expect(renderedCash.scientific.lifetime).not.toBe(renderedCash.standard.lifetime);
+});
+
+test(
+  "P-15 Statistics group headings descend from the page heading in all locales @p15-statistics-hierarchy @p44-statistics-copy @settings @statistics @accessibility",
+  async ({ freshGame }) => {
+    for (const locale of LOCALE_IDS) {
+      if (locale !== "en") await setGameLocale(freshGame, locale);
+
+      await freshGame.locator("#tab-settings").click();
+      const settings = freshGame.getByTestId("settings-pane");
+      await settings.locator("#tab-settings-statistics").click();
+
+      const statistics = settings.getByTestId("settings-statistics");
+      await expect(
+        statistics.getByRole("heading", {
+          name: settingsSectionName(locale, "statistics"),
+          level: 2,
+        }),
+      ).toBeVisible();
+      await expect(statistics.locator("h2")).toHaveCount(1);
+      await expect(statistics.locator(".settings-stat-section h3")).toHaveText([
+        settingsStatisticLabel(locale, "overviewSection"),
+        settingsStatisticLabel(locale, "runSection"),
+        runStatisticLabel(locale, "currentSnapshotSection"),
+        settingsSectionName(locale, "events"),
+        settingsStatisticLabel(locale, "resourcesSection"),
+        settingsStatisticLabel(locale, "compoundsSection"),
+        settingsStatisticLabel(locale, "researchSection"),
+        energyStatisticLabel(locale, "energySection"),
+        settingsStatisticLabel(locale, "spaceMiningSection"),
+        settingsStatisticLabel(locale, "interstellarSection"),
+        settingsStatisticLabel(locale, "galacticCasinoSection"),
+        settingsStatisticLabel(locale, "cosmicRipChapterSection"),
+        settingsStatisticLabel(locale, "cosmicRipLiveStatusSection"),
+        settingsStatisticLabel(locale, "lifetime"),
+      ]);
+      await expect(
+        statistics
+          .locator(".settings-stat-card dt")
+          .filter({ hasText: overviewStatisticLabel(locale, "currentAp") }),
+      ).toHaveText(overviewStatisticLabel(locale, "currentAp"));
+      await expect(statistics.locator("h4, h5, h6")).toHaveCount(0);
+      await expect(statistics.locator(".settings-stat-section h3")).toHaveCount(
+        await statistics.locator(".settings-stat-section").count(),
+      );
+    }
+  },
+);
+
 test("maps source Statistics groups, production totals, and Space Mining metrics @settings @statistics @interstellar-statistics", async ({
   freshGame,
 }) => {
@@ -247,7 +434,7 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
   const statistics = settings.getByTestId("settings-statistics");
   await expect(statistics).toBeVisible();
   await expect(statistics.locator(".settings-stat-card")).toHaveCount(120);
-  await expect(statistics.locator(".settings-stat-section h4")).toHaveText([
+  await expect(statistics.locator(".settings-stat-section h3")).toHaveText([
     "Overview",
     "Run",
     "Current snapshot",
@@ -264,7 +451,7 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     "Lifetime",
   ]);
   const statisticsSection = (name: string) =>
-    statistics.getByRole("heading", { name, level: 4, exact: true }).locator("xpath=..");
+    statistics.getByRole("heading", { name, level: 3, exact: true }).locator("xpath=..");
   const statisticCard = (section: ReturnType<typeof statisticsSection>, label: string) =>
     section.locator(".settings-stat-card").filter({ hasText: label });
   const overview = statisticsSection("Overview");
@@ -281,7 +468,7 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
   await expect(statisticCard(overview, "Rockets Launched").locator("dd")).toHaveText("0");
   await expect(statisticCard(overview, "Star Ships Launched").locator("dd")).toHaveText("0");
   const run = statisticsSection("Run");
-  await expect(statisticCard(run, "Run time").locator("dd")).toBeVisible();
+  await expect(statisticCard(run, "Run Time").locator("dd")).toBeVisible();
   await expect(statisticCard(run, "Star system").locator("dd")).toHaveText("Spica");
   const currentWeather = await statisticCard(run, "Current weather").locator("dd").innerText();
   await expect(freshGame.locator("#location-status-tooltip")).toContainText(currentWeather);
@@ -299,16 +486,21 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
   const research = statisticsSection("Research");
   await expect(research.locator(".settings-stat-card")).toHaveCount(5);
   await expect(research.locator(".settings-stat-card dt")).toHaveText([
-    "Research points earned",
-    "Science kits built",
-    "Science clubs built",
-    "Science labs built",
+    "Research Points",
+    "Science Kits",
+    "Science Clubs",
+    "Science Labs",
     "Techs unlocked",
   ]);
   await expect(research.locator(".settings-stat-pair-values strong")).toHaveText(
-    Array(8).fill("0"),
+    Array(10).fill("0"),
   );
-  await expect(statisticCard(research, "Techs unlocked").locator("dd")).toHaveText("0");
+  await expect(
+    statisticCard(research, "Techs unlocked").locator(".settings-stat-pair-values small"),
+  ).toHaveText(["This run", "Lifetime"]);
+  await expect(
+    statisticCard(research, "Techs unlocked").locator(".settings-stat-pair-values strong"),
+  ).toHaveText(["0", "0"]);
   const resources = statisticsSection("Resources");
   await expect(resources.locator(".settings-stat-card dt")).toHaveText([
     "Hydrogen",
@@ -345,8 +537,17 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
   ).toHaveText(["0", "0"]);
   const spaceMining = statisticsSection("Space Mining");
   await expect(spaceMining.locator(".settings-stat-card")).toHaveCount(5);
-  await expect(statisticCard(spaceMining, "Space telescope built").locator("dd")).toHaveText("No");
-  await expect(statisticCard(spaceMining, "Launch Pad built").locator("dd")).toHaveText("No");
+  for (const label of ["Space telescope built", "Launch Pad built"]) {
+    const status = statisticCard(spaceMining, label);
+    await expect(status.locator(".settings-stat-pair-values small")).toHaveText([
+      settingsStatisticLabel("en", "run"),
+      settingsStatisticLabel("en", "lifetime"),
+    ]);
+    await expect(status.locator(".settings-stat-pair-values strong")).toHaveText([
+      settingsStatisticLabel("en", "no"),
+      statisticsNotApplicableLabel("en"),
+    ]);
+  }
   await expect(
     statisticCard(spaceMining, "Rockets built").locator(".settings-stat-pair-values strong"),
   ).toHaveText(["0", "0"]);
@@ -396,7 +597,7 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     interstellar.locator('[data-statistic-id="enemy"] .settings-stat-pair-values strong'),
   ).toHaveText(["Not applicable", "Not applicable"]);
   await expect(
-    statistics.getByRole("heading", { name: "Events", level: 4, exact: true }),
+    statistics.getByRole("heading", { name: "Events", level: 3, exact: true }),
   ).toBeVisible();
   await expect(statistics.getByText("Power plant explosion", { exact: true })).toBeVisible();
   await expect(statistics.getByText("Black hole instability", { exact: true })).toBeVisible();
@@ -404,10 +605,10 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     statistics.getByText(/Saved runs restore up to 100 recent event records/),
   ).toBeVisible();
   await expect(
-    statistics.getByRole("heading", { name: "Galactic Casino", level: 4, exact: true }),
+    statistics.getByRole("heading", { name: "Galactic Casino", level: 3, exact: true }),
   ).toBeVisible();
   await expect(
-    statistics.getByRole("heading", { name: "Cosmic Rip Chapter", level: 4, exact: true }),
+    statistics.getByRole("heading", { name: "Cosmic Rip Chapter", level: 3, exact: true }),
   ).toBeVisible();
   const cosmicRip = statisticsSection("Cosmic Rip Chapter");
   const cosmicRipSourceIds = await cosmicRip
@@ -431,10 +632,14 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     statisticsNotApplicableLabel("en"),
     "0",
   ]);
-  await expect(statisticCard(cosmicRip, "Cosmic Rip Chapter unlocked").locator("dd")).toHaveText(
-    "No",
-  );
-  await expect(statisticCard(cosmicRip, "Cosmic Rip stabilised").locator("dd")).toHaveText("No");
+  await expect(
+    statisticCard(cosmicRip, "Cosmic Rip Chapter unlocked").locator(
+      ".settings-stat-pair-values strong",
+    ),
+  ).toHaveText([statisticsNotApplicableLabel("en"), "No"]);
+  await expect(
+    statisticCard(cosmicRip, "Cosmic Rip stabilised").locator(".settings-stat-pair-values strong"),
+  ).toHaveText([statisticsNotApplicableLabel("en"), "No"]);
   const cosmicRipLive = statisticsSection("MIAPLACIDUS live status");
   await expect(statisticCard(cosmicRipLive, "Cosmic Rip closed").locator("dd")).toHaveText("No");
   await expect(statistics.getByText("Double or Nothing played", { exact: true })).toBeVisible();
@@ -463,24 +668,86 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
   expect(interstellarLayout.widestCard).toBeLessThanOrEqual(interstellarLayout.cardClientWidth);
 });
 
-test("maps Galactic Points Earned to the Cosmic Rip source row and settled-system count @settings @statistics @cosmic-rip-gp-earned", async ({
+test("News Ticker Statistics count every accepted claim occurrence @settings @statistics @p55-news-claims", async ({
   freshGame,
 }) => {
+  const force = (category: "prize" | "oneOff", id: number) =>
+    freshGame.evaluate(
+      ({ category, id }) =>
+        window.miaplacidusTest!.dispatch({ type: "news.ticker.force", category, id }),
+      { category, id },
+    );
+  const claim = (id: number, simulationMs: number) =>
+    freshGame.evaluate(
+      ({ id, simulationMs }) =>
+        window.miaplacidusTest!.dispatch({ type: "news.prize.claim", id, simulationMs }),
+      { id, simulationMs },
+    );
+
+  expect(await force("prize", 2000)).toBe(true);
+  const firstPrize = await freshGame.evaluate(() =>
+    window.miaplacidusTest!.getState().run.newsTicker.entries.at(-1)!,
+  );
+  await freshGame.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  expect(await force("prize", 2000)).toBe(true);
+  const secondPrize = await freshGame.evaluate(() =>
+    window.miaplacidusTest!.getState().run.newsTicker.entries.at(-1)!,
+  );
+  expect(secondPrize.simulationMs).not.toBe(firstPrize.simulationMs);
+  expect(await claim(secondPrize.id, secondPrize.simulationMs)).toBe(true);
+  expect(await claim(firstPrize.id, firstPrize.simulationMs)).toBe(true);
+
+  await freshGame.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+  expect(await force("oneOff", 3013)).toBe(true);
+  const oneOffPrize = await freshGame.evaluate(() =>
+    window.miaplacidusTest!.getState().run.newsTicker.entries.at(-1)!,
+  );
+  expect(await claim(oneOffPrize.id, oneOffPrize.simulationMs)).toBe(true);
+
+  await freshGame.locator("#tab-settings").click();
+  const settings = freshGame.getByTestId("settings-pane");
+  await settings.locator("#tab-settings-statistics").click();
+  const overview = settings
+    .getByRole("heading", { name: "Overview", level: 3, exact: true })
+    .locator("xpath=..");
+  const tickerClaims = overview
+    .locator(".settings-stat-card")
+    .filter({ hasText: "News Ticker Prizes Collected" });
+  await expect(tickerClaims.locator("dd")).toHaveText("3");
+  const uniqueTickers = overview
+    .locator(".settings-stat-card")
+    .filter({ hasText: "Unique News Tickers Seen" });
+  await expect(uniqueTickers.locator("dd")).toHaveText("2");
+});
+
+test("Galactic Points Earned commits a newly settled system at rebirth @settings @statistics @cosmic-rip-gp-earned", async ({
+  page,
+}) => {
+  await startSettlementStatisticsFixture(page);
   const openStatistics = async () => {
-    await freshGame.locator("#tab-settings").click();
-    const settings = freshGame.getByTestId("settings-pane");
+    await page.locator("#tab-settings").click();
+    const settings = page.getByTestId("settings-pane");
     await settings.locator("#tab-settings-statistics").click();
     return settings.getByTestId("settings-statistics");
   };
-  const assertSourceRow = async (settledCount: number, expectedLifetime: string) => {
+  const assertSourceRow = async (
+    settledCount: number,
+    pendingAward: boolean,
+    expectedLifetime: string,
+  ) => {
     expect(
-      await freshGame.evaluate(
+      await page.evaluate(
         () => window.miaplacidusTest!.getState().permanent.settledSystemIds.length,
       ),
     ).toBe(settledCount);
+    expect(
+      await page.evaluate(
+        () => window.miaplacidusTest!.getState().run.space.ascendencyAwardedThisRun,
+      ),
+    ).toBe(pendingAward);
     const statistics = await openStatistics();
     const sourceSection = statistics
-      .getByRole("heading", { name: "Cosmic Rip Chapter", level: 4, exact: true })
+      .getByRole("heading", { name: "Cosmic Rip Chapter", level: 3, exact: true })
       .locator("xpath=..");
     const sourceIds = await sourceSection
       .locator(".settings-stat-card")
@@ -504,13 +771,33 @@ test("maps Galactic Points Earned to the Cosmic Rip source row and settled-syste
       expectedLifetime,
     ]);
     await expect(
-      statistics.getByRole("heading", { name: "MIAPLACIDUS live status", level: 4, exact: true }),
+      statistics.getByRole("heading", { name: "MIAPLACIDUS live status", level: 3, exact: true }),
     ).toBeVisible();
   };
 
-  await assertSourceRow(1, "0");
-  await startMetaFixture(freshGame, "meta-cosmic-rip-route");
-  await assertSourceRow(2, "1");
+  await assertSourceRow(1, false, "0");
+
+  await page.getByRole("tab", { name: "Interstellar" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
+  const starship = page.getByTestId("starship-pane");
+  await starship.getByTestId("starship-settle-system-button").click();
+  await expect(starship.getByTestId("starship-system-settled")).toBeVisible();
+  await assertSourceRow(2, true, "0");
+
+  await page.locator("#tab-galaxy").click();
+  await page.locator("#tab-galactic-rebirth").click();
+  await page
+    .getByTestId("rebirth-pane")
+    .getByRole("button", { name: "Rebirth", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "WARNING: REBIRTH!" })
+    .getByRole("button", { name: "RESET ALL PROGRESS AND KEEP AP", exact: true })
+    .click();
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().permanent.rebirthCount))
+    .toBe(1);
+  await assertSourceRow(2, false, "1");
 });
 
 test("Interstellar Statistics links navigate only to currently unlocked owner pages @settings @statistics @interstellar-statistics", async ({
@@ -525,7 +812,7 @@ test("Interstellar Statistics links navigate only to currently unlocked owner pa
   };
   const statistics = await openStatistics();
   const interstellar = statistics
-    .getByRole("heading", { name: "Interstellar", level: 4, exact: true })
+    .getByRole("heading", { name: "Interstellar", level: 3, exact: true })
     .locator("xpath=..");
   const ownerLink = (id: (typeof INTERSTELLAR_STATISTIC_IDS)[number]) =>
     interstellar.locator(`[data-statistic-id="${id}"]`).getByRole("link");
@@ -568,7 +855,7 @@ test("Black Hole Statistics link to the discovered Black Hole page @settings @st
   await settings.locator("#tab-settings-statistics").click();
   const statistics = settings.getByTestId("settings-statistics");
   const blackHole = statistics
-    .getByRole("heading", { name: "Interstellar", level: 4, exact: true })
+    .getByRole("heading", { name: "Interstellar", level: 3, exact: true })
     .locator("xpath=..");
   const link = blackHole.locator('[data-statistic-id="blackHoleStrength"] a');
   await expect(link).toHaveAttribute("href", "#tab-galactic-black-hole");
@@ -584,12 +871,12 @@ test("shows live Energy values, source counters, links, and six localized labels
   await page.getByRole("tab", { name: /Energy/ }).click();
 
   const energyPaneForBuilding = {
-    powerPlant1: "energy-power-plant",
-    powerPlant2: "energy-solar-power-plant",
-    powerPlant3: "energy-advanced-power-plant",
-    battery1: "energy-storage",
-    battery2: "energy-storage",
-    battery3: "energy-storage",
+    powerPlant1: "energy-power",
+    powerPlant2: "energy-power",
+    powerPlant3: "energy-power",
+    battery1: "energy-batteries",
+    battery2: "energy-batteries",
+    battery3: "energy-batteries",
   } as const;
   for (const buildingId of [
     "powerPlant1",
@@ -604,6 +891,10 @@ test("shows live Energy values, source counters, links, and six localized labels
       .locator(`[data-building-id="${buildingId}"]`)
       .getByRole("button", { name: "Buy", exact: true })
       .click();
+  }
+  await page.locator("#tab-energy-power").click();
+  for (const buildingId of ["powerPlant1", "powerPlant2", "powerPlant3"] as const) {
+    await page.locator(`[data-building-id="${buildingId}"]`).getByRole("checkbox").uncheck();
   }
   await page.getByRole("tab", { name: /Research/ }).click();
   await page.locator("#tab-research-science-buildings").click();
@@ -628,7 +919,7 @@ test("shows live Energy values, source counters, links, and six localized labels
     const energy = statistics
       .getByRole("heading", {
         name: energyStatisticLabel(locale, "energySection"),
-        level: 4,
+        level: 3,
         exact: true,
       })
       .locator("xpath=..");
@@ -672,11 +963,23 @@ test("shows live Energy values, source counters, links, and six localized labels
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     const power = state.run.economy.power;
     const energyPlan = createEconomyTickPlan(state);
+    const nominalProduction = Math.floor(
+      ENERGY_BUILDINGS.powerPlant1.ratePerSecond * (state.run.upgrades.powerPlant1 ?? 0) +
+        ENERGY_BUILDINGS.powerPlant2.ratePerSecond * (state.run.upgrades.powerPlant2 ?? 0) +
+        ENERGY_BUILDINGS.powerPlant3.ratePerSecond * (state.run.upgrades.powerPlant3 ?? 0),
+    );
+    expect(
+      ["powerPlant1", "powerPlant2", "powerPlant3"].map(
+        (id) =>
+          state.run.economy.buildingEnabled[id as "powerPlant1" | "powerPlant2" | "powerPlant3"],
+      ),
+    ).toEqual([false, false, false]);
+    expect(energyPlan.generationPerSecond).toBe(0);
     const n = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
     const expectedCurrentValues = [
       topStatusText(locale, power.tripped ? "trippedShort" : power.gridEnabled ? "on" : "off"),
       `${n(power.quantity)} kJ`,
-      `${n(Math.floor(energyPlan.generationPerSecond))} kJ/s`,
+      `${n(nominalProduction)} kJ/s`,
       `${n(Math.floor(energyPlan.demandPerSecond))} kJ/s`,
       `${n(Math.floor(power.capacity / 1000))} MJ`,
     ];
@@ -690,10 +993,10 @@ test("shows live Energy values, source counters, links, and six localized labels
 
   await setGameLocale(page, "en");
   for (const [statisticId, paneId] of [
-    ["basicPowerPlants", "energy-power-plant"],
-    ["solarPowerPlants", "energy-solar-power-plant"],
-    ["advancedPowerPlants", "energy-advanced-power-plant"],
-    ["totalBatteryStorage", "energy-storage"],
+    ["basicPowerPlants", "energy-power"],
+    ["solarPowerPlants", "energy-power"],
+    ["advancedPowerPlants", "energy-power"],
+    ["totalBatteryStorage", "energy-batteries"],
   ] as const) {
     const statistics = await openStatistics();
     await statistics
@@ -713,13 +1016,30 @@ test("shows source Cosmic Rip completion separately from closing it @settings @s
   await settings.locator("#tab-settings-statistics").click();
   const statistics = settings.getByTestId("settings-statistics");
   const cosmicRip = statistics
-    .getByRole("heading", { name: "Cosmic Rip Chapter", level: 4, exact: true })
+    .getByRole("heading", { name: "Cosmic Rip Chapter", level: 3, exact: true })
     .locator("xpath=..");
   const statisticCard = (id: string) => cosmicRip.locator(`[data-statistic-id="${id}"]`);
 
-  await expect(statisticCard("cosmicRipChapterUnlocked").locator("dd")).toHaveText("Yes");
-  await expect(statisticCard("cosmicRipStabilised").locator("dd")).toHaveText("Yes");
-  await expect(statisticCard("cosmicRipClosed").locator("dd")).toHaveText("No");
+  const assertSourceValue = async (id: string, value: "yes" | "no") => {
+    const values = statisticCard(id).locator(".settings-stat-pair-values");
+    await expect(values.locator("small")).toHaveText([
+      settingsStatisticLabel("en", "run"),
+      settingsStatisticLabel("en", "lifetime"),
+    ]);
+    await expect(values.locator("strong")).toHaveText([
+      statisticsNotApplicableLabel("en"),
+      settingsStatisticLabel("en", value),
+    ]);
+  };
+
+  await assertSourceValue("cosmicRipChapterUnlocked", "yes");
+  await assertSourceValue("cosmicRipStabilised", "yes");
+  const liveStatus = statistics
+    .getByRole("heading", { name: "MIAPLACIDUS live status", level: 3, exact: true })
+    .locator("xpath=..");
+  await expect(liveStatus.locator('[data-statistic-id="cosmicRipClosed"] dd')).toHaveText(
+    settingsStatisticLabel("en", "no"),
+  );
 });
 
 test("Cosmic Rip Statistics links navigate to their available owner pages @settings @statistics @cosmic-rip", async ({
@@ -845,7 +1165,7 @@ test("localizes Cosmic Rip lifetime statistics and tracking note in all shipped 
     const cosmicRip = statistics
       .getByRole("heading", {
         name: settingsStatisticLabel(locale, "cosmicRipChapterSection"),
-        level: 4,
+        level: 3,
         exact: true,
       })
       .locator("xpath=..");
@@ -944,7 +1264,7 @@ test("Galactic Casino Statistics separate current-run and lifetime counters @set
     lifetime: string,
   ) => {
     const section = statistics
-      .getByRole("heading", { name: "Galactic Casino", level: 4, exact: true })
+      .getByRole("heading", { name: "Galactic Casino", level: 3, exact: true })
       .locator("xpath=..");
     const card = section.locator(".settings-stat-card").filter({ hasText: label });
     await expect(card.locator(".settings-stat-pair-values small")).toHaveText([
@@ -959,7 +1279,7 @@ test("Galactic Casino Statistics separate current-run and lifetime counters @set
 
   let statistics = await openStatistics();
   await expect(statistics).toBeVisible();
-  await assertCasinoCounter(statistics, "Casino points spent", "2", "2");
+  await assertCasinoCounter(statistics, "Casino Points Spent", "2", "2");
   await assertCasinoCounter(statistics, "Double or Nothing played", "1", "1");
   await assertCasinoCounter(statistics, "Wheel of Fortune played", "1", "1");
 
@@ -976,7 +1296,7 @@ test("Galactic Casino Statistics separate current-run and lifetime counters @set
     .toBe(2);
 
   statistics = await openStatistics();
-  await assertCasinoCounter(statistics, "Casino points spent", "0", "2");
+  await assertCasinoCounter(statistics, "Casino Points Spent", "0", "2");
   await assertCasinoCounter(statistics, "Double or Nothing played", "0", "1");
   await assertCasinoCounter(statistics, "Wheel of Fortune played", "0", "1");
 });

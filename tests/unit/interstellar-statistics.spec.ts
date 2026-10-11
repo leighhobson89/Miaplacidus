@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { STARSHIP_MODULES, STARSHIP_MODULE_IDS } from "../../src/content/space";
 import { createStarCatalogue, findStarByName } from "../../src/content/starCatalogue";
+import { OFFLINE_GAINS_RATE } from "../../src/engine/clock";
 import { enemyFleetPower } from "../../src/engine/fleetMechanics";
 import { generateStarSystemEncounter } from "../../src/engine/starSystemEncounters";
 import { selectInterstellarStatistics } from "../../src/engine/selectors";
 import { transition } from "../../src/engine/commands";
 import { createInitialGameState, isValidGameState, type GameState } from "../../src/engine/state";
 import { starshipTravelPlan } from "../../src/engine/spaceMechanics";
-import { makeEnvelope, canonicalJson, checksumFor } from "../../src/persistence/schema";
-import { decodePortable, PORTABLE_PREFIX } from "../../src/persistence/codec";
+import {
+  makeEnvelope,
+  canonicalJson,
+  checksumFor,
+  SAVE_SCHEMA_VERSION,
+} from "../../src/persistence/schema";
+import { decodePortable, encodePortable, PORTABLE_PREFIX } from "../../src/persistence/codec";
 import { compressToEncodedURIComponent } from "lz-string";
 
 function interstellarFixture(): GameState {
@@ -141,6 +147,21 @@ function encodeAsV42PortableSave(state: GameState): string {
   );
 }
 
+function roundTripCurrentPortableSave(state: GameState): GameState {
+  return decodePortable(
+    encodePortable(
+      makeEnvelope({
+        slotId: "11111111-1111-4111-8111-111111111111",
+        pioneerName: state.run.pioneerName,
+        createdAt: 1,
+        savedAt: 2,
+        revision: 1,
+        state,
+      }),
+    ),
+  ).state;
+}
+
 describe("Interstellar Statistics selector", () => {
   it("returns safe empty values when no starship destination or encounter exists", () => {
     const initial = createInitialGameState({ pioneerName: "Empty Interstellar", seed: 820 });
@@ -157,7 +178,7 @@ describe("Interstellar Statistics selector", () => {
       landStalker: 0,
       navalStrafer: 0,
       enemyName: null,
-      enemyDefenceRemaining: null,
+      enemyDefenceRemaining: 0,
       blackHoleDiscovered: false,
       blackHoleAlwaysActive: false,
       blackHoleStrength: 5,
@@ -188,6 +209,74 @@ describe("Interstellar Statistics selector", () => {
       blackHoleStrength: 17,
       apFromStarVoyage: 19,
     });
+  });
+
+  it("tracks required Starship completion through launch and save, then resets on rebirth", () => {
+    const fresh = createInitialGameState({ pioneerName: "Starship Built Scope", seed: 825 });
+    expect(selectInterstellarStatistics(fresh).starshipBuilt).toBe(false);
+
+    const fullyBuilt = travelReadyState();
+    const ready: GameState = {
+      ...fullyBuilt,
+      run: {
+        ...fullyBuilt.run,
+        space: {
+          ...fullyBuilt.run.space,
+          starshipModules: {
+            ...fullyBuilt.run.space.starshipModules,
+            stellarScanner: { builtParts: 0 },
+          },
+        },
+      },
+    };
+    expect(ready.run.space.starshipModules.stellarScanner.builtParts).toBe(0);
+    expect(selectInterstellarStatistics(ready).starshipBuilt).toBe(true);
+
+    const saved = decodePortable(
+      encodePortable(
+        makeEnvelope({
+          slotId: "11111111-1111-4111-8111-111111111111",
+          pioneerName: ready.run.pioneerName,
+          createdAt: 1,
+          savedAt: 1,
+          revision: 1,
+          state: ready,
+        }),
+      ),
+    ).state;
+    expect(selectInterstellarStatistics(saved).starshipBuilt).toBe(true);
+
+    const destination = findStarByName(createStarCatalogue(), "Sirius")!;
+    const selected = transition(saved, {
+      type: "space.starship.destination.select",
+      systemId: destination.id,
+    });
+    expect(selected.accepted).toBe(true);
+    const launched = transition(selected.state, { type: "space.starship.launch" });
+    expect(launched.accepted).toBe(true);
+    expect(selectInterstellarStatistics(launched.state).starshipBuilt).toBe(true);
+
+    const rebirthDestination = createStarCatalogue().find(
+      (star) =>
+        !star.initiallySettled &&
+        star.id !== ready.run.space.currentSystemId &&
+        !ready.permanent.settledSystemIds.includes(star.id),
+    )!;
+    const rebirthReady: GameState = {
+      ...ready,
+      run: {
+        ...ready.run,
+        space: { ...ready.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...ready.permanent,
+        rebirthCount: 1,
+        settledSystemIds: [...ready.permanent.settledSystemIds, rebirthDestination.id],
+      },
+    };
+    const reborn = transition(rebirthReady, { type: "meta.rebirth" });
+    expect(reborn.accepted).toBe(true);
+    expect(selectInterstellarStatistics(reborn.state).starshipBuilt).toBe(false);
   });
 
   it("credits the accepted route once after a shortened arrival and ignores duplicate completion", () => {
@@ -273,6 +362,96 @@ describe("Interstellar Statistics selector", () => {
     expect(reborn.state.statistics.lifetimeStarshipDistanceTravelled).toBe(62.5);
     expect(isValidGameState(reborn.state)).toBe(true);
   });
+
+  it("round-trips current distance scopes in flight and after arrival before rebirth resets the run value", () => {
+    const ready = travelReadyState();
+    const destination = findStarByName(createStarCatalogue(), "Sirius")!;
+    const plan = starshipTravelPlan(ready, destination.id);
+    expect(plan).not.toBeNull();
+
+    const selected = transition(ready, {
+      type: "space.starship.destination.select",
+      systemId: destination.id,
+    });
+    const launched = transition(selected.state, { type: "space.starship.launch" });
+    expect(launched.accepted).toBe(true);
+    const timerId = launched.state.run.space.starship.timerId!;
+    const partialProgress = transition(launched.state, {
+      type: "clock.advance",
+      input: {
+        wallNowMs: 1,
+        foreground: true,
+        offlineElapsedMs: Math.ceil((plan!.durationMs * 0.4) / OFFLINE_GAINS_RATE),
+      },
+    });
+    const partialTimer = partialProgress.state.run.timers[timerId]!;
+    expect(partialProgress.accepted).toBe(true);
+    expect(partialTimer.elapsedMs).toBeGreaterThan(0);
+    expect(partialTimer.elapsedMs).toBeLessThan(partialTimer.durationMs);
+
+    // Cosmic Forge displays a positive partial distance in both columns here;
+    // the remake's Statistics counters intentionally credit completed voyages only.
+    const sourceStylePartialDistance = Number(
+      ((plan!.distanceLy * partialTimer.elapsedMs) / partialTimer.durationMs).toFixed(2),
+    );
+    expect(sourceStylePartialDistance).toBeGreaterThan(0);
+    expect(selectInterstellarStatistics(partialProgress.state)).toMatchObject({
+      distanceTravelledThisRun: 0,
+      distanceTravelledLifetime: 0,
+    });
+
+    const restoredInFlight = roundTripCurrentPortableSave(partialProgress.state);
+    expect(restoredInFlight.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(restoredInFlight.run.space.starship.phase).toBe("travelling");
+    expect(restoredInFlight.run.timers[timerId]?.elapsedMs).toBe(partialTimer.elapsedMs);
+    expect(restoredInFlight.run.space.starship.travelDistanceLy).toBe(plan!.distanceLy);
+    expect(selectInterstellarStatistics(restoredInFlight)).toMatchObject({
+      distanceTravelledThisRun: 0,
+      distanceTravelledLifetime: 0,
+    });
+
+    const arrived = transition(restoredInFlight, { type: "timer.complete", timerId });
+    const expectedDistance = Number(plan!.distanceLy.toFixed(2));
+    expect(arrived.accepted).toBe(true);
+    expect(arrived.state.run.space.starship.phase).toBe("orbiting");
+    expect(selectInterstellarStatistics(arrived.state)).toMatchObject({
+      distanceTravelledThisRun: expectedDistance,
+      distanceTravelledLifetime: expectedDistance,
+    });
+    const restoredArrival = roundTripCurrentPortableSave(arrived.state);
+    expect(restoredArrival.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(selectInterstellarStatistics(restoredArrival)).toMatchObject({
+      distanceTravelledThisRun: expectedDistance,
+      distanceTravelledLifetime: expectedDistance,
+    });
+
+    const rebirthDestination = createStarCatalogue().find(
+      (star) =>
+        !star.initiallySettled &&
+        star.id !== restoredArrival.run.space.currentSystemId &&
+        !restoredArrival.permanent.settledSystemIds.includes(star.id),
+    )!;
+    const rebirthReady: GameState = {
+      ...restoredArrival,
+      run: {
+        ...restoredArrival.run,
+        space: { ...restoredArrival.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...restoredArrival.permanent,
+        rebirthCount: 1,
+        ascendencyPoints: 80,
+        settledSystemIds: [...restoredArrival.permanent.settledSystemIds, rebirthDestination.id],
+      },
+    };
+    expect(isValidGameState(rebirthReady)).toBe(true);
+    const reborn = transition(rebirthReady, { type: "meta.rebirth" });
+    expect(reborn.accepted).toBe(true);
+    expect(selectInterstellarStatistics(reborn.state)).toMatchObject({
+      distanceTravelledThisRun: 0,
+      distanceTravelledLifetime: expectedDistance,
+    });
+  });
 });
 
 describe("Interstellar Statistics save migration", () => {
@@ -294,8 +473,8 @@ describe("Interstellar Statistics save migration", () => {
         statistics: { ...initial.statistics, lifetimeStarshipDistanceTravelled: 54 },
       }),
     );
-    expect(migrated.schemaVersion).toBe(43);
-    expect(migrated.state.schemaVersion).toBe(43);
+    expect(migrated.schemaVersion).toBe(45);
+    expect(migrated.state.schemaVersion).toBe(45);
     expect(migrated.state.run).toMatchObject({ cash: 765, researchPoints: 123 });
     expect(migrated.state.run.space).toMatchObject({
       starStudyRange: 75,
@@ -323,7 +502,7 @@ describe("Interstellar Statistics save migration", () => {
     const timerId = launched.state.run.space.starship.timerId!;
 
     const migrated = decodePortable(encodeAsV42PortableSave(launched.state));
-    expect(migrated.schemaVersion).toBe(43);
+    expect(migrated.schemaVersion).toBe(45);
     expect(migrated.state.run.space.starship).toMatchObject({
       phase: "travelling",
       destinationSystemId: destination.id,

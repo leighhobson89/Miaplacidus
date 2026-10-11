@@ -8,9 +8,11 @@ import {
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { TECHNOLOGY_NAMES } from "../content/technologyNames";
-import { megastructureText } from "../i18n/megastructureMessages";
+import { megastructureStageProgress, megastructureText } from "../i18n/megastructureMessages";
+import { starshipText } from "../i18n/starshipMessages";
 import { formatNumber } from "./numberFormatting";
 import { CelestialIllustration } from "./CelestialIllustration";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface MegastructurePaneProps {
   readonly state: GameState;
@@ -29,18 +31,57 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
   const progress = state.permanent.megastructures;
   const records = progress.ancientManuscripts;
   const forceFieldLevel = miaplacidusForceFieldLevel(state);
+  const forceFieldMessage = forceFieldLevel >= 4 ? text.forceFieldCleared : text.forceField;
   const number = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
+  const forceFieldTooltipStatus =
+    forceFieldLevel >= 4
+      ? { value: text.forceFieldDown, className: "green-ready-text" }
+      : forceFieldLevel === 0
+        ? { value: "100%", className: "red-disabled-text" }
+        : forceFieldLevel === 1
+          ? { value: "75%", className: "orange-warning-text" }
+          : forceFieldLevel === 2
+            ? { value: "50%", className: "orange-warning-text" }
+            : { value: "25%", className: "" };
+  const forceFieldTooltipFollowUp =
+    forceFieldLevel >= 4 ? text.forceFieldCanMove : text.forceFieldKeepWeakening;
 
   return (
     <section className="economy-section megastructure-pane" data-testid="megastructure-pane">
       <div className="economy-section-heading">
-        <h2>{text.title}</h2>
+        <div className="megastructure-title-row">
+          <h2 className="game-page-title">{text.title}</h2>
+          <InfoTooltip
+            id="megastructure-header-help"
+            label={`${text.title} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+            content={text.headerHelp}
+            testId="megastructure-header-help"
+          />
+        </div>
         <p>{text.introduction}</p>
         <p data-testid="megastructure-force-field">
-          {text.forceField.replace("{level}", String(forceFieldLevel))}
+          {forceFieldMessage
+            .replace("{level}", number(forceFieldLevel))
+            .replace("{total}", number(4))}
+          <InfoTooltip
+            id="megastructure-force-field-help"
+            label={`${text.forceFieldStrength} ${starshipText(locale, "scanMoreInfoLabel")}`}
+            content={
+              <>
+                <div>
+                  {text.forceFieldStrength}{" "}
+                  <span className={forceFieldTooltipStatus.className || undefined}>
+                    {forceFieldTooltipStatus.value}
+                  </span>
+                </div>
+                <div>{forceFieldTooltipFollowUp}</div>
+              </>
+            }
+            testId="megastructure-force-field-help"
+          />
         </p>
       </div>
-      <div className="deep-space-banner">
+      <div className="deep-space-banner page-artwork-row">
         <CelestialIllustration kind="megastructure" />
       </div>
 
@@ -126,7 +167,7 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
                 data-testid={`megastructure-track-${record.megastructureId}`}
               >
                 <h3>{text.structureNames[record.megastructureId]}</h3>
-                <p>{text.stageProgress.replace("{count}", String(completed.length))}</p>
+                <p>{megastructureStageProgress(locale, completed.length, track.length, number)}</p>
                 <ol>
                   {track.map((technologyId, index) => {
                     const done = progress.researchedTechnologyIds.includes(technologyId);

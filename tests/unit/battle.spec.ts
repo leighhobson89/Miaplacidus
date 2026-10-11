@@ -60,6 +60,7 @@ function scenario(options: Parameters<typeof createEncounter>[1] = {}): {
           timerId: null,
           durationMs: 1_000,
           antimatterSpent: 1,
+          travelDistanceLy: null,
         },
         playerFleets: { ...state.run.space.playerFleets, scout: 3 },
         playerFleetCombatTotals: {
@@ -145,6 +146,13 @@ describe("space battle and settlement flow", () => {
     const engaged = transition(state, { type: "space.battle.engage" });
     const defeat = transition(engaged.state, { type: "timer.complete", timerId: battleTimerId });
 
+    expect(defeat.events).toContainEqual({
+      type: "space.battle.casualties",
+      systemId: destinationId,
+      round: 1,
+      playerShipLosses: { scout: 3, marauder: 0, landStalker: 0, navalStrafer: 0 },
+      enemyShipLosses: { air: 0, land: 0, sea: 0 },
+    });
     expect(defeat.state.run.space.systemEncounters[0]?.battle.phase).toBe("defeat");
     expect(defeat.state.run.space.systemEncounters[0]?.enemyFleets.air).toBeGreaterThan(0);
     expect(defeat.state.run.space.playerFleets.scout).toBe(0);

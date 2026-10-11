@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { LocaleId } from "../content/ids";
 import { LOCALE_IDS } from "../content/ids";
 import type { SaveIndexEntry } from "../persistence/repository";
@@ -14,6 +14,7 @@ interface Props {
   readonly setName: (name: string) => void;
   readonly slots: readonly SaveIndexEntry[];
   readonly selectedSlotId: string | null;
+  readonly focusNameOnMount: boolean;
   readonly error: string;
   readonly notice: string;
   readonly storageAvailable: boolean;
@@ -30,6 +31,7 @@ export function SaveStartScreen({
   setName,
   slots,
   selectedSlotId,
+  focusNameOnMount,
   error,
   notice,
   storageAvailable,
@@ -42,6 +44,7 @@ export function SaveStartScreen({
   const [recoveryReview, setRecoveryReview] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const pioneerNameInput = useRef<HTMLInputElement>(null);
   const selectedSlot = slots.find(
     (slot) => slot.slotId === selectedSlotId && slot.status === "ready",
   );
@@ -54,6 +57,10 @@ export function SaveStartScreen({
     );
   }, [locale, name, slots]);
   const recoverySlots = slots.filter((slot) => slot.status !== "ready");
+
+  useEffect(() => {
+    if (focusNameOnMount) pioneerNameInput.current?.focus();
+  }, [focusNameOnMount]);
 
   function selectSuggestion(slot: SaveIndexEntry): void {
     if (slot.status !== "ready") return;
@@ -114,11 +121,14 @@ export function SaveStartScreen({
         <label htmlFor="pioneer-name">{translate(locale, "app.pioneer")}</label>
         <div className="pioneer-combobox">
           <input
+            ref={pioneerNameInput}
             id="pioneer-name"
             role="combobox"
+            aria-describedby="pioneer-name-hint"
             aria-autocomplete="list"
             aria-expanded={showSuggestions && suggestions.length > 0}
             aria-controls="pioneer-save-suggestions"
+            enterKeyHint="go"
             aria-activedescendant={
               showSuggestions && activeSuggestion >= 0
                 ? `pioneer-save-option-${activeSuggestion}`
@@ -136,6 +146,7 @@ export function SaveStartScreen({
               setActiveSuggestion(-1);
             }}
           />
+          <small id="pioneer-name-hint">{t("selectSavedPioneerHint")}</small>
           {showSuggestions && suggestions.length > 0 && (
             <ul
               className="pioneer-save-suggestions"

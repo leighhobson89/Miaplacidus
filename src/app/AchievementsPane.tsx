@@ -1,10 +1,12 @@
 import { ACHIEVEMENT_CATALOGUE, achievementName } from "../content/achievements";
+import { ACHIEVEMENT_DESCRIPTIONS } from "../content/achievementDescriptions.generated";
 import type { GameState } from "../engine/state";
 import { achievementText } from "../i18n/achievementMessages";
 import { achievementRewardText } from "../i18n/achievementRewardMessages";
 import { AchievementBadge } from "./AchievementBadge";
 import { economyGoodName } from "./economyDisplay";
 import { formatCurrency } from "./currencyFormatting";
+import { InfoTooltip } from "./InfoTooltip";
 import { formatNumber } from "./numberFormatting";
 
 function rewardText(
@@ -61,14 +63,19 @@ export function AchievementsPane({ state }: { readonly state: GameState }) {
     >
       <div className="pane-heading">
         <div>
-          <p className="eyebrow">
-            META / {count} / {ACHIEVEMENT_CATALOGUE.length}
-          </p>
-          <h2 id="achievements-title">{achievementText(locale, "title")}</h2>
+          <div className="achievements-title-row">
+            <h2 id="achievements-title">{achievementText(locale, "title")}</h2>
+            <InfoTooltip
+              id="achievements-header-help"
+              label={`${achievementText(locale, "title")} — ${achievementText(locale, "showOverview")}`}
+              content={achievementText(locale, "overview")}
+              testId="achievements-header-help"
+            />
+          </div>
           <p className="pane-intro">{achievementText(locale, "description")}</p>
         </div>
         <div className="achievement-total" aria-live="polite">
-          <strong>{count}</strong>
+          <strong>{formatNumber(locale, count, 0, state.settings.notation)}</strong>
           <span>{achievementText(locale, "unlocked")}</span>
         </div>
       </div>
@@ -84,7 +91,26 @@ export function AchievementsPane({ state }: { readonly state: GameState }) {
             >
               <AchievementBadge id={definition.id} locked={!earned} />
               <div className="achievement-copy">
-                <h3>{achievementName(definition.id, locale)}</h3>
+                <div className="achievement-name-row">
+                  <h3>{achievementName(definition.id, locale)}</h3>
+                  <span className="achievement-description-help">
+                    <button
+                      type="button"
+                      aria-label={`${achievementText(locale, "showDescription")}: ${achievementName(definition.id, locale)}`}
+                      aria-describedby={`achievement-description-${definition.id}`}
+                      title={achievementText(locale, "showDescription")}
+                    >
+                      <span aria-hidden="true">i</span>
+                    </button>
+                    <span
+                      id={`achievement-description-${definition.id}`}
+                      className="achievement-description-tooltip"
+                      role="tooltip"
+                    >
+                      {ACHIEVEMENT_DESCRIPTIONS[definition.id][locale]}
+                    </span>
+                  </span>
+                </div>
                 <p>
                   <span>{achievementText(locale, "reward")}:</span>{" "}
                   {rewardText(state, definition.reward)}

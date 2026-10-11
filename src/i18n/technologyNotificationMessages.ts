@@ -102,11 +102,11 @@ const notices = {
     fusionTheory: "Teoría de Fusión Investigada\n\n¡Útil para experimentos futuros!",
     hydrogenFusion: "Fusión de Hidrógeno Investigada\n\n¡Ahora puedes fusionar Hidrógeno!",
     heliumFusion: "Fusión de Helio Investigada\n\n¡Ahora puedes fusionar Helio!",
-    carbonFusion: "Fusión de Carbono Investigadaº\n¡Ahora puedes fusionar Carbono!",
+    carbonFusion: "Fusión de Carbono Investigada\n\n¡Ahora puedes fusionar Carbono!",
     basicPowerGeneration:
       "Generación de Energía Básica Investigada\n\n¡Ahora puedes construir Estaciones de Energía básicas!",
     sodiumIonPowerStorage:
-      "Almacenamiento de Energión de Iones de Sodio Investigado\n\n¡Puedes construir una Batería de Iones de Sodio para almacenar energía!",
+      "Almacenamiento de Energía de Iones de Sodio Investigado\n\n¡Puedes construir una Batería de Iones de Sodio para almacenar energía!",
     solarPowerGeneration:
       "Generación de Energía Solar Investigada\n\n¡Ahora puedes construir Paneles Solares para generar energía!",
     giganticTurbines:

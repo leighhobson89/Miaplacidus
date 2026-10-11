@@ -1,0 +1,228 @@
+.debug-tools {
+  width: min(38rem, calc(100vw - 2rem));
+  max-width: 38rem;
+  max-height: min(88vh, 48rem);
+  margin: auto;
+  overflow: auto;
+  border: 1px solid rgb(122 167 191 / 40%);
+  border-radius: 0.8rem;
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 36%);
+  font-size: 0.72rem;
+  font-family: var(--theme-font-family, inherit);
+  padding: 0;
+}
+.debug-scenario-menu {
+  width: min(68rem, calc(100vw - 2rem));
+  max-width: 68rem;
+  max-height: min(90vh, 58rem);
+}
+.debug-tools::backdrop {
+  background: rgb(3 8 16 / 72%);
+  backdrop-filter: blur(3px);
+}
+.debug-titlebar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+  color: var(--accent-bright, var(--ink));
+  font-weight: 700;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.debug-close {
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  color: var(--ink);
+  background: var(--button-bg-color, var(--panel));
+  cursor: pointer;
+}
+.debug-content {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.8rem 0.9rem 0.9rem;
+}
+.debug-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin: 0;
+}
+.debug-meta > div {
+  padding: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}
+.debug-meta dt {
+  color: var(--muted);
+}
+.debug-meta dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink);
+}
+.debug-actions {
+  display: grid;
+  gap: 0.35rem;
+}
+.debug-actions button {
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  color: var(--ink);
+  background: var(--button-bg-color, var(--panel));
+  text-align: left;
+  cursor: pointer;
+}
+.debug-search {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+.debug-search input {
+  min-height: 2rem;
+  padding: 0.4rem 0.55rem;
+}
+.debug-variables {
+  max-height: 10rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}
+.debug-variable {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.32rem 0.45rem;
+  border-bottom: 1px solid rgb(151 177 207 / 8%);
+}
+.debug-variable code {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.debug-variable span {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+.debug-log > summary {
+  padding: 0.45rem 0;
+  cursor: pointer;
+}
+.debug-log ol {
+  max-height: 8rem;
+  overflow: auto;
+  padding-left: 1.5rem;
+}
+.debug-log li {
+  padding: 0.2rem 0;
+}
+.debug-log code {
+  overflow-wrap: anywhere;
+  color: #9bcec8;
+}
+.debug-scenario-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+}
+.debug-scenario-group {
+  min-width: 0;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+}
+.debug-scenario-group h3 {
+  margin: 0 0 0.4rem;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.debug-scenario-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.78fr) minmax(0, 1.22fr);
+  align-items: start;
+  gap: 0.45rem;
+  padding: 0.42rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+}
+.debug-scenario-label {
+  padding-top: 0.25rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+.debug-scenario-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.debug-scenario-controls label {
+  display: grid;
+  flex: 1 1 10rem;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0.2rem;
+  color: var(--muted);
+}
+.debug-scenario-controls select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 1.9rem;
+  padding: 0.25rem 0.4rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+}
+.debug-scenario-controls button {
+  min-height: 1.9rem;
+  padding: 0.25rem 0.55rem;
+  color: var(--ink);
+  background: var(--button-bg-color, var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  font: inherit;
+  cursor: pointer;
+}
+.debug-scenario-controls button:disabled {
+  color: var(--disabled-text, var(--muted));
+  cursor: not-allowed;
+}
+.debug-scenario-controls small:not(.red-disabled-text) {
+  flex: 1 0 100%;
+  color: var(--muted);
+}
+.debug-scenario-status {
+  min-height: 1.1em;
+  margin: 0;
+  color: var(--ready-text, var(--accent-bright));
+}
+.debug-test-lab-link {
+  color: var(--muted);
+}
+.debug-test-lab-link summary {
+  cursor: pointer;
+}
+.debug-test-lab-link p {
+  margin: 0.35rem 0 0;
+}
+
+@media (max-width: 650px) {
+  .debug-scenario-menu {
+    width: calc(100vw - 1rem);
+    max-height: 94vh;
+  }
+}

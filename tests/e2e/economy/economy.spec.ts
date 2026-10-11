@@ -11,7 +11,10 @@ import {
 } from "../../../src/content/ids";
 import { ECONOMY_BUILDING_NAMES } from "../../../src/content/economyBuildingNames";
 import { createEconomyTickPlan } from "../../../src/engine/economySimulation";
+import { philosophyCompoundRecipe } from "../../../src/engine/philosophy";
+import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
+import { formatDuration } from "../../../src/app/timeFormatting";
 import {
   COMPOUND_CATALOG,
   ENERGY_BUILDINGS,
@@ -101,9 +104,11 @@ async function expectHydrogenStyleGoodLayout(
   }
 }
 
-async function expectGoodStock(card: Locator, quantity: string, capacity?: string): Promise<void> {
-  await expect(card.locator(".stock-readout > strong")).toContainText(quantity);
-  if (capacity !== undefined) await expect(card.locator(".capacity-line")).toContainText(capacity);
+async function expectGoodStock(card: Locator, quantity: number, capacity?: number): Promise<void> {
+  await expect(card.locator(".stock-readout > strong")).toContainText(formatNumber("en", quantity));
+  if (capacity !== undefined) {
+    await expect(card.locator(".capacity-line")).toContainText(formatNumber("en", capacity));
+  }
 }
 
 async function expandHydrogenAutobuyers(container: Locator): Promise<void> {
@@ -135,6 +140,7 @@ async function startEconomyFixture(
   page: Page,
   fixture:
     | "full"
+    | "notation-coverage"
     | "research"
     | "infinite-power"
     | "power-deficit"
@@ -189,12 +195,12 @@ test("resource catalogue controls collect, preview, sell, store, and fuse throug
   await page.locator("#tab-resources-carbon").click();
   const carbon = page.locator('[data-resource-id="carbon"]');
   await carbon.getByRole("button", { name: "Collect +1 Carbon" }).click();
-  await expectGoodStock(carbon, "2,001", "100,000");
+  await expectGoodStock(carbon, 2_001, 100_000);
   await carbon.getByLabel("Sale amount Carbon").selectOption("half");
   await expect(carbon.getByText(/Sale preview:/)).toContainText("$");
   await captureVisualCheckpoint(page, testInfo, "economy-resource-catalogue");
   await carbon.getByRole("button", { name: /Sell Carbon/ }).click();
-  await expectGoodStock(carbon, "1,001", "100,000");
+  await expectGoodStock(carbon, 1_001, 100_000);
   await carbon.getByText("Fuse", { exact: true }).click();
   await carbon.getByLabel("Output Carbon").selectOption("neon");
   await carbon.getByLabel("Fusion Amount Carbon").fill("100");
@@ -204,11 +210,8 @@ test("resource catalogue controls collect, preview, sell, store, and fuse throug
       page.evaluate(() => window.miaplacidusTest?.getState().run.goods.neon.quantity),
     )
     .toBeGreaterThan(1_500);
-  await expect(page.getByTestId("game-notification").last()).toContainText(
-    "Fused 100 Carbon into Neon: received ",
-  );
-  await expect(page.getByTestId("game-notification").last()).toContainText(
-    "lost to fusion inefficiency",
+  await expect(page.getByTestId("game-notification").last()).toHaveText(
+    "Fused 100 Carbon into 30 Neon.",
   );
   await page.locator("#tab-resources-neon").click();
   await expect(page.locator('[data-resource-id="neon"]')).toContainText("Neon");
@@ -390,17 +393,17 @@ test("fresh Hydrogen progression reaches its first research through player contr
     .getByRole("heading", { name: "Research", level: 4, exact: true })
     .locator("xpath=..");
   const researchPointsCard = researchStatistics
-    .getByText("Research points earned", { exact: true })
+    .getByText("Research Points", { exact: true })
     .locator("xpath=..");
   await expect(researchPointsCard.locator(".settings-stat-pair-values strong")).toHaveText([
     "100",
     "100",
   ]);
   const scienceKitsCard = researchStatistics
-    .getByText("Science kits built", { exact: true })
+    .getByText("Science Kits", { exact: true })
     .locator("xpath=..");
   await expect(scienceKitsCard.locator(".settings-stat-pair-values strong")).toHaveText(["1", "1"]);
-  for (const label of ["Science clubs built", "Science labs built"]) {
+  for (const label of ["Science Clubs", "Science Labs"]) {
     await expect(
       researchStatistics
         .getByText(label, { exact: true })
@@ -545,9 +548,10 @@ test("fresh Hydrogen progression unlocks Energy and Compounds in source tab orde
   await expect(game.getByRole("tab", { name: /Energy/ })).toBeEnabled();
   const energyMainTab = game.locator("#tab-energy");
   await expect(energyMainTab.locator(".attention-badge")).toHaveText("New");
-  const energyStorageTab = game.locator("#tab-energy-storage");
-  const energyStorageBadge = energyStorageTab.locator(".attention-badge");
-  const powerPlantTab = game.locator("#tab-energy-power-plant");
+  const energySummaryTab = game.locator("#tab-energy-summary");
+  const batteriesTab = game.locator("#tab-energy-batteries");
+  const batteriesBadge = batteriesTab.locator(".attention-badge");
+  const powerPlantTab = game.locator("#tab-energy-power");
   const powerPlantBadge = powerPlantTab.locator(".attention-badge");
   await saveNowFromSettings(game);
   await game.reload();
@@ -557,15 +561,16 @@ test("fresh Hydrogen progression unlocks Energy and Compounds in source tab orde
     () => window.miaplacidusTest!.getState().run.navigationAttentionIds,
   );
   expect(pendingAttentionIds).toContain("energy");
-  expect(pendingAttentionIds).toContain("energy-power-plant");
+  expect(pendingAttentionIds).toContain("energy-power");
   await game.locator(".resource-rail .resource-item").filter({ hasText: "Carbon" }).click();
   await expect(carbonPaneTab).toHaveAttribute("aria-selected", "true");
   await energyMainTab.click();
   await expect(powerPlantBadge).toHaveText("New");
-  await expect(energyStorageTab).toHaveAttribute("aria-selected", "true");
-  await expect(game.locator("#panel-energy-storage [data-building-id='battery1']")).toBeVisible();
+  await expect(energySummaryTab).toHaveAttribute("aria-selected", "true");
+  await batteriesTab.click();
+  await expect(game.locator("#pane-energy [data-building-id='battery1']")).toBeVisible();
   await expect(energyMainTab.locator(".attention-badge")).toHaveText("New");
-  await expect(energyStorageBadge).toHaveCount(0);
+  await expect(batteriesBadge).toHaveCount(0);
   await expect(powerPlantBadge).toHaveText("New");
   await game.mouse.move(0, 0);
   await captureVisualCheckpoint(game, testInfo, "economy-fresh-first-energy");
@@ -610,19 +615,19 @@ test("all eight material cards and six compounds are usable through player contr
     await expect(card).toBeVisible();
     if (id === "hydrogen") {
       await page.getByRole("button", { name: "Collect 1 Hydrogen", exact: true }).click();
-      await expect(page.getByTestId("hydrogen-quantity")).toContainText("2,001");
+      await expect(page.getByTestId("hydrogen-quantity")).toContainText(formatNumber("en", 2_001));
       continue;
     }
 
     const materialName = id[0]!.toUpperCase() + id.slice(1);
     const startingQuantity = id === "carbon" ? 2_000 : 1_500;
     await card.getByRole("button", { name: `Collect +1 ${materialName}` }).click();
-    await expectGoodStock(card, (startingQuantity + 1).toLocaleString("en-US"), "100,000");
+    await expectGoodStock(card, startingQuantity + 1, 100_000);
     await card.getByLabel(`Sale amount ${materialName}`).selectOption("half");
     await expect(card.getByText(/Sale preview:/)).toContainText("$");
     await card.getByRole("button", { name: new RegExp(`Sell ${materialName}`) }).click();
     const afterSale = startingQuantity + 1 - Math.floor((startingQuantity + 1) / 2);
-    await expectGoodStock(card, afterSale.toLocaleString("en-US"), "100,000");
+    await expectGoodStock(card, afterSale, 100_000);
 
     const autobuyers = card.locator("details").filter({ hasText: "Buy tier 1" }).first();
     await autobuyers.locator("summary").click();
@@ -643,14 +648,14 @@ test("all eight material cards and six compounds are usable through player contr
     const heading = id[0]!.toUpperCase() + id.slice(1);
     await expect(card.getByRole("button", { name: `Create ${heading}` })).toBeEnabled();
     await card.getByRole("button", { name: `Create ${heading}` }).click();
-    await expectGoodStock(card, "1,501");
+    await expectGoodStock(card, 1_501);
     await card.getByLabel(`Sale amount ${heading}`).selectOption("1");
     await card.getByRole("button", { name: new RegExp(`Sell ${heading}`) }).click();
-    await expectGoodStock(card, "1,500");
+    await expectGoodStock(card, 1_500);
     if (id === "glass") {
       await card.getByLabel(`Sale amount ${heading}`).selectOption("all");
       await card.getByRole("button", { name: new RegExp(`Sell ${heading}`) }).click();
-      await expectGoodStock(card, "0", "100,000");
+      await expectGoodStock(card, 0, 100_000);
     }
     await expect(card.getByRole("button", { name: "Increase storage" })).toBeDisabled();
   }
@@ -852,7 +857,7 @@ test("all eight material storage upgrades are individually usable through clicks
     }, id);
     await card.getByRole("button", { name: "Increase storage" }).click();
     await expect(card.locator(".capacity-line")).toContainText(
-      (startingCapacity * 2).toLocaleString("en-US"),
+      formatNumber("en", startingCapacity * 2),
     );
   }
   await captureVisualCheckpoint(page, testInfo, "economy-each-material-storage");
@@ -875,17 +880,77 @@ test("all six compound storage upgrades are usable, including shared Water input
     await expect(storage).toBeEnabled();
     await storage.click();
     await expect(card.locator(".capacity-line")).toContainText(
-      (startingCapacity * 2).toLocaleString("en-US"),
+      formatNumber("en", startingCapacity * 2),
     );
     if (id === "concrete") {
       await card.getByRole("spinbutton", { name: "Amount Concrete" }).fill("30");
       await card.getByRole("button", { name: "Create Concrete" }).click();
-      await expectGoodStock(card, "30", "100");
+      await expectGoodStock(card, 30, 100);
     }
   }
-  await expectGoodStock(page.locator('[data-compound-id="water"]'), "0", "200");
-  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "0", "100");
+  await expectGoodStock(page.locator('[data-compound-id="water"]'), 0, 200);
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), 0, 100);
   await captureVisualCheckpoint(page, testInfo, "economy-all-compound-storage");
+});
+
+test("Hydrogen tier-2 source help appears only after Quantum Computing is researched @resources @research @autobuyers @p44-copy", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "research");
+  const hydrogen = page.locator('[data-resource-id="hydrogen"]');
+  const hydrogenAutobuyers = hydrogen.locator(".hydrogen-autobuyer-section");
+  if ((await hydrogenAutobuyers.getAttribute("open")) === null)
+    await hydrogenAutobuyers.locator("summary").click();
+  const tiers = hydrogen.locator(".hydrogen-autobuyer-section > .economy-details");
+  if ((await tiers.getAttribute("open")) === null) await tiers.locator("summary").click();
+  const tierTwo = tiers.locator(".economy-tier").filter({ hasText: "Buy tier 2:" });
+  const help = tierTwo.getByText("Add an Advanced Hydrogen Compressor for enhanced automation.", {
+    exact: true,
+  });
+
+  expect(
+    await page.evaluate(() =>
+      window
+        .miaplacidusTest!.getState()
+        .run.economy.researchedTechnologies.includes("quantumComputing"),
+    ),
+  ).toBe(false);
+  await expect(tierTwo).toContainText("Quantum Computing");
+  await expect(help).toHaveCount(0);
+
+  expect(
+    await page.evaluate(() => window.miaplacidusTest!.applyDebugAction("give-1m-research")),
+  ).toBe(true);
+  await page.getByRole("tab", { name: /^Research/ }).click();
+  await page.locator("#tab-research-tech-tree").click();
+  for (const technology of [
+    "knowledgeSharing",
+    "fusionTheory",
+    "hydrogenFusion",
+    "heliumFusion",
+    "nanoTubeTechnology",
+    "quantumComputing",
+  ]) {
+    const node = page.locator(`[data-technology-id="${technology}"]`);
+    await expect(node).toBeVisible();
+    await expect(node).toHaveAttribute("aria-disabled", "false");
+    await node.click();
+    await expect(node).toContainText("Researched");
+  }
+
+  expect(
+    await page.evaluate(() =>
+      window
+        .miaplacidusTest!.getState()
+        .run.economy.researchedTechnologies.includes("quantumComputing"),
+    ),
+  ).toBe(true);
+  await page.getByRole("tab", { name: /Resources/ }).click();
+  await page.locator("#tab-resources-hydrogen").click();
+  if ((await hydrogenAutobuyers.getAttribute("open")) === null)
+    await hydrogenAutobuyers.locator("summary").click();
+  if ((await tiers.getAttribute("open")) === null) await tiers.locator("summary").click();
+  await expect(help).toBeVisible();
 });
 
 test("every resource and compound autobuyer tier can be bought, resumed, and paused @autobuyers @resources @compounds @energy", async ({
@@ -977,10 +1042,12 @@ test("Water storage explains and charges its Water and Concrete costs @resources
   const water = page.locator('[data-compound-id="water"]');
   const storage = water.getByRole("button", { name: "Increase storage" });
   await expect(storage).toBeEnabled();
-  await expect(storage).toContainText("99 H₂O + 30 Concrete");
+  await expect(water.locator('[data-testid="storage-card-water"] .cost-line')).toContainText(
+    "99 H₂O + 30 Concrete",
+  );
   await storage.click();
-  await expectGoodStock(water, "0", "200");
-  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "0", "50");
+  await expectGoodStock(water, 0, 200);
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), 0, 50);
   await captureVisualCheckpoint(page, testInfo, "economy-water-storage-expanded");
 });
 
@@ -993,8 +1060,10 @@ test("Water storage stays disabled until both displayed inputs are affordable @r
   const water = page.locator('[data-compound-id="water"]');
   const storage = water.getByRole("button", { name: "Increase storage" });
   await expect(storage).toBeDisabled();
-  await expect(storage).toContainText("99 H₂O + 30 Concrete");
-  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "29", "50");
+  await expect(water.locator('[data-testid="storage-card-water"] .cost-line')).toContainText(
+    "99 H₂O + 30 Concrete",
+  );
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), 29, 50);
   await captureVisualCheckpoint(page, testInfo, "economy-water-storage-blocked");
 });
 
@@ -1007,15 +1076,15 @@ test("individual storage controls replace the bulk storage action @resources @co
     .locator('[data-resource-id="hydrogen"]')
     .getByRole("button", { name: "Increase storage", exact: true })
     .click();
-  await expect(page.getByTestId("hydrogen-capacity")).toHaveText("200,000");
+  await expect(page.getByTestId("hydrogen-capacity")).toHaveText(formatNumber("en", 200_000));
   await page.getByRole("tab", { name: /Compounds/ }).click();
   await page.locator("#tab-compounds-water").click();
   await page
     .locator('[data-compound-id="water"]')
     .getByRole("button", { name: /^Increase storage/ })
     .click();
-  await expectGoodStock(page.locator('[data-compound-id="water"]'), "0", "200,000");
-  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), "0", "100,000");
+  await expectGoodStock(page.locator('[data-compound-id="water"]'), 0, 200_000);
+  await expectGoodStock(page.locator('[data-compound-id="concrete"]'), 0, 100_000);
   await captureVisualCheckpoint(page, testInfo, "economy-increase-all-storage");
 });
 
@@ -1039,10 +1108,16 @@ test("Bulk Purchasing buys the affordable Hydrogen compressors from its player p
   await startEconomyFixture(page, "bulk-hydrogen");
   await expandHydrogenAutobuyers(page.locator('[data-resource-id="hydrogen"]'));
   const compressor = page.locator(".autobuyer-card");
-  await expect(compressor.getByRole("button", { name: "Buy max", exact: true })).toBeEnabled();
-  await compressor.getByRole("button", { name: "Buy max", exact: true }).click();
+  const buyMax = compressor.getByRole("button", { name: "Buy max", exact: true });
+  await expect(buyMax).toBeEnabled();
+  await expect(compressor).toContainText(
+    "Buy max: 2 · total cost 107 Hydrogen · result +4 Hydrogen per second.",
+  );
+  await buyMax.click();
   await expect(page.getByTestId("hydrogen-autobuyer-count")).toHaveText("2");
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("43");
+  await expect(buyMax).toBeDisabled();
+  await expect(buyMax).toHaveAccessibleDescription("Need 65 Hydrogen; available: 43.");
   await captureVisualCheckpoint(page, testInfo, "economy-bulk-hydrogen-buyers");
 });
 
@@ -1051,14 +1126,17 @@ test("Bulk Purchasing buys the affordable power plants and spends only their exa
 }, testInfo) => {
   await startEconomyFixture(page, "bulk-energy");
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-power").click();
   const powerPlant = page.locator('[data-building-id="powerPlant1"]');
   await expect(powerPlant.getByRole("button", { name: "Buy max" })).toBeEnabled();
   await powerPlant.getByRole("button", { name: "Buy max" }).click();
   await expect(powerPlant).toContainText("Owned: 2");
   await expect(page.getByTestId("cash-balance")).toContainText("$0.00");
-  await page.getByRole("button", { name: "Power all plants" }).click();
-  await expect(powerPlant.getByRole("checkbox", { name: "Power Plant" })).not.toBeChecked();
-  await page.getByRole("button", { name: "Power all plants" }).click();
+  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  await expect(page.getByRole("button", { name: "ACTIVATE POWER", exact: true })).toBeVisible();
+  await expect(powerPlant.getByRole("checkbox", { name: "Power Plant" })).toBeChecked();
+  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
+  await expect(page.getByRole("button", { name: "DEACTIVATE POWER", exact: true })).toBeVisible();
   await expect(powerPlant.getByRole("checkbox", { name: "Power Plant" })).toBeChecked();
   await captureVisualCheckpoint(page, testInfo, "economy-bulk-power-building");
 });
@@ -1068,10 +1146,11 @@ test("Energy compares live generator mix with consumption accessibly @energy @ac
 }) => {
   await startEconomyFixture(page, "power-buildings");
   await page.locator("#tab-energy").click();
+  await page.locator("#tab-energy-power").click();
   for (const [paneId, buildingId] of [
-    ["energy-power-plant", "powerPlant1"],
-    ["energy-solar-power-plant", "powerPlant2"],
-    ["energy-advanced-power-plant", "powerPlant3"],
+    ["energy-power", "powerPlant1"],
+    ["energy-power", "powerPlant2"],
+    ["energy-power", "powerPlant3"],
   ] as const) {
     await page.locator(`#tab-${paneId}`).click();
     await page
@@ -1086,6 +1165,7 @@ test("Energy compares live generator mix with consumption accessibly @energy @ac
     .getByRole("button", { name: "Buy", exact: true })
     .click();
   await page.locator("#tab-energy").click();
+  await page.locator("#tab-energy-summary").click();
 
   const chart = page.getByRole("figure", { name: "Power generation mix" });
   await expect(chart).toBeVisible();
@@ -1113,17 +1193,40 @@ test("Energy compares live generator mix with consumption accessibly @energy @ac
   const expectedDescription = `${expectedPlantDescription}. Total generation: ${localizeRate(livePower.generationPerSecond)} kJ/s. Total consumption: ${localizeRate(livePower.demandPerSecond)} kJ/s.`;
   await expect(chart).toHaveAccessibleDescription(expectedDescription);
 
-  await page.locator("#tab-energy-storage").click();
-  await page
-    .getByRole("tabpanel", { name: "Energy Storage" })
-    .getByRole("checkbox", { name: "Power grid" })
-    .uncheck();
+  await page.locator("#tab-energy-power").click();
+  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(chart.getByTestId("energy-generation-powerPlant1")).toHaveText("0");
   await expect(chart.getByTestId("energy-generation-powerPlant2")).toHaveText("0");
   await expect(chart.getByTestId("energy-generation-powerPlant3")).toHaveText("0");
   await expect(chart.getByTestId("energy-generation-total")).toHaveText("0 kJ/s");
   await expect(chart.getByTestId("energy-consumption-total")).toHaveText("0 kJ/s");
   await expect(chart).toContainText("Power grid off: active generators are producing 0 kJ/s.");
+});
+
+test("Power Plant sale notification remains conditional because no sale action exists @p08-notifications", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "power-buildings");
+  await page.locator("#tab-energy").click();
+  await page.locator("#tab-energy-power").click();
+
+  for (const id of ["powerPlant1", "powerPlant2", "powerPlant3"] as const) {
+    const plant = page.locator(`[data-building-id="${id}"]`);
+    await expect(plant).toBeVisible();
+    await plant.getByRole("button", { name: "Buy", exact: true }).click();
+    await expect(plant.getByRole("button", { name: "Buy", exact: true })).toBeVisible();
+    await expect(plant.getByRole("button", { name: /sell/i })).toHaveCount(0);
+    await expect(plant.getByRole("checkbox")).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (buildingId) => window.miaplacidusTest!.getState().run.upgrades[buildingId],
+          id,
+        ),
+      )
+      .toBe(1);
+  }
 });
 
 test("all power plant and battery tiers can be bought and controlled @energy @precision", async ({
@@ -1142,6 +1245,9 @@ test("all power plant and battery tiers can be bought and controlled @energy @pr
     "battery2",
     "battery3",
   ] as const) {
+    await page
+      .locator(id.startsWith("powerPlant") ? "#tab-energy-power" : "#tab-energy-batteries")
+      .click();
     const card = page.locator(`[data-building-id="${id}"]`);
     await card.getByRole("button", { name: "Buy", exact: true }).click();
     await expect(card).toContainText("Owned: 1");
@@ -1149,17 +1255,16 @@ test("all power plant and battery tiers can be bought and controlled @energy @pr
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.capacity))
     .toBe(initialCapacity + 1_665_000);
+  await page.locator("#tab-energy-power").click();
   const plants = ["powerPlant1", "powerPlant2", "powerPlant3"] as const;
   for (const id of plants) {
     await expect(page.locator(`[data-building-id="${id}"]`).getByRole("checkbox")).toBeChecked();
   }
-  await page.getByRole("button", { name: "Power all plants" }).click();
+  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
   for (const id of plants) {
-    await expect(
-      page.locator(`[data-building-id="${id}"]`).getByRole("checkbox"),
-    ).not.toBeChecked();
+    await expect(page.locator(`[data-building-id="${id}"]`).getByRole("checkbox")).toBeChecked();
   }
-  await page.getByRole("button", { name: "Power all plants" }).click();
+  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
   for (const id of plants) {
     await expect(page.locator(`[data-building-id="${id}"]`).getByRole("checkbox")).toBeChecked();
   }
@@ -1439,7 +1544,7 @@ test("permanent production bonuses are reflected in the visible rates @energy @a
   await expect(hydrogen.getByTestId("hydrogen-rate")).toContainText("5.55");
   await expect(page.locator(".autobuyer-card")).toContainText("Adds 4.5 Hydrogen per second");
   await page.getByRole("tab", { name: /Energy/ }).click();
-  await page.locator("#tab-energy-solar-power-plant").click();
+  await page.locator("#tab-energy-power").click();
   await expect(page.locator('[data-building-id="powerPlant2"]')).toContainText("+13.5 kJ/s");
   await captureVisualCheckpoint(page, testInfo, "economy-permanent-production-multipliers");
 });
@@ -1519,6 +1624,11 @@ test("Tech Tree zoom keeps the wide graph inside a two-axis scroll viewport @res
   await page.getByRole("tab", { name: /^Research/ }).click();
   await page.locator("#tab-research-tech-tree").click();
   const viewport = page.getByTestId("technology-tree-viewport");
+  const panHelp = page.locator("#technology-tree-pan-help");
+  await expect(panHelp).toHaveText(
+    "Scroll inside the tree to explore. Focus it and use the arrow keys or Page Up/Down to pan.",
+  );
+  await expect(viewport).toHaveAttribute("aria-describedby", "technology-tree-pan-help");
   const advancedPower = page.locator('[data-technology-id="advancedPowerGeneration"]');
   const advancedPowerEdges = page.locator(
     '.technology-map-edge[data-prerequisite-to="advancedPowerGeneration"]',
@@ -1569,12 +1679,15 @@ test("Tech Tree zoom keeps the wide graph inside a two-axis scroll viewport @res
   const initial = await viewport.evaluate((element) => ({
     scrollWidth: element.scrollWidth,
     clientWidth: element.clientWidth,
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
     overflowX: getComputedStyle(element).overflowX,
     overflowY: getComputedStyle(element).overflowY,
   }));
   expect(initial.overflowX).toBe("auto");
   expect(initial.overflowY).toBe("auto");
   expect(initial.scrollWidth).toBeGreaterThan(initial.clientWidth);
+  expect(initial.scrollHeight).toBeLessThanOrEqual(initial.clientHeight);
 
   const zoom = page.getByRole("slider", { name: "Zoom" });
   await zoom.focus();
@@ -1592,6 +1705,54 @@ test("Tech Tree zoom keeps the wide graph inside a two-axis scroll viewport @res
   await expect.poll(() => viewport.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
   await viewport.press("ArrowDown");
   await expect.poll(() => viewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+});
+
+test.describe("Tech Tree zoom action targets", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test("meet the touch target and keyboard action size @p05-tech-tree-zoom @research @technology @keyboard @touch", async ({
+    page,
+  }) => {
+    await startEconomyFixture(page, "research");
+    await page.getByRole("tab", { name: /^Research/ }).click();
+    await page.locator("#tab-research-tech-tree").click();
+
+    const zoomOut = page.getByRole("button", { name: "Zoom out" });
+    const zoom = page.getByRole("slider", { name: "Zoom" });
+    const zoomIn = page.getByRole("button", { name: "Zoom in" });
+    const resetZoom = page.getByRole("button", { name: "Reset zoom" });
+    for (const control of [zoomOut, zoom, zoomIn, resetZoom]) {
+      const target = await control.boundingBox();
+      expect(target?.width).toBeGreaterThanOrEqual(44);
+      expect(target?.height).toBeGreaterThanOrEqual(44);
+    }
+
+    await zoom.focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(zoomOut).toBeFocused();
+    expect(await zoomOut.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
+    await page.keyboard.press("Enter");
+    await expect(zoom).toHaveAttribute("aria-valuetext", "90%");
+
+    await page.keyboard.press("Tab");
+    await expect(zoom).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(zoomIn).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(zoom).toHaveAttribute("aria-valuetext", "100%");
+
+    await page.keyboard.press("Tab");
+    await expect(resetZoom).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(zoom).toHaveAttribute("aria-valuetext", "100%");
+
+    await zoomOut.tap();
+    await expect(zoom).toHaveAttribute("aria-valuetext", "90%");
+    await zoomIn.tap();
+    await expect(zoom).toHaveAttribute("aria-valuetext", "100%");
+    await resetZoom.tap();
+    await expect(zoom).toHaveAttribute("aria-valuetext", "100%");
+  });
 });
 
 test("research automation purchases an available technology from player controls @research @technology @autobuyers", async ({
@@ -1626,6 +1787,26 @@ test("research automation purchases an available technology from player controls
   await captureVisualCheckpoint(page, testInfo, "economy-research-automation");
 });
 
+test("normal research completion reaches the polite atomic live status region @p20-announcements @research", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "research");
+  await page.getByRole("tab", { name: /Research/ }).click();
+  await page.locator("#tab-research-tech-tree").click();
+
+  const technology = page.locator('[data-technology-id="knowledgeSharing"]');
+  await technology.click();
+  await expect(technology).toContainText("Researched");
+
+  const notice = page.locator('[data-testid="game-notification"][data-classification="tech"]');
+  await expect(notice).toHaveText(
+    technologyNotificationText("en", "knowledgeSharing", TECHNOLOGY_NAMES.knowledgeSharing.en),
+  );
+  await expect(notice).toHaveRole("status");
+  await expect(notice).toHaveAttribute("aria-atomic", "true");
+  await expect(page.getByTestId("notification-stack")).toHaveAttribute("aria-live", "polite");
+});
+
 test("research completion notifications match Cosmic Forge in all six player languages @research @technology @locale", async ({
   page,
 }, testInfo) => {
@@ -1638,6 +1819,7 @@ test("research completion notifications match Cosmic Forge in all six player lan
       });
     }
     await startEconomyFixture(page, "research", locale);
+    await page.getByRole("tab", { name: /Research/ }).click();
     await page.locator("#tab-research-tech-tree").click();
     const technologyName = TECHNOLOGY_NAMES.knowledgeSharing[locale];
     await page.locator('[data-technology-id="knowledgeSharing"]').click();
@@ -1793,12 +1975,12 @@ test("notation and language controls update live economy and technology readouts
     await captureVisualCheckpoint(page, testInfo, `economy-research-locale-${locale.id}`);
     await page.locator("#tab-energy").click();
     const energyPaneByBuilding = {
-      battery1: "energy-storage",
-      battery2: "energy-storage",
-      battery3: "energy-storage",
-      powerPlant1: "energy-power-plant",
-      powerPlant2: "energy-solar-power-plant",
-      powerPlant3: "energy-advanced-power-plant",
+      battery1: "energy-batteries",
+      battery2: "energy-batteries",
+      battery3: "energy-batteries",
+      powerPlant1: "energy-power",
+      powerPlant2: "energy-power",
+      powerPlant3: "energy-power",
     } as const;
     for (const id of Object.keys(ENERGY_BUILDINGS) as (keyof typeof ENERGY_BUILDINGS)[]) {
       await page.locator(`#tab-${energyPaneByBuilding[id]}`).click();
@@ -1806,12 +1988,12 @@ test("notation and language controls update live economy and technology readouts
         ECONOMY_BUILDING_NAMES[id][locale.id],
       );
     }
-    await page.locator("#tab-energy-power-plant").click();
+    await page.locator("#tab-energy-power").click();
     const powerPlant = page.locator('[data-building-id="powerPlant1"]');
     await expect(powerPlant.locator("h3")).toHaveText(locale.plant);
     await expect(powerPlant.getByRole("button").first()).toBeEnabled();
     await expect(page.locator("#pane-energy")).not.toContainText("???");
-    await page.locator("#tab-energy-storage").click();
+    await page.locator("#tab-energy-batteries").click();
     await captureVisualCheckpoint(page, testInfo, `economy-energy-locale-${locale.id}`);
     await page.locator("#tab-compounds").click();
     for (const id of COMPOUND_IDS) {
@@ -1841,6 +2023,29 @@ test("notation and language controls update live economy and technology readouts
       const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(documentWidth, `${locale.id} ${tabId} at 390px`).toBeLessThanOrEqual(390);
     }
+    await page.locator("#tab-hydrogen").click();
+    for (const id of MATERIAL_IDS) {
+      const childTab = page.locator(`#tab-resources-${id}`);
+      await childTab.click();
+      await expect(childTab, `${locale.id} ${id} selected at 390px`).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+
+      const resourcePanel = page.locator(`#panel-resources-${id}`);
+      await expect(resourcePanel, `${locale.id} ${id} panel at 390px`).toBeVisible();
+      await expect(
+        resourcePanel.locator(".pane-heading h2"),
+        `${locale.id} ${id} localized heading at 390px`,
+      ).toHaveText(economyGoodName(locale.id, id));
+      await expect(
+        resourcePanel.locator(".hydrogen-hero"),
+        `${locale.id} ${id} hero at 390px`,
+      ).toBeVisible();
+
+      const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+      expect(documentWidth, `${locale.id} ${id} resource at 390px`).toBeLessThanOrEqual(390);
+    }
     await page.locator("#tab-compounds").click();
     for (const id of COMPOUND_IDS) {
       const childTab = page.locator(`#tab-compounds-${id}`);
@@ -1864,43 +2069,283 @@ test("notation and language controls update live economy and technology readouts
   }
 });
 
+test("P-41 formats a production rate above 999 per second in every notation @precision @notation", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "notation-coverage");
+  const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const hydrogenRate = createEconomyTickPlan(state).netRatesPerSecond.hydrogen;
+  expect(hydrogenRate).toBeGreaterThan(999);
+  const cash = state.run.cash;
+  expect(cash).toBeGreaterThan(999);
+
+  const readout = page.locator("#panel-resources-hydrogen .rate-readout strong");
+  const cashReadout = page.getByTestId("cash-balance");
+  const cashTooltip = page.locator("#top-stat-tooltip-cash");
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await expect(readout).toContainText(formatNumber("en", hydrogenRate, 2, notation));
+    const formattedCash = formatCurrency(
+      "en",
+      cash,
+      state.settings.currencyId ?? "usd",
+      2,
+      notation,
+    );
+    await expect(cashReadout).toHaveText(formattedCash);
+    await expect(cashReadout).toHaveAttribute("aria-describedby", "top-stat-tooltip-cash");
+    await expect(cashTooltip).toContainText(formattedCash);
+  }
+});
+
+test("P-41 formats every visible Resource and Compound holding and rate in every notation @precision @notation", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "full");
+
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+
+    for (const id of MATERIAL_IDS) {
+      await page.locator(`#tab-resources-${id}`).click();
+      const panel = page.locator(`#panel-resources-${id}`);
+      const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+      const rates = createEconomyTickPlan(state).netRatesPerSecond;
+      const quantityTestId =
+        id === "hydrogen" ? "hydrogen-quantity" : `economy-good-quantity-${id}`;
+      const capacityTestId =
+        id === "hydrogen" ? "hydrogen-capacity" : `economy-good-capacity-${id}`;
+      await expect(panel.getByTestId(quantityTestId)).toContainText(
+        formatNumber("en", state.run.goods[id].quantity, 2, notation),
+      );
+      await expect(panel.getByTestId(capacityTestId)).toHaveText(
+        formatNumber("en", state.run.goods[id].storageCapacity, 0, notation),
+      );
+      await expect(panel.locator(".rate-readout strong")).toContainText(
+        formatNumber("en", Math.abs(rates[id] ?? 0), 2, notation),
+      );
+    }
+
+    await page.locator("#tab-compounds").click();
+    for (const id of COMPOUND_IDS) {
+      await page.locator(`#tab-compounds-${id}`).click();
+      const pane = page.locator(`#pane-compounds [data-compound-id="${id}"]`);
+      const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+      const rates = createEconomyTickPlan(state).netRatesPerSecond;
+      await expect(pane.locator(`[data-testid="economy-good-quantity-${id}"]`)).toContainText(
+        formatNumber("en", state.run.goods[id].quantity, 2, notation),
+      );
+      await expect(pane.locator(`[data-testid="economy-good-capacity-${id}"]`)).toHaveText(
+        formatNumber("en", state.run.goods[id].storageCapacity, 0, notation),
+      );
+      await expect(pane.locator(".rate-readout strong")).toContainText(
+        formatNumber("en", Math.abs(rates[id] ?? 0), 2, notation),
+      );
+    }
+  }
+});
+
+test("P-41 keeps the long Run Time timer advancing during a live notation change @precision @notation", async ({
+  page,
+}, testInfo) => {
+  await startEconomyFixture(page, "notation-coverage");
+  const runTime = page.getByTestId("top-stat-time").locator(".top-stat-value");
+  let simulationMs = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.clock.simulationMs,
+  );
+  const condensedDuration = formatDuration("en", simulationMs, "condensed");
+  await expect(runTime).toHaveText(condensedDuration);
+  await expect(runTime).toHaveAttribute("aria-describedby", "top-stat-tooltip-time");
+  await expect(page.locator("#top-stat-tooltip-time")).toContainText(condensedDuration);
+  await captureVisualCheckpoint(page, testInfo, "p41-runtime-condensed");
+
+  await setNumberNotation(page, "standard");
+  simulationMs = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.clock.simulationMs,
+  );
+  const standardDuration = formatDuration("en", simulationMs, "standard");
+  await expect(runTime).toHaveText(standardDuration);
+  await expect(page.locator("#top-stat-tooltip-time")).toContainText(standardDuration);
+  await captureVisualCheckpoint(page, testInfo, "p41-runtime-standard");
+  await setNumberNotation(page, "scientific");
+  simulationMs = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.clock.simulationMs,
+  );
+  const scientificDuration = formatDuration("en", simulationMs, "scientific");
+  await expect(runTime).toHaveText(scientificDuration);
+  await expect(page.locator("#top-stat-tooltip-time")).toContainText(scientificDuration);
+  await captureVisualCheckpoint(page, testInfo, "p41-runtime-scientific");
+  const before = simulationMs;
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
+
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.clock.simulationMs))
+    .toBeGreaterThan(before);
+  simulationMs = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.clock.simulationMs,
+  );
+  await expect(runTime).toHaveText(formatDuration("en", simulationMs, "scientific"));
+});
+
+test("P-41 Statistics use default Condensed notation and update to Standard at a boundary @settings @statistics @notation", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "notation-coverage");
+  await page.locator("#tab-settings").click();
+  await page.locator("#tab-settings-statistics").click();
+  const statistics = page.getByTestId("settings-statistics");
+  const resourceStock = statistics.locator('[data-statistic-id="resourceStock"] dd');
+  const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const totalResources = MATERIAL_IDS.reduce(
+    (total, id) => total + state.run.goods[id].quantity,
+    0,
+  );
+  expect(state.settings.notation).toBe("condensed");
+  expect(totalResources).toBeGreaterThan(999);
+  await expect(resourceStock).toHaveText(formatNumber("en", totalResources, 0, "condensed"));
+
+  await setNumberNotation(page, "standard");
+  await page.locator("#tab-settings").click();
+  await page.locator("#tab-settings-statistics").click();
+  await expect(
+    page.getByTestId("settings-statistics").locator('[data-statistic-id="resourceStock"] dd'),
+  ).toHaveText(formatNumber("en", totalResources, 0, "standard"));
+});
+
 test("energy, technology, and compound panels render and accept player actions @energy @compounds @ui", async ({
   page,
 }, testInfo) => {
   await startEconomyFixture(page, "full");
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(page.getByTestId("economy-energy")).toBeVisible();
   await expect(page.getByTestId("economy-energy").getByText(/Generated: .* kJ\/s/)).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await captureVisualCheckpoint(page, testInfo, "economy-energy-panel");
-  await page.getByRole("checkbox", { name: "Power grid" }).uncheck();
-  await page.getByRole("checkbox", { name: "Power grid" }).check();
+  await page.locator("#tab-energy-power").click();
+  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
   await page.getByRole("tab", { name: /Research/ }).click();
   await expect(page.getByTestId("economy-research")).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await captureVisualCheckpoint(page, testInfo, "economy-research-buildings-panel");
   await page.locator("#tab-research-tech-tree").click();
   await expect(page.locator("#panel-research-tech-tree")).toBeVisible();
   await expect(page.locator("[data-technology-id]").first()).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await captureVisualCheckpoint(page, testInfo, "economy-technology-panel");
   await page.getByRole("tab", { name: /Compounds/ }).click();
   const diesel = page.locator('[data-compound-id="diesel"]');
   await expect(diesel).toBeVisible();
   await expect(diesel).toContainText("26 Hydrogen + 12 Carbon");
   await diesel.getByRole("button", { name: "Create Diesel" }).click();
-  await expectGoodStock(diesel, "1,501", "100,000");
+  await expectGoodStock(diesel, 1_501, 100_000);
   await captureVisualCheckpoint(page, testInfo, "economy-compound-panel");
 });
 
-test("energy deficit trips after grace period and grid toggle recovers the system @energy", async ({
+test("formats Compound recipe inputs using the selected notation @p41-compound-recipe", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "full");
+  const diesel = page.locator('[data-compound-id="diesel"]');
+
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    if (notation !== "condensed") await setNumberNotation(page, notation);
+    await page.locator("#tab-compounds").click();
+    await expect(diesel).toBeVisible();
+    const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+    const expectedRecipe = philosophyCompoundRecipe(state, "diesel")
+      .map(
+        (input) =>
+          `${formatNumber("en", input.amount, 2, notation)} ${economyGoodName("en", input.goodId)}`,
+      )
+      .join(" + ");
+    await expect(diesel.locator(".compound-recipe")).toContainText(expectedRecipe);
+  }
+});
+
+test("energy deficit announces a grid trip on another tab and grid toggle recovers the system @energy @p20-announcements", async ({
   page,
 }) => {
   await startEconomyFixture(page, "power-deficit");
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(page.getByTestId("power-unavailable")).toHaveText("3");
-  await runTestLabAction(page, "Advance 10 seconds");
-  await runTestLabAction(page, "Advance 10 seconds");
+  const tripAnnouncement = page.getByTestId("power-trip-announcement");
+  await expect(tripAnnouncement).toHaveRole("alert");
+  await expect(tripAnnouncement).toHaveAttribute("aria-live", "assertive");
+  await expect(tripAnnouncement).toHaveAttribute("aria-atomic", "true");
+  await expect(tripAnnouncement).toBeEmpty();
+  await page.getByRole("tab", { name: /Resources/ }).click();
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(10_000));
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(10_000));
+  await expect(page.locator("#pane-hydrogen")).toBeVisible();
+  await expect(page.getByTestId("top-stat-power")).toContainText("TRIPPED");
+  await expect(tripAnnouncement).toHaveText(
+    "The grid has tripped and needs to be turned on again.",
+  );
+  await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(page.getByRole("alert").filter({ hasText: "Power trip" })).toBeVisible();
-  await page.getByLabel("Power grid").uncheck();
+  await page.locator("#tab-energy-power").click();
+  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(page.getByRole("alert").filter({ hasText: "Power trip" })).toHaveCount(0);
+});
+
+test("unaffordable research and energy purchases expose linked reasons before submission @research @energy @accessibility @p20-announcements", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "research");
+  await page.locator("#tab-research").click();
+  await expandResearchProduction(page);
+
+  const scienceKit = page.locator('[data-building-id="scienceKit"]');
+  const sciencePurchase = scienceKit.getByRole("button", { name: "Buy", exact: true });
+  await expect(sciencePurchase).toBeEnabled();
+  await sciencePurchase.click();
+  await expect(sciencePurchase).toBeDisabled();
+  await expect(sciencePurchase).toHaveAttribute(
+    "aria-describedby",
+    "research-building-scienceKit-reason",
+  );
+  const researchReason = page.locator("#research-building-scienceKit-reason");
+  await expect(researchReason).toBeVisible();
+  await expect(sciencePurchase).toHaveAccessibleDescription(/Need .* cash\./);
+
+  await page.evaluate(() => {
+    for (const storage of [localStorage, sessionStorage]) {
+      const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index));
+      for (const key of keys) {
+        if (
+          key?.startsWith("miaplacidus:v1:") ||
+          key === "miaplacidus:test:economy-storage-cleared"
+        )
+          storage.removeItem(key);
+      }
+    }
+  });
+  await startEconomyFixture(page, "bulk-energy");
+  await page.locator("#tab-energy").click();
+  await page.locator("#tab-energy-power").click();
+
+  const powerPlant = page.locator('[data-building-id="powerPlant1"]');
+  const plantPurchase = powerPlant.getByRole("button", { name: "Buy", exact: true });
+  const plantBuyMax = powerPlant.getByRole("button", { name: "Buy max", exact: true });
+  await expect(plantBuyMax).toBeEnabled();
+  await plantBuyMax.click();
+  await expect(plantBuyMax).toBeDisabled();
+  await expect(plantPurchase).toBeDisabled();
+  await expect(plantPurchase).toHaveAttribute(
+    "aria-describedby",
+    "energy-building-powerPlant1-reason",
+  );
+  const energyReason = page.locator("#energy-building-powerPlant1-reason");
+  await expect(energyReason).toBeVisible();
+  await expect(plantPurchase).toHaveAccessibleDescription(/Need .* cash\./);
 });
 
 test("battery storage charges, drains under load, and recharges after load stops @energy @research", async ({
@@ -1910,9 +2355,10 @@ test("battery storage charges, drains under load, and recharges after load stops
   const powerValue = page.getByTestId("top-stat-power").locator(".top-stat-value");
   await expect(powerValue).toBeVisible();
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-batteries").click();
   const battery = page.locator('[data-building-id="battery1"]');
   await battery.getByRole("button", { name: "Buy", exact: true }).click();
-  await page.locator("#tab-energy-solar-power-plant").click();
+  await page.locator("#tab-energy-power").click();
   const solar = page.locator('[data-building-id="powerPlant2"]');
   await solar.getByRole("button", { name: "Buy", exact: true }).click();
 
@@ -1925,6 +2371,7 @@ test("battery storage charges, drains under load, and recharges after load stops
 
   await runTestLabAction(page, "Advance 10 seconds");
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(page.getByTestId("power-quantity")).toHaveText("300");
   await expect(powerValue).toHaveClass(/is-charging/);
   await captureVisualCheckpoint(page, testInfo, "economy-battery-charged");
@@ -1933,6 +2380,7 @@ test("battery storage charges, drains under load, and recharges after load stops
   await lab.getByRole("button", { name: "Resume", exact: true }).click();
   await runTestLabAction(page, "Advance 10 seconds");
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(page.getByTestId("power-quantity")).toHaveText("150");
   await expect(powerValue).toHaveClass(/is-discharging/);
   await captureVisualCheckpoint(page, testInfo, "economy-battery-discharged");
@@ -1941,6 +2389,7 @@ test("battery storage charges, drains under load, and recharges after load stops
   await lab.getByRole("button", { name: "Pause", exact: true }).click();
   await runTestLabAction(page, "Advance 10 seconds");
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-summary").click();
   await expect(page.getByTestId("power-quantity")).toHaveText("350");
   await expect(powerValue).toHaveClass(/is-charging/);
   await captureVisualCheckpoint(page, testInfo, "economy-battery-recharged");
@@ -1952,34 +2401,42 @@ test("resource, research, power, compound, language and notation changes survive
   await startEconomyFixture(page, "save");
   await expandHydrogenAutobuyers(page.locator('[data-resource-id="hydrogen"]'));
   const carbon = page.locator('[data-resource-id="carbon"]');
+  await page.locator("#tab-resources-carbon").click();
   await carbon.getByRole("button", { name: "Collect +1 Carbon" }).click();
+  await page.locator("#tab-resources-hydrogen").click();
   await page.getByRole("button", { name: "Buy compressor", exact: true }).click();
   await expect(page.getByTestId("hydrogen-autobuyer-count")).toHaveText("1");
   const hydrogenAutobuyer = page.locator(".autobuyer-card button[aria-pressed='true']");
   await hydrogenAutobuyer.click();
   const iron = page.locator('[data-resource-id="iron"]');
+  await page.locator("#tab-resources-iron").click();
   await iron.getByRole("button", { name: /Increase storage/ }).click();
-  await expectGoodStock(iron, "0", "3,002");
+  await expectGoodStock(iron, 0, 3_002);
   await page.getByRole("tab", { name: /Research/ }).click();
   await expandResearchProduction(page);
   const scienceKit = page.locator('[data-building-id="scienceKit"]');
   await scienceKit.getByRole("button", { name: "Buy", exact: true }).click();
   await scienceKit.getByRole("button", { name: "Pause", exact: true }).click();
+  await page.locator("#tab-research-tech-tree").click();
   await page.getByRole("button", { name: "Research technology: Fusion Efficiency III" }).click();
   await page.getByRole("tab", { name: /Energy/ }).click();
+  await page.locator("#tab-energy-power").click();
   const plant = page.locator('[data-building-id="powerPlant1"]');
   await plant.getByRole("button", { name: "Buy", exact: true }).click();
+  await page.locator("#tab-energy-batteries").click();
   const battery = page.locator('[data-building-id="battery1"]');
   await battery.getByRole("button", { name: "Buy", exact: true }).click();
+  await page.locator("#tab-energy-power").click();
   await plant.getByRole("checkbox").uncheck();
-  await page.getByLabel("Power grid").uncheck();
+  await page.getByRole("button", { name: "Turn power grid off" }).click();
   await page.getByRole("tab", { name: /Compounds/ }).click();
   const diesel = page.locator('[data-compound-id="diesel"]');
   const buyers = diesel.locator("details").filter({ hasText: "Buy tier 1" });
   await buyers.locator("summary").click();
   await buyers.getByLabel("Automatic creation").uncheck();
   await diesel.getByRole("button", { name: "Create Diesel" }).click();
-  await page.locator("#tab-hydrogen").click();
+  await page.getByRole("tab", { name: /Resources/ }).click();
+  await page.locator("#tab-resources-carbon").click();
   const carbonAllocation = carbon.locator("details").filter({ hasText: "Production allocation" });
   await carbonAllocation.locator("summary").click();
   await setAllocationSlider(carbonAllocation, "Cash share", 40);
@@ -1996,7 +2453,9 @@ test("resource, research, power, compound, language and notation changes survive
       economy: run.economy,
     };
   });
-  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await page.locator("#tab-settings").click();
+  await page.locator("#tab-settings-saves").click();
+  await page.getByTestId("save-now").click();
   await page.reload();
   await page.locator("#start-locale").selectOption("fr");
   await page.locator("#pioneer-name").fill("Economy save");

@@ -7,6 +7,7 @@ import { autobuyerUpgradeId } from "../../src/content/ids";
 import { transition } from "../../src/engine/commands";
 import {
   selectHydrogenAutobuyerPurchase,
+  selectAutobuyerBuyMax,
   selectHydrogenCollection,
   selectHydrogenSale,
   selectHydrogenStoragePurchase,
@@ -105,6 +106,52 @@ describe("Hydrogen vertical slice rules", () => {
       enabled: false,
       cost: 57,
     });
+  });
+
+  it("applies Laser Mining consistently to single and bulk Hydrogen compressor purchases", () => {
+    const initial = withHydrogen(102);
+    const discounted: GameState = {
+      ...initial,
+      permanent: {
+        ...initial.permanent,
+        acquiredPerks: [...initial.permanent.acquiredPerks, "bulkPurchasing"],
+        philosophyRepeatableRanks: {
+          ...initial.permanent.philosophyRepeatableRanks,
+          laserMining: 1,
+        },
+      },
+    };
+
+    expect(selectHydrogenAutobuyerPurchase(discounted)).toMatchObject({
+      enabled: true,
+      cost: 47.5,
+    });
+    expect(selectAutobuyerBuyMax(discounted, "hydrogen", 1)).toMatchObject({
+      enabled: true,
+      count: 2,
+      totalCost: 101.5,
+    });
+
+    const dedicatedPurchase = transition(discounted, { type: "hydrogen.autobuyer.purchase" });
+    const sharedPurchase = transition(discounted, {
+      type: "economy.autobuyer.purchase",
+      goodId: "hydrogen",
+      tier: 1,
+    });
+    const bulkPurchase = transition(discounted, {
+      type: "economy.autobuyer.buyMax",
+      goodId: "hydrogen",
+      tier: 1,
+    });
+    expect(dedicatedPurchase.accepted).toBe(true);
+    expect(sharedPurchase.accepted).toBe(true);
+    expect(bulkPurchase.accepted).toBe(true);
+    expect(dedicatedPurchase.state.run.goods.hydrogen.quantity).toBe(
+      sharedPurchase.state.run.goods.hydrogen.quantity,
+    );
+    expect(dedicatedPurchase.state.run.goods.hydrogen.quantity).toBe(54.5);
+    expect(bulkPurchase.state.run.goods.hydrogen.quantity).toBe(0.5);
+    expect(bulkPurchase.state.run.upgrades[autobuyerUpgradeId("hydrogen", 1)]).toBe(2);
   });
 
   it("keeps all six first-slice locale catalogues on the same key set", () => {

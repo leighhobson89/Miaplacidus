@@ -76,16 +76,17 @@ test("keyboard navigation follows the visible main-tab order @app-boot @keyboard
 });
 
 test("the Test Lab opens and closes with the keypad plus toggle @app-boot @test-lab", async ({
-  page,
   freshGame,
 }) => {
-  const lab = page.locator("dialog.debug-tools:not(.debug-scenario-menu)");
-  await expect(freshGame.locator("dialog.debug-tools:not(.debug-scenario-menu)")).toHaveCount(1);
-  await expect(lab).not.toBeVisible();
-  await page.keyboard.press("NumpadAdd");
+  const lab = freshGame.locator("dialog.debug-tools:not(.debug-scenario-menu)");
+  const collect = freshGame.getByRole("button", { name: "Collect 1 Hydrogen" });
+  await collect.focus();
+  await expect(collect).toBeFocused();
+  await expect(lab).toHaveCount(0);
+  await freshGame.keyboard.press("NumpadAdd");
   await expect(lab).toBeVisible();
   await expect(lab.getByRole("button", { name: "Close", exact: true })).toBeVisible();
-  await page.keyboard.press("NumpadAdd");
+  await freshGame.keyboard.press("NumpadAdd");
   await expect(lab).not.toBeVisible();
 });
 

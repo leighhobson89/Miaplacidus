@@ -1,3 +1,6 @@
+import type { EconomicGoodId } from "./ids";
+import type { RocketId } from "./space";
+
 export const RANDOM_EVENT_IDS = [
   "powerPlantExplosion",
   "batteryExplosion",
@@ -34,7 +37,46 @@ export interface RandomEventHistoryEntry {
   readonly id: RandomEventId;
   readonly simulationMs: number;
   readonly negative: boolean;
+  /** Trigger-time effect duration; absent from older saves that did not retain it. */
+  readonly durationMs?: number;
+  /** Event-time inputs for the source description. Absent on saves written before schema v47. */
+  readonly details?: RandomEventHistoryDetails;
 }
+
+/** Locale-independent event results retained so the journal can render in any language. */
+export type RandomEventHistoryDetails =
+  | {
+      readonly kind: "buildingDestroyed";
+      readonly buildingId:
+        | "powerPlant1"
+        | "powerPlant2"
+        | "powerPlant3"
+        | "battery1"
+        | "battery2"
+        | "battery3";
+    }
+  | { readonly kind: "researchHalved"; readonly amount: number }
+  | { readonly kind: "researchDoubled"; readonly amount: number }
+  | {
+      readonly kind: "rocketInstantArrival";
+      readonly rocketId: RocketId;
+      readonly rocketName: string;
+    }
+  | {
+      readonly kind: "antimatterReaction";
+      readonly rocketId: RocketId;
+      readonly rocketName: string;
+      readonly asteroidId: string;
+      readonly asteroidName: string;
+      readonly antimatterLost: number;
+    }
+  | { readonly kind: "stockLoss"; readonly goodId: EconomicGoodId; readonly lostPercent: number }
+  | { readonly kind: "minerBrokeDown"; readonly rocketId: RocketId; readonly rocketName: string }
+  | {
+      readonly kind: "supplyChainDisruption";
+      readonly goodId: EconomicGoodId;
+      readonly percentDown: number;
+    };
 
 export type RandomEventCounts = Readonly<Record<RandomEventId, number>>;
 
@@ -82,7 +124,7 @@ export interface NewsTickerEntry {
   readonly textKey: string;
   readonly simulationMs: number;
   readonly prizeGoodId: string | null;
-  /** Pre-rolled when the ticker is generated, matching the amount shown in the source ticker. */
+  /** Reward amount captured when the ticker is generated so the claim matches its displayed copy. */
   readonly prizeAmount?: number | null;
   /** The manuscript system named in a clue; absent on ticker entries from older saves. */
   readonly clueSystemId?: string | null;

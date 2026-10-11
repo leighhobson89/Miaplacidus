@@ -10,15 +10,13 @@ export async function saveNowFromSettings(page: Page): Promise<void> {
   }
 }
 
-export async function openSaveManager(page: Page): Promise<void> {
-  await page.locator("#tab-settings").click();
-  await page.locator("#tab-settings-saves").click();
-  await page.getByTestId("save-manager-open").click();
-}
-
 export async function openSaveSettings(page: Page): Promise<void> {
   await page.locator("#tab-settings").click();
   await page.locator("#tab-settings-saves").click();
+}
+
+export async function openSaveManager(page: Page): Promise<void> {
+  await openSaveSettings(page);
 }
 
 export async function resumeSavedPioneer(page: Page, name: string): Promise<void> {

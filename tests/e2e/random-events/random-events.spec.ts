@@ -5,6 +5,9 @@ import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { journalLabel, metaSignalText } from "../../../src/i18n/metaSignalMessages";
 import { settingsLabel, settingsSectionName } from "../../../src/i18n/settingsMessages";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import { randomEventDescriptionTemplate } from "../../../src/i18n/randomEventDescriptionMessages";
+import { setNumberNotation } from "../_harness/settings-controls";
 
 test("records an event and guarded news prize across locale changes and reload", async ({
   page,
@@ -20,6 +23,19 @@ test("records an event and guarded news prize across locale changes and reload",
     window.miaplacidusTest!.dispatch({ type: "news.ticker.force", category: "prize", id: 2000 });
   });
   await expect(journal.locator('[data-event-id="scienceTheft"]')).toBeVisible();
+  const eventDetails = await page.evaluate(() => {
+    const entry = window.miaplacidusTest!
+      .getState()
+      .run.randomEvents.history.find((candidate) => candidate.id === "scienceTheft");
+    return entry?.details?.kind === "researchHalved" ? entry.details.amount : null;
+  });
+  expect(eventDetails).toBeGreaterThan(0);
+  const notation = await page.evaluate(() => window.miaplacidusTest!.getState().settings.notation);
+  await expect(journal.locator('[data-event-id="scienceTheft"] [data-testid="event-description"]')).toHaveText(
+    randomEventDescriptionTemplate("en", "eventDescResearchHalvedAmount", {
+      amount: formatNumber("en", eventDetails!, 0, notation),
+    }),
+  );
   await expect(journal.locator('[data-event-art="scienceTheft"]')).toBeVisible();
   await captureVisualCheckpoint(page, testInfo, "events-journal-event-artwork");
   const prize = journal.locator('[data-news-id="2000"]');
@@ -55,5 +71,52 @@ test("records an event and guarded news prize across locale changes and reload",
       restored.getByRole("heading", { name: metaSignalText(locale, "title"), exact: true }),
     ).toBeVisible();
     await expect(restored.getByText(journalLabel(locale, "eventProbabilities"))).toBeAttached();
+    const localeEventAmount = await page.evaluate(() => {
+      const entry = window.miaplacidusTest!
+        .getState()
+        .run.randomEvents.history.find((candidate) => candidate.id === "scienceTheft");
+      return entry?.details?.kind === "researchHalved" ? entry.details.amount : null;
+    });
+    expect(localeEventAmount).toBe(eventDetails);
+    await expect(
+      restored.locator('[data-event-id="scienceTheft"] [data-testid="event-description"]'),
+    ).toHaveText(
+      randomEventDescriptionTemplate(locale, "eventDescResearchHalvedAmount", {
+        amount: formatNumber(locale, eventDetails!, 0, notation),
+      }),
+    );
+  }
+});
+
+test("P-41 formats the visible active-event count in every notation @p41-event-count", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-rebirth-ready");
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "random-event.force",
+      eventId: "galacticMarketLockdown",
+    }),
+  );
+  const activeCount = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.randomEvents.activeEffects.length,
+  );
+  expect(activeCount).toBeGreaterThan(0);
+
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await expect
+      .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notation))
+      .toBe(notation);
+    await page.getByRole("tab", { name: "Settings" }).click();
+    await page.locator("#tab-settings-events").click();
+    const journal = page.getByTestId("meta-journal-pane");
+    const activeReadout = journal.getByTestId("journal-active-effect-count");
+    await expect(activeReadout).toHaveText(
+      `${metaSignalText("en", "active")}: ${formatNumber("en", activeCount, 0, notation)}`,
+    );
+    await expect(
+      journal.locator('.journal-active-effects [data-testid="active-event-description"]'),
+    ).toHaveText("Galactic Market is offline.");
   }
 });

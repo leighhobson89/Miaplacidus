@@ -17,7 +17,13 @@ import {
   autobuyerUpgradeId,
   storageUpgradeId,
 } from "../content/ids";
-import { advanceClock, pauseClock, resumeClock, type ClockInput } from "./clock";
+import {
+  advanceClock,
+  MAX_FOREGROUND_STEPS_PER_ADVANCE,
+  pauseClock,
+  resumeClock,
+  type ClockInput,
+} from "./clock";
 import { canAfford, settleSpend } from "./precision";
 import { nextRandom } from "./random";
 import { hydrogenAutobuyerCount, hydrogenAutobuyerPrice } from "../content/hydrogen";
@@ -90,6 +96,11 @@ import { advanceGalacticMarket } from "./galacticMarket";
 import { applyAchievementBoundary, type AchievementUnlockedEvent } from "./achievements";
 import { isThemeId } from "../content/themes";
 import { isCurrencyId } from "../content/currency";
+import {
+  isProgressionTutorialStepId,
+  PROGRESSION_TUTORIAL_STEP_IDS,
+  type ProgressionTutorialStepId,
+} from "../content/tutorial";
 import {
   RANDOM_EVENT_IDS,
   NEWS_CATEGORIES,
@@ -248,8 +259,13 @@ export type GameCommand =
   | { readonly type: "navigation.attention.initialize"; readonly pageIds: readonly string[] }
   | { readonly type: "navigation.attention.discover"; readonly pageIds: readonly string[] }
   | { readonly type: "navigation.attention.clear"; readonly pageId: string }
+  | { readonly type: "navigation.attention.clear-many"; readonly pageIds: readonly string[] }
   | { readonly type: "random.draw"; readonly purpose: string }
   | { readonly type: "onboarding.complete" }
+  | { readonly type: "tutorial.start" }
+  | { readonly type: "tutorial.dismiss" }
+  | { readonly type: "tutorial.advance"; readonly stepId: ProgressionTutorialStepId }
+  | { readonly type: "tutorial.complete" }
   | { readonly type: "random-event.force"; readonly eventId: RandomEventId }
   | { readonly type: "news.ticker.force"; readonly category?: NewsCategory; readonly id?: number }
   | { readonly type: "news.prize.claim"; readonly id: number; readonly simulationMs?: number }
@@ -370,14 +386,10 @@ function reject(state: GameState, failure: CommandFailure): EngineResult {
 function success(
   state: GameState,
   events: readonly EngineEvent[] = [],
-  fallbackState: GameState = state,
+  _fallbackState: GameState = state,
 ): EngineResult {
-  if (!isValidGameState(state)) {
-    return reject(fallbackState, {
-      code: "transition-failed",
-      messageKey: "engine.error.recovered",
-    });
-  }
+  // `transition` validates the completed state once after achievements run.
+  // Keeping this constructor cheap avoids revalidating every intermediate result.
   return { accepted: true, state, events };
 }
 
@@ -774,7 +786,11 @@ function isValidClockInput(input: ClockInput): boolean {
       (Number.isFinite(input.timeWarpRemainingMs) && input.timeWarpRemainingMs >= 0)) &&
     (input.blackHolePower === undefined ||
       (Number.isFinite(input.blackHolePower) && input.blackHolePower > 0)) &&
-    (input.blackHoleAlwaysOn === undefined || typeof input.blackHoleAlwaysOn === "boolean")
+    (input.blackHoleAlwaysOn === undefined || typeof input.blackHoleAlwaysOn === "boolean") &&
+    (input.maxForegroundSteps === undefined ||
+      (Number.isSafeInteger(input.maxForegroundSteps) &&
+        input.maxForegroundSteps > 0 &&
+        input.maxForegroundSteps <= MAX_FOREGROUND_STEPS_PER_ADVANCE))
   );
 }
 
@@ -785,6 +801,13 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
       failure: { code: "invalid-state", messageKey: "engine.error.invalid-state" },
     };
   }
+  return checkPreconditionsForValidState(state, command);
+}
+
+function checkPreconditionsForValidState(
+  state: GameState,
+  command: GameCommand,
+): PreconditionResult {
   if (isSpaceCommand(command)) return checkSpacePreconditions(state, command);
   if (isBlackHoleCommand(command)) {
     const failure = checkBlackHoleCommand(state, command);
@@ -809,7 +832,8 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
   if (
     command.type === "navigation.attention.initialize" ||
     command.type === "navigation.attention.discover" ||
-    command.type === "navigation.attention.clear"
+    command.type === "navigation.attention.clear" ||
+    command.type === "navigation.attention.clear-many"
   )
     return { ok: true };
   switch (command.type) {
@@ -917,7 +941,10 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
           };
     case "hydrogen.autobuyer.purchase": {
       const owned = hydrogenAutobuyerCount(state.run.upgrades);
-      const cost = hydrogenAutobuyerPrice(owned);
+      const cost = hydrogenAutobuyerPrice(
+        owned,
+        0.95 ** philosophyRepeatableRank(state, "laserMining"),
+      );
       if (!Number.isSafeInteger(owned + 1) || !Number.isFinite(cost)) {
         return {
           ok: false,
@@ -1325,11 +1352,9 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
             failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
           };
     case "news.prize.claim":
-      return (
-        Number.isSafeInteger(command.id) &&
+      return Number.isSafeInteger(command.id) &&
         (command.simulationMs === undefined || Number.isFinite(command.simulationMs)) &&
         checkNewsPrizeClaim(state, command.id, command.simulationMs)
-      )
         ? { ok: true }
         : {
             ok: false,
@@ -1344,6 +1369,44 @@ export function checkPreconditions(state: GameState, command: GameCommand): Prec
           };
     case "onboarding.complete":
       return { ok: true };
+    case "tutorial.start":
+      return state.permanent.progressionTutorial.status === "available"
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+          };
+    case "tutorial.dismiss":
+      return state.permanent.progressionTutorial.status === "available" ||
+        state.permanent.progressionTutorial.status === "active"
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+          };
+    case "tutorial.advance": {
+      const tutorial = state.permanent.progressionTutorial;
+      const index = PROGRESSION_TUTORIAL_STEP_IDS.indexOf(command.stepId);
+      return tutorial.status === "active" &&
+        tutorial.stepId === command.stepId &&
+        index >= 0 &&
+        index < PROGRESSION_TUTORIAL_STEP_IDS.length - 1
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+          };
+    }
+    case "tutorial.complete":
+      return state.permanent.progressionTutorial.status === "active" &&
+        isProgressionTutorialStepId(state.permanent.progressionTutorial.stepId) &&
+        state.permanent.progressionTutorial.stepId ===
+          PROGRESSION_TUTORIAL_STEP_IDS[PROGRESSION_TUTORIAL_STEP_IDS.length - 1]
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: { code: "invalid-command", messageKey: "engine.error.invalid-command" },
+          };
   }
 }
 
@@ -1504,12 +1567,6 @@ function incrementEnergyTripHistory(state: GameState): GameState {
 
 function transitionRaw(state: GameState, command: GameCommand): EngineResult {
   try {
-    if (!isValidGameState(state)) {
-      return reject(createInitialGameState(), {
-        code: "invalid-state",
-        messageKey: "engine.error.invalid-state",
-      });
-    }
     if (command.type === "navigation.attention.initialize") {
       if (
         !Array.isArray(command.pageIds) ||
@@ -1587,7 +1644,43 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
         state,
       );
     }
-    const precondition = checkPreconditions(state, command);
+    if (command.type === "navigation.attention.clear-many") {
+      if (
+        !Array.isArray(command.pageIds) ||
+        command.pageIds.some((pageId) => typeof pageId !== "string" || pageId.length === 0)
+      )
+        return reject(state, {
+          code: "invalid-command",
+          messageKey: "engine.error.invalid-command",
+        });
+      const pageIds = new Set(command.pageIds);
+      const navigationAttentionIds = state.run.navigationAttentionIds.filter(
+        (pageId) => !pageIds.has(pageId),
+      );
+      const navigationVisitedIds = [...state.permanent.navigationVisitedIds];
+      const visitedIds = new Set(navigationVisitedIds);
+      for (const pageId of pageIds) {
+        if (!visitedIds.has(pageId)) {
+          visitedIds.add(pageId);
+          navigationVisitedIds.push(pageId);
+        }
+      }
+      if (
+        navigationAttentionIds.length === state.run.navigationAttentionIds.length &&
+        navigationVisitedIds.length === state.permanent.navigationVisitedIds.length
+      )
+        return success(state, [], state);
+      return success(
+        {
+          ...state,
+          run: { ...state.run, navigationAttentionIds },
+          permanent: { ...state.permanent, navigationVisitedIds },
+        },
+        [],
+        state,
+      );
+    }
+    const precondition = checkPreconditionsForValidState(state, command);
     if (!precondition.ok) {
       return reject(state, precondition.failure);
     }
@@ -1652,7 +1745,11 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
     }
     if (isSpaceCommand(command)) {
       const applied = applySpaceCommand(state, command);
-      return success(incrementAccepted(applied.state), applied.events, state);
+      const nextState =
+        command.type === "space.starship.arrival-notice.mark-notified"
+          ? applied.state
+          : incrementAccepted(applied.state);
+      return success(nextState, applied.events, state);
     }
     if (isMetaProgressionCommand(command)) {
       const applied = applyMetaProgressionCommand(state, command);
@@ -1698,7 +1795,15 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
               lifetimeCashEarned: state.statistics.lifetimeCashEarned + cashEarned,
             },
           }),
-          [{ type: "resource.sold", goodId: command.goodId, amount, cash: cashEarned }],
+          [
+            {
+              type: "resource.sold",
+              goodId: command.goodId,
+              amount,
+              cash: cashEarned,
+              origin: "manual",
+            },
+          ],
           state,
         );
       }
@@ -1770,7 +1875,10 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
       }
       case "hydrogen.autobuyer.purchase": {
         const owned = hydrogenAutobuyerCount(state.run.upgrades);
-        const cost = hydrogenAutobuyerPrice(owned);
+        const cost = hydrogenAutobuyerPrice(
+          owned,
+          0.95 ** philosophyRepeatableRank(state, "laserMining"),
+        );
         const upgradeId = autobuyerUpgradeId("hydrogen", 1);
         const hydrogen = state.run.goods.hydrogen;
         const goods = {
@@ -2339,7 +2447,12 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
               miningElapsedByRocket[rocketId] = Math.max(0, elapsedMs - outboundRemainingMs);
             }
           }
-          const mining = advanceSpaceMining(nextState, miningElapsedByRocket, elapsedMs);
+          const mining = advanceSpaceMining(
+            nextState,
+            miningElapsedByRocket,
+            elapsedMs,
+            step.phase === "offline",
+          );
           nextState = mining.state;
           events.push(...mining.events);
           const tickPlan =
@@ -2428,6 +2541,11 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
               researchPoints > technology.revealThreshold ||
               researchedTechnologies.includes(technology.id),
           ).map((technology) => technology.id);
+          const rocketFuelStep = advanceRocketFuel(
+            nextState,
+            elapsedMs,
+            gridRunning || previousPower.infinitePower,
+          );
           nextState = {
             ...nextState,
             run: {
@@ -2436,11 +2554,7 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
               cash: transaction.cash,
               researchPoints,
               unlockedResources,
-              space: advanceRocketFuel(
-                nextState,
-                elapsedMs,
-                gridRunning || previousPower.infinitePower,
-              ).run.space,
+              space: rocketFuelStep.state.run.space,
               economy: {
                 ...nextState.run.economy,
                 power,
@@ -2456,6 +2570,7 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
             goodsProducedByGood[goodId] += transaction.goodsProducedByGood[goodId];
           precipitationCollected += transaction.precipitationCollected;
           events.push(...transaction.events);
+          events.push(...rocketFuelStep.events);
           const eventStep = advanceRandomEvents(nextState, elapsedMs);
           nextState = eventStep.state;
           events.push(...eventStep.events);
@@ -2673,17 +2788,94 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
       }
       case "onboarding.complete":
         return success(incrementAccepted(state), [{ type: "onboarding.completed" }], state);
+      case "tutorial.start":
+        return success(
+          {
+            ...state,
+            permanent: {
+              ...state.permanent,
+              progressionTutorial: {
+                status: "active",
+                stepId: PROGRESSION_TUTORIAL_STEP_IDS[0],
+              },
+            },
+          },
+          [],
+          state,
+        );
+      case "tutorial.dismiss":
+        return success(
+          {
+            ...state,
+            permanent: {
+              ...state.permanent,
+              progressionTutorial: { status: "dismissed", stepId: null },
+            },
+          },
+          [],
+          state,
+        );
+      case "tutorial.advance": {
+        const currentIndex = PROGRESSION_TUTORIAL_STEP_IDS.indexOf(command.stepId);
+        if (currentIndex < 0 || currentIndex >= PROGRESSION_TUTORIAL_STEP_IDS.length - 1) {
+          return reject(state, {
+            code: "invalid-command",
+            messageKey: "engine.error.invalid-command",
+          });
+        }
+        const stepId = PROGRESSION_TUTORIAL_STEP_IDS[currentIndex + 1];
+        if (!stepId) {
+          return reject(state, {
+            code: "invalid-command",
+            messageKey: "engine.error.invalid-command",
+          });
+        }
+        return success(
+          {
+            ...state,
+            permanent: {
+              ...state.permanent,
+              progressionTutorial: { status: "active", stepId },
+            },
+          },
+          [],
+          state,
+        );
+      }
+      case "tutorial.complete":
+        return success(
+          {
+            ...state,
+            permanent: {
+              ...state.permanent,
+              progressionTutorial: { status: "completed", stepId: null },
+            },
+          },
+          [{ type: "onboarding.completed" }],
+          state,
+        );
     }
   } catch {
     return reject(state, { code: "transition-failed", messageKey: "engine.error.recovered" });
   }
 }
 
-/** Apply achievements once, after an accepted command has completed its normal state transition. */
-export function transition(state: GameState, command: GameCommand): EngineResult {
+/**
+ * Transition a state whose validity was established by the owning store.
+ * The returned state is still fully validated before it leaves this boundary.
+ */
+export function transitionFromKnownValidState(
+  state: GameState,
+  command: GameCommand,
+): EngineResult {
   const result = transitionRaw(state, command);
   if (!result.accepted) return result;
-  const achievements = applyAchievementBoundary(state, result.state, result.events);
+  let achievements: ReturnType<typeof applyAchievementBoundary>;
+  try {
+    achievements = applyAchievementBoundary(state, result.state, result.events);
+  } catch {
+    return reject(state, { code: "transition-failed", messageKey: "engine.error.recovered" });
+  }
   if (!isValidGameState(achievements.state))
     return reject(state, { code: "transition-failed", messageKey: "engine.error.recovered" });
   return {
@@ -2691,6 +2883,17 @@ export function transition(state: GameState, command: GameCommand): EngineResult
     state: achievements.state,
     events: [...result.events, ...achievements.events],
   };
+}
+
+/** Apply achievements once, after an accepted command has completed its normal state transition. */
+export function transition(state: GameState, command: GameCommand): EngineResult {
+  if (!isValidGameState(state)) {
+    return reject(createInitialGameState(), {
+      code: "invalid-state",
+      messageKey: "engine.error.invalid-state",
+    });
+  }
+  return transitionFromKnownValidState(state, command);
 }
 
 export function canAffordPurchaseSelector(

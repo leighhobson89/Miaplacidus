@@ -23,6 +23,12 @@ import {
   type UpgradeId,
 } from "../content/ids";
 import {
+  createDismissedProgressionTutorialState,
+  createInitialProgressionTutorialState,
+  isProgressionTutorialStepId,
+  type ProgressionTutorialState,
+} from "../content/tutorial";
+import {
   INITIAL_PHILOSOPHY_RANKS,
   PHILOSOPHY_REPEATABLE_IDS,
   type PhilosophyRepeatableId,
@@ -70,6 +76,7 @@ import {
   createRandomEventCounts,
   type ManuscriptClueNewsId,
   type NewsTickerProgress,
+  type RandomEventHistoryDetails,
   type RandomEventProgress,
 } from "../content/metaSignals";
 import {
@@ -124,6 +131,14 @@ import {
   ensureDiscoveredStarSystemProfiles,
 } from "./starSystemProfiles";
 
+function hasExactEnumerableKeys(record: object, expected: readonly string[]): boolean {
+  if (!record || typeof record !== "object" || Array.isArray(record)) return false;
+  return (
+    Object.keys(record).length === expected.length &&
+    expected.every((key) => Object.prototype.propertyIsEnumerable.call(record, key))
+  );
+}
+
 export interface GoodState {
   readonly quantity: number;
   readonly storageCapacity: number;
@@ -146,6 +161,8 @@ export interface RunState {
   readonly sodiumIonBatteriesBuiltThisRun: number;
   readonly battery2BuiltThisRun: number;
   readonly battery3BuiltThisRun: number;
+  /** Source `techUnlockedArray` markers that are not researched technologies, this run. */
+  readonly sourceSyntheticTechnologyMarkersThisRun: number;
   readonly goods: Readonly<Record<EconomicGoodId, GoodState>>;
   readonly goodsProducedThisRun: Readonly<Record<EconomicGoodId, number>>;
   readonly unlockedResources: readonly MaterialId[];
@@ -202,12 +219,14 @@ export interface EconomyState {
 export interface PermanentState {
   readonly rebirthCount: number;
   readonly navigationVisitedIds: readonly string[];
+  readonly progressionTutorial: ProgressionTutorialState;
   readonly ascendencyPoints: number;
   readonly gloryPoints: number;
   readonly acquiredPerks: readonly string[];
   readonly philosophyId: PhilosophyId | null;
   readonly philosophyRepeatableRanks: Readonly<Record<PhilosophyRepeatableId, number>>;
   readonly settledSystemIds: readonly string[];
+  readonly oTypeArrivalNarrativesNotifiedSystemIds: readonly SystemId[];
   readonly oTypePowerPlantAssignments: Readonly<Record<OTypePowerPlantId, SystemId | null>>;
   readonly galacticMarket: GalacticMarketState;
   readonly galacticCasino: CasinoState;
@@ -378,6 +397,7 @@ export interface StatisticsState {
   readonly lifetimeBattery3Built: number;
   readonly lifetimeAntimatterMined: number;
   readonly lifetimeAscendencyPointsGained: number;
+  readonly lifetimeSourceApGain: number;
   readonly lifetimeGalacticPointsSpent: number;
   readonly lifetimeCosmicRipTelemetryDataEarned: number;
   readonly lifetimeAsteroidsDiscovered: number;
@@ -387,6 +407,7 @@ export interface StatisticsState {
   readonly lifetimeRocketsLaunched: number;
   readonly lifetimeStarshipsLaunched: number;
   readonly lifetimeStarshipDistanceTravelled: number;
+  readonly lifetimeNewsTickerPrizeClaims: number;
   readonly lifetimeActiveMs: number;
   readonly acceptedCommands: number;
   readonly completedTimers: number;
@@ -394,7 +415,7 @@ export interface StatisticsState {
 }
 
 export interface GameState {
-  readonly schemaVersion: 44;
+  readonly schemaVersion: 52;
   readonly run: RunState;
   readonly permanent: PermanentState;
   readonly settings: SettingsState;
@@ -412,6 +433,7 @@ export type LegacyRunStateV1 = Omit<
   | "sodiumIonBatteriesBuiltThisRun"
   | "battery2BuiltThisRun"
   | "battery3BuiltThisRun"
+  | "sourceSyntheticTechnologyMarkersThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
   | "philosophyChoicePending"
@@ -426,8 +448,10 @@ export type LegacyRunStateV1 = Omit<
 export type LegacyPermanentState = Omit<
   PermanentState,
   | "navigationVisitedIds"
+  | "progressionTutorial"
   | "philosophyId"
   | "philosophyRepeatableRanks"
+  | "oTypeArrivalNarrativesNotifiedSystemIds"
   | "galacticCasino"
   | "blackHole"
   | "megastructures"
@@ -455,12 +479,14 @@ export interface LegacyGameStateV1 {
     | "lifetimeBattery3Built"
     | "lifetimeAntimatterMined"
     | "lifetimeAscendencyPointsGained"
+    | "lifetimeSourceApGain"
     | "lifetimeAsteroidsDiscovered"
     | "lifetimeLegendaryAsteroidsDiscovered"
     | "lifetimeAsteroidsMined"
     | "lifetimeRocketsBuilt"
     | "lifetimeRocketsLaunched"
     | "lifetimeStarshipsLaunched"
+    | "lifetimeNewsTickerPrizeClaims"
     | "lifetimeActiveMs"
   >;
 }
@@ -480,6 +506,7 @@ export type LegacyRunStateV2 = Omit<
   | "sodiumIonBatteriesBuiltThisRun"
   | "battery2BuiltThisRun"
   | "battery3BuiltThisRun"
+  | "sourceSyntheticTechnologyMarkersThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
   | "philosophyChoicePending"
@@ -513,12 +540,14 @@ export interface LegacyGameStateV2 {
     | "lifetimeBattery3Built"
     | "lifetimeAntimatterMined"
     | "lifetimeAscendencyPointsGained"
+    | "lifetimeSourceApGain"
     | "lifetimeAsteroidsDiscovered"
     | "lifetimeLegendaryAsteroidsDiscovered"
     | "lifetimeAsteroidsMined"
     | "lifetimeRocketsBuilt"
     | "lifetimeRocketsLaunched"
     | "lifetimeStarshipsLaunched"
+    | "lifetimeNewsTickerPrizeClaims"
     | "lifetimeActiveMs"
   >;
 }
@@ -533,6 +562,7 @@ export type LegacyRunStateV3 = Omit<
   | "sodiumIonBatteriesBuiltThisRun"
   | "battery2BuiltThisRun"
   | "battery3BuiltThisRun"
+  | "sourceSyntheticTechnologyMarkersThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
   | "philosophyChoicePending"
@@ -564,12 +594,14 @@ export interface LegacyGameStateV3 {
     | "lifetimeBattery3Built"
     | "lifetimeAntimatterMined"
     | "lifetimeAscendencyPointsGained"
+    | "lifetimeSourceApGain"
     | "lifetimeAsteroidsDiscovered"
     | "lifetimeLegendaryAsteroidsDiscovered"
     | "lifetimeAsteroidsMined"
     | "lifetimeRocketsBuilt"
     | "lifetimeRocketsLaunched"
     | "lifetimeStarshipsLaunched"
+    | "lifetimeNewsTickerPrizeClaims"
     | "lifetimeActiveMs"
   >;
 }
@@ -661,7 +693,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
   ) as Record<EconomicGoodId, GoodState>;
 
   const initialState: GameState = {
-    schemaVersion: 44,
+    schemaVersion: 52,
     run: {
       pioneerName: options.pioneerName?.trim() || "Pioneer",
       hydrogenAutobuyerEnabled: true,
@@ -678,6 +710,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       sodiumIonBatteriesBuiltThisRun: 0,
       battery2BuiltThisRun: 0,
       battery3BuiltThisRun: 0,
+      sourceSyntheticTechnologyMarkersThisRun: 0,
       goods,
       goodsProducedThisRun: createGoodProductionCounts(),
       unlockedResources: ["hydrogen"],
@@ -708,12 +741,14 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
     permanent: {
       rebirthCount: 0,
       navigationVisitedIds: [],
+      progressionTutorial: createInitialProgressionTutorialState(),
       ascendencyPoints: 0,
       gloryPoints: 0,
       acquiredPerks: [],
       philosophyId: null,
       philosophyRepeatableRanks: { ...INITIAL_PHILOSOPHY_RANKS },
       settledSystemIds: [startingSystemId],
+      oTypeArrivalNarrativesNotifiedSystemIds: [],
       oTypePowerPlantAssignments: { powerPlant1: null, powerPlant2: null, powerPlant3: null },
       galacticMarket: createInitialGalacticMarketState(seed),
       galacticCasino: createInitialCasinoState(),
@@ -756,6 +791,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       lifetimeBattery3Built: 0,
       lifetimeAntimatterMined: 0,
       lifetimeAscendencyPointsGained: 0,
+      lifetimeSourceApGain: 0,
       lifetimeGalacticPointsSpent: 0,
       lifetimeCosmicRipTelemetryDataEarned: 0,
       lifetimeAsteroidsDiscovered: 0,
@@ -765,6 +801,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       lifetimeRocketsLaunched: 0,
       lifetimeStarshipsLaunched: 0,
       lifetimeStarshipDistanceTravelled: 0,
+      lifetimeNewsTickerPrizeClaims: 0,
       lifetimeActiveMs: 0,
       acceptedCommands: 0,
       completedTimers: 0,
@@ -1024,11 +1061,95 @@ function validAchievementProgress(
   );
 }
 
+function validRandomEventHistoryDetails(
+  eventId: (typeof RANDOM_EVENT_IDS)[number],
+  value: unknown,
+): value is RandomEventHistoryDetails {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const details = value as Record<string, unknown>;
+  const exact = hasExactEnumerableKeys;
+  const validName = (candidate: unknown, maximum: number) =>
+    typeof candidate === "string" &&
+    candidate.trim().length > 0 &&
+    [...candidate].length <= maximum &&
+    !hasControlCharacter(candidate);
+  const validAmount = (candidate: unknown) =>
+    typeof candidate === "number" &&
+    Number.isFinite(candidate) &&
+    candidate >= 0 &&
+    candidate <= 1e300;
+  switch (details["kind"]) {
+    case "buildingDestroyed":
+      return (
+        (eventId === "powerPlantExplosion" || eventId === "batteryExplosion") &&
+        exact(value, ["kind", "buildingId"]) &&
+        (eventId === "powerPlantExplosion"
+          ? ["powerPlant1", "powerPlant2", "powerPlant3"].includes(String(details["buildingId"]))
+          : ["battery1", "battery2", "battery3"].includes(String(details["buildingId"])))
+      );
+    case "researchHalved":
+    case "researchDoubled":
+      return (
+        (details["kind"] === "researchHalved"
+          ? eventId === "scienceTheft"
+          : eventId === "researchBreakthrough") &&
+        exact(value, ["kind", "amount"]) &&
+        validAmount(details["amount"])
+      );
+    case "rocketInstantArrival":
+    case "minerBrokeDown":
+      return (
+        (details["kind"] === "rocketInstantArrival"
+          ? eventId === "rocketInstantArrival"
+          : eventId === "minerBrokeDown") &&
+        exact(value, ["kind", "rocketId", "rocketName"]) &&
+        ROCKET_IDS.includes(details["rocketId"] as RocketId) &&
+        validName(details["rocketName"], 12)
+      );
+    case "antimatterReaction":
+      return (
+        eventId === "antimatterReaction" &&
+        exact(value, [
+          "kind",
+          "rocketId",
+          "rocketName",
+          "asteroidId",
+          "asteroidName",
+          "antimatterLost",
+        ]) &&
+        ROCKET_IDS.includes(details["rocketId"] as RocketId) &&
+        validName(details["rocketName"], 12) &&
+        validName(details["asteroidId"], 120) &&
+        validName(details["asteroidName"], 120) &&
+        validAmount(details["antimatterLost"])
+      );
+    case "stockLoss":
+      return (
+        eventId === "stockLoss" &&
+        exact(value, ["kind", "goodId", "lostPercent"]) &&
+        isEconomicGoodId(details["goodId"]) &&
+        Number.isInteger(details["lostPercent"]) &&
+        Number(details["lostPercent"]) >= 0 &&
+        Number(details["lostPercent"]) <= 100
+      );
+    case "supplyChainDisruption":
+      return (
+        eventId === "supplyChainDisruption" &&
+        exact(value, ["kind", "goodId", "percentDown"]) &&
+        isEconomicGoodId(details["goodId"]) &&
+        Number.isInteger(details["percentDown"]) &&
+        Number(details["percentDown"]) >= 0 &&
+        Number(details["percentDown"]) <= 100
+      );
+    default:
+      return false;
+  }
+}
+
 function validRandomEventProgress(value: unknown): value is RandomEventProgress {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const progress = value as Partial<RandomEventProgress>;
-  const exact = (record: object, keys: readonly string[]) =>
-    Object.keys(record).sort().join("|") === [...keys].sort().join("|");
+  const exact = hasExactEnumerableKeys;
   return (
     exact(value, [
       "elapsedMs",
@@ -1056,15 +1177,22 @@ function validRandomEventProgress(value: unknown): value is RandomEventProgress 
     Array.isArray(progress.history) &&
     progress.history.length <= 100 &&
     validRandomEventCounts(progress.eventCountsThisRun) &&
-    progress.history.every(
-      (entry) =>
-        entry &&
-        exact(entry, ["id", "simulationMs", "negative"]) &&
-        RANDOM_EVENT_IDS.includes(entry.id) &&
-        Number.isFinite(entry.simulationMs) &&
-        entry.simulationMs >= 0 &&
-        typeof entry.negative === "boolean",
-    ) &&
+    progress.history.every((entry) => {
+      if (
+        !entry ||
+        !RANDOM_EVENT_IDS.includes(entry.id) ||
+        !Number.isFinite(entry.simulationMs) ||
+        entry.simulationMs < 0 ||
+        (entry.durationMs !== undefined &&
+          (!Number.isFinite(entry.durationMs) || entry.durationMs < 0)) ||
+        typeof entry.negative !== "boolean"
+      )
+        return false;
+      const keys = Object.keys(entry);
+      const allowedKeys = ["id", "simulationMs", "negative", "durationMs", "details"];
+      if (keys.some((key) => !allowedKeys.includes(key))) return false;
+      return entry.details === undefined || validRandomEventHistoryDetails(entry.id, entry.details);
+    }) &&
     Array.isArray(progress.activeEffects) &&
     progress.activeEffects.length <= RANDOM_EVENT_IDS.length &&
     progress.activeEffects.every(
@@ -1222,8 +1350,7 @@ function validManuscriptClueHistory(
 function validNewsTickerProgress(value: unknown): value is NewsTickerProgress {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const progress = value as Partial<NewsTickerProgress>;
-  const exact = (record: object, keys: readonly string[]) =>
-    Object.keys(record).sort().join("|") === [...keys].sort().join("|");
+  const exact = hasExactEnumerableKeys;
   return (
     exact(value, [
       "remainingMs",
@@ -1418,12 +1545,7 @@ export function isValidGameState(value: unknown): value is GameState {
   if (!value || typeof value !== "object") {
     return false;
   }
-  const exactKeys = (record: object, expected: readonly string[]) => {
-    if (!record || typeof record !== "object" || Array.isArray(record)) return false;
-    const actual = Object.keys(record).sort();
-    const keys = [...expected].sort();
-    return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
-  };
+  const exactKeys = hasExactEnumerableKeys;
   const validSettingsShape = (record: object): boolean => {
     if (!record || typeof record !== "object" || Array.isArray(record)) return false;
     const actual = Object.keys(record);
@@ -1454,7 +1576,7 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   const state = value as Partial<GameState>;
   if (
-    state.schemaVersion !== 44 ||
+    state.schemaVersion !== 52 ||
     !state.run ||
     !state.permanent ||
     !state.settings ||
@@ -1480,6 +1602,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "sodiumIonBatteriesBuiltThisRun",
       "battery2BuiltThisRun",
       "battery3BuiltThisRun",
+      "sourceSyntheticTechnologyMarkersThisRun",
       "goods",
       "goodsProducedThisRun",
       "unlockedResources",
@@ -1507,12 +1630,14 @@ export function isValidGameState(value: unknown): value is GameState {
     !exactKeys(permanent, [
       "rebirthCount",
       "navigationVisitedIds",
+      "progressionTutorial",
       "ascendencyPoints",
       "gloryPoints",
       "acquiredPerks",
       "philosophyId",
       "philosophyRepeatableRanks",
       "settledSystemIds",
+      "oTypeArrivalNarrativesNotifiedSystemIds",
       "oTypePowerPlantAssignments",
       "galacticMarket",
       "galacticCasino",
@@ -1539,6 +1664,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "lifetimeBattery3Built",
       "lifetimeAntimatterMined",
       "lifetimeAscendencyPointsGained",
+      "lifetimeSourceApGain",
       "lifetimeGalacticPointsSpent",
       "lifetimeCosmicRipTelemetryDataEarned",
       "lifetimeAsteroidsDiscovered",
@@ -1548,6 +1674,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "lifetimeRocketsLaunched",
       "lifetimeStarshipsLaunched",
       "lifetimeStarshipDistanceTravelled",
+      "lifetimeNewsTickerPrizeClaims",
       "lifetimeActiveMs",
       "acceptedCommands",
       "completedTimers",
@@ -1560,6 +1687,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "foreground",
       "hiddenElapsedMs",
       "pendingForegroundMs",
+      "pendingForegroundSegments",
     ]) ||
     !exactKeys(run.random, ["seed", "draws"]) ||
     !exactKeys(run.economy, [
@@ -1584,6 +1712,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "autoTelescopeMode",
       "starStudyRange",
       "starshipDistanceTravelledThisRun",
+      "apAnticipatedThisRun",
       "launchPadBuilt",
       "asteroids",
       "asteroidsMinedThisRun",
@@ -1655,6 +1784,13 @@ export function isValidGameState(value: unknown): value is GameState {
     !Array.isArray(permanent.navigationVisitedIds) ||
     permanent.navigationVisitedIds.some((id) => typeof id !== "string" || id.length === 0) ||
     new Set(permanent.navigationVisitedIds).size !== permanent.navigationVisitedIds.length ||
+    !exactKeys(permanent.progressionTutorial, ["status", "stepId"]) ||
+    !["available", "active", "dismissed", "completed"].includes(
+      permanent.progressionTutorial.status,
+    ) ||
+    (permanent.progressionTutorial.status === "active"
+      ? !isProgressionTutorialStepId(permanent.progressionTutorial.stepId)
+      : permanent.progressionTutorial.stepId !== null) ||
     typeof run.navigationAttentionInitialized !== "boolean"
   )
     return false;
@@ -1687,6 +1823,8 @@ export function isValidGameState(value: unknown): value is GameState {
     run.battery2BuiltThisRun < 0 ||
     !Number.isSafeInteger(run.battery3BuiltThisRun) ||
     run.battery3BuiltThisRun < 0 ||
+    !Number.isSafeInteger(run.sourceSyntheticTechnologyMarkersThisRun) ||
+    run.sourceSyntheticTechnologyMarkersThisRun < 0 ||
     typeof run.goods !== "object" ||
     run.goods === null ||
     !Array.isArray(run.unlockedResources) ||
@@ -1766,6 +1904,8 @@ export function isValidGameState(value: unknown): value is GameState {
     typeof run.space.antimatterUnlocked !== "boolean" ||
     !Number.isFinite(run.space.antimatterMinedThisRun) ||
     run.space.antimatterMinedThisRun < 0 ||
+    !Number.isFinite(run.space.apAnticipatedThisRun) ||
+    run.space.apAnticipatedThisRun < 0 ||
     typeof run.space.antimatterBoostActive !== "boolean" ||
     typeof run.space.ascendencyAwardedThisRun !== "boolean" ||
     typeof run.space.weatherSystemId !== "string" ||
@@ -2251,6 +2391,23 @@ export function isValidGameState(value: unknown): value is GameState {
   ) {
     return false;
   }
+  if (!Array.isArray(run.clock.pendingForegroundSegments)) return false;
+  let queuedForegroundMs = 0;
+  for (const segment of run.clock.pendingForegroundSegments) {
+    if (
+      !segment ||
+      !exactKeys(segment, ["elapsedMs", "multiplier"]) ||
+      !Number.isFinite(segment.elapsedMs) ||
+      segment.elapsedMs <= 0 ||
+      !Number.isFinite(segment.multiplier) ||
+      segment.multiplier <= 0 ||
+      segment.multiplier > 1_000_000
+    ) {
+      return false;
+    }
+    queuedForegroundMs += segment.elapsedMs;
+  }
+  if (Math.abs(queuedForegroundMs - run.clock.pendingForegroundMs) > 1e-6) return false;
   if (
     typeof run.marketLiquidatedThisRun !== "boolean" ||
     !Number.isFinite(run.marketLockdownRemainingMs) ||
@@ -2343,6 +2500,13 @@ export function isValidGameState(value: unknown): value is GameState {
     permanent.settledSystemIds.length <= 100 &&
     permanent.settledSystemIds.every(isSystemId) &&
     new Set(permanent.settledSystemIds).size === permanent.settledSystemIds.length &&
+    Array.isArray(permanent.oTypeArrivalNarrativesNotifiedSystemIds) &&
+    permanent.oTypeArrivalNarrativesNotifiedSystemIds.length <= 100 &&
+    permanent.oTypeArrivalNarrativesNotifiedSystemIds.every(
+      (systemId) => isSystemId(systemId) && starTypeForSystem(systemId) === "O",
+    ) &&
+    new Set(permanent.oTypeArrivalNarrativesNotifiedSystemIds).size ===
+      permanent.oTypeArrivalNarrativesNotifiedSystemIds.length &&
     permanent.oTypePowerPlantAssignments !== null &&
     typeof permanent.oTypePowerPlantAssignments === "object" &&
     !Array.isArray(permanent.oTypePowerPlantAssignments) &&
@@ -2428,6 +2592,8 @@ export function isValidGameState(value: unknown): value is GameState {
     statistics.lifetimeAntimatterMined >= run.space.antimatterMinedThisRun &&
     Number.isSafeInteger(statistics.lifetimeAscendencyPointsGained) &&
     statistics.lifetimeAscendencyPointsGained >= 0 &&
+    Number.isSafeInteger(statistics.lifetimeSourceApGain) &&
+    statistics.lifetimeSourceApGain >= 0 &&
     Number.isSafeInteger(statistics.lifetimeGalacticPointsSpent) &&
     statistics.lifetimeGalacticPointsSpent >= 0 &&
     Number.isFinite(statistics.lifetimeCosmicRipTelemetryDataEarned) &&
@@ -2437,6 +2603,8 @@ export function isValidGameState(value: unknown): value is GameState {
     Number.isSafeInteger(statistics.lifetimeLegendaryAsteroidsDiscovered) &&
     statistics.lifetimeLegendaryAsteroidsDiscovered >= 0 &&
     statistics.lifetimeLegendaryAsteroidsDiscovered <= statistics.lifetimeAsteroidsDiscovered &&
+    Number.isSafeInteger(statistics.lifetimeNewsTickerPrizeClaims) &&
+    statistics.lifetimeNewsTickerPrizeClaims >= 0 &&
     Number.isSafeInteger(statistics.lifetimeAsteroidsMined) &&
     statistics.lifetimeAsteroidsMined >= 0 &&
     statistics.lifetimeAsteroidsMined >= run.space.asteroidsMinedThisRun &&
@@ -2887,9 +3055,20 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
           nextShiftInMs: effect["id"] === "blackHoleInstability" ? 60_000 : 0,
         }))
       : [];
+  const savedClock = runState["clock"];
+  const clockState =
+    savedClock && typeof savedClock === "object" && !Array.isArray(savedClock)
+      ? (savedClock as Record<string, unknown>)
+      : (createClockState() as unknown as Record<string, unknown>);
+  const pendingForegroundMs =
+    typeof clockState["pendingForegroundMs"] === "number" &&
+    Number.isFinite(clockState["pendingForegroundMs"]) &&
+    Number(clockState["pendingForegroundMs"]) > 0
+      ? Number(clockState["pendingForegroundMs"])
+      : 0;
   const candidate = {
     ...value,
-    schemaVersion: 44,
+    schemaVersion: 49,
     settings: {
       ...settingsState,
       themeId,
@@ -2897,6 +3076,12 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
     },
     run: {
       ...runState,
+      clock: {
+        ...clockState,
+        pendingForegroundMs,
+        pendingForegroundSegments:
+          pendingForegroundMs > 0 ? [{ elapsedMs: pendingForegroundMs, multiplier: 1 }] : [],
+      },
       researchPointsEarnedThisRun:
         Number.isFinite(runState["researchPointsEarnedThisRun"]) &&
         Number(runState["researchPointsEarnedThisRun"]) >= 0
@@ -2960,12 +3145,16 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
     },
     permanent: {
       ...permanentState,
+      progressionTutorial: createDismissedProgressionTutorialState(),
+      oTypeArrivalNarrativesNotifiedSystemIds: [],
       navigationVisitedIds: Array.isArray(permanentState["navigationVisitedIds"])
-        ? [...new Set(
-            (permanentState["navigationVisitedIds"] as unknown[]).filter(
-              (id): id is string => typeof id === "string" && id.length > 0,
+        ? [
+            ...new Set(
+              (permanentState["navigationVisitedIds"] as unknown[]).filter(
+                (id): id is string => typeof id === "string" && id.length > 0,
+              ),
             ),
-          )]
+          ]
         : [],
       megastructures: (() => {
         const saved = permanentState["megastructures"];
@@ -3002,6 +3191,11 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
         Number.isFinite(statisticsState["lifetimeResearchPointsEarned"]) &&
         Number(statisticsState["lifetimeResearchPointsEarned"]) >= 0
           ? Number(statisticsState["lifetimeResearchPointsEarned"])
+          : 0,
+      lifetimeNewsTickerPrizeClaims:
+        Number.isSafeInteger(statisticsState["lifetimeNewsTickerPrizeClaims"]) &&
+        Number(statisticsState["lifetimeNewsTickerPrizeClaims"]) >= 0
+          ? Number(statisticsState["lifetimeNewsTickerPrizeClaims"])
           : 0,
       lifetimeScienceKitsBuilt:
         Number.isSafeInteger(statisticsState["lifetimeScienceKitsBuilt"]) &&
@@ -3044,7 +3238,7 @@ function upgradeMetaSignalsAndThemes(value: Record<string, unknown>): GameState 
       lifetimeStarshipDistanceTravelled: statisticsState["lifetimeStarshipDistanceTravelled"] ?? 0,
     },
   };
-  return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;
+  return upgradeGameStateV49(candidate);
 }
 
 /** Validates a v1 state by applying economy defaults and validating the current shape. */
@@ -3603,7 +3797,7 @@ export function upgradeGameStateV42(value: unknown): GameState | null {
       navigationVisitedIds: [],
     },
   };
-  return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;
+  return upgradeGameStateV44(candidate);
 }
 
 /** Adds save-wide navigation visit history to v43 saves. */
@@ -3625,12 +3819,269 @@ export function upgradeGameStateV43(value: unknown): GameState | null {
     permanent: {
       ...permanentState,
       navigationVisitedIds: Array.isArray(permanentState["navigationVisitedIds"])
-        ? [...new Set(
-            (permanentState["navigationVisitedIds"] as unknown[]).filter(
-              (id): id is string => typeof id === "string" && id.length > 0,
+        ? [
+            ...new Set(
+              (permanentState["navigationVisitedIds"] as unknown[]).filter(
+                (id): id is string => typeof id === "string" && id.length > 0,
+              ),
             ),
-          )]
+          ]
         : [],
+    },
+  };
+  return upgradeGameStateV44(candidate);
+}
+
+/** Adds queued foreground rate segments to v44 saves. */
+export function upgradeGameStateV44(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const rawRun = legacy["run"];
+  if (
+    legacy["schemaVersion"] !== 44 ||
+    !rawRun ||
+    typeof rawRun !== "object" ||
+    Array.isArray(rawRun)
+  )
+    return null;
+  const run = rawRun as Record<string, unknown>;
+  const rawClock = run["clock"];
+  if (!rawClock || typeof rawClock !== "object" || Array.isArray(rawClock)) return null;
+  const clock = rawClock as Record<string, unknown>;
+  const pendingForegroundMs = clock["pendingForegroundMs"];
+  if (
+    typeof pendingForegroundMs !== "number" ||
+    !Number.isFinite(pendingForegroundMs) ||
+    pendingForegroundMs < 0
+  )
+    return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 49,
+    run: {
+      ...run,
+      clock: {
+        ...clock,
+        pendingForegroundSegments:
+          pendingForegroundMs > 0 ? [{ elapsedMs: pendingForegroundMs, multiplier: 1 }] : [],
+      },
+      newsTicker: addLegacyOneOffOffers(run["newsTicker"]),
+    },
+    statistics: {
+      ...(legacy["statistics"] as Record<string, unknown>),
+      lifetimeNewsTickerPrizeClaims: 0,
+    },
+    permanent: {
+      ...(legacy["permanent"] as Record<string, unknown>),
+      progressionTutorial: createDismissedProgressionTutorialState(),
+      oTypeArrivalNarrativesNotifiedSystemIds: [],
+    },
+  };
+  return upgradeGameStateV49(candidate);
+}
+
+/** Starts exact News Ticker prize-claim counting in v45 saves. */
+export function upgradeGameStateV45(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const rawRun = legacy["run"];
+  const rawStatistics = legacy["statistics"];
+  if (
+    legacy["schemaVersion"] !== 45 ||
+    !rawRun ||
+    typeof rawRun !== "object" ||
+    Array.isArray(rawRun) ||
+    !rawStatistics ||
+    typeof rawStatistics !== "object" ||
+    Array.isArray(rawStatistics)
+  )
+    return null;
+  const run = rawRun as Record<string, unknown>;
+  const statistics = rawStatistics as Record<string, unknown>;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 49,
+    run: {
+      ...run,
+      newsTicker: addLegacyOneOffOffers(run["newsTicker"]),
+    },
+    statistics: {
+      ...statistics,
+      lifetimeNewsTickerPrizeClaims: 0,
+    },
+    permanent: {
+      ...(legacy["permanent"] as Record<string, unknown>),
+      progressionTutorial: createDismissedProgressionTutorialState(),
+      oTypeArrivalNarrativesNotifiedSystemIds: [],
+    },
+  };
+  return upgradeGameStateV49(candidate);
+}
+
+/** Adds locale-independent event results to v46 history entries; older details remain optional. */
+export function upgradeGameStateV46(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  if (legacy["schemaVersion"] !== 46) return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 49,
+    permanent: {
+      ...(legacy["permanent"] as Record<string, unknown>),
+      progressionTutorial: createDismissedProgressionTutorialState(),
+      oTypeArrivalNarrativesNotifiedSystemIds: [],
+    },
+  };
+  return upgradeGameStateV49(candidate);
+}
+
+/** Adds per-save progression tutorial tracking to v47 saves without prompting old slots. */
+export function upgradeGameStateV47(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const permanent = legacy["permanent"];
+  if (
+    legacy["schemaVersion"] !== 47 ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent)
+  )
+    return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 49,
+    permanent: {
+      ...(permanent as Record<string, unknown>),
+      progressionTutorial: createDismissedProgressionTutorialState(),
+      oTypeArrivalNarrativesNotifiedSystemIds: [],
+    },
+  };
+  return upgradeGameStateV49(candidate);
+}
+
+/** Adds save-wide O-type arrival-notice history to v48 saves. */
+export function upgradeGameStateV48(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const permanent = legacy["permanent"];
+  if (
+    legacy["schemaVersion"] !== 48 ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent)
+  )
+    return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 49,
+    permanent: {
+      ...(permanent as Record<string, unknown>),
+      oTypeArrivalNarrativesNotifiedSystemIds: [],
+    },
+  };
+  return upgradeGameStateV49(candidate);
+}
+
+/** Adds the source-matched run AP anticipated accumulator to v49 saves, then upgrades to v52. */
+export function upgradeGameStateV49(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const run = legacy["run"];
+  if (legacy["schemaVersion"] !== 49 || !run || typeof run !== "object" || Array.isArray(run))
+    return null;
+  const runState = run as Record<string, unknown>;
+  const space = runState["space"];
+  if (!space || typeof space !== "object" || Array.isArray(space)) return null;
+  const spaceState = space as Record<string, unknown>;
+  const savedAp = spaceState["apAnticipatedThisRun"];
+  const candidate = {
+    ...legacy,
+    schemaVersion: 50,
+    run: {
+      ...runState,
+      space: {
+        ...spaceState,
+        apAnticipatedThisRun:
+          typeof savedAp === "number" && Number.isFinite(savedAp) && savedAp >= 0 ? savedAp : 0,
+      },
+    },
+  };
+  return upgradeGameStateV50(candidate);
+}
+
+/** Adds the source-parity AP Gain counter to v50 saves without altering AP balance or awards. */
+export function upgradeGameStateV50(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const run = legacy["run"];
+  const statistics = legacy["statistics"];
+  if (
+    legacy["schemaVersion"] !== 50 ||
+    !run ||
+    typeof run !== "object" ||
+    Array.isArray(run) ||
+    !statistics ||
+    typeof statistics !== "object" ||
+    Array.isArray(statistics)
+  )
+    return null;
+  const runState = run as Record<string, unknown>;
+  const newsTicker = runState["newsTicker"];
+  if (!newsTicker || typeof newsTicker !== "object" || Array.isArray(newsTicker)) return null;
+  const claimedPrizeIds = (newsTicker as Record<string, unknown>)["claimedPrizeIds"];
+  const sourceApGain = Array.isArray(claimedPrizeIds) && claimedPrizeIds.includes(3013) ? 1 : 0;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 51,
+    statistics: {
+      ...(statistics as Record<string, unknown>),
+      lifetimeSourceApGain: sourceApGain,
+    },
+  };
+  return upgradeGameStateV51(candidate);
+}
+
+/** Adds run-scoped source technology-marker history to v51 saves. */
+export function upgradeGameStateV51(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const run = legacy["run"];
+  const permanent = legacy["permanent"];
+  if (
+    legacy["schemaVersion"] !== 51 ||
+    !run ||
+    typeof run !== "object" ||
+    Array.isArray(run) ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent)
+  )
+    return null;
+  const runState = run as Record<string, unknown>;
+  const permanentState = permanent as Record<string, unknown>;
+  const space = runState["space"];
+  const starship =
+    space && typeof space === "object" && !Array.isArray(space)
+      ? (space as Record<string, unknown>)["starship"]
+      : undefined;
+  const starshipState =
+    starship && typeof starship === "object" && !Array.isArray(starship)
+      ? (starship as Record<string, unknown>)
+      : {};
+  const rebirthCount = permanentState["rebirthCount"];
+  // An existing rebirth proves the AP marker is present. On run one, an
+  // orbiting Starship proves the first-arrival marker was already added.
+  // Nano Brokers marker purchase history was not saved before v52, so leave
+  // those additions at zero rather than infer an unknowable duplicate count.
+  const apMarkerKnownPresent =
+    (Number.isSafeInteger(rebirthCount) && Number(rebirthCount) > 0) ||
+    (rebirthCount === 0 && starshipState["phase"] === "orbiting");
+  const candidate = {
+    ...legacy,
+    schemaVersion: 52,
+    run: {
+      ...runState,
+      sourceSyntheticTechnologyMarkersThisRun: apMarkerKnownPresent ? 1 : 0,
     },
   };
   return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;

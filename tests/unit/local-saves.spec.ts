@@ -4,7 +4,10 @@ import { checkNewsPrizeClaim } from "../../src/engine/newsTicker";
 import { MANUSCRIPT_CLUE_NEWS_IDS } from "../../src/content/metaSignals";
 import { systemIdForStar } from "../../src/content/ids";
 import { createStarCatalogue, findStarByName } from "../../src/content/starCatalogue";
-import { createInitialStarSystemBattleState } from "../../src/content/space";
+import {
+  createInitialStarSystemBattleState,
+  ROCKET_PART_REQUIREMENTS,
+} from "../../src/content/space";
 import { compressToEncodedURIComponent, compressToUTF16 } from "lz-string";
 import { createTimer, createTimerId } from "../../src/engine/timers";
 import { STAR_WEATHER_TIMER_ID } from "../../src/engine/weather";
@@ -86,6 +89,27 @@ class SecurityFailureStorage implements StorageAdapter {
   }
 }
 
+class KeyCountingStorage implements StorageAdapter {
+  keyReads = 0;
+  constructor(private readonly inner: MemoryStorage) {}
+  get length() {
+    return this.inner.length;
+  }
+  key(index: number) {
+    this.keyReads += 1;
+    return this.inner.key(index);
+  }
+  getItem(key: string) {
+    return this.inner.getItem(key);
+  }
+  setItem(key: string, value: string) {
+    this.inner.setItem(key, value);
+  }
+  removeItem(key: string) {
+    this.inner.removeItem(key);
+  }
+}
+
 describe("local save formats and identity", () => {
   it("round-trips the versioned envelope in local and portable LZ formats", () => {
     const source = envelope("Élodie 🚀");
@@ -126,6 +150,64 @@ describe("local save formats and identity", () => {
 
     expect(decodeLocal(encodeLocal(source)).state).toEqual(state);
     expect(decodePortable(encodePortable(source)).state).toEqual(state);
+  });
+
+  it("preserves unique seen ticker IDs through local and portable save restore", () => {
+    const base = envelope("Ticker History");
+    const seenIds = [1000, 1001, 3013];
+    const state: GameState = {
+      ...base.state,
+      run: {
+        ...base.state.run,
+        newsTicker: { ...base.state.run.newsTicker, seenIds },
+      },
+    };
+    const source = makeEnvelope({
+      slotId: base.slotId,
+      pioneerName: base.pioneerName,
+      createdAt: base.createdAt,
+      savedAt: base.savedAt,
+      revision: base.revision,
+      state,
+    });
+
+    expect(decodeLocal(encodeLocal(source)).state.run.newsTicker.seenIds).toEqual(seenIds);
+    expect(decodePortable(encodePortable(source)).state.run.newsTicker.seenIds).toEqual(seenIds);
+  });
+
+  it("preserves active and simulated duration values with queued clock rates in saves", () => {
+    const base = envelope("Queued Clock Pioneer");
+    const state: GameState = {
+      ...base.state,
+      run: {
+        ...base.state.run,
+        clock: {
+          ...base.state.run.clock,
+          simulationMs: 7_340,
+          pendingForegroundMs: 750,
+          pendingForegroundSegments: [
+            { elapsedMs: 500, multiplier: 5 },
+            { elapsedMs: 250, multiplier: 1 },
+          ],
+        },
+      },
+      statistics: { ...base.state.statistics, lifetimeActiveMs: 1_000 },
+    };
+    const source = makeEnvelope({
+      slotId: base.slotId,
+      pioneerName: base.pioneerName,
+      createdAt: base.createdAt,
+      savedAt: base.savedAt,
+      revision: base.revision,
+      state,
+    });
+
+    const localState = decodeLocal(encodeLocal(source)).state;
+    const portableState = decodePortable(encodePortable(source)).state;
+    expect(localState.run.clock).toEqual(state.run.clock);
+    expect(localState.statistics.lifetimeActiveMs).toBe(1_000);
+    expect(portableState.run.clock).toEqual(state.run.clock);
+    expect(portableState.statistics.lifetimeActiveMs).toBe(1_000);
   });
 
   it("detects payload modification and rejects unmarked old-game codes", () => {
@@ -1103,6 +1185,7 @@ describe("local save formats and identity", () => {
         lifetimeRocketsLaunched: 0,
         lifetimeStarshipsLaunched: 0,
         lifetimeStarshipDistanceTravelled: 0,
+        lifetimeNewsTickerPrizeClaims: 0,
         lifetimeGoodsProducedByGood: base.statistics.lifetimeGoodsProducedByGood,
         lifetimeActiveMs: 1_800_000,
         acceptedCommands: 900_000,
@@ -1147,6 +1230,36 @@ describe("local save formats and identity", () => {
 });
 
 describe("local save repository", () => {
+  it("reuses the local index between listings and refreshes it after another repository writes", () => {
+    const storage = new KeyCountingStorage(new MemoryStorage());
+    const firstRepository = createSaveRepository(storage);
+    const first = firstRepository.create(
+      "00000000-0000-4000-8000-000000000021",
+      createInitialGameState({ pioneerName: "Ada" }),
+      "Ada",
+      100,
+    );
+
+    storage.keyReads = 0;
+    expect(firstRepository.findByName("ADA").map((entry) => entry.slotId)).toEqual([first.slotId]);
+    expect(storage.keyReads).toBe(0);
+
+    const secondRepository = createSaveRepository(storage);
+    secondRepository.create(
+      "00000000-0000-4000-8000-000000000022",
+      createInitialGameState({ pioneerName: "Grace" }),
+      "Grace",
+      110,
+    );
+
+    storage.keyReads = 0;
+    expect(firstRepository.list().map((entry) => entry.pioneerName)).toContain("Grace");
+    expect(storage.keyReads).toBeGreaterThan(0);
+    storage.keyReads = 0;
+    firstRepository.list();
+    expect(storage.keyReads).toBe(0);
+  });
+
   it("creates fresh slots without first-run briefing metadata", () => {
     const storage = new MemoryStorage();
     const repository = createSaveRepository(storage);
@@ -1375,7 +1488,19 @@ describe("lifetime statistics save migration", () => {
       },
       run: {
         ...initial.run,
-        space: { ...initial.run.space, asteroidsMinedThisRun: 2 },
+        space: {
+          ...initial.run.space,
+          asteroidsMinedThisRun: 2,
+          launchPadBuilt: true,
+          rockets: {
+            ...initial.run.space.rockets,
+            rocket1: {
+              ...initial.run.space.rockets.rocket1,
+              builtParts: ROCKET_PART_REQUIREMENTS.rocket1,
+              phase: "ready" as const,
+            },
+          },
+        },
       },
     };
     const saved = makeEnvelope({
@@ -1388,6 +1513,9 @@ describe("lifetime statistics save migration", () => {
     });
 
     const restored = decodePortable(encodePortable(saved));
+    expect(restored.state.run.space.rockets.rocket1.builtParts).toBe(
+      ROCKET_PART_REQUIREMENTS.rocket1,
+    );
     expect(restored.state.statistics).toMatchObject({
       lifetimeAscendencyPointsGained: 7,
       lifetimeAsteroidsDiscovered: 3,
@@ -1879,6 +2007,160 @@ describe("lifetime statistics save migration", () => {
     expect(migrated.state.run.navigationAttentionInitialized).toBe(true);
     expect(migrated.state.permanent.navigationVisitedIds).toEqual([]);
     expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("adds normal-rate queue metadata when upgrading a version 44 save", () => {
+    const current = envelope("Clock Queue Migration Pioneer");
+    const { pendingForegroundSegments: _segments, ...oldClock } = current.state.run.clock;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 44,
+      run: {
+        ...current.state.run,
+        clock: { ...oldClock, pendingForegroundMs: 750 },
+      },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 44, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.clock.pendingForegroundMs).toBe(750);
+    expect(migrated.state.run.clock.pendingForegroundSegments).toEqual([
+      { elapsedMs: 750, multiplier: 1 },
+    ]);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("starts lifetime News Ticker claim tracking when upgrading a version 45 save", () => {
+    const current = envelope("Ticker Claim Migration Pioneer");
+    const { lifetimeNewsTickerPrizeClaims: _claims, ...oldStatistics } = current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 45,
+      statistics: oldStatistics,
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 45, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.statistics.lifetimeNewsTickerPrizeClaims).toBe(0);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("adds the AP anticipated run counter to version 49 saves without inventing history", () => {
+    const current = envelope("AP Migration Pioneer");
+    const { apAnticipatedThisRun: _anticipated, ...oldSpace } = current.state.run.space;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 49,
+      run: { ...current.state.run, space: oldSpace },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 49, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.run.space.apAnticipatedThisRun).toBe(0);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates the source AP Gain counter from the persistent one-off claim record", () => {
+    const current = envelope("AP Gain Migration Pioneer");
+    const { lifetimeSourceApGain: _sourceApGain, ...oldStatistics } = current.state.statistics;
+    const oldState = {
+      ...current.state,
+      schemaVersion: 50,
+      permanent: { ...current.state.permanent, ascendencyPoints: 1 },
+      run: {
+        ...current.state.run,
+        newsTicker: { ...current.state.run.newsTicker, claimedPrizeIds: [3013] },
+      },
+      statistics: { ...oldStatistics, lifetimeAscendencyPointsGained: 7 },
+    };
+    const { checksum: _checksum, ...currentBody } = current;
+    const oldBody = { ...currentBody, schemaVersion: 50, state: oldState };
+    const oldSave = {
+      ...oldBody,
+      checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+    };
+
+    const migrated = decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.permanent.ascendencyPoints).toBe(1);
+    expect(migrated.state.statistics.lifetimeAscendencyPointsGained).toBe(7);
+    expect(migrated.state.statistics.lifetimeSourceApGain).toBe(1);
+    expect(isSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("initializes v51 source tech-marker history only from provable AP-marker state", () => {
+    const migrateV51 = (name: string, rebirthCount: number, hasArrived: boolean) => {
+      const current = envelope(name);
+      const { sourceSyntheticTechnologyMarkersThisRun: _markers, ...oldRun } = current.state.run;
+      const destination = createStarCatalogue().find(
+        (star) => !current.state.permanent.settledSystemIds.includes(star.id),
+      )!;
+      const oldState = {
+        ...current.state,
+        schemaVersion: 51,
+        run: {
+          ...oldRun,
+          space: {
+            ...oldRun.space,
+            starship: hasArrived
+              ? {
+                  ...oldRun.space.starship,
+                  destinationSystemId: destination.id,
+                  phase: "orbiting" as const,
+                  durationMs: 1,
+                  antimatterSpent: 1,
+                }
+              : oldRun.space.starship,
+          },
+        },
+        permanent: {
+          ...current.state.permanent,
+          rebirthCount,
+          acquiredPerks: ["nanoBrokers:1", "nanoBrokers:2", "nanoBrokers:3"],
+        },
+      };
+      const { checksum: _checksum, ...currentBody } = current;
+      const oldBody = { ...currentBody, schemaVersion: 51, state: oldState };
+      const oldSave = {
+        ...oldBody,
+        checksum: checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]),
+      };
+      return decodeLocal(compressToUTF16(JSON.stringify(oldSave)));
+    };
+
+    const beforeArrival = migrateV51("Marker Migration Before Arrival", 0, false);
+    expect(beforeArrival.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(0);
+
+    const afterFirstArrival = migrateV51("Marker Migration After Arrival", 0, true);
+    expect(afterFirstArrival.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(1);
+
+    const afterRebirth = migrateV51("Marker Migration After Rebirth", 2, false);
+    expect(afterRebirth.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(1);
   });
 
   it("upgrades a version 29 envelope through the current save decoder", () => {

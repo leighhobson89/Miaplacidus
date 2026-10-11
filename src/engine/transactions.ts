@@ -55,6 +55,7 @@ export type ResourceTransactionEvent =
       readonly goodId: EconomicGoodId;
       readonly amount: number;
       readonly cash: number;
+      readonly origin?: "automatic" | "manual";
     }
   | { readonly type: "storage.clamped"; readonly goodId: EconomicGoodId; readonly amount: number };
 
@@ -185,7 +186,7 @@ export function transactResources(
       next[goodId] = { ...next[goodId], quantity: next[goodId].quantity - amount };
       cashRaised += earned;
       if (allocation?.enabled) cashBudgets.set(goodId as MaterialId, Math.max(0, budget - amount));
-      events.push({ type: "resource.sold", goodId, amount, cash: earned });
+      events.push({ type: "resource.sold", goodId, amount, cash: earned, origin: "automatic" });
     }
   }
 

@@ -1,4 +1,8 @@
-import { RANDOM_EVENT_IDS, type RandomEventId } from "../content/metaSignals";
+import {
+  RANDOM_EVENT_IDS,
+  type RandomEventHistoryDetails,
+  type RandomEventId,
+} from "../content/metaSignals";
 import { FIXED_UPGRADE_IDS, ECONOMIC_GOOD_IDS, MATERIAL_IDS, COMPOUND_IDS } from "../content/ids";
 import { ENERGY_BUILDINGS } from "../content/economy";
 import {
@@ -6,6 +10,7 @@ import {
   createInitialPlayerFleetCombatTotals,
   createInitialSpaceState,
   createInitialStarshipModules,
+  type RocketId,
 } from "../content/space";
 import { advanceStarWeatherCycle, STAR_WEATHER_TIMER_ID } from "./weather";
 import { megastructureBatteryCapacityMultiplier } from "./megastructures";
@@ -73,7 +78,11 @@ export type RandomEventEngineEvent =
       readonly id: RandomEventId;
       readonly negative: boolean;
     }
-  | { readonly type: "random-event.ended"; readonly id: RandomEventId };
+  | {
+      readonly type: "random-event.ended";
+      readonly id: RandomEventId;
+      readonly targetId: string | null;
+    };
 
 export function randomEventEligible(state: GameState, id: RandomEventId): boolean {
   switch (id) {
@@ -170,23 +179,25 @@ function trigger(
 ): { readonly state: GameState; readonly events: readonly RandomEventEngineEvent[] } | null {
   if (!randomEventEligible(stateValue, id)) return null;
   let state = stateValue;
-  if (id === "scienceTheft")
+  let details: RandomEventHistoryDetails | undefined;
+  if (id === "scienceTheft") {
+    const amount = Math.ceil(state.run.researchPoints / 2);
+    if (amount > 0) details = { kind: "researchHalved", amount };
     state = {
       ...state,
       run: {
         ...state.run,
-        researchPoints: Math.max(
-          0,
-          state.run.researchPoints - Math.ceil(state.run.researchPoints / 2),
-        ),
+        researchPoints: Math.max(0, state.run.researchPoints - amount),
       },
     };
-  else if (id === "researchBreakthrough")
+  } else if (id === "researchBreakthrough") {
+    const amount = Math.floor(state.run.researchPoints * 2) - state.run.researchPoints;
+    if (amount > 0) details = { kind: "researchDoubled", amount };
     state = {
       ...state,
       run: { ...state.run, researchPoints: Math.floor(state.run.researchPoints * 2) },
     };
-  else if (id === "powerPlantExplosion" || id === "batteryExplosion") {
+  } else if (id === "powerPlantExplosion" || id === "batteryExplosion") {
     const candidates = (
       id === "powerPlantExplosion"
         ? ["powerPlant1", "powerPlant2", "powerPlant3"]
@@ -199,6 +210,13 @@ function trigger(
       id === "batteryExplosion" ? { index: 0, state } : drawIndex(state, candidates.length);
     state = pick.state;
     const upgradeId = candidates[pick.index]! as keyof typeof state.run.upgrades;
+    details = {
+      kind: "buildingDestroyed",
+      buildingId: upgradeId as Extract<
+        RandomEventHistoryDetails,
+        { kind: "buildingDestroyed" }
+      >["buildingId"],
+    };
     const upgrades = {
       ...state.run.upgrades,
       [upgradeId]: Math.max(0, (state.run.upgrades[upgradeId] ?? 0) - 1),
@@ -242,6 +260,8 @@ function trigger(
     state = pick.state;
     const rocket =
       state.run.space.rockets[ids[pick.index] as keyof typeof state.run.space.rockets]!;
+    const rocketId = ids[pick.index] as RocketId;
+    details = { kind: "rocketInstantArrival", rocketId, rocketName: rocket.name };
     const timer = rocket.timerId
       ? completeTimer(state.run.timers, rocket.timerId as TimerId)
       : { timers: state.run.timers, events: [] };
@@ -276,13 +296,22 @@ function trigger(
     if (ids.length === 0) return null;
     const pick = drawIndex(state, ids.length);
     state = pick.state;
-    const rocketId = ids[pick.index] as keyof typeof state.run.space.rockets;
+    const rocketId = ids[pick.index] as RocketId;
     const rocket = state.run.space.rockets[rocketId]!;
     const targetId = rocket.targetAsteroidId;
     const asteroid = state.run.space.asteroids.find((entry) => entry.id === targetId);
     const antimatterLost = asteroid
       ? Math.max(0, asteroid.totalAntimatter - asteroid.remainingAntimatter)
       : 0;
+    if (asteroid)
+      details = {
+        kind: "antimatterReaction",
+        rocketId,
+        rocketName: rocket.name,
+        asteroidId: asteroid.id,
+        asteroidName: asteroid.name,
+        antimatterLost,
+      };
     state = {
       ...state,
       run: {
@@ -312,6 +341,7 @@ function trigger(
     const goodId = goods[goodPick.index]!;
     const rate = nextRandom(state.run.random);
     const loss = 0.4 + rate.value * 0.4;
+    details = { kind: "stockLoss", goodId, lostPercent: Math.floor(loss * 100) };
     state = {
       ...state,
       run: {
@@ -358,13 +388,21 @@ function trigger(
       .map(([rocketId]) => rocketId);
     if (miningRockets.length === 0) return null;
     const pick = drawIndex(state, miningRockets.length);
-    state = withActiveEffect(pick.state, id, 15 * 60_000, 0, miningRockets[pick.index]!);
+    const rocketId = miningRockets[pick.index]! as RocketId;
+    const rocketName = pick.state.run.space.rockets[rocketId]!.name;
+    details = { kind: "minerBrokeDown", rocketId, rocketName };
+    state = withActiveEffect(pick.state, id, 15 * 60_000, 0, rocketId);
   } else if (id === "supplyChainDisruption") {
     const candidates = supplyChainCandidates(state);
     if (candidates.length === 0) return null;
     const target = drawIndex(state, candidates.length);
     const percent = nextRandomInteger(target.state.run.random, 60, 80);
     state = { ...target.state, run: { ...target.state.run, random: percent.state } };
+    details = {
+      kind: "supplyChainDisruption",
+      goodId: candidates[target.index]!,
+      percentDown: percent.value,
+    };
     state = withActiveEffect(
       state,
       id,
@@ -397,9 +435,17 @@ function trigger(
     [id]: Math.max(0.01, state.run.randomEvents.probabilities[id] * 0.9),
   };
   const negative = NEGATIVE_EVENTS.has(id);
+  const durationMs =
+    state.run.randomEvents.activeEffects.find((effect) => effect.id === id)?.remainingMs ?? 0;
   const history = [
     ...state.run.randomEvents.history,
-    { id, simulationMs: state.run.clock.simulationMs, negative },
+    {
+      id,
+      simulationMs: state.run.clock.simulationMs,
+      negative,
+      durationMs,
+      ...(details ? { details } : {}),
+    },
   ].slice(-100);
   const eventCountsThisRun = {
     ...state.run.randomEvents.eventCountsThisRun,
@@ -453,7 +499,7 @@ export function advanceRandomEvents(stateValue: GameState, elapsedMs: number) {
     const remainingMs = effect.remainingMs - elapsedMs;
     if (remainingMs <= 0) {
       endedIds.push(effect.id);
-      events.push({ type: "random-event.ended", id: effect.id });
+      events.push({ type: "random-event.ended", id: effect.id, targetId: effect.targetId });
     }
     if (remainingMs <= 0 && effect.id !== "blackHoleInstability") return [];
     let updated = { ...effect, remainingMs: Math.max(0, remainingMs) };

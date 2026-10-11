@@ -2,7 +2,7 @@ import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
 
-test("confirms, cancels, and reloads a second rebirth into the settled system", async ({
+test("confirms, cancels, and reloads a second rebirth into the settled system @p16-focus", async ({
   page,
 }) => {
   await startMetaFixture(page);
@@ -18,15 +18,23 @@ test("confirms, cancels, and reloads a second rebirth into the settled system", 
     ),
   ).toBe(12);
 
-  await pane.getByRole("button", { name: "Rebirth", exact: true }).click();
+  const rebirthTrigger = pane.getByRole("button", { name: "Rebirth", exact: true });
+  await rebirthTrigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "CANCEL", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(rebirthTrigger).toBeFocused();
   expect(await page.evaluate(() => window.miaplacidusTest!.getState().permanent.rebirthCount)).toBe(
     1,
   );
 
-  await pane.getByRole("button", { name: "Rebirth", exact: true }).click();
+  await rebirthTrigger.click();
+  await expect(page.getByRole("dialog", { name: "WARNING: REBIRTH!" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(rebirthTrigger).toBeFocused();
+
+  await rebirthTrigger.click();
   const confirmation = page.getByRole("dialog", { name: "WARNING: REBIRTH!" });
   await expect(confirmation).toBeVisible();
   await expect(
@@ -35,6 +43,7 @@ test("confirms, cancels, and reloads a second rebirth into the settled system", 
   await confirmation
     .getByRole("button", { name: "RESET ALL PROGRESS AND KEEP AP", exact: true })
     .click();
+  await expect(page.locator("#tab-hydrogen")).toBeFocused();
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest?.getState().permanent.rebirthCount))
     .toBe(2);

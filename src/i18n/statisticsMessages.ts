@@ -1,4 +1,117 @@
 import type { LocaleId } from "../content/ids";
+import type { RandomEventId } from "../content/metaSignals";
+
+export type StatisticsMessageId = "description";
+
+const statisticsMessages: Record<LocaleId, Record<StatisticsMessageId, string>> = {
+  en: { description: "Here you can see your progress in the game." },
+  es: { description: "Aqu\u00ed puedes ver tu progreso en el juego." },
+  pt: { description: "Aqui podes ver o teu progresso no jogo." },
+  de: { description: "Hier kannst du deinen Fortschritt im Spiel sehen." },
+  it: { description: "Qui puoi vedere i tuoi progressi nel gioco." },
+  fr: { description: "Ici tu peux voir ta progression dans le jeu." },
+};
+
+export function statisticsText(locale: LocaleId, id: StatisticsMessageId): string {
+  return statisticsMessages[locale][id];
+}
+
+const eventStatisticLabels: Record<LocaleId, Record<RandomEventId, string>> = {
+  en: {
+    powerPlantExplosion: "Power Plant Explosion",
+    batteryExplosion: "Battery Explosion",
+    scienceTheft: "Science Theft",
+    researchBreakthrough: "Research Breakthrough",
+    rocketInstantArrival: "Rocket Instant Arrival",
+    starshipLostInSpace: "Starship Lost In Space",
+    antimatterReaction: "Antimatter Reaction",
+    stockLoss: "Stock Loss",
+    galacticMarketLockdown: "Galactic Market Lockdown",
+    endlessSummer: "Endless Summer",
+    minerBrokeDown: "Miner Broke Down",
+    supplyChainDisruption: "Supply Chain Disruption",
+    blackHoleInstability: "Black Hole Instability",
+  },
+  es: {
+    powerPlantExplosion: "Explosión de planta de energía",
+    batteryExplosion: "Explosión de batería",
+    scienceTheft: "Robo de ciencia",
+    researchBreakthrough: "Avance en investigación",
+    rocketInstantArrival: "Llegada instantánea de cohete",
+    starshipLostInSpace: "Nave estelar perdida en el espacio",
+    antimatterReaction: "Reacción de antimateria",
+    stockLoss: "Pérdida en bolsa",
+    galacticMarketLockdown: "Confinamiento del mercado galáctico",
+    endlessSummer: "Verano eterno",
+    minerBrokeDown: "Minero averiado",
+    supplyChainDisruption: "Interrupción de la cadena de suministro",
+    blackHoleInstability: "Inestabilidad del agujero negro",
+  },
+  pt: {
+    powerPlantExplosion: "Explosão da usina de energia",
+    batteryExplosion: "Explosão da bateria",
+    scienceTheft: "Roubo de ciência",
+    researchBreakthrough: "Avanço na pesquisa",
+    rocketInstantArrival: "Chegada instantânea do foguete",
+    starshipLostInSpace: "Nave estelar perdida no espaço",
+    antimatterReaction: "Reação de antimatéria",
+    stockLoss: "Perda no mercado de ações",
+    galacticMarketLockdown: "Confinamento do mercado galáctico",
+    endlessSummer: "Verão eterno",
+    minerBrokeDown: "Minerador avariado",
+    supplyChainDisruption: "Interrupção da cadeia de suprimentos",
+    blackHoleInstability: "Instabilidade do buraco negro",
+  },
+  de: {
+    powerPlantExplosion: "Kraftwerks\u00adexplosion",
+    batteryExplosion: "Batterieexplosion",
+    scienceTheft: "Wissenschaftsdiebstahl",
+    researchBreakthrough: "Forschungsdurchbruch",
+    rocketInstantArrival: "Sofortige Raketenankunft",
+    starshipLostInSpace: "Raumschiff im Weltraum verloren",
+    antimatterReaction: "Antimateriereaktion",
+    stockLoss: "Börsenverlust",
+    galacticMarketLockdown: "Galaktischer Markt-Lockdown",
+    endlessSummer: "Endloser Sommer",
+    minerBrokeDown: "Miner ausgefallen",
+    supplyChainDisruption: "Lieferkettenstörung",
+    blackHoleInstability: "Schwarzes-Loch-Instabilität",
+  },
+  it: {
+    powerPlantExplosion: "Esplosione della centrale elettrica",
+    batteryExplosion: "Esplosione della batteria",
+    scienceTheft: "Furto scientifico",
+    researchBreakthrough: "Svolta nella ricerca",
+    rocketInstantArrival: "Arrivo istantaneo del razzo",
+    starshipLostInSpace: "Astronave persa nello spazio",
+    antimatterReaction: "Reazione di antimateria",
+    stockLoss: "Perdita in borsa",
+    galacticMarketLockdown: "Blocco del mercato galattico",
+    endlessSummer: "Estate infinita",
+    minerBrokeDown: "Minatore guasto",
+    supplyChainDisruption: "Interruzione della catena di approvvigionamento",
+    blackHoleInstability: "Instabilità del buco nero",
+  },
+  fr: {
+    powerPlantExplosion: "Explosion de centrale électrique",
+    batteryExplosion: "Explosion de batterie",
+    scienceTheft: "Vol scientifique",
+    researchBreakthrough: "Percée de recherche",
+    rocketInstantArrival: "Arrivée instantanée de fusée",
+    starshipLostInSpace: "Vaisseau stellaire perdu dans l’espace",
+    antimatterReaction: "Réaction d’antimatière",
+    stockLoss: "Perte en bourse",
+    galacticMarketLockdown: "Confinement du marché galactique",
+    endlessSummer: "Été sans fin",
+    minerBrokeDown: "Mineur en panne",
+    supplyChainDisruption: "Perturbation de la chaîne d’approvisionnement",
+    blackHoleInstability: "Instabilité du trou noir",
+  },
+};
+
+export function statisticsEventLabel(locale: LocaleId, id: RandomEventId): string {
+  return eventStatisticLabels[locale][id];
+}
 
 const eventTrackingNotes: Record<LocaleId, string> = {
   en: "Saved runs restore up to 100 recent event records. All-time counts start from this update.",
@@ -63,7 +176,7 @@ export type RunStatisticLabelId =
 
 const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> = {
   en: {
-    runTime: "Run time",
+    runTime: "Run Time",
     starSystem: "Star system",
     currentWeather: "Current weather",
     cash: "Cash",
@@ -72,7 +185,7 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     currentSnapshotSection: "Current snapshot",
   },
   es: {
-    runTime: "Tiempo de partida",
+    runTime: "Duración de la partida",
     starSystem: "Sistema estelar",
     currentWeather: "Clima actual",
     cash: "Dinero",
@@ -81,7 +194,7 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     currentSnapshotSection: "Estado actual",
   },
   pt: {
-    runTime: "Tempo da partida",
+    runTime: "Duração da partida",
     starSystem: "Sistema estelar",
     currentWeather: "Clima atual",
     cash: "Dinheiro",
@@ -90,7 +203,7 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
     currentSnapshotSection: "Estado atual",
   },
   de: {
-    runTime: "Laufzeit",
+    runTime: "Durchlaufzeit",
     starSystem: "Sternsystem",
     currentWeather: "Aktuelles Wetter",
     cash: "Bargeld",
@@ -123,6 +236,7 @@ export function runStatisticLabel(locale: LocaleId, id: RunStatisticLabelId): st
 }
 
 export type OverviewStatisticLabelId =
+  | "currentAp"
   | "apGain"
   | "uniqueNewsTickers"
   | "tickerPrizes"
@@ -135,6 +249,7 @@ export type OverviewStatisticLabelId =
 
 const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId, string>> = {
   en: {
+    currentAp: "Current AP",
     apGain: "AP Gain",
     uniqueNewsTickers: "Unique News Tickers Seen",
     tickerPrizes: "News Ticker Prizes Collected",
@@ -146,6 +261,7 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     cosmicRipTelemetryEarned: "Lifetime Cosmic Rip Telemetry Data Earned",
   },
   es: {
+    currentAp: "AP actual",
     apGain: "Ganancia de AP",
     uniqueNewsTickers: "Noticias \u00fanicas vistas",
     tickerPrizes: "Premios de noticias recogidos",
@@ -157,6 +273,7 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     cosmicRipTelemetryEarned: "Datos de telemetría del Cosmic Rip obtenidos (total)",
   },
   pt: {
+    currentAp: "AP atual",
     apGain: "Ganho de AP",
     uniqueNewsTickers: "Not\u00edcias \u00fanicas vistas",
     tickerPrizes: "Pr\u00eamios de not\u00edcias coletados",
@@ -168,6 +285,7 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     cosmicRipTelemetryEarned: "Dados de telemetria do Cosmic Rip obtidos (total)",
   },
   de: {
+    currentAp: "Aktuelle AP",
     apGain: "AP-Zuwachs",
     uniqueNewsTickers: "Einzigartige News-Ticker gesehen",
     tickerPrizes: "News-Ticker-Belohnungen gesammelt",
@@ -179,6 +297,7 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     cosmicRipTelemetryEarned: "Insgesamt verdiente Cosmic-Rip-Telemetriedaten",
   },
   it: {
+    currentAp: "AP attuali",
     apGain: "Guadagno di AP",
     uniqueNewsTickers: "Ticker di notizie unici visti",
     tickerPrizes: "Premi dei ticker di notizie raccolti",
@@ -190,6 +309,7 @@ const overviewStatisticLabels: Record<LocaleId, Record<OverviewStatisticLabelId,
     cosmicRipTelemetryEarned: "Dati telemetrici totali ottenuti dal Cosmic Rip",
   },
   fr: {
+    currentAp: "AP actuels",
     apGain: "Gain d\u2019AP",
     uniqueNewsTickers: "Bandeaux d\u2019actualit\u00e9s uniques vus",
     tickerPrizes: "R\u00e9compenses de bandeaux d\u2019actualit\u00e9s collect\u00e9es",
@@ -207,6 +327,8 @@ export function overviewStatisticLabel(locale: LocaleId, id: OverviewStatisticLa
 }
 
 export const LOCALIZATION_VALIDATION_DATA = {
+  statisticsMessages,
+  eventStatisticLabels,
   eventTrackingNotes,
   cosmicRipTrackingNotes,
   energyTrackingNotes,

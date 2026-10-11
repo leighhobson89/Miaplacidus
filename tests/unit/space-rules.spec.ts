@@ -3,41 +3,51 @@ import { MATERIAL_IDS } from "../../src/content/ids";
 import {
   INITIAL_ASTEROID_SEARCH_MS,
   ASTEROID_SCAN_TIMER_ID,
+  MAX_UNINTERACTED_ASTEROIDS,
   ROCKET_PART_BASE_COST,
   ROCKET_FUEL_CAPACITY,
   ROCKET_PART_REQUIREMENTS,
   ROCKET_IDS,
+  STARSHIP_MODULES,
+  STARSHIP_MODULE_IDS,
   STAR_STUDY_DURATION_MS,
   STAR_STUDY_TIMER_ID,
   VOID_PILLAGE_DURATION_MS,
   VOID_PILLAGE_TIMER_ID,
   type AsteroidState,
 } from "../../src/content/space";
+import { createStarCatalogue } from "../../src/content/starCatalogue";
 import { createRandomState } from "../../src/engine/random";
 import { transition } from "../../src/engine/commands";
+import { selectInterstellarStatistics } from "../../src/engine/selectors";
 import { createTimerId } from "../../src/engine/timers";
 import { createInitialGameState, isValidGameState } from "../../src/engine/state";
 import type { GameState } from "../../src/engine/state";
 import { decodePortable, encodePortable } from "../../src/persistence/codec";
 import { makeEnvelope } from "../../src/persistence/schema";
+import { ensureDiscoveredStarSystemProfiles } from "../../src/engine/starSystemProfiles";
 import {
   advanceSpaceMining,
   antimatterMiningRatePerSecond,
   applySpacePurchaseCost,
   checkSpacePurchaseCost,
+  starshipTravelPlan,
 } from "../../src/engine/spaceMechanics";
 import {
   asteroidExtractionRatePerSecond,
   asteroidSearchDuration,
+  canScanStarshipDestination,
   generateAsteroid,
   pruneAsteroids,
   rocketPartCost,
   starStudyDuration,
   starshipModulePartCost,
   starshipTravelDurationMs,
+  starshipTravelProgressFraction,
   rocketTravelDurationMs,
   voidPillageDuration,
 } from "../../src/engine/spaceRules";
+import { completeSpaceJourneys } from "../../src/engine/spaceMechanics";
 
 describe("space content rules", () => {
   it("rejects blank, oversized and control-character rocket names", () => {
@@ -89,6 +99,177 @@ describe("space content rules", () => {
     ).toMatchObject({ ok: false, failure: { code: "invalid-cost" } });
   });
 
+  it("gates Starship scanning at the exact 70% travel threshold", () => {
+    const initial = createInitialGameState({ seed: 22 });
+    const catalogue = createStarCatalogue();
+    const destination = catalogue.find((star) => star.name === "Sirius")!;
+    const start = catalogue.find((star) => star.name === "Spica")!;
+    const modules = Object.fromEntries(
+      STARSHIP_MODULE_IDS.map((moduleId) => [
+        moduleId,
+        {
+          builtParts:
+            STARSHIP_MODULES[moduleId].requiredForTravel || moduleId === "stellarScanner"
+              ? STARSHIP_MODULES[moduleId].parts
+              : 0,
+        },
+      ]),
+    ) as GameState["run"]["space"]["starshipModules"];
+    const ready: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        economy: {
+          ...initial.run.economy,
+          researchedTechnologies: ["FTLTravelTheory"],
+          revealedTechnologies: ["knowledgeSharing", "FTLTravelTheory"],
+        },
+        space: {
+          ...initial.run.space,
+          currentSystemId: start.id,
+          starStudyRange: 200,
+          systemProfiles: ensureDiscoveredStarSystemProfiles(
+            initial.run.space.systemProfiles,
+            start.id,
+            200,
+          ),
+          antimatterUnlocked: true,
+          starshipModules: modules,
+        },
+      },
+    };
+    const quote = starshipTravelPlan(ready, destination.id);
+    expect(quote).not.toBeNull();
+    const funded: GameState = {
+      ...ready,
+      run: {
+        ...ready.run,
+        space: { ...ready.run.space, antimatter: quote!.antimatter },
+      },
+    };
+    expect(isValidGameState(funded)).toBe(true);
+    const selected = transition(funded, {
+      type: "space.starship.destination.select",
+      systemId: destination.id,
+    });
+    expect(selected.accepted).toBe(true);
+    const launched = transition(selected.state, { type: "space.starship.launch" });
+    expect(launched.accepted).toBe(true);
+    expect(isValidGameState(launched.state)).toBe(true);
+    const baseAnticipatedAp =
+      selected.state.run.space.systemProfiles.find((profile) => profile.systemId === destination.id)
+        ?.ascendencyPoints ?? 0;
+    expect(baseAnticipatedAp).toBeGreaterThan(0);
+    expect(launched.state.run.space.apAnticipatedThisRun).toBe(baseAnticipatedAp);
+
+    const timerId = launched.state.run.space.starship.timerId!;
+    const originalTimer = launched.state.run.timers[timerId]!;
+    const travellingAt = (elapsedMs: number): GameState => ({
+      ...launched.state,
+      run: {
+        ...launched.state.run,
+        timers: { ...launched.state.run.timers, [timerId]: { ...originalTimer, elapsedMs } },
+      },
+    });
+    const scanCommand = { type: "space.starship.system.scan" } as const;
+
+    const thresholdElapsedMs = Math.ceil(originalTimer.durationMs * 0.7);
+    const beforeThreshold = travellingAt(thresholdElapsedMs - 1);
+    expect(isValidGameState(beforeThreshold)).toBe(true);
+    expect(starshipTravelProgressFraction(beforeThreshold)).toBeLessThan(0.7);
+    expect(canScanStarshipDestination(beforeThreshold)).toBe(false);
+    expect(selectInterstellarStatistics(beforeThreshold).systemScanned).toBe(false);
+    expect(transition(beforeThreshold, scanCommand).accepted).toBe(false);
+
+    const atThreshold = travellingAt(thresholdElapsedMs);
+    expect(isValidGameState(atThreshold)).toBe(true);
+    expect(starshipTravelProgressFraction(atThreshold)).toBeGreaterThanOrEqual(0.7);
+    expect(canScanStarshipDestination(atThreshold)).toBe(true);
+    const scanned = transition(atThreshold, scanCommand);
+    expect(scanned.accepted).toBe(true);
+    expect(scanned.state.run.space.systemEncounters).toHaveLength(1);
+    expect(scanned.state.run.space.systemEncounters[0]?.systemId).toBe(destination.id);
+    expect(selectInterstellarStatistics(scanned.state).systemScanned).toBe(true);
+    const scanBonus =
+      scanned.state.run.space.systemEncounters[0]?.civilizationLevel === "industrial" ||
+      scanned.state.run.space.systemEncounters[0]?.civilizationLevel === "spacefaring"
+        ? baseAnticipatedAp
+        : 0;
+    expect(scanned.state.run.space.apAnticipatedThisRun).toBe(baseAnticipatedAp + scanBonus);
+
+    const incompleteScanner: GameState = {
+      ...atThreshold,
+      run: {
+        ...atThreshold.run,
+        space: {
+          ...atThreshold.run.space,
+          starshipModules: {
+            ...atThreshold.run.space.starshipModules,
+            stellarScanner: { builtParts: STARSHIP_MODULES.stellarScanner.parts - 1 },
+          },
+        },
+      },
+    };
+    expect(canScanStarshipDestination(incompleteScanner)).toBe(true);
+    const blindScan = transition(incompleteScanner, scanCommand);
+    expect(blindScan.accepted).toBe(true);
+    expect(blindScan.state.run.space.systemEncounters).toHaveLength(1);
+    expect(blindScan.state.run.space.systemEncounters[0]?.systemId).toBe(destination.id);
+  });
+
+  it("adds the AP source marker at the first-run Starship arrival only once", () => {
+    const initial = createInitialGameState({ seed: 23 });
+    const destination = createStarCatalogue().find(
+      (star) => !initial.permanent.settledSystemIds.includes(star.id),
+    )!;
+    const timerId = createTimerId("travel", "starship");
+    const travelling: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        space: {
+          ...initial.run.space,
+          starship: {
+            ...initial.run.space.starship,
+            destinationSystemId: destination.id,
+            phase: "travelling",
+            timerId,
+            durationMs: 1_000,
+            antimatterSpent: 1,
+            travelDistanceLy: 1,
+          },
+        },
+      },
+    };
+    const timerCompleted = [{ type: "timer.completed", timerId, completions: 1 }] as const;
+    const firstArrival = completeSpaceJourneys(travelling, timerCompleted);
+    expect(firstArrival.state.run.sourceSyntheticTechnologyMarkersThisRun).toBe(1);
+    expect(firstArrival.events).toContainEqual({
+      type: "space.starship.arrived",
+      systemId: destination.id,
+    });
+
+    const secondTravel: GameState = {
+      ...firstArrival.state,
+      run: {
+        ...firstArrival.state.run,
+        space: {
+          ...firstArrival.state.run.space,
+          starship: {
+            ...firstArrival.state.run.space.starship,
+            phase: "travelling",
+            timerId,
+            travelDistanceLy: 1,
+          },
+        },
+      },
+    };
+    expect(
+      completeSpaceJourneys(secondTravel, timerCompleted).state.run
+        .sourceSyntheticTechnologyMarkersThisRun,
+    ).toBe(1);
+  });
+
   it("keeps asteroid and star survey time variation inside the source ±20% window", () => {
     for (let seed = 0; seed < 64; seed += 1) {
       const asteroid = asteroidSearchDuration(INITIAL_ASTEROID_SEARCH_MS, createRandomState(seed));
@@ -132,6 +313,62 @@ describe("space content rules", () => {
     expect(scan.accepted).toBe(false);
     expect(scan.failure?.code).toBe("space-no-power");
     expect(scan.state.run.space.activeSurvey).toBeNull();
+  });
+
+  it("does not increment lifetime asteroid discoveries when the 100-uninteracted cap blocks a completed scan", () => {
+    const initial = createInitialGameState({ seed: 22 });
+    const asteroids: AsteroidState[] = Array.from(
+      { length: MAX_UNINTERACTED_ASTEROIDS },
+      (_, index) => ({
+        id: `asteroid-${index + 1}`,
+        name: `Spica ${index + 1}`,
+        systemId: initial.run.space.currentSystemId,
+        distance: 1_000 + index,
+        rarity: "common",
+        extractionEase: 1,
+        remainingAntimatter: 700,
+        totalAntimatter: 700,
+        reservedBy: null,
+        depleted: false,
+        interacted: false,
+      }),
+    );
+    const ready: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        economy: {
+          ...initial.run.economy,
+          researchedTechnologies: ["atmosphericTelescopes"],
+          revealedTechnologies: ["knowledgeSharing", "atmosphericTelescopes"],
+          power: {
+            ...initial.run.economy.power,
+            quantity: 100,
+            capacity: 100,
+            infinitePower: false,
+          },
+        },
+        space: {
+          ...initial.run.space,
+          telescopeBuilt: true,
+          asteroids,
+          nextAsteroidSequence: asteroids.length + 1,
+        },
+      },
+      statistics: { ...initial.statistics, lifetimeAsteroidsDiscovered: 137 },
+    };
+
+    const started = transition(ready, { type: "space.telescope.scan.start" });
+    expect(started.accepted).toBe(true);
+    const completed = transition(started.state, {
+      type: "timer.complete",
+      timerId: ASTEROID_SCAN_TIMER_ID,
+    });
+
+    expect(completed.events).toContainEqual({ type: "space.asteroid.scan-missed" });
+    expect(completed.state.run.space.asteroids).toHaveLength(MAX_UNINTERACTED_ASTEROIDS);
+    expect(completed.state.run.space.nextAsteroidSequence).toBe(asteroids.length + 1);
+    expect(completed.state.statistics.lifetimeAsteroidsDiscovered).toBe(137);
   });
 
   it("gates Voidborn pillaging and completes it through the persisted survey timer", () => {
@@ -269,7 +506,7 @@ describe("space content rules", () => {
     };
     const searchStart = transition(base, { type: "space.telescope.scan.start" });
     expect(searchStart.accepted).toBe(true);
-    const successfulScanSeed = Array.from({ length: 256 }, (_, seed) => seed).find(
+    const successfulScanSeed = Array.from({ length: 4096 }, (_, seed) => seed).find(
       (seed) =>
         generateAsteroid(
           {
@@ -281,7 +518,7 @@ describe("space content rules", () => {
             ),
           },
           createRandomState(seed),
-        ).asteroid !== null,
+        ).asteroid?.rarity === "legendary",
     );
     expect(successfulScanSeed).toBeDefined();
     const search = {
@@ -307,6 +544,8 @@ describe("space content rules", () => {
     expect(resumed.run.space.activeSurvey).toBe("asteroids");
     expect(resumed.run.space.rockets.rocket1.fuelQuantity).toBe(42);
     expect(resumed.run.space.rockets.rocket1.fuelPumpEnabled).toBe(true);
+    expect(resumed.statistics.lifetimeAsteroidsDiscovered).toBe(0);
+    expect(resumed.statistics.lifetimeLegendaryAsteroidsDiscovered).toBe(0);
 
     const completedSearch = transition(resumed, {
       type: "timer.complete",
@@ -315,10 +554,9 @@ describe("space content rules", () => {
     const asteroidCountAfterCompletion = completedSearch.state.run.space.asteroids.length;
     const discoveredAsteroid = completedSearch.state.run.space.asteroids.at(-1);
     expect(discoveredAsteroid).toBeDefined();
+    expect(discoveredAsteroid?.rarity).toBe("legendary");
     expect(completedSearch.state.statistics.lifetimeAsteroidsDiscovered).toBe(1);
-    expect(completedSearch.state.statistics.lifetimeLegendaryAsteroidsDiscovered).toBe(
-      discoveredAsteroid?.rarity === "legendary" ? 1 : 0,
-    );
+    expect(completedSearch.state.statistics.lifetimeLegendaryAsteroidsDiscovered).toBe(1);
     const repeatedCompletion = transition(completedSearch.state, {
       type: "timer.complete",
       timerId: createTimerId("survey", "asteroid-scan"),
@@ -327,6 +565,7 @@ describe("space content rules", () => {
     expect(repeatedCompletion.state.run.space.asteroids).toHaveLength(asteroidCountAfterCompletion);
     expect(repeatedCompletion.state.statistics.completedTimers).toBe(1);
     expect(repeatedCompletion.state.statistics.lifetimeAsteroidsDiscovered).toBe(1);
+    expect(repeatedCompletion.state.statistics.lifetimeLegendaryAsteroidsDiscovered).toBe(1);
 
     const fueled = transition(resumed, {
       type: "clock.advance",
@@ -483,7 +722,7 @@ describe("space content rules", () => {
     expect(selected.remainingAntimatter).toBeLessThanOrEqual(stockBounds[1]);
   });
 
-  it("prunes only safe unclaimed asteroids and preserves depleted and rocket-reserved records", () => {
+  it("prunes newest safe unclaimed asteroids and preserves depleted and rocket-reserved records", () => {
     const make = (
       sequence: number,
       reservedBy: AsteroidState["reservedBy"] = null,
@@ -505,10 +744,9 @@ describe("space content rules", () => {
     const source = [make(1), make(2, "rocket1"), make(3, null, 0), make(4), make(5), make(6)];
     const retained = pruneAsteroids(source, 1);
     expect(retained.map((asteroid) => asteroid.id)).toEqual([
+      "asteroid-1",
       "asteroid-2",
       "asteroid-3",
-      "asteroid-5",
-      "asteroid-6",
     ]);
     expect(asteroidExtractionRatePerSecond(1)).toBeCloseTo(0.4);
     expect(asteroidExtractionRatePerSecond(6)).toBeCloseTo(0.1833333333);
@@ -541,7 +779,13 @@ describe("space content rules", () => {
     expect(result.state.run.space.asteroids[0]?.interacted).toBe(true);
     expect(result.state.run.space.selectedAsteroidId).toBe(asteroid.id);
     expect(isValidGameState(result.state)).toBe(true);
-    expect(pruneAsteroids(result.state.run.space.asteroids, 0)).toHaveLength(1);
+    expect(
+      pruneAsteroids(
+        result.state.run.space.asteroids,
+        0,
+        result.state.run.space.selectedAsteroidId,
+      ),
+    ).toHaveLength(1);
   });
 
   it("charges the launch pad and each rocket part, then opens fuel and launch gates", () => {
@@ -588,13 +832,18 @@ describe("space content rules", () => {
     // Initial stock and research also satisfy achievement thresholds worth $2,015.
     expect(launchPad.state.run.cash).toBe(state.run.cash - 40_000 + 2_015);
     state = launchPad.state;
-    for (let part = 0; part < ROCKET_PART_REQUIREMENTS.rocket1; part += 1) {
+    for (let part = 0; part < ROCKET_PART_REQUIREMENTS.rocket1 - 1; part += 1) {
       const result = transition(state, { type: "space.rocket.part.build", rocketId: "rocket1" });
       expect(result.accepted).toBe(true);
       state = result.state;
     }
+    expect(state.run.space.rockets.rocket1.builtParts).toBe(ROCKET_PART_REQUIREMENTS.rocket1 - 1);
+    expect(state.statistics.lifetimeRocketsBuilt).toBe(0);
+    const finalPart = transition(state, { type: "space.rocket.part.build", rocketId: "rocket1" });
+    expect(finalPart.accepted).toBe(true);
+    state = finalPart.state;
     expect(state.run.space.rockets.rocket1.phase).toBe("ready");
-    expect(state.run.space.rockets.rocket1.builtParts).toBe(12);
+    expect(state.run.space.rockets.rocket1.builtParts).toBe(ROCKET_PART_REQUIREMENTS.rocket1);
     expect(state.statistics.lifetimeRocketsBuilt).toBe(1);
     const pump = transition(state, { type: "space.rocket.pump.purchase", rocketId: "rocket1" });
     expect(pump.accepted).toBe(true);
@@ -622,6 +871,7 @@ describe("space content rules", () => {
         },
       },
     };
+    expect(fullRocketState.statistics.lifetimeRocketsLaunched).toBe(0);
     const launch = transition(fullRocketState, {
       type: "space.rocket.launch",
       rocketId: "rocket1",
@@ -671,6 +921,68 @@ describe("space content rules", () => {
     });
     expect(rainLaunch.accepted).toBe(false);
     expect(rainLaunch.failure?.code).toBe("space-weather-blocked");
+  });
+
+  it("emits one fuel-ready event when a powered rocket pump fills through clock.advance", () => {
+    const initial = createInitialGameState({ seed: 58 });
+    const rocketId = "rocket1";
+    const fuelingState: GameState = {
+      ...initial,
+      run: {
+        ...initial.run,
+        economy: {
+          ...initial.run.economy,
+          researchedTechnologies: ["advancedFuels"],
+          revealedTechnologies: ["advancedFuels"],
+          power: {
+            ...initial.run.economy.power,
+            gridEnabled: true,
+            tripped: false,
+            infinitePower: false,
+            quantity: 100,
+            capacity: 100,
+          },
+        },
+        space: {
+          ...initial.run.space,
+          launchPadBuilt: true,
+          rockets: {
+            ...initial.run.space.rockets,
+            [rocketId]: {
+              ...initial.run.space.rockets[rocketId],
+              builtParts: ROCKET_PART_REQUIREMENTS[rocketId],
+              fuelQuantity: ROCKET_FUEL_CAPACITY[rocketId] - 0.5,
+              fuelPumpPurchased: true,
+              fuelPumpEnabled: true,
+              phase: "ready",
+            },
+          },
+        },
+      },
+    };
+    expect(isValidGameState(fuelingState)).toBe(true);
+
+    const filled = transition(fuelingState, {
+      type: "clock.advance",
+      input: { wallNowMs: 1, foreground: true, offlineElapsedMs: 1_000 },
+    });
+
+    expect(filled.accepted).toBe(true);
+    expect(filled.state.run.space.rockets[rocketId]).toMatchObject({
+      fuelQuantity: ROCKET_FUEL_CAPACITY[rocketId],
+      fuelPumpEnabled: false,
+    });
+    expect(filled.events.filter((event) => event.type === "space.rocket.fuel-ready")).toEqual([
+      { type: "space.rocket.fuel-ready", rocketId },
+    ]);
+
+    const alreadyFull = transition(filled.state, {
+      type: "clock.advance",
+      input: { wallNowMs: 2, foreground: true, offlineElapsedMs: 1_000 },
+    });
+    expect(alreadyFull.events.filter((event) => event.type === "space.rocket.fuel-ready")).toEqual(
+      [],
+    );
   });
 
   it("completes outbound and return timers through the ordinary journey path", () => {
@@ -733,6 +1045,8 @@ describe("space content rules", () => {
     });
     expect(outbound.accepted).toBe(true);
     expect(outbound.state.run.space.asteroids[0]?.reservedBy).toBe("rocket1");
+    expect(outbound.state.run.space.asteroidsMinedThisRun).toBe(0);
+    expect(outbound.state.statistics.lifetimeAsteroidsMined).toBe(0);
     const resumedOutbound = reload(outbound.state);
     expect(resumedOutbound.run.space.rockets.rocket1.phase).toBe("outbound");
     const outboundTimerId = createTimerId("travel", "rocket1-asteroid-journey");

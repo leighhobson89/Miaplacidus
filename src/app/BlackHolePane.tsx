@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { BLACK_HOLE_BASE_CHARGE_MS, type BlackHoleUpgradeId } from "../content/blackHole";
 import { BLACK_HOLE_CHARGE_TIMER_ID } from "../engine/blackHole";
-import { checkPreconditions, type GameCommand } from "../engine/commands";
+import type { GameCommand } from "../engine/commands";
+import { selectEconomyAction, type EconomyActionSelection } from "../engine/selectors";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { blackHoleText } from "../i18n/blackHoleMessages";
-import { blackHoleChargeAnnouncement, blackHoleWarpAnnouncement } from "./blackHoleAnnouncements";
+import { starshipText } from "../i18n/starshipMessages";
+import { blackHoleWarpAnnouncement } from "./blackHoleAnnouncements";
 import { formatNumber } from "./numberFormatting";
 import { CelestialIllustration } from "./CelestialIllustration";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface BlackHolePaneProps {
   readonly state: GameState;
@@ -20,9 +23,7 @@ function number(state: GameState, value: number, digits = 0): string {
 
 export function BlackHolePane({ state, store }: BlackHolePaneProps) {
   const [feedback, setFeedback] = useState("");
-  const [chargeAnnouncement, setChargeAnnouncement] = useState("");
   const [warpAnnouncement, setWarpAnnouncement] = useState("");
-  const previousChargeReady = useRef(state.run.blackHoleChargeReady);
   const previousLocale = useRef(state.settings.locale);
   const locale = state.settings.locale;
   const copy = blackHoleText(locale);
@@ -33,6 +34,17 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
     ? Math.min(100, (chargeTimer.elapsedMs / chargeTimer.durationMs) * 100)
     : state.run.blackHoleChargeReady
       ? 100
+      : 0;
+  const instabilityDurationMultiplier =
+    state.run.randomEvents.activeEffects.find((effect) => effect.id === "blackHoleInstability")
+      ?.durationMultiplier ?? 1;
+  const warpDurationMs = Math.round(hole.durationMs * instabilityDurationMultiplier);
+  const warpProgress =
+    warpDurationMs > 0
+      ? Math.max(
+          0,
+          Math.min(100, ((warpDurationMs - state.run.timeWarp.remainingMs) / warpDurationMs) * 100),
+        )
       : 0;
   const command = (type: GameCommand["type"], upgradeId?: BlackHoleUpgradeId): GameCommand =>
     type === "black-hole.upgrade"
@@ -55,30 +67,19 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
       ),
     );
   };
-  const canRun = (nextCommand: GameCommand) => checkPreconditions(state, nextCommand).ok;
-  const disabledReason = (nextCommand: GameCommand): string | null => {
-    const result = checkPreconditions(state, nextCommand);
-    if (result.ok) return null;
-    const failure = result.failure;
-    if (!failure || !(failure.code in copy.errors)) return null;
+  const disabledReason = (selection: EconomyActionSelection): string | null => {
+    if (selection.enabled || !selection.failure) return null;
+    const { failure } = selection;
+    if (!(failure.code in copy.errors)) return null;
     return copy.errors[failure.code as keyof typeof copy.errors];
   };
   const points = `${number(state, state.run.researchPoints)} ${copy.researchPoints}`;
   const researchCommand = command("black-hole.research");
-  const researchReason = disabledReason(researchCommand);
+  const researchSelection = selectEconomyAction(state, researchCommand);
+  const researchReason = disabledReason(researchSelection);
   const activationCommand = command("black-hole.activate");
-  const activationReason = disabledReason(activationCommand);
-
-  useEffect(() => {
-    setChargeAnnouncement(
-      blackHoleChargeAnnouncement(
-        previousChargeReady.current,
-        state.run.blackHoleChargeReady,
-        copy.ready,
-      ),
-    );
-    previousChargeReady.current = state.run.blackHoleChargeReady;
-  }, [copy.ready, previousChargeReady, state.run.blackHoleChargeReady]);
+  const activationSelection = selectEconomyAction(state, activationCommand);
+  const activationReason = disabledReason(activationSelection);
 
   useEffect(() => {
     if (!state.run.blackHoleWarpActive || previousLocale.current !== locale)
@@ -89,12 +90,22 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
   return (
     <section className="black-hole-pane" aria-labelledby="black-hole-title">
       <header className="panel-heading">
-        <div>
-          <p className="eyebrow">{copy.status}</p>
-          <h2 id="black-hole-title">{copy.title}</h2>
+        <div className="black-hole-title-row">
+          <div>
+            <p className="eyebrow">{copy.status}</p>
+            <h2 className="game-page-title" id="black-hole-title">
+              {copy.title}
+            </h2>
+          </div>
+          <InfoTooltip
+            id="black-hole-header-help"
+            label={`${copy.title} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+            content={copy.headerHelp}
+            testId="black-hole-header-help"
+          />
         </div>
       </header>
-      <div className="deep-space-banner">
+      <div className="deep-space-banner page-artwork-row">
         <CelestialIllustration kind="black-hole" />
       </div>
       {!hole.discovered ? (
@@ -113,17 +124,28 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
       ) : !hole.researched ? (
         <div className="black-hole-research" data-testid="black-hole-research">
           <p>{points}</p>
-          <button
-            type="button"
-            className="primary-button"
-            disabled={!canRun(researchCommand)}
-            aria-describedby={researchReason ? "black-hole-research-reason" : undefined}
-            onClick={() => runCommand(researchCommand)}
-          >
-            {copy.researchAction} · {number(state, hole.researchPrice)} RP
-          </button>
+          <div className="space-action-help-group">
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!researchSelection.enabled}
+              aria-describedby={researchReason ? "black-hole-research-reason" : undefined}
+              onClick={() => runCommand(researchCommand)}
+            >
+              {copy.researchAction} · {number(state, hole.researchPrice)} RP
+            </button>
+            <InfoTooltip
+              id="black-hole-research-help"
+              label={`${copy.researchAction} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+              content={copy.researchHelp}
+              testId="black-hole-research-help"
+            />
+          </div>
           {researchReason && (
-            <p className="control-reason" id="black-hole-research-reason">
+            <p
+              className="control-reason"
+              id="black-hole-research-reason"
+            >
               {researchReason}
             </p>
           )}
@@ -175,17 +197,28 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
               />
             </div>
           )}
+          {state.run.blackHoleWarpActive && (
+            <div className="black-hole-charge-progress">
+              <progress
+                aria-label={copy.warping}
+                value={warpProgress}
+                max={100}
+                data-testid="black-hole-time-warp-progress"
+              />
+            </div>
+          )}
           <div className="black-hole-upgrades">
             {(["power", "duration", "recharge"] as const).map((upgradeId) => {
               const nextCommand = command("black-hole.upgrade", upgradeId);
               const price = hole[`${upgradeId}Price`];
-              const reason = disabledReason(nextCommand);
+              const selection = selectEconomyAction(state, nextCommand);
+              const reason = disabledReason(selection);
               return (
                 <div className="black-hole-upgrade" key={upgradeId}>
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={!canRun(nextCommand)}
+                    disabled={!selection.enabled}
                     aria-describedby={reason ? `black-hole-${upgradeId}-reason` : undefined}
                     onClick={() => runCommand(nextCommand)}
                   >
@@ -203,7 +236,7 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
           <button
             type="button"
             className="primary-button"
-            disabled={!canRun(activationCommand)}
+            disabled={!activationSelection.enabled}
             aria-describedby={activationReason ? "black-hole-activate-reason" : undefined}
             onClick={() => runCommand(activationCommand)}
           >
@@ -224,14 +257,6 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
       )}
       <output className="live-feedback" aria-live="polite" data-testid="black-hole-feedback">
         {feedback}
-      </output>
-      <output
-        className="sr-only"
-        aria-live="polite"
-        aria-atomic="true"
-        data-testid="black-hole-charge-announcement"
-      >
-        {chargeAnnouncement}
       </output>
       <output
         className="sr-only"

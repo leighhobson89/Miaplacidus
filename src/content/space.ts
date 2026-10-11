@@ -227,7 +227,7 @@ export const STAR_ANOMALY_IDS = [
 ] as const;
 export type StarAnomalyId = (typeof STAR_ANOMALY_IDS)[number];
 
-/** Generated only when a built Stellar Scanner scans a destination. */
+/** Generated when a destination is scanned; the Stellar Scanner reveals its readings. */
 export interface StarSystemEncounter {
   readonly systemId: SystemId;
   readonly lifeDetected: boolean;
@@ -530,6 +530,8 @@ export interface SpaceState {
   readonly autoTelescopeMode: TelescopeMode;
   readonly starStudyRange: number;
   readonly starshipDistanceTravelledThisRun: number;
+  /** Source-matched run total: base AP at each launch plus eligible scan bonuses. */
+  readonly apAnticipatedThisRun: number;
   readonly launchPadBuilt: boolean;
   readonly asteroids: readonly AsteroidState[];
   /** Rocket arrivals at asteroids during the current run, matching the source stat counter. */
@@ -586,6 +588,7 @@ export function createInitialSpaceState(): SpaceState {
     autoTelescopeMode: "asteroids",
     starStudyRange: 0,
     starshipDistanceTravelledThisRun: 0,
+    apAnticipatedThisRun: 0,
     launchPadBuilt: false,
     asteroids: [],
     asteroidsMinedThisRun: 0,

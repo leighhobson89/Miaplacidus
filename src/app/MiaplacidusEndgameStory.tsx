@@ -17,7 +17,6 @@ export function MiaplacidusEndgameStory({ state, store }: MiaplacidusEndgameStor
   useEffect(() => {
     const element = dialog.current;
     if (pending && element && !element.open) element.showModal();
-    if (!pending && element?.open) element.close();
     return () => {
       if (element?.open) element.close();
     };
@@ -54,6 +53,7 @@ export function MiaplacidusEndgameStory({ state, store }: MiaplacidusEndgameStor
             if (complete) {
               setPage(0);
               store.dispatch({ type: "meta.miaplacidus-story.acknowledge" });
+              requestAnimationFrame(() => document.getElementById("tab-cosmic-rip")?.focus());
             } else setPage((current) => Math.min(current + 1, text.pages.length - 1));
           }}
         >

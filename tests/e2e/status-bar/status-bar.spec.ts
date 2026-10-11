@@ -1,13 +1,23 @@
-﻿import { expect, test } from "../_harness/fixtures";
+import { expect, test } from "../_harness/fixtures";
+import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { setGameLocale } from "../_harness/settings-controls";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { randomEventName } from "../../../src/i18n/metaSignalMessages";
 import { topStatusText } from "../../../src/i18n/topStatusMessages";
 import { startMetaFixture } from "../_harness/meta-fixture";
+import { formatCurrency } from "../../../src/app/currencyFormatting";
+import { setNumberNotation } from "../_harness/settings-controls";
+import { formatCountdown, formatDuration } from "../../../src/app/timeFormatting";
+import { selectTopStatusEvent } from "../../../src/engine/selectors";
 
-async function forceEvent(page: import("@playwright/test").Page, eventId: "researchBreakthrough" | "endlessSummer") {
-  const accepted = await page.evaluate((id) =>
-    window.miaplacidusTest!.dispatch({ type: "random-event.force", eventId: id }), eventId);
+async function forceEvent(
+  page: import("@playwright/test").Page,
+  eventId: "researchBreakthrough" | "endlessSummer",
+) {
+  const accepted = await page.evaluate(
+    (id) => window.miaplacidusTest!.dispatch({ type: "random-event.force", eventId: id }),
+    eventId,
+  );
   expect(accepted).toBe(true);
 }
 
@@ -23,7 +33,9 @@ async function startSpaceLateGameFixture(page: import("@playwright/test").Page) 
   await page.getByLabel("Pioneer name").fill("Status Layout Pioneer");
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
-  await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState()))).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
 }
 
 async function expectTopStatTooltip(
@@ -42,20 +54,24 @@ async function expectTopStatTooltip(
 async function expectTooltipWithinViewport(
   page: import("@playwright/test").Page,
   stat: import("@playwright/test").Locator,
+  ownerId = "unknown status",
 ) {
   const tooltip = stat.getByRole("tooltip");
   const bounds = await tooltip.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return { left: rect.left, right: rect.right, viewportWidth: window.innerWidth };
   });
-  expect(bounds.left, `Tooltip extends left of ${bounds.viewportWidth}px viewport: ${JSON.stringify(bounds)}`).toBeGreaterThanOrEqual(0);
-  expect(bounds.right, `Tooltip extends right of ${bounds.viewportWidth}px viewport: ${JSON.stringify(bounds)}`).toBeLessThanOrEqual(bounds.viewportWidth);
+  expect(
+    bounds.left,
+    `${ownerId} tooltip extends left of ${bounds.viewportWidth}px viewport: ${JSON.stringify(bounds)}`,
+  ).toBeGreaterThanOrEqual(0);
+  expect(
+    bounds.right,
+    `${ownerId} tooltip extends right of ${bounds.viewportWidth}px viewport: ${JSON.stringify(bounds)}`,
+  ).toBeLessThanOrEqual(bounds.viewportWidth);
 }
 
-async function readFocusedTooltipBounds(
-  page: import("@playwright/test").Page,
-  testId: string,
-) {
+async function readFocusedTooltipBounds(page: import("@playwright/test").Page, testId: string) {
   const stat = page.getByTestId(testId);
   const focusTarget = stat.locator(".top-stat-value");
   await focusTarget.focus();
@@ -80,10 +96,11 @@ async function expectEveryVisibleStatKeyboardAccessible(page: import("@playwrigh
     ".global-context-bar .top-stat, .top-status-bar .top-stat, .top-status-bar .location-status",
   );
   for (const stat of await stats.all()) {
+    const ownerId = (await stat.getAttribute("data-testid")) ?? "unknown status";
     const value = stat.locator("[tabindex='0'], button").first();
     await value.focus();
     await expect(stat.getByRole("tooltip")).toBeVisible();
-    await expectTooltipWithinViewport(page, stat);
+    await expectTooltipWithinViewport(page, stat, ownerId);
     await expect
       .poll(() =>
         page.evaluate(
@@ -164,14 +181,14 @@ test("localizes the static event label, shows latest event state and RP source r
   await expect(freshGame.getByTestId("top-stat-gp")).toBeVisible();
   await expect(freshGame.getByTestId("top-stat-ap")).toBeVisible();
   await expect(freshGame.getByTestId("top-stat-cp")).toHaveCount(0);
-  const globalOrder = await globalContext.locator(":scope > *").evaluateAll((children) =>
-    children.map((child) => child.getAttribute("data-testid")),
-  );
+  const globalOrder = await globalContext
+    .locator(":scope > *")
+    .evaluateAll((children) => children.map((child) => child.getAttribute("data-testid")));
   expect(globalOrder.indexOf("top-stat-gp")).toBeGreaterThanOrEqual(0);
   expect(globalOrder.indexOf("top-stat-ap")).toBeGreaterThan(globalOrder.indexOf("top-stat-gp"));
-  const initialRunOrder = await runStats.locator(":scope > *").evaluateAll((children) =>
-    children.map((child) => child.getAttribute("data-testid")),
-  );
+  const initialRunOrder = await runStats
+    .locator(":scope > *")
+    .evaluateAll((children) => children.map((child) => child.getAttribute("data-testid")));
   expect(initialRunOrder.slice(0, 4)).toEqual([
     "location-status",
     "top-stat-time",
@@ -256,7 +273,15 @@ test("localizes the static event label, shows latest event state and RP source r
         };
       },
     );
-    const chain = ["html", "body", "#root", "main", ".game-frame", ".game-header", ".top-status-bar"];
+    const chain = [
+      "html",
+      "body",
+      "#root",
+      "main",
+      ".game-frame",
+      ".game-header",
+      ".top-status-bar",
+    ];
     const shellBounds = chain.map((selector) => {
       const element =
         selector === "html"
@@ -370,16 +395,8 @@ test("reveals CP with the Galactic gate and exposes its full localized name @sta
   await expect(page.getByTestId("run-status-bar").getByTestId("top-stat-cp")).toBeVisible();
   for (const locale of LOCALE_IDS) {
     await setGameLocale(page, locale);
-    await expectTopStatTooltip(
-      page,
-      "top-stat-ap",
-      topStatusText(locale, "ascendencyPointsName"),
-    );
-    await expectTopStatTooltip(
-      page,
-      "top-stat-cp",
-      topStatusText(locale, "casinoPointsName"),
-    );
+    await expectTopStatTooltip(page, "top-stat-ap", topStatusText(locale, "ascendencyPointsName"));
+    await expectTopStatTooltip(page, "top-stat-cp", topStatusText(locale, "casinoPointsName"));
   }
 });
 
@@ -390,32 +407,24 @@ test("keeps GP and AP in global order and CP in current-run stats after the Gala
   await expect(page.getByTestId("top-stat-gp")).toBeVisible();
   await expect(page.getByTestId("top-stat-ap")).toBeVisible();
   await expect(page.getByTestId("top-stat-cp")).toBeVisible();
-  const balancesInOrder = await page.getByTestId("global-context-bar").locator(":scope > *").evaluateAll((children) =>
-    children.map((balance) => balance.getAttribute("data-testid")),
-  );
+  const balancesInOrder = await page
+    .getByTestId("global-context-bar")
+    .locator(":scope > *")
+    .evaluateAll((children) => children.map((balance) => balance.getAttribute("data-testid")));
   expect(balancesInOrder.indexOf("top-stat-gp")).toBeGreaterThanOrEqual(0);
-  expect(balancesInOrder.indexOf("top-stat-ap")).toBeGreaterThan(balancesInOrder.indexOf("top-stat-gp"));
-  const runOrder = await page.getByTestId("run-status-bar").locator(":scope > *").evaluateAll((children) =>
-    children.map((balance) => balance.getAttribute("data-testid")),
+  expect(balancesInOrder.indexOf("top-stat-ap")).toBeGreaterThan(
+    balancesInOrder.indexOf("top-stat-gp"),
   );
+  const runOrder = await page
+    .getByTestId("run-status-bar")
+    .locator(":scope > *")
+    .evaluateAll((children) => children.map((balance) => balance.getAttribute("data-testid")));
   expect(runOrder.indexOf("top-stat-cp")).toBeGreaterThan(runOrder.indexOf("top-stat-rp"));
   for (const locale of LOCALE_IDS) {
     await setGameLocale(page, locale);
-    await expectTopStatTooltip(
-      page,
-      "top-stat-ap",
-      topStatusText(locale, "ascendencyPointsName"),
-    );
-    await expectTopStatTooltip(
-      page,
-      "top-stat-cp",
-      topStatusText(locale, "casinoPointsName"),
-    );
-    await expectTopStatTooltip(
-      page,
-      "top-stat-gp",
-      topStatusText(locale, "galacticPointsName"),
-    );
+    await expectTopStatTooltip(page, "top-stat-ap", topStatusText(locale, "ascendencyPointsName"));
+    await expectTopStatTooltip(page, "top-stat-cp", topStatusText(locale, "casinoPointsName"));
+    await expectTopStatTooltip(page, "top-stat-gp", topStatusText(locale, "galacticPointsName"));
   }
 });
 
@@ -452,23 +461,32 @@ test("keeps localized current-run and whole-game stat order at 390px and 320px @
       await expect(runStats.locator(":scope > *")).toHaveCount(currentRunOrder.length);
       await expect
         .poll(() =>
-          globalContext.locator(":scope > *").evaluateAll((children) =>
-            children.map((child) => (child as HTMLElement).dataset.testid),
-          ),
+          globalContext
+            .locator(":scope > *")
+            .evaluateAll((children) =>
+              children.map((child) => (child as HTMLElement).dataset.testid),
+            ),
         )
         .toEqual(globalOrder);
       await expect
         .poll(() =>
-          runStats.locator(":scope > *").evaluateAll((children) =>
-            children.map((child) => (child as HTMLElement).dataset.testid),
-          ),
+          runStats
+            .locator(":scope > *")
+            .evaluateAll((children) =>
+              children.map((child) => (child as HTMLElement).dataset.testid),
+            ),
         )
         .toEqual(currentRunOrder);
 
-      await expect(globalContext.getByTestId("global-stat-run-number").locator(".top-stat-label"))
-        .toHaveText(topStatusText(locale, "runNumber"));
-      await expect(globalContext.getByTestId("top-stat-gp").locator(".top-stat-label")).toHaveText("GP");
-      await expect(globalContext.getByTestId("top-stat-ap").locator(".top-stat-label")).toHaveText("AP");
+      await expect(
+        globalContext.getByTestId("global-stat-run-number").locator(".top-stat-label"),
+      ).toHaveText(topStatusText(locale, "runNumber"));
+      await expect(globalContext.getByTestId("top-stat-gp").locator(".top-stat-label")).toHaveText(
+        "GP",
+      );
+      await expect(globalContext.getByTestId("top-stat-ap").locator(".top-stat-label")).toHaveText(
+        "AP",
+      );
       await expect(page.getByTestId("top-stat-time").locator(".top-stat-label")).toHaveText(
         topStatusText(locale, "time"),
       );
@@ -487,7 +505,11 @@ test("keeps localized current-run and whole-game stat order at 390px and 320px @
         topStatusText(locale, "runNumber"),
       );
       await expectTopStatTooltip(page, "top-stat-gp", topStatusText(locale, "galacticPointsName"));
-      await expectTopStatTooltip(page, "top-stat-ap", topStatusText(locale, "ascendencyPointsName"));
+      await expectTopStatTooltip(
+        page,
+        "top-stat-ap",
+        topStatusText(locale, "ascendencyPointsName"),
+      );
       await expectTopStatTooltip(page, "top-stat-cash", topStatusText(locale, "cash"));
       await expectTopStatTooltip(page, "top-stat-cp", topStatusText(locale, "casinoPointsName"));
 
@@ -506,7 +528,9 @@ test("keeps localized current-run and whole-game stat order at 390px and 320px @
       await researchStat.locator(".top-stat-value").evaluate((element) => element.blur());
 
       const eventStat = page.getByTestId("top-stat-event");
-      await expect(eventStat.locator(".top-stat-value")).toHaveText(topStatusText(locale, "eventNone"));
+      await expect(eventStat.locator(".top-stat-value")).toHaveText(
+        topStatusText(locale, "eventNone"),
+      );
       await expectTopStatTooltip(page, "top-stat-event", topStatusText(locale, "eventNone"));
 
       const locationStat = page.getByTestId("location-status");
@@ -579,7 +603,9 @@ test("shows each translated Runtime label in full on Diesel Compound at 1280px @
         labelClientHeight: labelElement.clientHeight,
       };
     });
-    expect(layout.textLines.length, `${locale}: label has no rendered text lines`).toBeGreaterThan(0);
+    expect(layout.textLines.length, `${locale}: label has no rendered text lines`).toBeGreaterThan(
+      0,
+    );
     expect(
       layout.labelScrollWidth,
       `${locale}: Run Time label has horizontal text overflow: ${JSON.stringify(layout)}`,
@@ -650,7 +676,10 @@ test("wraps every localized status label without clipping or horizontal overflow
             };
           }),
         );
-      expect(labels.length, `No status labels were rendered at ${viewport.width}px in ${locale}.`).toBeGreaterThan(0);
+      expect(
+        labels.length,
+        `No status labels were rendered at ${viewport.width}px in ${locale}.`,
+      ).toBeGreaterThan(0);
       const clippedLabels = labels.filter(
         (label) =>
           label.text.length === 0 ||
@@ -690,7 +719,8 @@ test("keeps global context borderless and preserves relative stat widths on desk
       const context = document.querySelector<HTMLElement>(".global-context-bar");
       const run = document.querySelector<HTMLElement>(".top-status-bar");
       const header = document.querySelector<HTMLElement>(".game-header");
-      if (!context || !run || !header) throw new Error("The status rows or game header are missing.");
+      if (!context || !run || !header)
+        throw new Error("The status rows or game header are missing.");
       const contextStyle = getComputedStyle(context);
       const headerStyle = getComputedStyle(header);
       const contextBounds = context.getBoundingClientRect();
@@ -777,15 +807,13 @@ test("keeps global context borderless and preserves relative stat widths on desk
           contextStyle.borderLeftWidth,
         ],
         contextChildStyles,
-        contextWithinViewport:
-          contextBounds.left >= 0 && contextBounds.right <= window.innerWidth,
+        contextWithinViewport: contextBounds.left >= 0 && contextBounds.right <= window.innerWidth,
         childrenWithinContext: contextChildBounds.every(
           (bounds) => bounds.left >= contextBounds.left && bounds.right <= contextBounds.right,
         ),
-        childrenShareRow:
-          contextChildBounds.every(
-            (bounds) => Math.abs(bounds.top - contextChildBounds[0]!.top) <= 1,
-          ),
+        childrenShareRow: contextChildBounds.every(
+          (bounds) => Math.abs(bounds.top - contextChildBounds[0]!.top) <= 1,
+        ),
         relativeWidths,
         statWidths: Object.fromEntries(statWidths),
         renderedWidths,
@@ -800,6 +828,21 @@ test("keeps global context borderless and preserves relative stat widths on desk
         ],
         headerBackground: headerStyle.backgroundColor,
         pageWithinViewport: document.documentElement.scrollWidth <= window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        overflowingElements: Array.from(document.body.querySelectorAll<HTMLElement>("*"))
+          .map((element) => {
+            const bounds = element.getBoundingClientRect();
+            return {
+              tag: element.tagName,
+              testId: element.dataset.testid ?? null,
+              className: typeof element.className === "string" ? element.className : "",
+              left: bounds.left,
+              right: bounds.right,
+            };
+          })
+          .filter((bounds) => bounds.left < -1 || bounds.right > window.innerWidth + 1)
+          .slice(0, 8),
       };
     });
 
@@ -820,7 +863,7 @@ test("keeps global context borderless and preserves relative stat widths on desk
     expect(metrics.headerDirection).toBe("row");
     expect(metrics.headerBorders).toEqual(["0px", "0px", "0px", "0px"]);
     expect(metrics.headerBackground).toBe("rgba(0, 0, 0, 0)");
-    expect(metrics.pageWithinViewport).toBe(true);
+    expect(metrics.pageWithinViewport, JSON.stringify(metrics)).toBe(true);
     console.log(
       "Status widths",
       JSON.stringify({
@@ -835,12 +878,7 @@ test("keeps global context borderless and preserves relative stat widths on desk
     for (const id of ["top-stat-time", "top-stat-cash"]) {
       expect(metrics.relativeWidths[id]).toBeCloseTo(0.5, 2);
     }
-    for (const id of [
-      "top-stat-rp",
-      "top-stat-energy",
-      "top-stat-power",
-      "top-stat-antimatter",
-    ]) {
+    for (const id of ["top-stat-rp", "top-stat-energy", "top-stat-power", "top-stat-antimatter"]) {
       expect(metrics.relativeWidths[id]).toBeCloseTo(0.6, 2);
     }
     expect(metrics.relativeWidths["top-stat-event"]).toBeCloseTo(1.5, 2);
@@ -878,6 +916,57 @@ test("keeps global context borderless and preserves relative stat widths on desk
     "top-stat-gp",
     "top-stat-ap",
   ]);
+});
+
+test("P-41 formats the top-row event and time-warp timers in every notation @p41-status-timers", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-rebirth-ready");
+  await forceEvent(page, "endlessSummer");
+
+  const warpAccepted = await page.evaluate(() =>
+    window.miaplacidusTest!.applyDebugAction("timewarp", {
+      timewarpDurationMs: 20_000,
+      timewarpMultiplier: 200,
+    }),
+  );
+  expect(warpAccepted).toBe(true);
+
+  const eventValue = page.getByTestId("top-stat-event").locator(".top-stat-value");
+  const timeWarpValue = page.getByTestId("top-stat-time-warp").locator(".top-stat-value");
+
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await expect
+      .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notation))
+      .toBe(notation);
+
+    await expect
+      .poll(async () => {
+        const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+        const event = selectTopStatusEvent(state);
+        if (event.remainingMs === null) return false;
+        const expected = formatDuration("en", event.remainingMs, notation);
+        return (await eventValue.textContent())?.includes(expected) ?? false;
+      })
+      .toBe(true);
+
+    const currentWarpAccepted = await page.evaluate(() =>
+      window.miaplacidusTest!.applyDebugAction("timewarp", {
+        timewarpDurationMs: 20_000,
+        timewarpMultiplier: 200,
+      }),
+    );
+    expect(currentWarpAccepted).toBe(true);
+    await expect(timeWarpValue).toBeVisible();
+    await expect
+      .poll(async () => {
+        const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+        const expected = formatCountdown("en", state.run.timeWarp.remainingMs, notation);
+        return (await timeWarpValue.textContent())?.includes(expected) ?? false;
+      })
+      .toBe(true);
+  }
 });
 
 test("keeps phone status tooltips in view and fills each run-stat row at 390px and 320px @status-bar @presentation", async ({
@@ -966,4 +1055,193 @@ test("keeps phone status tooltips in view and fills each run-stat row at 390px a
       ).toBeCloseTo(measurement.bar.right, 0);
     }
   }
+});
+
+test("keeps the Energy tooltip inside the phone viewport when hovered @status-bar @responsive", async ({
+  page,
+}) => {
+  await startSpaceLateGameFixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const energy = page.getByTestId("top-stat-energy");
+  await energy.hover();
+  const tooltip = energy.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  const bounds = await tooltip.evaluate((element) => {
+    const { left, right } = element.getBoundingClientRect();
+    return { left, right };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("keeps the AP tooltip inside the phone viewport when hovered @status-bar @responsive", async ({
+  page,
+}) => {
+  await startSpaceLateGameFixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const ap = page.getByTestId("top-stat-ap");
+  await ap.hover();
+  const tooltip = ap.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  const bounds = await tooltip.evaluate((element) => {
+    const { left, right } = element.getBoundingClientRect();
+    return { left, right };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("keeps the GP tooltip inside the phone viewport when hovered @status-bar @responsive", async ({
+  page,
+}) => {
+  await startSpaceLateGameFixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const gp = page.getByTestId("top-stat-gp");
+  await gp.hover();
+  const tooltip = gp.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  const bounds = await tooltip.evaluate((element) => {
+    const { left, right } = element.getBoundingClientRect();
+    return { left, right };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("shows the full Standard cash balance on desktop in Terminal and Light themes @status-bar @presentation @p51", async ({
+  page,
+}, testInfo) => {
+  await startSpaceLateGameFixture(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  const cashBalance = page.getByTestId("cash-balance");
+  const tooltip = page.getByTestId("top-stat-cash").getByRole("tooltip");
+  for (const theme of ["terminal", "light"] as const) {
+    await page.locator("#tab-settings").click();
+    await page.locator("#tab-settings-visual").click();
+    await page.locator("#settings-theme").selectOption(theme);
+    await page.locator("#tab-hydrogen").click();
+    await setNumberNotation(page, "standard");
+
+    const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+    expect(state.settings.themeId).toBe(theme);
+    expect(state.settings.notation).toBe("standard");
+    expect(state.run.cash).toBeGreaterThan(1_000_000_000);
+    await expect(cashBalance).toHaveAttribute("aria-describedby", "top-stat-tooltip-cash");
+
+    let formattedCash = "";
+    await expect
+      .poll(async () => {
+        const current = await page.evaluate(() => window.miaplacidusTest!.getState());
+        formattedCash = formatCurrency(
+          "en",
+          current.run.cash,
+          current.settings.currencyId ?? "usd",
+          2,
+          current.settings.notation,
+        );
+        return (await cashBalance.textContent()) === formattedCash;
+      })
+      .toBe(true);
+    expect(formattedCash).toMatch(/^\$1,000,\d{3},\d{3}\.\d{2}$/);
+
+    const layout = await cashBalance.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const textBounds = range.getBoundingClientRect();
+      const bounds = element.getBoundingClientRect();
+      return {
+        valueWidth: textBounds.width,
+        availableWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        valueLeft: textBounds.left,
+        valueRight: textBounds.right,
+        cardRight: bounds.right,
+      };
+    });
+    expect(
+      layout.valueWidth,
+      `${theme} Standard cash text exceeds its visible value box: ${JSON.stringify(layout)}`,
+    ).toBeLessThanOrEqual(layout.availableWidth);
+    expect(layout.scrollWidth).toBeLessThanOrEqual(layout.availableWidth);
+    expect(layout.valueRight).toBeLessThanOrEqual(layout.cardRight);
+    const cashSizing = await page.evaluate(() => {
+      const time = document.querySelector<HTMLElement>('[data-testid="top-stat-time"]');
+      const cash = document.querySelector<HTMLElement>('[data-testid="top-stat-cash"]');
+      const value = document.querySelector<HTMLElement>('[data-testid="cash-balance"]');
+      if (!time || !cash || !value) throw new Error("Run Time or Cash status is missing.");
+      const timeStyle = getComputedStyle(time);
+      const cashStyle = getComputedStyle(cash);
+      return {
+        timeGrow: timeStyle.flexGrow,
+        cashGrow: cashStyle.flexGrow,
+        timeBasis: timeStyle.flexBasis,
+        cashBasis: cashStyle.flexBasis,
+        cashValueFontSize: getComputedStyle(value).fontSize,
+        timeWidth: time.getBoundingClientRect().width,
+        cashWidth: cash.getBoundingClientRect().width,
+      };
+    });
+    expect(cashSizing.cashGrow).toBe(cashSizing.timeGrow);
+    expect(cashSizing.cashBasis).toBe(cashSizing.timeBasis);
+    expect(cashSizing.cashWidth).toBeLessThan(cashSizing.timeWidth * 1.8);
+    console.log(`${theme} Standard Run Time/Cash sizing`, JSON.stringify(cashSizing));
+    const rowTops = await page
+      .getByTestId("run-status-bar")
+      .locator(":scope > *")
+      .evaluateAll((elements) =>
+        elements.map((element) => Math.round(element.getBoundingClientRect().top)),
+      );
+    expect(new Set(rowTops).size).toBe(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      1280,
+    );
+    const cardWidths = await page.evaluate(() => {
+      const ids = ["top-stat-cash", "top-stat-rp", "top-stat-event", "top-stat-gp", "top-stat-ap"];
+      return Object.fromEntries(
+        ids.map((id) => {
+          const stat = document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+          if (!stat) throw new Error(`Missing status card ${id}`);
+          return [id, Math.round(stat.getBoundingClientRect().width * 10) / 10];
+        }),
+      );
+    });
+    console.log(`${theme} Standard status-card widths`, JSON.stringify(cardWidths));
+    expect(cardWidths["top-stat-cash"]).toBeGreaterThan(130);
+    expect(cardWidths["top-stat-event"]).toBeGreaterThan(180);
+    expect(cardWidths["top-stat-rp"]).toBeGreaterThan(80);
+    expect(cardWidths["top-stat-gp"]).toBeGreaterThan(20);
+    expect(cardWidths["top-stat-ap"]).toBeGreaterThan(20);
+
+    await page.mouse.move(1, 1);
+    await captureVisualCheckpoint(page, testInfo, `p51-cash-standard-${theme}-desktop`);
+    await cashBalance.focus();
+    await expect(tooltip).toBeVisible();
+    await expect
+      .poll(async () => {
+        const current = await page.evaluate(() => window.miaplacidusTest!.getState());
+        formattedCash = formatCurrency(
+          "en",
+          current.run.cash,
+          current.settings.currencyId ?? "usd",
+          2,
+          current.settings.notation,
+        );
+        return (await tooltip.textContent())?.includes(formattedCash) ?? false;
+      })
+      .toBe(true);
+    await cashBalance.evaluate((element) => element.blur());
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await cashBalance.focus();
+  await expect(tooltip).toBeVisible();
+  await expectTooltipWithinViewport(page, page.getByTestId("top-stat-cash"));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

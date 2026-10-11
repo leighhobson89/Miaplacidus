@@ -16,6 +16,11 @@ import {
   rebirthText,
 } from "../i18n/metaMessages";
 import { formatNumber } from "./numberFormatting";
+import { CelestialIllustration } from "./CelestialIllustration";
+import { InfoTooltip } from "./InfoTooltip";
+import { PageArtworkRow } from "./PageArtworkRow";
+import { starshipText } from "../i18n/starshipMessages";
+import { AssetLiquidationCard } from "./AssetLiquidationCard";
 
 function number(state: GameState, value: number): string {
   return formatNumber(state.settings.locale, value, 0, state.settings.notation);
@@ -30,6 +35,8 @@ export function RebirthPane({ state, store }: Props) {
   const locale = state.settings.locale;
   const [confirmingRebirth, setConfirmingRebirth] = useState(false);
   const confirmationDialog = useRef<HTMLDialogElement>(null);
+  const rebirthTrigger = useRef<HTMLButtonElement>(null);
+  const restoreRebirthFocus = useRef(false);
   const rebirthCheck = checkPreconditions(state, { type: "meta.rebirth" });
   useEffect(() => {
     const dialog = confirmationDialog.current;
@@ -37,6 +44,11 @@ export function RebirthPane({ state, store }: Props) {
     return () => {
       if (dialog?.open) dialog.close();
     };
+  }, [confirmingRebirth]);
+  useEffect(() => {
+    if (confirmingRebirth || !restoreRebirthFocus.current) return;
+    restoreRebirthFocus.current = false;
+    rebirthTrigger.current?.focus();
   }, [confirmingRebirth]);
   const rebirthFailureCode = rebirthCheck.ok ? undefined : rebirthCheck.failure.code;
   const rebirthLockReason = [
@@ -54,6 +66,10 @@ export function RebirthPane({ state, store }: Props) {
   const cosmicRipUnlocked = state.run.economy.researchedTechnologies.some(
     (technologyId) => String(technologyId) === "cosmicRip",
   );
+  const isMegastructureRun = state.permanent.megastructures.ancientManuscripts.some(
+    (record) => record.factorySystemId === state.run.space.currentSystemId,
+  );
+  const overview = metaText(locale, "rebirthOverview");
   const carryClass =
     state.permanent.ascendencyPoints > 0 ? "green-ready-text" : "red-disabled-text";
 
@@ -65,9 +81,31 @@ export function RebirthPane({ state, store }: Props) {
     >
       <div className="pane-heading">
         <div>
-          <h2 id="rebirth-pane-title">{rebirthText(locale, "title")}</h2>
+          <div className="economy-page-title-row">
+            <h2 id="rebirth-pane-title">{rebirthText(locale, "title")}</h2>
+            <InfoTooltip
+              id="rebirth-page-help"
+              label={`${rebirthText(locale, "title")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+              content={
+                isMegastructureRun ? (
+                  <>
+                    <span>{overview}</span>
+                    <span className="orange-warning-text">
+                      {metaText(locale, "rebirthMegastructureWarning")}
+                    </span>
+                  </>
+                ) : (
+                  overview
+                )
+              }
+              testId="rebirth-page-help"
+            />
+          </div>
         </div>
       </div>
+      <PageArtworkRow>
+        <CelestialIllustration kind="megastructure" />
+      </PageArtworkRow>
       <div className="action-grid">
         <article className="upgrade-card">
           <div className="card-copy">
@@ -82,6 +120,7 @@ export function RebirthPane({ state, store }: Props) {
           </div>
           <div className="card-controls">
             <button
+              ref={rebirthTrigger}
               className="secondary-button"
               type="button"
               disabled={!rebirthCheck.ok}
@@ -95,6 +134,7 @@ export function RebirthPane({ state, store }: Props) {
             </span>
           </div>
         </article>
+        <AssetLiquidationCard state={state} store={store} />
       </div>
 
       {confirmingRebirth && (
@@ -102,7 +142,10 @@ export function RebirthPane({ state, store }: Props) {
           ref={confirmationDialog}
           className="confirmation-dialog"
           aria-labelledby="rebirth-confirm-title"
-          onCancel={() => setConfirmingRebirth(false)}
+          onCancel={() => {
+            restoreRebirthFocus.current = true;
+            setConfirmingRebirth(false);
+          }}
         >
           <h2 id="rebirth-confirm-title">{rebirthText(locale, "title")}</h2>
           <p className="rebirth-confirm-prompt">{rebirthText(locale, "prompt")}</p>
@@ -116,7 +159,13 @@ export function RebirthPane({ state, store }: Props) {
               type="button"
               onClick={() => {
                 const result = store.dispatch({ type: "meta.rebirth" });
-                if (result.accepted) setConfirmingRebirth(false);
+                if (result.accepted) {
+                  restoreRebirthFocus.current = false;
+                  window.requestAnimationFrame(() => {
+                    document.getElementById("tab-hydrogen")?.focus();
+                  });
+                  setConfirmingRebirth(false);
+                }
               }}
             >
               {rebirthText(locale, "confirm")}
@@ -124,7 +173,10 @@ export function RebirthPane({ state, store }: Props) {
             <button
               className="text-button"
               type="button"
-              onClick={() => setConfirmingRebirth(false)}
+              onClick={() => {
+                restoreRebirthFocus.current = true;
+                setConfirmingRebirth(false);
+              }}
             >
               {rebirthText(locale, "cancel")}
             </button>
@@ -146,17 +198,37 @@ export function AscendencyPane({ state, store }: Props) {
     >
       <div className="pane-heading">
         <div>
-          <h2 id="ascendency-pane-title">{metaText(locale, "title")}</h2>
+          <div className="economy-page-title-row">
+            <h2 id="ascendency-pane-title" className="game-page-title">
+              {metaText(locale, "perksTitle")}
+            </h2>
+            <InfoTooltip
+              id="ascendency-perks-page-help"
+              label={`${metaText(locale, "perksTitle")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+              content={metaText(locale, "perksOverview")}
+              testId="ascendency-perks-page-help"
+            />
+          </div>
           <p className="pane-intro">
             {metaText(locale, "ap")}: {number(state, state.permanent.ascendencyPoints)}
           </p>
         </div>
       </div>
+      <PageArtworkRow>
+        <CelestialIllustration kind="megastructure" />
+      </PageArtworkRow>
       <div className="action-grid" aria-label={metaText(locale, "title")}>
         {ASCENDENCY_PERKS.map((perk) => {
           const level = ascendencyPerkLevel(state.permanent.acquiredPerks, perk.id);
           const cost = ascendencyPerkCost(state.permanent.acquiredPerks, perk.id);
           const maxed = ascendencyPerkMaxed(state.permanent.acquiredPerks, perk.id);
+          const maximumPurchases = "maxPurchases" in perk ? perk.maxPurchases : undefined;
+          const rebuyableValue =
+            maximumPurchases === undefined
+              ? metaText(locale, "yes")
+              : maximumPurchases > 1
+                ? number(state, maximumPurchases)
+                : metaText(locale, "no");
           const check = checkPreconditions(state, { type: "meta.perk.purchase", perkId: perk.id });
           const [name, description] = metaPerkCopy(locale, perk.id);
           const reasonId = `ascendency-perk-${perk.id}-reason`;
@@ -172,6 +244,7 @@ export function AscendencyPane({ state, store }: Props) {
                 <h3>{name}</h3>
                 <p>{description}</p>
                 <span className="cost-line">
+                  {metaText(locale, "rebuyable")} {rebuyableValue} ·{" "}
                   {metaText(locale, "level")}: {number(state, level)} · {metaText(locale, "cost")}:{" "}
                   {maxed ? metaText(locale, "maxed") : number(state, cost)} AP
                 </span>

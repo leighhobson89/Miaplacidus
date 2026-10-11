@@ -28,7 +28,7 @@ const NAMES = {
     sodium: "Sodio",
     silicon: "Silicio",
     iron: "Hierro",
-    diesel: "Diésel",
+    diesel: "Diesel",
     glass: "Vidrio",
     steel: "Acero",
     concrete: "Hormigón",
@@ -79,7 +79,7 @@ const NAMES = {
     diesel: "Diesel",
     glass: "Vetro",
     steel: "Acciaio",
-    concrete: "Calcestruzzo",
+    concrete: "Cemento",
     water: "Acqua",
     titanium: "Titanio",
   },
@@ -103,6 +103,15 @@ const NAMES = {
 
 export function economyGoodName(locale: LocaleId, id: EconomicGoodId): string {
   return NAMES[locale][id];
+}
+
+const PAGE_TITLE_OVERRIDES: Partial<Record<LocaleId, Partial<Record<EconomicGoodId, string>>>> = {
+  // Cosmic Forge uses the side-menu name "Cemento" but the page heading "Calcestruzzo".
+  it: { concrete: "Calcestruzzo" },
+};
+
+export function economyGoodPageTitle(locale: LocaleId, id: EconomicGoodId): string {
+  return PAGE_TITLE_OVERRIDES[locale]?.[id] ?? economyGoodName(locale, id);
 }
 
 export function economyRatePerSecond(state: GameState, id: EconomicGoodId): number {

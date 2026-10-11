@@ -13,7 +13,7 @@ import { HOME_SYSTEM_NAME, createStarCatalogue } from "../content/starCatalogue"
 import { nextRandom } from "./random";
 import { canAfford, settleSpend } from "./precision";
 import { addLifetimeCount } from "./statistics";
-import type { GameState } from "./state";
+import type { CosmicRipProgress, GameState } from "./state";
 
 export const CosmicRipCommandType = "cosmic-rip." as const;
 
@@ -68,6 +68,27 @@ export interface CosmicRipTransition {
 
 const technologyForId = (id: CosmicRipTechnologyId) =>
   COSMIC_RIP_TECHNOLOGIES.find((technology) => technology.id === id)!;
+
+/** Matches Cosmic Forge's overall stability meter, including active research. */
+export function cosmicRipStabilityProgress(progress: CosmicRipProgress): number {
+  const activeTechnology = progress.activeResearchTechnologyId
+    ? technologyForId(progress.activeResearchTechnologyId)
+    : null;
+  const activeResearchFraction = activeTechnology
+    ? Math.max(0, Math.min(1, progress.researchElapsedMs / activeTechnology.durationMs))
+    : 0;
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        ((progress.researchedTechnologyIds.length + activeResearchFraction) /
+          COSMIC_RIP_TECHNOLOGIES.length) *
+          100,
+      ),
+    ),
+  );
+}
 
 function recordGalacticPointsSpent(state: GameState, amount: number): GameState {
   return {
@@ -317,9 +338,11 @@ export function advanceCosmicRip(state: GameState, elapsedMs: number): CosmicRip
   const seconds = elapsedMs / 1000;
   const technologyId = progress.activeResearchTechnologyId;
   const telemetryRate = cosmicRipTelemetryRate(state);
-  const telemetryData = Number((progress.telemetryData + telemetryRate * seconds).toFixed(8));
-  const telemetryEarned =
-    telemetryRate > 0 ? Math.max(0, telemetryData - progress.telemetryData) : 0;
+  const telemetryGain = telemetryRate * seconds;
+  const telemetryData = Number((progress.telemetryData + telemetryGain).toFixed(8));
+  // Cosmic Forge adds each positive raw production delta to the all-time
+  // statistic separately from the telemetry balance's floating-point value.
+  const telemetryEarned = telemetryRate > 0 ? telemetryGain : 0;
   const statistics =
     telemetryEarned > 0
       ? {

@@ -1,6 +1,6 @@
 import type { EngineEvent, EngineResult, GameCommand } from "../engine/commands";
 import type { GameState } from "../engine/state";
-import type { GameStore } from "../engine/store";
+import type { GameStateReducer, GameStore } from "../engine/store";
 import { currentWeatherForSystem } from "../engine/weather";
 import {
   miaplacidusForceFieldLevel,
@@ -43,7 +43,16 @@ const AUDIO_URLS = {
 
 type AudioCue = keyof typeof AUDIO_URLS;
 
+export interface AudioPlaybackOptions {
+  readonly now?: () => number;
+  readonly random?: () => number;
+}
+
+const BATTLE_LASER_COOLDOWN_MS = 80;
+const BATTLE_EXPLOSION_COOLDOWN_MS = 140;
+
 const activeEffects = new Set<HTMLAudioElement>();
+const activeEffectsByCue = new Map<AudioCue, Set<HTMLAudioElement>>();
 const ambienceTracks = new Map<string, HTMLAudioElement>();
 let audioUnlocked = false;
 
@@ -60,13 +69,40 @@ function createAudio(cue: AudioCue, loop: boolean, volume: number): HTMLAudioEle
   }
 }
 
+function playSafely(audio: HTMLAudioElement, onFailure: () => void = () => {}): void {
+  try {
+    void audio.play().catch(onFailure);
+  } catch {
+    onFailure();
+  }
+}
+
 function playEffect(cue: AudioCue, volume: number): void {
   if (volume <= 0) return;
+  const oppositePowerCue = cue === "powerOn" ? "powerOff" : cue === "powerOff" ? "powerOn" : null;
+  if (oppositePowerCue) {
+    for (const active of activeEffectsByCue.get(oppositePowerCue) ?? []) {
+      active.pause();
+      active.currentTime = 0;
+      activeEffects.delete(active);
+    }
+    activeEffectsByCue.delete(oppositePowerCue);
+  }
+
   const audio = createAudio(cue, false, volume);
   if (!audio) return;
+  const forget = () => {
+    activeEffects.delete(audio);
+    const cueEffects = activeEffectsByCue.get(cue);
+    cueEffects?.delete(audio);
+    if (cueEffects?.size === 0) activeEffectsByCue.delete(cue);
+  };
   activeEffects.add(audio);
-  audio.addEventListener("ended", () => activeEffects.delete(audio), { once: true });
-  void audio.play().catch(() => activeEffects.delete(audio));
+  const cueEffects = activeEffectsByCue.get(cue) ?? new Set<HTMLAudioElement>();
+  cueEffects.add(audio);
+  activeEffectsByCue.set(cue, cueEffects);
+  audio.addEventListener("ended", forget, { once: true });
+  playSafely(audio, forget);
 }
 
 function stopEffects(): void {
@@ -75,6 +111,11 @@ function stopEffects(): void {
     audio.currentTime = 0;
   }
   activeEffects.clear();
+  activeEffectsByCue.clear();
+}
+
+function setActiveEffectsVolume(volume: number): void {
+  for (const audio of activeEffects) audio.volume = volume;
 }
 
 function setAmbienceTrack(
@@ -91,7 +132,7 @@ function setAmbienceTrack(
   if (!audio) return;
   audio.volume = volume;
   if (shouldPlay) {
-    if (audio.paused) void audio.play().catch(() => {});
+    if (audio.paused) playSafely(audio);
   } else {
     audio.pause();
   }
@@ -122,7 +163,8 @@ function updateAmbience(state: GameState, focused = true): void {
   setAmbienceTrack("volcano", "eruptionLoop", volume > 0 && weather === "volcano", volume * 0.6);
 }
 
-function cueForEvent(event: EngineEvent, state: GameState): AudioCue | null {
+/** Source cue selection for an accepted game event; kept explicit for parity tests. */
+export function audioCueForEvent(event: EngineEvent, state: GameState): AudioCue | null {
   switch (event.type) {
     case "storage.increased":
       return "increaseStorage";
@@ -138,26 +180,24 @@ function cueForEvent(event: EngineEvent, state: GameState): AudioCue | null {
           return null;
       }
     case "resource.sold":
+    case "meta.market.traded":
+    case "meta.market.ap-sold":
+    case "meta.market.liquidated":
       return "kaching";
     case "news.prize.claimed":
-    case "casino.wheel.special-claimed":
+    case "news.one-off.claimed":
       return "goodPrize";
-    case "casino.game.played":
-      return event.cpAwarded > event.cpSpent ? "goodPrize" : null;
-    case "casino.void-seer.result":
-      return event.won ? "goodPrize" : null;
     case "space.telescope.built":
       return "buildTelescope";
     case "space.launch-pad.built":
       return "buildLaunchPad";
     case "space.survey.started":
-      return event.survey === "asteroids"
-        ? "asteroidScan"
-        : event.survey === "stars"
-          ? "starStudy"
-          : null;
+      if (event.survey === "asteroids") return "asteroidScan";
+      return event.survey === "stars" || event.survey === "pillageVoid" ? "starStudy" : null;
     case "space.starship.system.scanned":
       return "asteroidScan";
+    case "space.system.settled":
+      return "buildTelescope";
     case "space.rocket.pump.purchased":
       return "fuelRocket";
     case "space.rocket.pump.changed":
@@ -173,11 +213,18 @@ function cueForEvent(event: EngineEvent, state: GameState): AudioCue | null {
     case "space.starship.arrived":
       return "starShipArrive";
     case "space.antimatter-boost.changed":
-      return event.active ? null : "clickSwitch";
+      // Cosmic Forge starts/stops the repeating boost audio directly from the
+      // hold gesture. Releasing the control does not play a switch cue.
+      return null;
     case "space.battle.round":
-      return event.round % 2 === 0 ? "laserGun2" : "laserGun1";
     case "space.battle.finished":
-      return event.result === "victory" ? "shipBattleExplode1" : "shipBattleExplode2";
+      // Battle shots are rate-limited when the confirmed round event arrives.
+      // Battle completion has no separate impact in Cosmic Forge.
+      return null;
+    case "space.battle.casualties":
+      // The audio adapter emits only confirmed casualties, throttled at the
+      // same 140ms cadence as Cosmic Forge's explosion animation callback.
+      return null;
     case "black-hole.warp-activated":
       return "blackHoleActivated";
     case "black-hole.upgrade-purchased":
@@ -191,10 +238,100 @@ function cueForEvent(event: EngineEvent, state: GameState): AudioCue | null {
   }
 }
 
+function createBattleCueSelectors(
+  now: () => number,
+  random: () => number,
+): {
+  readonly laser: () => AudioCue | null;
+  readonly laserRetryDelay: () => number | null;
+  readonly explosion: () => AudioCue | null;
+  readonly explosionRetryDelay: () => number | null;
+} {
+  // Cosmic Forge initializes both source guards at performance time zero.
+  let lastLaserAt = 0;
+  let lastExplosionAt = 0;
+  return {
+    laser() {
+      const currentTime = now();
+      if (
+        !Number.isFinite(currentTime) ||
+        currentTime - lastLaserAt <= BATTLE_LASER_COOLDOWN_MS
+      ) {
+        return null;
+      }
+      lastLaserAt = currentTime;
+      return random() < 0.5 ? "laserGun1" : "laserGun2";
+    },
+    laserRetryDelay() {
+      const currentTime = now();
+      if (!Number.isFinite(currentTime)) return null;
+      if (!Number.isFinite(lastLaserAt)) return 1;
+      return Math.max(1, BATTLE_LASER_COOLDOWN_MS + 1 - (currentTime - lastLaserAt));
+    },
+    explosion() {
+      const currentTime = now();
+      if (
+        !Number.isFinite(currentTime) ||
+        currentTime - lastExplosionAt <= BATTLE_EXPLOSION_COOLDOWN_MS
+      ) {
+        return null;
+      }
+      lastExplosionAt = currentTime;
+      return random() < 0.5 ? "shipBattleExplode1" : "shipBattleExplode2";
+    },
+    explosionRetryDelay() {
+      const currentTime = now();
+      if (!Number.isFinite(currentTime)) return null;
+      if (!Number.isFinite(lastExplosionAt)) return 1;
+      return Math.max(1, BATTLE_EXPLOSION_COOLDOWN_MS + 1 - (currentTime - lastExplosionAt));
+    },
+  };
+}
+
 function cuesForEvent(event: EngineEvent, state: GameState): readonly AudioCue[] {
   if (event.type === "economy.power.tripped") return ["powerOff", "powerTripped"];
-  const cue = cueForEvent(event, state);
+  const cue = audioCueForEvent(event, state);
   return cue ? [cue] : [];
+}
+
+function hasSourceButtonCue(command: GameCommand, result: EngineResult): boolean {
+  // Cosmic Forge createButton plays its generic click before calling onClick.
+  // The event-specific cue suppresses our fallback, so restore that ordering
+  // only for accepted commands whose source handler also played a dedicated cue.
+  switch (command.type) {
+    case "resource.sell":
+      return result.events.some(
+        (event) => event.type === "resource.sold" && event.origin === "manual",
+      );
+    case "economy.building.toggle":
+      return command.buildingId.startsWith("powerPlant");
+    case "economy.research":
+      return result.events.some(
+        (event) => event.type === "technology.researched" && audioCueForEvent(event, result.state),
+      );
+    case "meta.market.trade":
+    case "meta.market.sell-ap":
+    case "meta.market.liquidate":
+      return result.events.some((event) => audioCueForEvent(event, result.state) === "kaching");
+    case "space.telescope.build":
+    case "space.launch-pad.build":
+    case "space.telescope.scan.start":
+    case "space.telescope.study.start":
+    case "space.telescope.pillage.start":
+    case "space.rocket.pump.purchase":
+    case "space.starship.system.scan":
+      return result.events.some((event) => audioCueForEvent(event, result.state) !== null);
+    case "black-hole.activate":
+      return result.events.some((event) => event.type === "black-hole.warp-activated");
+    case "black-hole.upgrade":
+      return result.events.some(
+        (event) =>
+          event.type === "black-hole.upgrade-purchased" &&
+          audioCueForEvent(event, result.state) === "blackHoleActivated",
+      );
+    default:
+      return false;
+  }
 }
 
 function createBoostSoundLoop(getState: () => GameState) {
@@ -211,7 +348,7 @@ function createBoostSoundLoop(getState: () => GameState) {
       effects.delete(audio);
     };
     audio.addEventListener("ended", forget, { once: true });
-    void audio.play().catch(forget);
+    playSafely(audio, forget);
   };
 
   const stop = () => {
@@ -226,14 +363,12 @@ function createBoostSoundLoop(getState: () => GameState) {
 
   return {
     update(state: GameState, events: readonly EngineEvent[], canPlay: boolean): boolean {
-      const activated = events.some(
-        (event) => event.type === "space.antimatter-boost.changed" && event.active,
-      );
+      const transitioned = events.some((event) => event.type === "space.antimatter-boost.changed");
       if (!canPlay || !state.run.space.antimatterBoostActive) {
         stop();
-        return activated;
+        return transitioned;
       }
-      if (activated && interval === null) {
+      if (transitioned && interval === null) {
         play(state);
         interval = setInterval(() => {
           const currentState = getState();
@@ -246,7 +381,10 @@ function createBoostSoundLoop(getState: () => GameState) {
           play(currentState);
         }, 500);
       }
-      return activated;
+      return transitioned;
+    },
+    setVolume(volume: number) {
+      for (const audio of effects) audio.volume = volume;
     },
     dispose: stop,
   };
@@ -257,25 +395,65 @@ function handleResult(
   result: EngineResult,
   boostSoundLoop: ReturnType<typeof createBoostSoundLoop>,
   isAudioFocused: () => boolean,
+  queueBattleLasers: (count: number) => void,
+  clearBattleLasers: () => void,
+  queueBattleExplosions: (count: number) => void,
+  clearBattleExplosions: () => void,
 ): void {
   if (!result.accepted) return;
-  if (command.type !== "clock.advance") audioUnlocked = true;
+  const isArrivalNoticeMarker = command.type === "space.starship.arrival-notice.mark-notified";
+  if (command.type !== "clock.advance" && !isArrivalNoticeMarker) audioUnlocked = true;
+  if (command.type === "settings.update") {
+    const effectsVolume = result.state.settings.soundEffectsVolume ?? 0.5;
+    setActiveEffectsVolume(effectsVolume);
+    boostSoundLoop.setVolume(effectsVolume);
+  }
   updateAmbience(result.state, isAudioFocused());
   const effectsEnabled =
     result.state.settings.soundEffectsEnabled ?? result.state.settings.soundEnabled;
-  const boostActivated = boostSoundLoop.update(
+  const effectsVolume = result.state.settings.soundEffectsVolume ?? 0.5;
+  const boostTransitioned = boostSoundLoop.update(
     result.state,
     result.events,
     effectsEnabled && audioUnlocked,
   );
-  if (!effectsEnabled || !audioUnlocked || !isAudioFocused()) return;
+  if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || effectsVolume <= 0) {
+    clearBattleLasers();
+    clearBattleExplosions();
+    return;
+  }
 
   const cues = new Set<AudioCue>();
+  if (hasSourceButtonCue(command, result)) cues.add("clickButton");
   if (command.type === "economy.power.toggle") {
     cues.add(command.enabled ? "powerOn" : "powerOff");
   }
+  if (command.type === "economy.building.toggle" && command.buildingId.startsWith("powerPlant")) {
+    // The source power-plant button explicitly plays powerOn after its state update.
+    cues.add("powerOn");
+  }
   for (const event of result.events) {
     if (command.type === "clock.advance" && event.type === "resource.sold") continue;
+    if (event.type === "space.battle.round") {
+      // One aggregate round is the only available proxy for shots; its event
+      // payload has no per-shot count or timestamp.
+      queueBattleLasers(1);
+      continue;
+    }
+    if (event.type === "space.battle.casualties") {
+      const lostShips =
+        Object.values(event.playerShipLosses).reduce((sum, losses) => sum + losses, 0) +
+        Object.values(event.enemyShipLosses).reduce((sum, losses) => sum + losses, 0);
+      if (lostShips > 0) queueBattleExplosions(lostShips);
+      continue;
+    }
+    if (event.type === "space.battle.finished") {
+      // This result event does not identify a shot. Also stop approximated
+      // round/loss cues so they cannot continue after the battle has ended.
+      clearBattleLasers();
+      clearBattleExplosions();
+      continue;
+    }
     for (const cue of cuesForEvent(event, result.state)) cues.add(cue);
   }
   const silentRocketProgress = result.events.some(
@@ -286,18 +464,31 @@ function handleResult(
   if (
     cues.size === 0 &&
     command.type !== "clock.advance" &&
+    command.type !== "navigation.attention.initialize" &&
+    command.type !== "navigation.attention.discover" &&
     command.type !== "navigation.attention.clear" &&
+    command.type !== "navigation.attention.clear-many" &&
+    !isArrivalNoticeMarker &&
     !silentRocketProgress &&
-    !boostActivated
+    !boostTransitioned
   ) {
+    const settingsSelectionChanged =
+      command.type === "settings.update" &&
+      ("themeId" in command.patch ||
+        "currencyId" in command.patch ||
+        "notation" in command.patch ||
+        "locale" in command.patch);
     cues.add(
-      command.type === "settings.update" || command.type.endsWith("toggle")
-        ? "clickSwitch"
-        : "clickButton",
+      command.type === "settings.update"
+        ? settingsSelectionChanged
+          ? "clickButton"
+          : "clickSwitch"
+        : command.type.endsWith("toggle")
+          ? "clickSwitch"
+          : "clickButton",
     );
   }
-  const volume = result.state.settings.soundEffectsVolume ?? 0.5;
-  for (const cue of cues) playEffect(cue, volume);
+  for (const cue of cues) playEffect(cue, effectsVolume);
 }
 
 export interface AudioGameStore extends GameStore {
@@ -306,7 +497,14 @@ export interface AudioGameStore extends GameStore {
   dispose(): void;
 }
 
-export function withGameAudio(store: GameStore): AudioGameStore {
+export function withGameAudio(
+  store: GameStore,
+  playback: AudioPlaybackOptions = {},
+): AudioGameStore {
+  const battleCueSelectors = createBattleCueSelectors(
+    playback.now ?? (() => globalThis.performance?.now() ?? Date.now()),
+    playback.random ?? Math.random,
+  );
   const boostSoundLoop = createBoostSoundLoop(() => store.getState());
   let windowFocused =
     typeof document === "undefined" ||
@@ -315,6 +513,83 @@ export function withGameAudio(store: GameStore): AudioGameStore {
   let documentVisible = typeof document === "undefined" || document.visibilityState !== "hidden";
   let audioFocused = windowFocused && documentVisible;
   const isAudioFocused = () => audioFocused;
+  let pendingBattleLasers = 0;
+  let battleLaserTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingBattleExplosions = 0;
+  let battleExplosionTimer: ReturnType<typeof setTimeout> | null = null;
+  let audioDisposed = false;
+  const clearBattleLasers = () => {
+    pendingBattleLasers = 0;
+    if (battleLaserTimer !== null) clearTimeout(battleLaserTimer);
+    battleLaserTimer = null;
+  };
+  const clearBattleExplosions = () => {
+    pendingBattleExplosions = 0;
+    if (battleExplosionTimer !== null) clearTimeout(battleExplosionTimer);
+    battleExplosionTimer = null;
+  };
+  const playNextBattleLaser = () => {
+    battleLaserTimer = null;
+    if (audioDisposed || pendingBattleLasers <= 0) return;
+    const state = store.getState();
+    const effectsEnabled = state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
+    const volume = state.settings.soundEffectsVolume ?? 0.5;
+    if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || volume <= 0) {
+      clearBattleLasers();
+      return;
+    }
+    const cue = battleCueSelectors.laser();
+    if (!cue) {
+      const retryDelay = battleCueSelectors.laserRetryDelay();
+      if (retryDelay === null) {
+        clearBattleLasers();
+        return;
+      }
+      battleLaserTimer = setTimeout(playNextBattleLaser, retryDelay);
+      return;
+    }
+    pendingBattleLasers -= 1;
+    playEffect(cue, volume);
+    if (pendingBattleLasers > 0) {
+      battleLaserTimer = setTimeout(playNextBattleLaser, BATTLE_LASER_COOLDOWN_MS + 1);
+    }
+  };
+  const queueBattleLasers = (count: number) => {
+    if (!Number.isFinite(count) || count <= 0 || audioDisposed) return;
+    pendingBattleLasers += Math.floor(count);
+    if (battleLaserTimer === null) playNextBattleLaser();
+  };
+  const playNextBattleExplosion = () => {
+    battleExplosionTimer = null;
+    if (audioDisposed || pendingBattleExplosions <= 0) return;
+    const state = store.getState();
+    const effectsEnabled = state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
+    const volume = state.settings.soundEffectsVolume ?? 0.5;
+    if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || volume <= 0) {
+      clearBattleExplosions();
+      return;
+    }
+    const cue = battleCueSelectors.explosion();
+    if (!cue) {
+      const retryDelay = battleCueSelectors.explosionRetryDelay();
+      if (retryDelay === null) {
+        clearBattleExplosions();
+        return;
+      }
+      battleExplosionTimer = setTimeout(playNextBattleExplosion, retryDelay);
+      return;
+    }
+    pendingBattleExplosions -= 1;
+    playEffect(cue, volume);
+    if (pendingBattleExplosions > 0) {
+      battleExplosionTimer = setTimeout(playNextBattleExplosion, BATTLE_EXPLOSION_COOLDOWN_MS + 1);
+    }
+  };
+  const queueBattleExplosions = (count: number) => {
+    if (!Number.isFinite(count) || count <= 0 || audioDisposed) return;
+    pendingBattleExplosions += Math.floor(count);
+    if (battleExplosionTimer === null) playNextBattleExplosion();
+  };
   const syncAudioFocus = () => {
     const nextAudioFocused = windowFocused && documentVisible;
     if (audioFocused === nextAudioFocused) return;
@@ -322,6 +597,8 @@ export function withGameAudio(store: GameStore): AudioGameStore {
     if (audioFocused) {
       updateAmbience(store.getState(), true);
     } else {
+      clearBattleLasers();
+      clearBattleExplosions();
       stopEffects();
       for (const audio of ambienceTracks.values()) audio.pause();
     }
@@ -356,7 +633,7 @@ export function withGameAudio(store: GameStore): AudioGameStore {
       }
     }
   };
-  return {
+  const audioStore: AudioGameStore = {
     getState: () => store.getState(),
     getSnapshot: () => store.getSnapshot(),
     subscribe: (listener) => store.subscribe(listener),
@@ -377,7 +654,16 @@ export function withGameAudio(store: GameStore): AudioGameStore {
     },
     dispatch(command) {
       const result = store.dispatch(command);
-      handleResult(command, result, boostSoundLoop, isAudioFocused);
+      handleResult(
+        command,
+        result,
+        boostSoundLoop,
+        isAudioFocused,
+        queueBattleLasers,
+        clearBattleLasers,
+        queueBattleExplosions,
+        clearBattleExplosions,
+      );
       if (result.accepted) publishEvents(result.events);
       return result;
     },
@@ -385,7 +671,17 @@ export function withGameAudio(store: GameStore): AudioGameStore {
       const results = store.dispatchBatch(commands);
       commands.forEach((command, index) => {
         const result = results[index];
-        if (result) handleResult(command, result, boostSoundLoop, isAudioFocused);
+        if (result)
+          handleResult(
+            command,
+            result,
+            boostSoundLoop,
+            isAudioFocused,
+            queueBattleLasers,
+            clearBattleLasers,
+            queueBattleExplosions,
+            clearBattleExplosions,
+          );
       });
       publishEvents(results.flatMap((result) => (result.accepted ? result.events : [])));
       return results;
@@ -400,6 +696,9 @@ export function withGameAudio(store: GameStore): AudioGameStore {
       boostSoundLoop.update(state, [], effectsEnabled && audioUnlocked);
     },
     dispose() {
+      audioDisposed = true;
+      clearBattleLasers();
+      clearBattleExplosions();
       eventListeners.clear();
       if (typeof window !== "undefined") {
         window.removeEventListener("blur", handleWindowBlur);
@@ -418,4 +717,23 @@ export function withGameAudio(store: GameStore): AudioGameStore {
       audioUnlocked = false;
     },
   };
+
+  if (import.meta.env.DEV || MIAPLACIDUS_BUILD_MODE === "test") {
+    const dispatchReducer = store.dispatchReducer;
+    if (dispatchReducer) {
+      audioStore.dispatchReducer = (reducer: GameStateReducer) => {
+        const result = dispatchReducer(reducer);
+        if (result.accepted) {
+          updateAmbience(result.state, isAudioFocused());
+          const effectsEnabled =
+            result.state.settings.soundEffectsEnabled ?? result.state.settings.soundEnabled;
+          boostSoundLoop.update(result.state, result.events, effectsEnabled && audioUnlocked);
+          publishEvents(result.events);
+        }
+        return result;
+      };
+    }
+  }
+
+  return audioStore;
 }

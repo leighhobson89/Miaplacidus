@@ -168,6 +168,9 @@ export function createStarCatalogue(
     throw new RangeError("Galaxy seed must be a non-negative safe integer.");
   }
 
+  const cached = catalogueCache.get(galaxySeed);
+  if (cached) return cached;
+
   const names = STAR_NAME_CATALOGUE.map(([name, starType]) => [name, starType] as const);
   const entries: StarCatalogueEntry[] = [];
   for (let slot = 0; slot < GALAXY_STAR_COUNT; slot += 1) {

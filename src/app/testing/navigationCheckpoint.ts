@@ -45,3 +45,28 @@ export function createLateGameNavigationCheckpoint(current: GameState): GameStat
     },
   };
 }
+
+/**
+ * Keeps the megastructure route's ship and factory state while allowing the
+ * homecoming settlement to reveal the still-locked Cosmic Rip progression.
+ */
+export function createLateGameHomecomingContinuationCheckpoint(current: GameState): GameState {
+  const navigationState = createLateGameNavigationCheckpoint(current);
+  const megastructureRoute = createEconomyFixture("meta-megastructure-route", current.settings.locale);
+  return {
+    ...megastructureRoute,
+    settings: current.settings,
+    run: {
+      ...megastructureRoute.run,
+      pioneerName: current.run.pioneerName,
+      space: {
+        ...megastructureRoute.run.space,
+        ascendencyAwardedThisRun: false,
+      },
+    },
+    permanent: {
+      ...megastructureRoute.permanent,
+      rebirthCount: navigationState.permanent.rebirthCount,
+    },
+  };
+}

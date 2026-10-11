@@ -5,6 +5,7 @@ import { casinoFailureText } from "../../src/i18n/casinoMessages";
 import { marketFailureText, marketLockCountdownText } from "../../src/i18n/metaMessages";
 import { createInitialGameState } from "../../src/engine/state";
 import { selectCasinoEntryCost, selectCasinoPointPurchase } from "../../src/engine/selectors";
+import { formatNumber } from "../../src/app/numberFormatting";
 
 function casinoReadyState(cash: number) {
   const initial = createInitialGameState({ pioneerName: "Affordance", seed: 101 });
@@ -106,6 +107,15 @@ describe("selector-backed Casino action affordances", () => {
       expect(liquidationReason).toContain("$2");
       expect(liquidationReason).toContain("$1,000,000");
       for (const reason of reasonTexts) expect(reason).not.toMatch(/\{[^}]+\}/);
+    }
+  });
+
+  it("formats Market lockdown minutes with the selected number notation", () => {
+    for (const notation of ["condensed", "standard", "scientific"] as const) {
+      const formatMinutes = (value: number) => formatNumber("en", value, 0, notation);
+      expect(marketLockCountdownText("en", 1_200 * 60_000, formatMinutes)).toContain(
+        `${formatMinutes(1_200)} min.`,
+      );
     }
   });
 });

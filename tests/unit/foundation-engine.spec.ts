@@ -1,10 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGameState } from "../../src/engine/state";
-import { transition } from "../../src/engine/commands";
+import { createInitialGameState, isValidGameState } from "../../src/engine/state";
+import { checkPreconditions, transition } from "../../src/engine/commands";
 import { canAfford, displayCost, displayQuantity } from "../../src/engine/precision";
 import { transactResources } from "../../src/engine/transactions";
 
 describe("foundation engine contracts used by the Hydrogen slice", () => {
+  it("keeps strict enumerable-key validation after the exact-key check is optimized", () => {
+    const initial = createInitialGameState();
+    const unknownRootKey = { ...initial, unexpected: true };
+    const unknownRunKey = { ...initial, run: { ...initial.run, unexpected: true } };
+
+    expect(isValidGameState(initial)).toBe(true);
+    expect(isValidGameState(unknownRootKey)).toBe(false);
+    expect(isValidGameState(unknownRunKey)).toBe(false);
+  });
+
+  it("rejects invalid states at both direct precondition and transition boundaries", () => {
+    const initial = createInitialGameState();
+    const invalid = { ...initial, run: { ...initial.run, unexpected: true } };
+    const command = {
+      type: "clock.advance" as const,
+      input: { wallNowMs: 1_000, foreground: true },
+    };
+
+    expect(checkPreconditions(invalid, command)).toMatchObject({
+      ok: false,
+      failure: { code: "invalid-state" },
+    });
+    expect(transition(invalid, command)).toMatchObject({
+      accepted: false,
+      failure: { code: "invalid-state" },
+    });
+  });
+
   it("shares the precision tolerance across affordability and displayed quantities", () => {
     expect(canAfford(1 - 1e-10, 1)).toBe(true);
     expect(canAfford(1 - 1e-6, 1)).toBe(false);
@@ -113,6 +141,94 @@ describe("foundation engine contracts used by the Hydrogen slice", () => {
     expect(state.run.clock.pendingForegroundMs).toBe(0);
   });
 
+  it("lets animation-frame callers yield catch-up work one 250 ms slice at a time", () => {
+    const initial = createInitialGameState();
+    const plan = { productionPerSecond: { hydrogen: 2 } } as const;
+    let state = transition(initial, {
+      type: "clock.advance",
+      input: { wallNowMs: 0, foreground: true, maxForegroundSteps: 1 },
+      tickPlan: plan,
+    }).state;
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 3000, foreground: true, maxForegroundSteps: 1 },
+      tickPlan: plan,
+    }).state;
+
+    expect(state.run.clock.simulationMs).toBe(250);
+    expect(state.run.clock.pendingForegroundMs).toBe(2750);
+    expect(state.run.goods.hydrogen.quantity).toBe(0.5);
+
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 3000, foreground: true, maxForegroundSteps: 1 },
+      tickPlan: plan,
+    }).state;
+    expect(state.run.clock.simulationMs).toBe(500);
+    expect(state.run.clock.pendingForegroundMs).toBe(2500);
+    expect(state.run.goods.hydrogen.quantity).toBe(1);
+  });
+
+  it("keeps the original time-warp rate on queued slices after the warp expires", () => {
+    const base = createInitialGameState();
+    const initial = {
+      ...base,
+      run: { ...base.run, timeWarp: { multiplier: 5, remainingMs: 1000 } },
+    };
+    let state = transition(initial, {
+      type: "clock.advance",
+      input: { wallNowMs: 0, foreground: true, maxForegroundSteps: 1 },
+    }).state;
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 3000, foreground: true, maxForegroundSteps: 1 },
+    }).state;
+    expect(state.run.timeWarp.remainingMs).toBe(0);
+    while (state.run.clock.pendingForegroundMs > 0) {
+      state = transition(state, {
+        type: "clock.advance",
+        input: { wallNowMs: 3000, foreground: true, maxForegroundSteps: 1 },
+      }).state;
+    }
+
+    expect(state.run.clock.simulationMs).toBe(7000);
+  });
+
+  it("preserves queued foreground time through pause and excludes paused wall time", () => {
+    const initial = createInitialGameState();
+    const plan = { productionPerSecond: { hydrogen: 2 } } as const;
+    let state = transition(initial, {
+      type: "clock.advance",
+      input: { wallNowMs: 0, foreground: true, maxForegroundSteps: 1 },
+      tickPlan: plan,
+    }).state;
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 3000, foreground: true, maxForegroundSteps: 1 },
+      tickPlan: plan,
+    }).state;
+
+    state = transition(state, { type: "clock.pause" }).state;
+    expect(state.run.clock.pendingForegroundMs).toBe(2750);
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 10_000, foreground: true, maxForegroundSteps: 1 },
+      tickPlan: plan,
+    }).state;
+    expect(state.run.clock.pendingForegroundMs).toBe(2750);
+    expect(state.run.clock.simulationMs).toBe(250);
+
+    state = transition(state, { type: "clock.resume" }).state;
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 10_000, foreground: true, maxForegroundSteps: 1 },
+      tickPlan: plan,
+    }).state;
+    expect(state.run.clock.pendingForegroundMs).toBe(2500);
+    expect(state.run.clock.simulationMs).toBe(500);
+    expect(state.run.goods.hydrogen.quantity).toBe(1);
+  });
+
   it("counts foreground active time across catch-up batches but excludes hidden time", () => {
     let state = createInitialGameState();
     state = transition(state, {
@@ -129,5 +245,36 @@ describe("foundation engine contracts used by the Hydrogen slice", () => {
       input: { wallNowMs: 60_000, foreground: false },
     }).state;
     expect(state.statistics.lifetimeActiveMs).toBe(1000);
+  });
+
+  it("keeps active duration unwarped and excludes offline time while run duration advances", () => {
+    const base = createInitialGameState();
+    const initial = {
+      ...base,
+      run: { ...base.run, timeWarp: { multiplier: 4, remainingMs: 1_000 } },
+    };
+    let state = transition(initial, {
+      type: "clock.advance",
+      input: { wallNowMs: 0, foreground: true },
+    }).state;
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 1_000, foreground: true },
+    }).state;
+
+    expect(state.statistics.lifetimeActiveMs).toBe(1_000);
+    expect(state.run.clock.simulationMs).toBe(4_000);
+
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 11_000, foreground: false },
+    }).state;
+    state = transition(state, {
+      type: "clock.advance",
+      input: { wallNowMs: 11_000, foreground: true, offlineElapsedMs: 10_000 },
+    }).state;
+
+    expect(state.statistics.lifetimeActiveMs).toBe(1_000);
+    expect(state.run.clock.simulationMs).toBe(7_340);
   });
 });

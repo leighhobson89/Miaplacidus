@@ -24,7 +24,10 @@ import { createGameStore } from "../../src/engine/store";
 import { generateStarSystemEncounter } from "../../src/engine/starSystemEncounters";
 import { ensureDiscoveredStarSystemProfiles } from "../../src/engine/starSystemProfiles";
 import { createTimerId } from "../../src/engine/timers";
-import { megastructureText } from "../../src/i18n/megastructureMessages";
+import {
+  megastructureStageProgress,
+  megastructureText,
+} from "../../src/i18n/megastructureMessages";
 
 const catalogue = createStarCatalogue();
 const awaySystemId = catalogue.find((star) => star.name === "Spica")!.id;
@@ -553,6 +556,23 @@ describe("megastructure research guidance localization", () => {
       expect(
         text.missingPrerequisites.replace("{technologies}", "Orbital Construction"),
       ).not.toMatch(/\{technologies\}/);
+    }
+  });
+
+  it("uses localized singular and plural stage progress in all six locales", () => {
+    const expected = {
+      en: { one: "1/5 stage researched", other: "2/5 stages researched" },
+      es: { one: "1/5 etapa investigada", other: "2/5 etapas investigadas" },
+      pt: { one: "1/5 etapa pesquisada", other: "2/5 etapas pesquisadas" },
+      de: { one: "1/5 Stufe erforscht", other: "2/5 Stufen erforscht" },
+      it: { one: "1/5 fase ricercata", other: "2/5 fasi ricercate" },
+      fr: { one: "1/5 étape recherchée", other: "2/5 étapes recherchées" },
+    } as const;
+
+    for (const locale of LOCALE_IDS) {
+      const formatQuantity = (value: number) => new Intl.NumberFormat(locale).format(value);
+      expect(megastructureStageProgress(locale, 1, 5, formatQuantity)).toBe(expected[locale].one);
+      expect(megastructureStageProgress(locale, 2, 5, formatQuantity)).toBe(expected[locale].other);
     }
   });
 });

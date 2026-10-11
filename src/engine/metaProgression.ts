@@ -142,6 +142,8 @@ function applyRebirth(state: GameState): { state: GameState; event: MetaProgress
   );
   let run: GameState["run"] = {
     ...fresh.run,
+    // Cosmic Forge restores this synthetic source-array marker on every rebirth.
+    sourceSyntheticTechnologyMarkersThisRun: 1,
     random: { ...fresh.run.random, seed },
     newsTicker: state.run.newsTicker,
     navigationAttentionIds: state.run.navigationAttentionIds,
@@ -300,9 +302,19 @@ export function applyMetaProgressionCommand(
   const level = ascendencyPerkLevel(state.permanent.acquiredPerks, command.perkId);
   const cost = ascendencyPerkCost(state.permanent.acquiredPerks, command.perkId);
   const perkKey = command.perkId === "nanoBrokers" ? `nanoBrokers:${level + 1}` : command.perkId;
+  const addsCompoundMachiningMarker = command.perkId === "nanoBrokers" && level + 1 >= 2;
   return {
     state: {
       ...state,
+      run: addsCompoundMachiningMarker
+        ? {
+            ...state.run,
+            sourceSyntheticTechnologyMarkersThisRun: Math.min(
+              Number.MAX_SAFE_INTEGER,
+              state.run.sourceSyntheticTechnologyMarkersThisRun + 1,
+            ),
+          }
+        : state.run,
       permanent: {
         ...state.permanent,
         ascendencyPoints: state.permanent.ascendencyPoints - cost,

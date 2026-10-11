@@ -1,7 +1,41 @@
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { openSaveManager } from "../_harness/save-controls";
+import { LOCALE_IDS } from "../../../src/content/ids";
 import { THEME_IDS } from "../../../src/content/themes";
+import { achievementText } from "../../../src/i18n/achievementMessages";
+import { metaSignalText } from "../../../src/i18n/metaSignalMessages";
+import { settingsSectionName } from "../../../src/i18n/settingsMessages";
+
+const settingsSpecialPageIds = [
+  "settings-achievements",
+  "settings-events",
+  "settings-statistics",
+] as const;
+
+function isSpecialSettingsPage(paneId: string): paneId is (typeof settingsSpecialPageIds)[number] {
+  return (settingsSpecialPageIds as readonly string[]).includes(paneId);
+}
+
+function settingsSpecialPageTitle(
+  locale: (typeof LOCALE_IDS)[number],
+  paneId: (typeof settingsSpecialPageIds)[number],
+): string {
+  switch (paneId) {
+    case "settings-achievements":
+      return achievementText(locale, "title");
+    case "settings-events":
+      return metaSignalText(locale, "title");
+    case "settings-statistics":
+      return settingsSectionName(locale, "statistics");
+    default:
+      throw new Error(`No special Settings title is defined for ${paneId}`);
+  }
+}
+
+function settingsPageHeadingSelector(paneId: string): string {
+  return isSpecialSettingsPage(paneId) ? ".pane-heading h2, .game-page-title" : ".game-page-title";
+}
 
 const dropdownClasses = [
   "welcome-form",
@@ -340,6 +374,403 @@ test("economy headings, stock, and rates use the active theme's text palette @th
   }
 });
 
+test("Miaplaedia guide content fits all themes at desktop and phone widths @theme-miaplaedia-matrix", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const guidePaneIds = [
+    "miaplaedia-get-started",
+    "miaplaedia-story",
+    "miaplaedia-concepts-early",
+    "miaplaedia-concepts-mid",
+    "miaplaedia-concepts-late",
+    "miaplaedia-end-goal",
+    "miaplaedia-philosophies",
+  ] as const;
+  await startMetaFixture(page, "meta-megastructure-route");
+  for (const viewport of [
+    { width: 1280, height: 900 },
+    { width: 390, height: 844 },
+    { width: 320, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const theme of THEME_IDS) {
+      await page.locator("#tab-settings").click();
+      await page.locator("#tab-settings-visual").click();
+      await page.locator("#settings-theme").selectOption(theme);
+      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+
+      const apValue = page.getByTestId("top-stat-ap").locator(".top-stat-value");
+      await apValue.focus();
+      const apTooltip = page.getByTestId("top-stat-ap").getByRole("tooltip");
+      await expect(apTooltip).toBeVisible();
+      const apBounds = await apTooltip.evaluate((element) => {
+        const { left, right } = element.getBoundingClientRect();
+        return { left, right, viewportWidth: window.innerWidth };
+      });
+      expect(
+        apBounds.left,
+        `${theme} AP tooltip left at ${viewport.width}px: ${JSON.stringify(apBounds)}`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        apBounds.right,
+        `${theme} AP tooltip right at ${viewport.width}px: ${JSON.stringify(apBounds)}`,
+      ).toBeLessThanOrEqual(viewport.width);
+      await apValue.evaluate((element) => element.blur());
+
+      await page.locator("#tab-miaplaedia").click();
+      const miaplaedia = page.locator("#pane-miaplaedia");
+      await expect(miaplaedia.locator(".page-artwork-row")).toHaveCount(0);
+      for (const paneId of guidePaneIds) {
+        await page.locator(`#tab-${paneId}`).click();
+        const guidePanel = page.locator(`#panel-${paneId}`);
+        const guideTitle = guidePanel.locator(".miaplaedia-page .game-page-title");
+        const guideContent = guidePanel.locator(".miaplaedia-page");
+        await expect(guideTitle, `${theme} ${paneId} title`).toBeVisible();
+        const guideBounds = await page.evaluate((id) => {
+          const pane = document.querySelector<HTMLElement>("#pane-miaplaedia");
+          const content = document.querySelector<HTMLElement>(`#panel-${id} .miaplaedia-page`);
+          if (!pane || !content) throw new Error("Miaplaedia pane and guide content should render");
+          const paneRect = pane.getBoundingClientRect();
+          const contentRect = content.getBoundingClientRect();
+          return {
+            paneLeft: paneRect.left,
+            paneRight: paneRect.right,
+            contentLeft: contentRect.left,
+            contentRight: contentRect.right,
+            contentClientWidth: content.clientWidth,
+            contentScrollWidth: content.scrollWidth,
+            documentWidth: document.documentElement.scrollWidth,
+          };
+        }, paneId);
+        const label = `${theme} ${paneId} at ${viewport.width}px`;
+        expect(guideBounds.paneLeft, `${label} Miaplaedia pane left`).toBeGreaterThanOrEqual(-1);
+        expect(guideBounds.paneRight, `${label} Miaplaedia pane right`).toBeLessThanOrEqual(
+          viewport.width + 1,
+        );
+        expect(guideBounds.contentLeft, `${label} guide content left`).toBeGreaterThanOrEqual(
+          guideBounds.paneLeft - 1,
+        );
+        expect(guideBounds.contentRight, `${label} guide content right`).toBeLessThanOrEqual(
+          guideBounds.paneRight + 1,
+        );
+        expect(
+          guideBounds.contentScrollWidth,
+          `${label} guide content overflow`,
+        ).toBeLessThanOrEqual(guideBounds.contentClientWidth);
+        expect(guideBounds.documentWidth, `${label} document width`).toBeLessThanOrEqual(
+          viewport.width,
+        );
+        await expect(guideContent).toBeVisible();
+      }
+    }
+  }
+});
+
+test("Miaplaedia guide identities fit every locale and viewport width @miaplaedia-locale-matrix", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const guidePaneIds = [
+    "miaplaedia-get-started",
+    "miaplaedia-story",
+    "miaplaedia-concepts-early",
+    "miaplaedia-concepts-mid",
+    "miaplaedia-concepts-late",
+    "miaplaedia-end-goal",
+    "miaplaedia-philosophies",
+  ] as const;
+  const viewports = [
+    { width: 1280, height: 900 },
+    { width: 390, height: 844 },
+    { width: 320, height: 740 },
+  ];
+
+  await startMetaFixture(page, "meta-megastructure-route");
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    const hydrogenTitleSize = await page
+      .locator("#panel-resources-hydrogen .pane-heading h2")
+      .evaluate((element) => getComputedStyle(element).fontSize);
+    await page.locator("#tab-miaplaedia").click();
+
+    for (const locale of LOCALE_IDS) {
+      await page.evaluate((nextLocale) => {
+        window.miaplacidusTest!.dispatch({
+          type: "settings.update",
+          patch: { locale: nextLocale },
+        });
+      }, locale);
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      const miaplaedia = page.locator("#pane-miaplaedia");
+      await expect(miaplaedia.locator(".page-artwork-row")).toHaveCount(0);
+
+      for (const paneId of guidePaneIds) {
+        const tab = page.locator(`#tab-${paneId}`);
+        await tab.click();
+        const title = page.locator(`#panel-${paneId} .miaplaedia-page .game-page-title`);
+        await expect(title, `${locale} ${paneId} title`).toBeVisible();
+        await expect(tab, `${locale} ${paneId} is selected`).toHaveAttribute(
+          "aria-selected",
+          "true",
+        );
+        await expect(title, `${locale} ${paneId} tab/title identity`).toHaveText(
+          (await tab.innerText()).trim(),
+        );
+        await expect(title, `${locale} ${paneId} title scale`).toHaveCSS(
+          "font-size",
+          hydrogenTitleSize,
+        );
+        const bounds = await page.evaluate((id) => {
+          const pane = document.querySelector<HTMLElement>("#pane-miaplaedia");
+          const content = document.querySelector<HTMLElement>(`#panel-${id} .miaplaedia-page`);
+          if (!pane || !content) throw new Error("Miaplaedia pane and guide content should render");
+          const paneRect = pane.getBoundingClientRect();
+          const contentRect = content.getBoundingClientRect();
+          return {
+            paneLeft: paneRect.left,
+            paneRight: paneRect.right,
+            contentLeft: contentRect.left,
+            contentRight: contentRect.right,
+            contentWidth: content.clientWidth,
+            contentScrollWidth: content.scrollWidth,
+            documentWidth: document.documentElement.scrollWidth,
+          };
+        }, paneId);
+        const label = `${locale} ${paneId} at ${viewport.width}px`;
+        expect(bounds.paneLeft, `${label} pane left`).toBeGreaterThanOrEqual(-1);
+        expect(bounds.paneRight, `${label} pane right`).toBeLessThanOrEqual(viewport.width + 1);
+        expect(bounds.contentLeft, `${label} content left`).toBeGreaterThanOrEqual(
+          bounds.paneLeft - 1,
+        );
+        expect(bounds.contentRight, `${label} content right`).toBeLessThanOrEqual(
+          bounds.paneRight + 1,
+        );
+        expect(bounds.contentScrollWidth, `${label} content overflow`).toBeLessThanOrEqual(
+          bounds.contentWidth,
+        );
+        expect(bounds.documentWidth, `${label} document width`).toBeLessThanOrEqual(viewport.width);
+      }
+    }
+  }
+});
+
+test("Settings pages fit all themes through the 320px layout @theme-settings-matrix", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(90_000);
+  const settingsPaneIds = [
+    ...settingsSpecialPageIds,
+    "settings-game-options",
+    "settings-visual",
+    "settings-saves",
+  ] as const;
+  await startMetaFixture(page, "meta-megastructure-route");
+  for (const viewport of [
+    { width: 1280, height: 900 },
+    { width: 390, height: 844 },
+    { width: 320, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const theme of THEME_IDS) {
+      await page.locator("#tab-settings").click();
+      await page.locator("#tab-settings-visual").click();
+      await page.locator("#settings-theme").selectOption(theme);
+      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      const hydrogenTitleSize = await page
+        .locator("#panel-resources-hydrogen .pane-heading h2")
+        .evaluate((element) => getComputedStyle(element).fontSize);
+      const settings = page.locator("#pane-settings");
+
+      for (const paneId of settingsPaneIds) {
+        await settings.locator(`#tab-${paneId}`).click();
+        const panel = settings.locator(`#panel-${paneId}`);
+        const title = panel.locator(settingsPageHeadingSelector(paneId));
+        await expect(panel, `${theme} ${paneId} panel`).toBeVisible();
+        await expect(title, `${theme} ${paneId} title`).toBeVisible();
+        await expect(title, `${theme} ${paneId} title scale`).toHaveCSS(
+          "font-size",
+          hydrogenTitleSize,
+        );
+        if (isSpecialSettingsPage(paneId)) {
+          await expect(title, `${theme} ${paneId} localized identity`).toHaveText(
+            settingsSpecialPageTitle("en", paneId),
+          );
+          await expect(
+            settings.locator(".page-artwork-row"),
+            `${theme} ${paneId} artwork row`,
+          ).toHaveCount(0);
+          await expect(panel.locator(".eyebrow"), `${theme} ${paneId} eyebrow`).toHaveCount(0);
+        } else {
+          await expect(
+            settings.locator(".page-artwork-row [data-celestial-illustration='settings']"),
+            `${theme} ${paneId} settings artwork`,
+          ).toHaveCount(1);
+        }
+
+        const bounds = await page.evaluate((id) => {
+          const currentPanel = document.getElementById(`panel-${id}`);
+          if (!currentPanel) throw new Error(`Settings panel ${id} should render`);
+          const rect = currentPanel.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            documentWidth: document.documentElement.scrollWidth,
+            viewportWidth: document.documentElement.clientWidth,
+          };
+        }, paneId);
+        const label = `${theme} ${paneId} at ${viewport.width}px`;
+        expect(bounds.left, `${label} left edge`).toBeGreaterThanOrEqual(-1);
+        expect(bounds.right, `${label} right edge`).toBeLessThanOrEqual(viewport.width + 1);
+        expect(bounds.documentWidth, `${label} document width`).toBeLessThanOrEqual(
+          bounds.viewportWidth,
+        );
+        const captureSettingsReview =
+          theme === "terminal" &&
+          (viewport.width === 320 || isSpecialSettingsPage(paneId));
+        if (captureSettingsReview) {
+          const screenshotPath = testInfo.outputPath(
+            `${paneId}-terminal-${viewport.width}.png`,
+          );
+          await page.screenshot({
+            path: screenshotPath,
+            animations: "disabled",
+          });
+          await testInfo.attach(`${paneId}-terminal-${viewport.width}.png`, {
+            path: screenshotPath,
+            contentType: "image/png",
+          });
+        }
+      }
+    }
+  }
+});
+
+test("Settings pages fit all six locales at 320px @settings-locale-matrix", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(90_000);
+  await startMetaFixture(page, "meta-megastructure-route");
+  await page.setViewportSize({ width: 320, height: 740 });
+
+  const settingsPageIds = [
+    ...settingsSpecialPageIds,
+    "settings-game-options",
+    "settings-visual",
+    "settings-saves",
+  ] as const;
+  for (const locale of LOCALE_IDS) {
+    await page.locator("#tab-settings").click();
+    await page.locator("#tab-settings-game-options").click();
+    await page.locator("#settings-language").selectOption(locale);
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(locale);
+    const settings = page.locator("#pane-settings");
+    const hydrogenTitleSize = await page
+      .locator("#panel-resources-hydrogen .pane-heading h2")
+      .evaluate((element) => getComputedStyle(element).fontSize);
+
+    for (const paneId of settingsPageIds) {
+      await settings.locator(`#tab-${paneId}`).click();
+      const panel = settings.locator(`#panel-${paneId}`);
+      await expect(panel, `${locale} ${paneId} panel`).toBeVisible();
+      const title = panel.locator(settingsPageHeadingSelector(paneId));
+      await expect(title, `${locale} ${paneId} title`).toBeVisible();
+      await expect(title, `${locale} ${paneId} title scale`).toHaveCSS(
+        "font-size",
+        hydrogenTitleSize,
+      );
+      if (isSpecialSettingsPage(paneId)) {
+        await expect(title, `${locale} ${paneId} localized identity`).toHaveText(
+          settingsSpecialPageTitle(locale, paneId),
+        );
+        await expect(
+          settings.locator(".page-artwork-row"),
+          `${locale} ${paneId} artwork row`,
+        ).toHaveCount(0);
+        await expect(panel.locator(".eyebrow"), `${locale} ${paneId} eyebrow`).toHaveCount(0);
+      }
+      if (locale === "de" && paneId === "settings-visual") {
+        const lineCharacterCounts = await title.evaluate((element) => {
+          const textNode = element.firstChild;
+          if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+            throw new Error("German Visual Options title should contain a text node");
+          }
+          const text = textNode.textContent ?? "";
+          const range = document.createRange();
+          const lineCounts = new Map<number, number>();
+          for (let index = 0; index < text.length; index += 1) {
+            if (text[index] === "\u00ad") continue;
+            range.setStart(textNode, index);
+            range.setEnd(textNode, index + 1);
+            const rect = range.getBoundingClientRect();
+            const lineTop = Math.round(rect.top);
+            lineCounts.set(lineTop, (lineCounts.get(lineTop) ?? 0) + 1);
+          }
+          return Array.from(lineCounts.values());
+        });
+        expect(
+          lineCharacterCounts.length,
+          "German title should render at least one line",
+        ).toBeGreaterThan(0);
+        expect(
+          lineCharacterCounts.every((count) => count > 1),
+          `German Visual Options title should not orphan its final letter at 320px: ${lineCharacterCounts}`,
+        ).toBe(true);
+      }
+      const bounds = await page.evaluate((id) => {
+        const currentPanel = document.getElementById(`panel-${id}`);
+        if (!currentPanel) throw new Error(`Settings panel ${id} should render`);
+        const rect = currentPanel.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          clientWidth: currentPanel.clientWidth,
+          scrollWidth: currentPanel.scrollWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          overflowers: Array.from(currentPanel.querySelectorAll<HTMLElement>("*"))
+            .map((element) => {
+              const elementRect = element.getBoundingClientRect();
+              return {
+                tag: element.tagName,
+                className: element.getAttribute("class") ?? "",
+                text: (element.innerText ?? element.textContent ?? "").slice(0, 60),
+                left: elementRect.left,
+                right: elementRect.right,
+                clientWidth: element.clientWidth,
+                scrollWidth: element.scrollWidth,
+              };
+            })
+            .filter(
+              (element) =>
+                element.right > rect.right + 0.5 || element.scrollWidth > element.clientWidth + 1,
+            )
+            .slice(0, 8),
+        };
+      }, paneId);
+      const label = `${locale} ${paneId} at 320px`;
+      expect(bounds.left, `${label} left edge`).toBeGreaterThanOrEqual(-1);
+      expect(bounds.right, `${label} right edge`).toBeLessThanOrEqual(321);
+      expect(
+        bounds.scrollWidth,
+        `${label} panel overflow: ${JSON.stringify(bounds.overflowers)}`,
+      ).toBeLessThanOrEqual(bounds.clientWidth);
+      expect(bounds.documentWidth, `${label} document width`).toBeLessThanOrEqual(320);
+      if (locale === "de" && paneId === "settings-visual") {
+        const screenshotPath = testInfo.outputPath("settings-visual-german-320.png");
+        await page.screenshot({
+          path: screenshotPath,
+          fullPage: true,
+          animations: "disabled",
+        });
+        await testInfo.attach("settings-visual-german-320.png", {
+          path: screenshotPath,
+          contentType: "image/png",
+        });
+      }
+    }
+  }
+});
+
 test("all themes keep late-game panes and save errors visible at wide and phone widths @theme-matrix", async ({
   page,
 }) => {
@@ -372,7 +803,9 @@ test("all themes keep late-game panes and save errors visible at wide and phone 
       const childTabs = galacticPane
         .getByRole("tablist", { name: "Pages in this section" })
         .getByRole("tab");
-      await expect(childTabs).toHaveCount(5);
+      // This fixture has no current-run scanned destination, so Rebirth stays hidden.
+      await expect(childTabs).toHaveCount(4);
+      await expect(galacticPane.getByRole("tab", { name: "Rebirth" })).toHaveCount(0);
       const childTabLabels = await childTabs.evaluateAll((tabs) =>
         tabs.map((tab) => {
           const label = tab.cloneNode(true) as HTMLElement;
@@ -381,7 +814,6 @@ test("all themes keep late-game panes and save errors visible at wide and phone 
         }),
       );
       expect(childTabLabels).toEqual([
-        "Rebirth",
         "Galactic Market",
         "Galactic Casino",
         "Ascendency Perks",
@@ -395,7 +827,7 @@ test("all themes keep late-game panes and save errors visible at wide and phone 
       );
 
       await openSaveManager(page);
-      const manager = page.locator(".save-manager");
+      const manager = page.getByTestId("save-manager-inline");
       await manager.locator("#import-code").fill("not a MIAPLACIDUS save code");
       await manager.getByRole("button", { name: "Preview import" }).click();
       await expect(manager.getByRole("alert")).toBeVisible();
@@ -403,7 +835,11 @@ test("all themes keep late-game panes and save errors visible at wide and phone 
       expect(errorWidth, `${theme} save error at ${viewport.width}px`).toBeLessThanOrEqual(
         viewport.width,
       );
-      await manager.getByRole("button", { name: "Cancel", exact: true }).click();
+      const validSaveCode = await manager.getByLabel("Portable save code").inputValue();
+      await manager.locator("#import-code").fill(validSaveCode);
+      await manager.getByRole("button", { name: "Preview import", exact: true }).click();
+      await expect(manager.getByTestId("import-preview")).toBeVisible();
+      await manager.getByRole("button", { name: "Cancel import", exact: true }).click();
     }
   }
 });
@@ -463,6 +899,12 @@ test("all top-level tabs fit four viewport widths in Terminal @theme-tab-matrix"
         frameLeft: frameBounds.left,
         frameRight: frameBounds.right,
         documentWidth: document.documentElement.scrollWidth,
+        energyTooltipRight:
+          document
+            .querySelector<HTMLElement>(
+              '.top-status-bar [data-testid="top-stat-energy"] .top-stat-tooltip',
+            )
+            ?.getBoundingClientRect().right ?? null,
       };
     }, tabId);
 
@@ -481,6 +923,11 @@ test("all top-level tabs fit four viewport widths in Terminal @theme-tab-matrix"
       geometry.frameRight + 1,
     );
     expect(geometry.documentWidth, `${label} document width`).toBeLessThanOrEqual(viewport.width);
+    expect(geometry.energyTooltipRight, `${label} energy tooltip viewport bound`).not.toBeNull();
+    expect(
+      geometry.energyTooltipRight,
+      `${label} energy tooltip stays on-screen`,
+    ).toBeLessThanOrEqual(viewport.width);
 
     if (tabId === "miaplaedia" && screenshotWidths.has(viewport.width)) {
       await testInfo.attach(`tab-matrix-terminal-${viewport.width}.png`, {

@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { RANDOM_EVENT_IDS } from "../content/metaSignals";
-import { checkNewsPrizeClaim, newsPrizeClaimAmount } from "../engine/newsTicker";
+import {
+  checkNewsPrizeClaim,
+  newsPrizeClaimAmount,
+  oneOffApPrizeAmount,
+} from "../engine/newsTicker";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { economyLabel } from "../i18n/economyMessages";
+import { starshipText } from "../i18n/starshipMessages";
 import { formatDuration } from "./timeFormatting";
+import { formatNumber } from "./numberFormatting";
 import {
   journalLabel,
   metaSignalText,
@@ -13,7 +19,18 @@ import {
   randomEventName,
 } from "../i18n/metaSignalMessages";
 import type { LocaleNewsCopy } from "../i18n/sourceNewsCopy";
+import { InfoTooltip } from "./InfoTooltip";
 import { RandomEventArtwork } from "./RandomEventArtwork";
+import { randomEventHistoryDescription } from "./randomEventDescription";
+
+function eventTotalDuration(
+  locale: GameState["settings"]["locale"],
+  durationMs: number | undefined,
+) {
+  if (durationMs === undefined) return "--";
+  if (durationMs === 0) return journalLabel(locale, "instantDuration");
+  return `${Math.round(durationMs / 60_000)}m`;
+}
 
 export function MetaJournalPane({
   state,
@@ -28,8 +45,9 @@ export function MetaJournalPane({
   const events = state.run.randomEvents;
   const news = state.run.newsTicker;
   const [newsCopy, setNewsCopy] = useState<LocaleNewsCopy | null>(null);
-  const latestEvents = [...events.history].slice(-8).reverse();
+  const latestEvents = [...events.history].reverse();
   const latestNews = [...news.entries].slice(-12).reverse();
+  const latestHistoryByEvent = new Map(events.history.map((entry) => [entry.id, entry]));
 
   useEffect(() => {
     if (!active) return;
@@ -49,9 +67,17 @@ export function MetaJournalPane({
     >
       <div className="pane-heading">
         <div>
-          <p className="eyebrow">META / SIGNALS</p>
-          <h2 id="meta-journal-title">{metaSignalText(locale, "title")}</h2>
-          <p className="pane-intro">{metaSignalText(locale, "description")}</p>
+          <div className="economy-page-title-row">
+            <h2 id="meta-journal-title" className="game-page-title">
+              {metaSignalText(locale, "title")}
+            </h2>
+            <InfoTooltip
+              id="settings-events-overview-help"
+              label={`${metaSignalText(locale, "title")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+              content={economyLabel(locale, "eventsOverviewHelp")}
+              testId="settings-events-overview-help"
+            />
+          </div>
         </div>
       </div>
       <div className="journal-grid">
@@ -71,52 +97,66 @@ export function MetaJournalPane({
                     ? newsPrizeClaimAmount(state, entry)
                     : null;
                 const displayEntry =
-                  entry.category === "prize" &&
-                  !entry.claimed &&
-                  availablePrizeAmount !== null
+                  entry.category === "prize" && !entry.claimed && availablePrizeAmount !== null
                     ? { ...entry, prizeAmount: availablePrizeAmount }
-                    : entry;
+                    : entry.category === "oneOff" &&
+                        entry.id === 3013 &&
+                        typeof entry.prizeAmount !== "number"
+                      ? {
+                          ...entry,
+                          prizeAmount:
+                            entry.claimed || news.claimedPrizeIds.includes(3013)
+                              ? 1
+                              : oneOffApPrizeAmount(state),
+                        }
+                      : entry;
                 const canClaim = checkNewsPrizeClaim(state, entry.id, entry.simulationMs);
                 const storageFull =
                   entry.category === "prize" && !entry.claimed && availablePrizeAmount === null;
+                const claimReasonId = `news-claim-reason-${entry.id}-${entry.simulationMs}`;
                 return (
-                <li key={`${entry.id}-${entry.simulationMs}`} data-news-id={entry.id}>
-                  <div>
-                    <p>{newsEntryText(locale, displayEntry, newsCopy ?? undefined)}</p>
-                    <small>
-                      {newsCategoryName(locale, entry.category)} ·{" "}
-                      {formatDuration(
-                        locale,
-                        Math.max(0, state.run.clock.simulationMs - entry.simulationMs),
-                        state.settings.notation,
-                      )}{" "}
-                      {journalLabel(locale, "ago")}
-                    </small>
-                    {storageFull && (
-                      <small className="news-ticker-claim-reason">
-                        {economyLabel(locale, "collectStorageFull")}
+                  <li key={`${entry.id}-${entry.simulationMs}`} data-news-id={entry.id}>
+                    <div>
+                      <p>
+                        {newsEntryText(locale, displayEntry, newsCopy ?? undefined, (value) =>
+                          formatNumber(locale, value, 0, state.settings.notation),
+                        )}
+                      </p>
+                      <small>
+                        {newsCategoryName(locale, entry.category)} ·{" "}
+                        {formatDuration(
+                          locale,
+                          Math.max(0, state.run.clock.simulationMs - entry.simulationMs),
+                          state.settings.notation,
+                        )}{" "}
+                        {journalLabel(locale, "ago")}
                       </small>
+                      {storageFull && (
+                        <small className="news-ticker-claim-reason" id={claimReasonId}>
+                          {economyLabel(locale, "collectStorageFull")}
+                        </small>
+                      )}
+                    </div>
+                    {(entry.category === "prize" || entry.category === "oneOff") && (
+                      <button
+                        className="text-button"
+                        type="button"
+                        disabled={!canClaim}
+                        aria-describedby={storageFull ? claimReasonId : undefined}
+                        onClick={() =>
+                          store.dispatch({
+                            type: "news.prize.claim",
+                            id: entry.id,
+                            simulationMs: entry.simulationMs,
+                          })
+                        }
+                      >
+                        {entry.claimed
+                          ? metaSignalText(locale, "claimed")
+                          : metaSignalText(locale, "claim")}
+                      </button>
                     )}
-                  </div>
-                  {(entry.category === "prize" || entry.category === "oneOff") && (
-                    <button
-                      className="text-button"
-                      type="button"
-                      disabled={!canClaim}
-                      onClick={() =>
-                        store.dispatch({
-                          type: "news.prize.claim",
-                          id: entry.id,
-                          simulationMs: entry.simulationMs,
-                        })
-                      }
-                    >
-                      {entry.claimed
-                        ? metaSignalText(locale, "claimed")
-                        : metaSignalText(locale, "claim")}
-                    </button>
-                  )}
-                </li>
+                  </li>
                 );
               })}
             </ol>
@@ -124,26 +164,49 @@ export function MetaJournalPane({
         </section>
         <section className="journal-section" aria-labelledby="journal-events-heading">
           <header className="journal-section-heading">
-            <h3 id="journal-events-heading">{metaSignalText(locale, "events")}</h3>
-            <small>
-              {metaSignalText(locale, "active")}: {events.activeEffects.length}
+            <h3 id="journal-events-heading">{metaSignalText(locale, "activeTitle")}</h3>
+            <small data-testid="journal-active-effect-count">
+              {metaSignalText(locale, "active")}:{" "}
+              {formatNumber(locale, events.activeEffects.length, 0, state.settings.notation)}
             </small>
           </header>
+          {events.activeEffects.length === 0 && (
+            <p className="journal-empty">{metaSignalText(locale, "noActiveEvents")}</p>
+          )}
           {events.activeEffects.length > 0 && (
             <ul className="journal-active-effects">
-              {events.activeEffects.map((effect) => (
-                <li key={effect.id}>
-                  <span>{randomEventName(locale, effect.id)}</span>
-                  <strong>
-                    {formatDuration(locale, effect.remainingMs, state.settings.notation)}
-                  </strong>
-                </li>
-              ))}
+              {events.activeEffects.map((effect) => {
+                const historyEntry = latestHistoryByEvent.get(effect.id) ?? {
+                  id: effect.id,
+                  simulationMs: 0,
+                  negative: false,
+                };
+                return (
+                  <li key={effect.id}>
+                    <div>
+                      <span>{randomEventName(locale, effect.id)}</span>
+                      <small data-testid="active-event-description">
+                        {randomEventHistoryDescription(
+                          locale,
+                          historyEntry,
+                          state.settings.notation,
+                        )}
+                      </small>
+                    </div>
+                    <div className="journal-active-duration">
+                      <small>{metaSignalText(locale, "activeUntil")}</small>
+                      <strong>
+                        {formatDuration(locale, effect.remainingMs, state.settings.notation)}
+                      </strong>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
           <h4 className="journal-subheading">{metaSignalText(locale, "history")}</h4>
           {latestEvents.length === 0 ? (
-            <p className="journal-empty">{metaSignalText(locale, "noEvents")}</p>
+            <p className="journal-empty">{metaSignalText(locale, "noCompletedEvents")}</p>
           ) : (
             <ol className="journal-list journal-event-list">
               {latestEvents.map((entry, index) => (
@@ -157,13 +220,22 @@ export function MetaJournalPane({
                   </span>
                   <div>
                     <p>{randomEventName(locale, entry.id)}</p>
-                    <small>
-                      {formatDuration(
-                        locale,
-                        Math.max(0, state.run.clock.simulationMs - entry.simulationMs),
-                        state.settings.notation,
-                      )}{" "}
-                      {journalLabel(locale, "ago")}
+                    <p data-testid="event-description" className="journal-event-description">
+                      {randomEventHistoryDescription(locale, entry, state.settings.notation)}
+                    </p>
+                    <small className="journal-event-meta">
+                      <span>
+                        {journalLabel(locale, "totalDuration")}:{" "}
+                        {eventTotalDuration(locale, entry.durationMs)}
+                      </span>
+                      <span>
+                        {formatDuration(
+                          locale,
+                          Math.max(0, state.run.clock.simulationMs - entry.simulationMs),
+                          state.settings.notation,
+                        )}{" "}
+                        {journalLabel(locale, "ago")}
+                      </span>
                     </small>
                   </div>
                 </li>

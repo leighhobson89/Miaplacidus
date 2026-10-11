@@ -1,9 +1,17 @@
 import { expect, test } from "../_harness/fixtures";
 import { LOCALE_IDS } from "../../../src/content/ids";
+import { rocketText } from "../../../src/i18n/rocketMessages";
 import { spaceText } from "../../../src/i18n/spaceMessages";
 import { starMapText } from "../../../src/i18n/starMapMessages";
 import { starshipText } from "../../../src/i18n/starshipMessages";
 import { setGameLocale } from "../_harness/settings-controls";
+
+const FLEET_COPY = {
+  scout: { name: "fleetScout", description: "fleetScoutDescription" },
+  marauder: { name: "fleetMarauder", description: "fleetMarauderDescription" },
+  landStalker: { name: "fleetLandStalker", description: "fleetLandStalkerDescription" },
+  navalStrafer: { name: "fleetNavalStrafer", description: "fleetNavalStraferDescription" },
+} as const;
 
 test("sweeps map, stable star names, telescope, fleet, and battle UI in all locales @localization @star-map @space-telescope @starship @battle", async ({
   page,
@@ -27,8 +35,8 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
 
     await page.locator("#tab-interstellar").click();
+    await page.locator("#tab-interstellar-star-map").click();
     const map = page.getByTestId("star-map-pane");
-    await map.getByRole("tab", { name: starMapText(locale, "mapView") }).click();
     await expect(map.locator("h2")).toHaveText(starMapText(locale, "title"));
     await expect(
       map.getByRole("searchbox", { name: starMapText(locale, "searchLabel") }),
@@ -36,8 +44,8 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
     await expect(
       map.getByTestId("star-selection").getByRole("heading", { name: "Sirius" }),
     ).toBeVisible();
-    await map.getByRole("tab", { name: starMapText(locale, "dataView") }).click();
-    await expect(map.getByTestId("star-data-table")).toBeVisible();
+    await page.locator("#tab-interstellar-star-data").click();
+    await expect(page.getByTestId("star-data-view").getByTestId("star-data-table")).toBeVisible();
 
     const starship = page.getByTestId("starship-pane");
     await page.locator("#tab-interstellar-starship").click();
@@ -56,11 +64,21 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
         name: starshipText(locale, "battleTitle"),
       }),
     ).toBeVisible();
+    if (locale === "en") {
+      await starship.getByRole("button", { name: starshipText(locale, "enterWar") }).click();
+      await starship.getByTestId("starship-battle-engage-button").click();
+    }
+    const enemyHealth = starship.getByTestId("starship-battle").locator("dd").nth(1);
+    for (const key of ["fleetAir", "fleetLand", "fleetSea"] as const) {
+      await expect(enemyHealth).toContainText(`${starshipText(locale, key)}:`);
+    }
 
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-launch-pad").click();
     const mining = page.getByTestId("space-mining-pane");
-    await expect(mining.getByRole("heading", { name: spaceText(locale, "title") })).toBeVisible();
+    await expect(
+      mining.getByRole("heading", { name: rocketText(locale, "launchPadTitle") }),
+    ).toBeVisible();
     await expect(mining.getByText(spaceText(locale, "systemWeather"))).toBeVisible();
     const currentWeather = await page.evaluate(
       () => window.miaplacidusTest!.getState().run.space.currentSystemWeather,
@@ -85,4 +103,65 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
     }
   }
   expect(renderedTitles.size).toBeGreaterThan(6);
+});
+
+test("shows source-matched Fleet Hangar copy and contained help at 320px in all locales @p44-fleet-copy", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.addInitScript(() => {
+    const prefix = "miaplacidus:v1:";
+    const keys = Array.from({ length: localStorage.length }, (_, index) =>
+      localStorage.key(index),
+    ).filter((key): key is string => key?.startsWith(prefix) ?? false);
+    for (const key of keys) localStorage.removeItem(key);
+  });
+  await page.goto("/?testSeed=314159&testLocale=en&economyFixture=space-battle-victory");
+  await page.getByLabel("Pioneer name").fill("Fleet Copy Pioneer");
+  await page.getByTestId("start-game").click();
+  await expect(page.locator("[data-app-ready]")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+
+  for (const locale of LOCALE_IDS) {
+    await setGameLocale(page, locale);
+    await page.locator("#tab-interstellar").click();
+    await page.locator("#tab-interstellar-fleet-hangar").click();
+    const pane = page.getByTestId("starship-pane");
+    const hangar = pane.getByTestId("starship-fleet-hangar");
+
+    await expect(
+      pane.getByRole("heading", { level: 2, name: starshipText(locale, "fleetHangar") }),
+    ).toBeVisible();
+    await expect(
+      hangar.getByRole("heading", { level: 3, name: starshipText(locale, "envoyTitle") }),
+    ).toBeVisible();
+    await expect(hangar.getByTestId("starship-envoy-description")).toHaveText(
+      starshipText(locale, "envoyDescription"),
+    );
+
+    for (const fleetId of Object.keys(FLEET_COPY) as (keyof typeof FLEET_COPY)[]) {
+      const copy = FLEET_COPY[fleetId];
+      const card = hangar.getByTestId(`starship-fleet-${fleetId}`);
+      await expect(
+        card.getByRole("heading", { level: 4, name: starshipText(locale, copy.name) }),
+      ).toBeVisible();
+      await expect(card.getByTestId(`starship-fleet-description-${fleetId}`)).toHaveText(
+        starshipText(locale, copy.description),
+      );
+    }
+
+    const help = pane.getByTestId("starship-fleet-hangar-help-trigger");
+    await expect(help).toHaveAttribute("aria-label", starshipText(locale, "fleetHangarHelpLabel"));
+    await help.focus();
+    const tooltip = pane.getByTestId("starship-fleet-hangar-help-tooltip");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveText(starshipText(locale, "fleetHangarHeaderHelp"));
+    const bounds = await tooltip.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      320,
+    );
+  }
 });

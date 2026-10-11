@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { type CasinoSpecialPrize } from "../content/galacticCasino";
+import { type CasinoCardSuit, type CasinoSpecialPrize } from "../content/galacticCasino";
 import { ECONOMIC_GOOD_IDS, type EconomicGoodId } from "../content/ids";
 import { availableWheelSpecialPrizes, casinoUnlocked } from "../engine/galacticCasino";
 import {
@@ -11,14 +11,26 @@ import type { CasinoCommand } from "../engine/galacticCasino";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import {
+  casinoCountNoun,
+  casinoHeaderDescription,
   casinoFailureText,
   casinoGameName,
+  casinoHistoryText,
   casinoPrizeText,
+  casinoSectionHelpLabel,
+  casinoSectionHelpText,
   casinoSpecialName,
   casinoText,
+  casinoVoidSeerCurrency,
+  casinoVoidSeerPrizeName,
 } from "../i18n/casinoMessages";
+import { InfoTooltip } from "./InfoTooltip";
 import { economyGoodName } from "./economyDisplay";
 import { formatNumber } from "./numberFormatting";
+import { useGameNotifications } from "./NotificationStack";
+import { casinoWheelAttemptFailureNotice, starNameFromIdentity } from "./casinoEventNotifications";
+import { CelestialIllustration } from "./CelestialIllustration";
+import { PageArtworkRow } from "./PageArtworkRow";
 
 interface Props {
   readonly state: GameState;
@@ -29,81 +41,109 @@ type PaymentId = EconomicGoodId | "cash";
 
 const VOID_SEER_MAX = { 1: 6, 2: 8, 3: 12 } as const;
 
-function cardText(locale: GameState["settings"]["locale"], rank: number, suit: string): string {
-  const rankText =
-    ({ 11: "J", 12: "Q", 13: "K", 14: "A" } as Record<number, string>)[rank] ?? String(rank);
-  const suitText: Record<string, string> = {
-    clubs:
-      locale === "en"
-        ? "clubs"
-        : locale === "es"
-          ? "tréboles"
-          : locale === "pt"
-            ? "paus"
-            : locale === "de"
-              ? "Kreuz"
-              : locale === "it"
-                ? "fiori"
-                : "trèfle",
-    diamonds:
-      locale === "en"
-        ? "diamonds"
-        : locale === "es"
-          ? "diamantes"
-          : locale === "pt"
-            ? "ouros"
-            : locale === "de"
-              ? "Karo"
-              : locale === "it"
-                ? "quadri"
-                : "carreau",
-    hearts:
-      locale === "en"
-        ? "hearts"
-        : locale === "es"
-          ? "corazones"
-          : locale === "pt"
-            ? "copas"
-            : locale === "de"
-              ? "Herz"
-              : locale === "it"
-                ? "cuori"
-                : "cœur",
-    spades:
-      locale === "en"
-        ? "spades"
-        : locale === "es"
-          ? "picas"
-          : locale === "pt"
-            ? "espadas"
-            : locale === "de"
-              ? "Pik"
-              : locale === "it"
-                ? "picche"
-                : "pique",
-  };
-  return `${rankText} ${suitText[suit] ?? suit}`;
+const CARD_SUIT_SYMBOLS: Readonly<Record<CasinoCardSuit, string>> = {
+  clubs: "♣",
+  diamonds: "♦",
+  hearts: "♥",
+  spades: "♠",
+};
+
+const CARD_SUIT_COPY_KEYS: Readonly<
+  Record<CasinoCardSuit, "cardSuitClubs" | "cardSuitDiamonds" | "cardSuitHearts" | "cardSuitSpades">
+> = {
+  clubs: "cardSuitClubs",
+  diamonds: "cardSuitDiamonds",
+  hearts: "cardSuitHearts",
+  spades: "cardSuitSpades",
+};
+
+const CARD_RANK_SYMBOLS: Readonly<Record<number, string>> = {
+  11: "J",
+  12: "Q",
+  13: "K",
+  14: "A",
+};
+
+const CARD_RANK_COPY_KEYS: Readonly<
+  Record<number, "cardJack" | "cardQueen" | "cardKing" | "cardAce">
+> = {
+  11: "cardJack",
+  12: "cardQueen",
+  13: "cardKing",
+  14: "cardAce",
+};
+
+function cardRankSymbol(rank: number): string {
+  return CARD_RANK_SYMBOLS[rank] ?? String(rank);
 }
 
-function prettyResult(value: string): string {
-  return value.replaceAll(":", " · ").replaceAll("_", " ").replaceAll("-", " ");
+function cardAccessibleName(
+  locale: GameState["settings"]["locale"],
+  rank: number,
+  suit: CasinoCardSuit,
+): string {
+  const rankKey = CARD_RANK_COPY_KEYS[rank];
+  const rankName = rankKey ? casinoText(locale, rankKey) : String(rank);
+  const suitName = casinoText(locale, CARD_SUIT_COPY_KEYS[suit]);
+  return casinoText(locale, "cardAccessibleName")
+    .replace("{rank}", rankName)
+    .replace("{suit}", suitName);
 }
 
 export function GalacticCasinoPane({ state, store }: Props) {
+  const notify = useGameNotifications();
   const locale = state.settings.locale;
+  const formatQuantity = (value: number, maximumFractionDigits = 0): string =>
+    formatNumber(locale, value, maximumFractionDigits, state.settings.notation);
   const quantity = (numberLocale: GameState["settings"]["locale"], value: number): string =>
     formatNumber(numberLocale, value, 0, state.settings.notation);
   const casino = state.permanent.galacticCasino;
   const [paymentId, setPaymentId] = useState<PaymentId>("cash");
   const [buyAmount, setBuyAmount] = useState("1");
   const [stake, setStake] = useState("1");
-  const [specialPrize, setSpecialPrize] = useState<CasinoSpecialPrize>("special_100cp");
+  const [specialPrize, setSpecialPrize] = useState<CasinoSpecialPrize | null>(null);
   const [voidTier, setVoidTier] = useState<1 | 2 | 3>(1);
   const [feedback, setFeedback] = useState("");
   const [wheelRotation, setWheelRotation] = useState(0);
   const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [helpTooltipLayout, setHelpTooltipLayout] = useState({
+    narrow: window.innerWidth <= 860,
+    rightOffset: 0,
+  });
+  const helpTooltipRef = useRef<HTMLSpanElement>(null);
+  const helpTooltipOffset = useRef(0);
   const pendingHigherLowerFocus = useRef(false);
   const higherGuessButton = useRef<HTMLButtonElement>(null);
+  const fitHelpTooltip = () => {
+    window.requestAnimationFrame(() => {
+      const tooltip = helpTooltipRef.current;
+      if (!tooltip) return;
+      const rect = tooltip.getBoundingClientRect();
+      const narrow = window.innerWidth <= 860;
+      const safeInset = 12;
+      const baseRight = narrow
+        ? (tooltip.parentElement?.getBoundingClientRect().right ?? rect.right)
+        : rect.right;
+      const baseLeft = baseRight - rect.width;
+      const rightOffset = narrow
+        ? Math.max(0, safeInset - baseLeft) -
+          Math.max(0, baseRight - (window.innerWidth - safeInset))
+        : 0;
+      helpTooltipOffset.current = rightOffset;
+      setHelpTooltipLayout((previous) =>
+        previous.narrow === narrow && previous.rightOffset === rightOffset
+          ? previous
+          : { narrow, rightOffset },
+      );
+    });
+  };
+
+  useLayoutEffect(() => {
+    const resize = () => fitHelpTooltip();
+    window.addEventListener("resize", resize);
+    fitHelpTooltip();
+    return () => window.removeEventListener("resize", resize);
+  }, [locale]);
   const availableGoods = ECONOMIC_GOOD_IDS.filter(
     (goodId) =>
       state.run.unlockedResources.includes(
@@ -114,9 +154,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
       ),
   );
   const availableSpecials = availableWheelSpecialPrizes(state);
-  const selectedSpecialPrize = availableSpecials.includes(specialPrize)
-    ? specialPrize
-    : (availableSpecials[0] ?? specialPrize);
+  const selectedSpecialPrize =
+    specialPrize && availableSpecials.includes(specialPrize) ? specialPrize : null;
+  const claimPrize = selectedSpecialPrize ?? availableSpecials[0] ?? "special_100cp";
   const amount = Number(buyAmount);
   const purchasePlan = selectCasinoPointPurchase(state, paymentId, amount);
   const purchaseCost = purchasePlan.cost;
@@ -132,7 +172,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
   const spinCheck = selectEconomyAction(state, { type: "casino.wheel.spin" });
   const claimCheck = selectEconomyAction(state, {
     type: "casino.wheel.claim",
-    prize: selectedSpecialPrize,
+    prize: claimPrize,
   });
   const startCheck = selectEconomyAction(state, { type: "casino.higher-lower.start" });
   const cashOutCheck = selectEconomyAction(state, { type: "casino.higher-lower.cash-out" });
@@ -152,7 +192,10 @@ export function GalacticCasinoPane({ state, store }: Props) {
   const casinoAmountPreview = (
     key: "entryCostPreview" | "currentStakePreview" | "doubledWinPreview",
     value: number,
-  ) => casinoText(locale, key).replace("{amount}", quantity(locale, value));
+  ) =>
+    casinoText(locale, key)
+      .replace("{amount}", quantity(locale, value))
+      .replace(" CP", ` ${casinoText(locale, "wheelCurrencyCp")}`);
   const actionReason = (
     check: { readonly enabled: boolean; readonly failure?: { readonly code: string } },
     required?: number,
@@ -185,20 +228,29 @@ export function GalacticCasinoPane({ state, store }: Props) {
   function dispatch(
     command: CasinoCommand,
     successText?: (result: ReturnType<GameStore["dispatch"]>) => string,
-  ): void {
+  ): boolean {
     const result = store.dispatch(command);
     if (!result.accepted) {
       setFeedback(casinoFailureText(locale, result.failure?.code ?? ""));
-      return;
+      return false;
     }
     setFeedback(successText?.(result) ?? "");
+    return true;
   }
 
   function spinWheel(): void {
-    if (!spinCheck.enabled || wheelSpinning) return;
+    if (wheelSpinning) return;
     const result = store.dispatch({ type: "casino.wheel.spin" });
     if (!result.accepted) {
       setFeedback(casinoFailureText(locale, result.failure?.code ?? ""));
+      const notice = casinoWheelAttemptFailureNotice(locale, result.failure?.code ?? "");
+      if (notice) {
+        notify(notice.message, {
+          classification: notice.classification,
+          type: notice.type,
+          durationMs: notice.durationMs,
+        });
+      }
       return;
     }
     const event = result.events.find((entry) => entry.type === "casino.game.played");
@@ -212,13 +264,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
     const delta = (desiredNormalized - currentNormalized + 360) % 360;
     setWheelSpinning(true);
     setWheelRotation(wheelRotation + 6 * 360 + delta);
-    setFeedback(
-      event.result === "special-ready"
-        ? casinoText(locale, "specialReady")
-        : event.result === "loss"
-          ? casinoText(locale, "loss")
-          : prettyResult(event.result),
-    );
+    setFeedback("");
   }
 
   const higherLower = casino.higherLower;
@@ -229,6 +275,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
     higherGuessButton.current?.focus();
   }, [higherLower]);
   const wheelDisabled = !spinCheck.enabled || casino.wheelSpecialPending;
+  const wheelClaimReady = casino.wheelSpecialPending && !wheelSpinning;
   const gameName = (gameId: (typeof casino.history)[number]["gameId"]) =>
     casinoGameName(locale, gameId);
   const specialLabel = (prize: CasinoSpecialPrize) =>
@@ -237,18 +284,86 @@ export function GalacticCasinoPane({ state, store }: Props) {
           "{good}",
           economyGoodName(locale, prize.slice("special_double_".length) as EconomicGoodId),
         )
-      : casinoSpecialName(locale, prize);
+      : casinoSpecialName(locale, prize, formatQuantity);
   const prizeLabel = (prizeKey: string) =>
-    prizeKey.startsWith("special_double_")
-      ? casinoText(locale, "doubleGood").replace(
-          "{good}",
-          economyGoodName(locale, prizeKey.slice("special_double_".length) as EconomicGoodId),
-        )
-      : casinoPrizeText(locale, prizeKey);
+    casinoPrizeText(
+      locale,
+      prizeKey,
+      prizeKey.startsWith("special_double_")
+        ? economyGoodName(locale, prizeKey.slice("special_double_".length) as EconomicGoodId)
+        : undefined,
+      formatQuantity,
+    );
+  const historyPrizeLabel = (value: string): string => {
+    if (value.startsWith("special_double_")) {
+      const goodId = value.slice("special_double_".length) as EconomicGoodId;
+      return casinoText(locale, "doubleGood").replace("{good}", economyGoodName(locale, goodId));
+    }
+    if (value.startsWith("special_")) return specialLabel(value as CasinoSpecialPrize);
+    const amountResult = /^(cash|research|cp|antimatter|[a-z]+):(\d+(?:\.\d+)?)$/.exec(value);
+    if (amountResult) {
+      const [, kind, amountText] = amountResult;
+      const amount = formatQuantity(Number(amountText));
+      if (kind && ECONOMIC_GOOD_IDS.includes(kind as EconomicGoodId)) {
+        return `${amount} ${economyGoodName(locale, kind as EconomicGoodId)}`;
+      }
+      if (kind === "cash") return `${amount} ${casinoText(locale, "cash")}`;
+      if (kind === "research") return `${amount} ${casinoText(locale, "researchPoints")}`;
+      if (kind === "cp") return `${amount} ${casinoText(locale, "wheelCurrencyCp")}`;
+      if (kind === "antimatter") {
+        return casinoText(locale, "voidAntimatterWinNotification").replace("{amount}", amount);
+      }
+    }
+    if (value.startsWith("hilo_")) return prizeLabel(value);
+    return value.replaceAll("_", " ");
+  };
+  const historyResult = (value: string): string => {
+    if (value === "win") return casinoText(locale, "win");
+    if (value === "loss") return casinoText(locale, "loss");
+    if (value === "special-ready") return casinoHistoryText(locale, "specialReady");
+    const clueMatch = /^(o-type-clue|manuscript-clue):(.+)$/.exec(value);
+    if (clueMatch) {
+      const [, kind, identity] = clueMatch;
+      return casinoHistoryText(
+        locale,
+        kind === "o-type-clue" ? "oTypeClue" : "manuscriptClue",
+      ).replace("{star}", starNameFromIdentity(identity!));
+    }
+    const [kind, ...parts] = value.split(":");
+    const detail = parts.join(":");
+    if (kind === "special") return historyPrizeLabel(detail);
+    if (kind === "cash-out") {
+      return casinoText(locale, "cashOutResult").replace("{prize}", historyPrizeLabel(detail));
+    }
+    if (kind === "win") {
+      return casinoHistoryText(locale, "winResult").replace("{prize}", historyPrizeLabel(detail));
+    }
+    if (kind === "no-award") {
+      return casinoHistoryText(locale, "noAward").replace("{prize}", historyPrizeLabel(detail));
+    }
+    if (kind === "o-type-clue")
+      return casinoHistoryText(locale, "oTypeClue").replace(": {star}", "");
+    if (kind === "manuscript-clue")
+      return casinoHistoryText(locale, "manuscriptClue").replace(": {star}", "");
+    if (kind === "cash" || kind === "research" || kind === "cp" || kind === "antimatter") {
+      return historyPrizeLabel(value);
+    }
+    if (kind && ECONOMIC_GOOD_IDS.includes(kind as EconomicGoodId)) {
+      return historyPrizeLabel(value);
+    }
+    return value.replaceAll(":", " · ").replaceAll("_", " ").replaceAll("-", " ");
+  };
+  const counterText = (played: number, won: number) =>
+    `${quantity(locale, played)} ${casinoCountNoun(locale, "play", played)} · ${quantity(locale, won)} ${casinoCountNoun(locale, "win", won)}`;
   const gameCounter = (key: "doubleOrNothing" | "wheel" | "higherLower" | "voidSeer") => {
     const played = `${key}Played` as keyof typeof casino.lifetimeStats;
     const won = `${key}Won` as keyof typeof casino.lifetimeStats;
-    return `${quantity(locale, casino.lifetimeStats[played])} ${casinoText(locale, "plays").toLocaleLowerCase(locale)} · ${quantity(locale, casino.lifetimeStats[won])} ${casinoText(locale, "wins").toLocaleLowerCase(locale)}`;
+    return counterText(casino.lifetimeStats[played], casino.lifetimeStats[won]);
+  };
+  const runGameCounter = (key: "doubleOrNothing" | "wheel" | "higherLower" | "voidSeer") => {
+    const played = `${key}Played` as keyof typeof state.run.casinoStats;
+    const won = `${key}Won` as keyof typeof state.run.casinoStats;
+    return counterText(state.run.casinoStats[played], state.run.casinoStats[won]);
   };
 
   return (
@@ -259,20 +374,67 @@ export function GalacticCasinoPane({ state, store }: Props) {
     >
       <div className="pane-heading">
         <div>
-          <h2 id="galactic-casino-title">{casinoText(locale, "title")}</h2>
-          <p>{casinoText(locale, "description")}</p>
+          <div className="casino-title-with-help">
+            <h2 id="galactic-casino-title" className="game-page-title">
+              {casinoText(locale, "title")}
+            </h2>
+            <span
+              className="casino-header-help"
+              onMouseEnter={fitHelpTooltip}
+              onFocusCapture={fitHelpTooltip}
+            >
+              <button
+                className="casino-header-help-trigger"
+                type="button"
+                aria-label={casinoText(locale, "headerHelpLabel")}
+                aria-describedby="galactic-casino-header-help"
+                data-testid="casino-header-help-trigger"
+              >
+                ?
+              </button>
+              <span
+                className="top-stat-tooltip casino-header-help-tooltip"
+                id="galactic-casino-header-help"
+                role="tooltip"
+                data-testid="casino-header-help-tooltip"
+                ref={helpTooltipRef}
+                style={{
+                  ...(helpTooltipLayout.narrow
+                    ? { left: "auto", right: `${-helpTooltipLayout.rightOffset}px` }
+                    : { left: "0", right: "auto" }),
+                  maxWidth: "min(22rem, calc(100vw - 4rem))",
+                }}
+              >
+                <span>{casinoText(locale, "headerHelp")}</span>
+              </span>
+            </span>
+          </div>
+          <p>{casinoHeaderDescription(locale)}</p>
         </div>
         <div className="casino-wallet">
           <span>{casinoText(locale, "balance")}</span>
-          <strong data-testid="casino-balance">{quantity(locale, casino.casinoPoints)} CP</strong>
+          <strong data-testid="casino-balance">
+            {quantity(locale, casino.casinoPoints)} {casinoText(locale, "wheelCurrencyCp")}
+          </strong>
         </div>
       </div>
+      <PageArtworkRow>
+        <CelestialIllustration kind="star-system" />
+      </PageArtworkRow>
       {!casinoUnlocked(state) ? <p>{casinoText(locale, "locked")}</p> : null}
 
       <div className="action-grid casino-grid">
         <article className="upgrade-card">
           <div className="card-copy">
-            <h3>{casinoText(locale, "buyTitle")}</h3>
+            <div className="casino-title-with-help">
+              <h3>{casinoText(locale, "buyTitle")}</h3>
+              <InfoTooltip
+                id="casino-purchase-source-help"
+                label={casinoSectionHelpLabel(locale, casinoText(locale, "buyTitle"))}
+                content={casinoSectionHelpText(locale, "purchase")}
+                testId="casino-purchase-source-help"
+              />
+            </div>
             <label>
               {casinoText(locale, "payment")}
               <select
@@ -307,7 +469,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
               · {quantity(locale, paymentAvailable)} {casinoText(locale, "available")}
             </p>
             {!purchaseCheck.enabled && (
-              <p className="live-feedback" id="casino-buy-reason" role="status" aria-live="polite">
+              <p className="control-reason" id="casino-buy-reason">
                 {purchaseReason}
               </p>
             )}
@@ -332,7 +494,15 @@ export function GalacticCasinoPane({ state, store }: Props) {
 
         <article className="upgrade-card">
           <div className="card-copy">
-            <h3>{casinoText(locale, "doubleOrNothing")}</h3>
+            <div className="casino-title-with-help">
+              <h3>{casinoText(locale, "doubleOrNothing")}</h3>
+              <InfoTooltip
+                id="casino-double-or-nothing-source-help"
+                label={casinoSectionHelpLabel(locale, casinoText(locale, "doubleOrNothing"))}
+                content={casinoSectionHelpText(locale, "doubleOrNothing")}
+                testId="casino-double-or-nothing-source-help"
+              />
+            </div>
             <p>
               {casinoText(locale, "probability")}: {Math.round(casino.baseWinProbability * 100)}%
             </p>
@@ -353,14 +523,10 @@ export function GalacticCasinoPane({ state, store }: Props) {
             <p data-testid="casino-don-win-preview">
               {casinoAmountPreview("doubledWinPreview", donEntryCost * 2)}
             </p>
-            <p>
-              {casinoText(locale, "runStats")}:{" "}
-              {quantity(locale, state.run.casinoStats.doubleOrNothingPlayed)}{" "}
-              {casinoText(locale, "plays").toLocaleLowerCase(locale)} ·{" "}
-              {quantity(locale, state.run.casinoStats.doubleOrNothingWon)}{" "}
-              {casinoText(locale, "wins").toLocaleLowerCase(locale)}
+            <p data-testid="casino-run-stats-doubleOrNothing">
+              {casinoText(locale, "runStats")}: {runGameCounter("doubleOrNothing")}
             </p>
-            <p>
+            <p data-testid="casino-lifetime-stats-doubleOrNothing">
               {casinoText(locale, "allTimeStats")}: {gameCounter("doubleOrNothing")}
             </p>
             {!donCheck.enabled && (
@@ -383,16 +549,26 @@ export function GalacticCasinoPane({ state, store }: Props) {
 
         <article className="upgrade-card">
           <div className="card-copy">
-            <h3>{casinoText(locale, "wheel")}</h3>
+            <div className="casino-title-with-help">
+              <h3>{casinoText(locale, "wheel")}</h3>
+              <InfoTooltip
+                id="casino-wheel-source-help"
+                label={casinoSectionHelpLabel(locale, casinoText(locale, "wheel"))}
+                content={casinoSectionHelpText(locale, "wheel").replace(
+                  "{price}",
+                  quantity(locale, wheelEntryCost),
+                )}
+                testId="casino-wheel-source-help"
+              />
+            </div>
             <p data-testid="casino-wheel-entry-cost">
               {casinoAmountPreview("entryCostPreview", wheelEntryCost)}
             </p>
+            <p id="casino-wheel-help" data-testid="casino-wheel-help">
+              {casinoText(locale, "wheelHelp")}
+            </p>
             <div className="casino-wheel-stage">
-              <div
-                className="casino-wheel"
-                data-special-ready={casino.wheelSpecialPending}
-                aria-hidden="true"
-              >
+              <div className="casino-wheel" data-special-ready={wheelClaimReady} aria-hidden="true">
                 <div
                   className="casino-wheel-face"
                   style={{ transform: `rotate(${wheelRotation}deg)` }}
@@ -404,64 +580,57 @@ export function GalacticCasinoPane({ state, store }: Props) {
                 <span className="casino-wheel-hub" />
               </div>
             </div>
-            <p>
-              {casinoText(locale, "runStats")}:{" "}
-              {quantity(locale, state.run.casinoStats.wheelPlayed)}{" "}
-              {casinoText(locale, "plays").toLocaleLowerCase(locale)} ·{" "}
-              {quantity(locale, state.run.casinoStats.wheelWon)}{" "}
-              {casinoText(locale, "wins").toLocaleLowerCase(locale)}
+            <p data-testid="casino-run-stats-wheel">
+              {casinoText(locale, "runStats")}: {runGameCounter("wheel")}
             </p>
-            {casino.wheelSpecialPending ? (
-              <>
-                <output>{casinoText(locale, "specialReady")}</output>
-                <label>
-                  {casinoText(locale, "choosePrize")}
-                  <select
-                    aria-label={casinoText(locale, "choosePrize")}
-                    value={selectedSpecialPrize}
-                    onChange={(event) =>
-                      setSpecialPrize(event.currentTarget.value as CasinoSpecialPrize)
-                    }
-                  >
-                    {availableSpecials.map((prize) => (
-                      <option key={prize} value={prize}>
-                        {specialLabel(prize)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  data-testid="casino-wheel-claim"
-                  disabled={!claimCheck.enabled}
-                  aria-describedby={!claimCheck.enabled ? "casino-wheel-claim-reason" : undefined}
-                  onClick={() =>
-                    dispatch(
-                      { type: "casino.wheel.claim", prize: selectedSpecialPrize },
-                      (result) => {
-                        const event = result.events.find(
-                          (entry) => entry.type === "casino.wheel.special-claimed",
-                        );
-                        return event?.type === "casino.wheel.special-claimed"
-                          ? casinoText(locale, "prizeClaimed").replace(
-                              "{prize}",
-                              specialLabel(event.prize),
-                            )
-                          : "";
-                      },
-                    )
-                  }
-                >
-                  {casinoText(locale, "claim")}
-                </button>
-                {!claimCheck.enabled && (
-                  <p className="live-feedback" id="casino-wheel-claim-reason">
-                    {claimReason}
-                  </p>
-                )}
-              </>
-            ) : null}
+            {wheelClaimReady ? <output>{casinoText(locale, "specialReady")}</output> : null}
+            <label>
+              {casinoText(locale, "choosePrize")}
+              <select
+                aria-label={casinoText(locale, "choosePrize")}
+                aria-describedby="casino-wheel-help"
+                value={selectedSpecialPrize ?? ""}
+                disabled={!wheelClaimReady}
+                onChange={(event) =>
+                  setSpecialPrize(
+                    event.currentTarget.value
+                      ? (event.currentTarget.value as CasinoSpecialPrize)
+                      : null,
+                  )
+                }
+              >
+                <option value="">{casinoText(locale, "selectPrizePlaceholder")}</option>
+                {availableSpecials.map((prize) => (
+                  <option key={prize} value={prize}>
+                    {specialLabel(prize)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="secondary-button"
+              data-testid="casino-wheel-claim"
+              disabled={!wheelClaimReady || !selectedSpecialPrize || !claimCheck.enabled}
+              aria-describedby={
+                wheelClaimReady && !claimCheck.enabled ? "casino-wheel-claim-reason" : undefined
+              }
+              onClick={() => {
+                if (
+                  selectedSpecialPrize &&
+                  dispatch({ type: "casino.wheel.claim", prize: selectedSpecialPrize })
+                ) {
+                  setSpecialPrize(null);
+                }
+              }}
+            >
+              {casinoText(locale, "claim")}
+            </button>
+            {wheelClaimReady && !claimCheck.enabled && (
+              <p className="live-feedback" id="casino-wheel-claim-reason">
+                {claimReason}
+              </p>
+            )}
             <button
               type="button"
               className="secondary-button"
@@ -484,36 +653,57 @@ export function GalacticCasinoPane({ state, store }: Props) {
 
         <article className="upgrade-card">
           <div className="card-copy">
-            <h3>{casinoText(locale, "higherLower")}</h3>
+            <div className="casino-title-with-help">
+              <h3>{casinoText(locale, "higherLower")}</h3>
+              <InfoTooltip
+                id="casino-higher-lower-source-help"
+                label={casinoSectionHelpLabel(locale, casinoText(locale, "higherLower"))}
+                content={casinoSectionHelpText(locale, "higherLower").replace(
+                  "{price}",
+                  quantity(locale, higherLowerEntryCost),
+                )}
+                testId="casino-higher-lower-source-help"
+              />
+            </div>
             <p data-testid="casino-hilo-entry-cost">
               {casinoAmountPreview("entryCostPreview", higherLowerEntryCost)}
             </p>
-            <p>
-              {casinoText(locale, "runStats")}:{" "}
-              {quantity(locale, state.run.casinoStats.higherLowerPlayed)}{" "}
-              {casinoText(locale, "plays").toLocaleLowerCase(locale)} ·{" "}
-              {quantity(locale, state.run.casinoStats.higherLowerWon)}{" "}
-              {casinoText(locale, "wins").toLocaleLowerCase(locale)}
+            <p data-testid="casino-run-stats-higherLower">
+              {casinoText(locale, "runStats")}: {runGameCounter("higherLower")}
             </p>
             {higherLower ? (
               <>
                 <p>
                   {casinoText(locale, "currentCard")}:{" "}
-                  {cardText(
+                  {cardAccessibleName(
                     locale,
                     higherLower.deck[higherLower.index]!.rank,
                     higherLower.deck[higherLower.index]!.suit,
                   )}
                 </p>
-                <div className="casino-card-row" aria-label={casinoText(locale, "currentCard")}>
+                <div
+                  className="casino-card-row"
+                  role="group"
+                  aria-label={casinoText(locale, "currentCard")}
+                >
                   {visibleCards.map((card, index) => (
                     <span
-                      className="casino-card"
+                      className={`casino-card${card.suit === "hearts" || card.suit === "diamonds" ? " casino-card-red-suit" : ""}`}
                       key={`${card.rank}-${card.suit}`}
-                      aria-label={cardText(locale, card.rank, card.suit)}
+                      role="img"
+                      aria-label={cardAccessibleName(locale, card.rank, card.suit)}
                     >
-                      {cardText(locale, card.rank, card.suit)}
-                      {index === visibleCards.length - 1 ? " ←" : ""}
+                      <span className="casino-card-rank" aria-hidden="true">
+                        {cardRankSymbol(card.rank)}
+                      </span>
+                      <span className="casino-card-suit" aria-hidden="true">
+                        {CARD_SUIT_SYMBOLS[card.suit]}
+                      </span>
+                      {index === visibleCards.length - 1 && (
+                        <span className="casino-card-current-indicator" aria-hidden="true">
+                          ←
+                        </span>
+                      )}
                     </span>
                   ))}
                   {Array.from({ length: 8 - higherLower.index }, (_, index) => (
@@ -540,19 +730,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
                       !guessHigherCheck.enabled ? "casino-hilo-guess-reason" : undefined
                     }
                     onClick={() =>
-                      dispatch(
-                        { type: "casino.higher-lower.guess", direction: "higher" },
-                        (result) => {
-                          const event = result.events.find(
-                            (entry) => entry.type === "casino.higher-lower.revealed",
-                          );
-                          return event?.type === "casino.higher-lower.revealed"
-                            ? event.correct
-                              ? casinoText(locale, "cardCorrect")
-                              : casinoText(locale, "cardWrong")
-                            : "";
-                        },
-                      )
+                      dispatch({ type: "casino.higher-lower.guess", direction: "higher" })
                     }
                   >
                     {casinoText(locale, "higher")}
@@ -565,19 +743,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
                       !guessLowerCheck.enabled ? "casino-hilo-guess-reason" : undefined
                     }
                     onClick={() =>
-                      dispatch(
-                        { type: "casino.higher-lower.guess", direction: "lower" },
-                        (result) => {
-                          const event = result.events.find(
-                            (entry) => entry.type === "casino.higher-lower.revealed",
-                          );
-                          return event?.type === "casino.higher-lower.revealed"
-                            ? event.correct
-                              ? casinoText(locale, "cardCorrect")
-                              : casinoText(locale, "cardWrong")
-                            : "";
-                        },
-                      )
+                      dispatch({ type: "casino.higher-lower.guess", direction: "lower" })
                     }
                   >
                     {casinoText(locale, "lower")}
@@ -589,19 +755,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
                     aria-describedby={
                       !cashOutCheck.enabled ? "casino-hilo-cashout-reason" : undefined
                     }
-                    onClick={() =>
-                      dispatch({ type: "casino.higher-lower.cash-out" }, (result) => {
-                        const event = result.events.find(
-                          (entry) => entry.type === "casino.game.played",
-                        );
-                        return event?.type === "casino.game.played"
-                          ? casinoText(locale, "cashOutResult").replace(
-                              "{prize}",
-                              prettyResult(event.result.split(":").slice(1).join(":")),
-                            )
-                          : "";
-                      })
-                    }
+                    onClick={() => dispatch({ type: "casino.higher-lower.cash-out" })}
                   >
                     {casinoText(locale, "cashOut")}
                   </button>
@@ -645,13 +799,17 @@ export function GalacticCasinoPane({ state, store }: Props) {
 
         <article className="upgrade-card">
           <div className="card-copy">
-            <h3>{casinoText(locale, "voidSeer")}</h3>
-            <p>
-              {casinoText(locale, "runStats")}:{" "}
-              {quantity(locale, state.run.casinoStats.voidSeerPlayed)}{" "}
-              {casinoText(locale, "plays").toLocaleLowerCase(locale)} ·{" "}
-              {quantity(locale, state.run.casinoStats.voidSeerWon)}{" "}
-              {casinoText(locale, "wins").toLocaleLowerCase(locale)}
+            <div className="casino-title-with-help">
+              <h3>{casinoText(locale, "voidSeer")}</h3>
+              <InfoTooltip
+                id="casino-void-seer-source-help"
+                label={casinoSectionHelpLabel(locale, casinoText(locale, "voidSeer"))}
+                content={casinoSectionHelpText(locale, "voidSeer")}
+                testId="casino-void-seer-source-help"
+              />
+            </div>
+            <p data-testid="casino-run-stats-voidSeer">
+              {casinoText(locale, "runStats")}: {runGameCounter("voidSeer")}
             </p>
             <label>
               {casinoText(locale, "tier")}
@@ -662,12 +820,13 @@ export function GalacticCasinoPane({ state, store }: Props) {
               >
                 {([1, 2, 3] as const).map((tier) => (
                   <option key={tier} value={tier}>
-                    {quantity(locale, tier)} ·{" "}
+                    {casinoVoidSeerPrizeName(locale, tier)} ·{" "}
                     {quantity(
                       locale,
                       selectCasinoEntryCost({ type: "casino.void-seer.play", tier }) ?? 0,
                     )}{" "}
-                    CP · 1/{quantity(locale, VOID_SEER_MAX[tier] + 1)}
+                    {casinoVoidSeerCurrency(locale)} · 1/
+                    {quantity(locale, VOID_SEER_MAX[tier] + 1)}
                   </option>
                 ))}
               </select>
@@ -686,19 +845,10 @@ export function GalacticCasinoPane({ state, store }: Props) {
               data-testid="casino-void-seer-play"
               disabled={!voidCheck.enabled}
               aria-describedby={!voidCheck.enabled ? "casino-void-seer-reason" : undefined}
-              onClick={() =>
-                dispatch({ type: "casino.void-seer.play", tier: voidTier }, (result) => {
-                  const event = result.events.find(
-                    (entry) => entry.type === "casino.void-seer.result",
-                  );
-                  if (event?.type !== "casino.void-seer.result") return "";
-                  return event.won
-                    ? casinoText(locale, "voidWin").replace("{detail}", prettyResult(event.detail))
-                    : casinoText(locale, "voidLoss");
-                })
-              }
+              onClick={() => dispatch({ type: "casino.void-seer.play", tier: voidTier })}
             >
-              {casinoText(locale, "reveal")} · {quantity(locale, voidCost)} CP
+              {casinoText(locale, "reveal")} · {quantity(locale, voidCost)}{" "}
+              {casinoVoidSeerCurrency(locale)}
             </button>
           </div>
         </article>
@@ -718,7 +868,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
             {[...casino.history].reverse().map((entry) => (
               <li key={entry.id}>
                 <span>{gameName(entry.gameId)}</span>
-                <span>{prettyResult(entry.result)}</span>
+                <span>{historyResult(entry.result)}</span>
                 <span>
                   {quantity(locale, entry.cpSpent)} {casinoText(locale, "cpIn")}
                 </span>

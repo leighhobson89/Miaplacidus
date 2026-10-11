@@ -1,6 +1,28 @@
 import type { LocaleId } from "../content/ids";
 
 const en = {
+  miningHeaderHelp: "This shows Antimatter being produced, where, and by which Rocket Miner.",
+  miningLayoutHelp:
+    "This page shows combined production; open a Rocket page to see its destination and mining status.",
+  asteroidsHeaderHelp: "Here you can see discovered Asteroids and analyse them.",
+  asteroidsTableHelp:
+    "The Asteroids table gives you information about discovered asteroids, ones being Mined currently, Exhausted ones, and Destroyed ones too.",
+  asteroidDistanceHelp:
+    "Distance - A rocket takes 0.5 seconds per 100 distance units at base speed. A one-way trip to an asteroid 360,000 units away takes 1,800 seconds (30 minutes); the round trip takes 3,600 seconds (1 hour), before bonuses from Asteroid Attractors.",
+  asteroidAntimatterHelp:
+    "Antimatter - This is the quantity at the Asteroid available to be Mined.",
+  telescopeHeaderHelp:
+    "Here you can build a telescope to search for asteroids to mine Antimatter, and to Study The Stars for potential Colonisation trips.",
+  telescopeBuildHelp: "Build the space telescope to search for Asteroids to mine.",
+  telescopeScanHelp: "Search and discover Asteroids - Power: {power}kJ / s",
+  telescopeStudyHelp: "Study the Stars! - Power: {power}kJ / s",
+  telescopePillageHelp: "Target beam at the Void, and pillage its riches! - Power: {power}kJ / s",
+  miningHelp:
+    "Up to four rockets can mine antimatter at once. The rate shown here includes both rocket mining and megastructure production. Hold the boost button to double rocket mining; it does not affect megastructure production.",
+  asteroidsHelp:
+    "This page lists asteroids discovered by the Space Telescope. Each entry shows its rarity, distance, remaining antimatter, and whether it is in use by a rocket or depleted. Select an available asteroid here as a rocket's destination.",
+  asteroidComplexityHelp:
+    "Complexity - The higher this number is the slower Antimatter will be extracted from the Asteroid.",
   title: "Space Mining",
   miningTitle: "Mining",
   telescopeTitle: "Space Telescope",
@@ -17,9 +39,9 @@ const en = {
   surveyStudying: "Studying",
   surveyPillaging: "Pillaging the Void",
   surveyPowerBlocked: "Paused: telescope needs power",
-  surveyTimeRemaining: "Survey time remaining: {time}",
+  surveyTimeRemaining: "Time remaining: {time}",
   starStudyRange: "Star study range",
-  asteroidsTitle: "Discovered asteroids",
+  asteroidsTitle: "Asteroids",
   asteroidsEmpty: "No asteroids discovered yet.",
   asteroidRarity: "Rarity",
   rarityCommon: "Common",
@@ -27,6 +49,7 @@ const en = {
   rarityRare: "Rare",
   rarityLegendary: "Legendary",
   asteroidDistance: "Distance",
+  asteroidComplexity: "Complexity",
   antimatterRemaining: "Antimatter remaining",
   autoTitle: "Auto Telescope",
   autoMode: "Action",
@@ -57,11 +80,11 @@ const en = {
   reasonAntimatterBoostUnavailable: "The boost is available while antimatter is being mined.",
   feedbackBuilt: "Space Telescope built.",
   feedbackSurveyStarted: "Telescope survey started.",
+  feedbackPillageStarted: "Void pillage started.",
   feedbackScanMissed: "The scan found no asteroid.",
   feedbackAsteroidFound: "Asteroid discovered: {name}",
   feedbackAsteroidSelected: "Selected {name}.",
   feedbackStudyComplete: "Star study complete. Range is now {range}.",
-  feedbackPillageComplete: "Pillage the Void complete.",
   reasonTechnologyLocked: "Research Atmospheric Telescopes first.",
   reasonTelescopeRequired: "Build a Space Telescope first.",
   reasonTelescopeBuilt: "The Space Telescope has already been built.",
@@ -73,6 +96,8 @@ const en = {
   reasonInsufficientCash: "Not enough cash. Required: {amount}.",
   reasonInsufficientMaterial: "Not enough {material}. Required: {amount}.",
   reasonInsufficientAntimatter: "Not enough antimatter. Required: {amount}.",
+  reasonInvalidSelection: "That selection is no longer available.",
+  reasonActionUnavailable: "That action is not available right now.",
 } as const;
 
 export type SpaceMessageKey = keyof typeof en;
@@ -80,12 +105,34 @@ export type SpaceMessageKey = keyof typeof en;
 const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, string>>>> = {
   en,
   es: {
+    miningHeaderHelp: "Esto muestra Antimateria siendo producida, dónde, y por qué Minero Cohete.",
+    miningLayoutHelp:
+      "Esta página muestra la producción combinada; abre la página de un cohete para ver su destino y estado de extracción.",
+    asteroidsHeaderHelp: "Aquí puedes ver asteroides descubiertos y analizarlos.",
+    asteroidsTableHelp:
+      "La tabla de Asteroides te da información sobre asteroides descubiertos, los que están siendo Minados actualmente, los Agotados, y los Destruidos también.",
+    asteroidDistanceHelp:
+      "Distancia: un cohete tarda 0,5 segundos por cada 100 unidades a velocidad base. El viaje de ida a un asteroide situado a 360.000 unidades tarda 1.800 segundos (30 minutos); la ida y vuelta tarda 3.600 segundos (1 hora), antes de las bonificaciones de los Atractores de Asteroides.",
+    asteroidAntimatterHelp:
+      "Antimateria - Esta es la cantidad disponible en el Asteroide para ser Minada.",
+    telescopeHeaderHelp:
+      "Aquí puedes construir un telescopio para buscar asteroides para minar Antimateria, y para estudiar las estrellas para posibles viajes de colonización.",
+    telescopeBuildHelp: "Construye el telescopio espacial para buscar Asteroides para minar.",
+    telescopeScanHelp: "Busca y descubre Asteroides - Energía: {power}kJ / s",
+    telescopeStudyHelp: "¡Estudia las Estrellas! - Energía: {power}kJ / s",
+    telescopePillageHelp: "¡Apunta el haz al Vacío y saquea sus riquezas! - Energía: {power}kJ / s",
+    reasonInvalidSelection: "Esa selección ya no está disponible.",
+    reasonActionUnavailable: "Esa acción no está disponible en este momento.",
+    miningHelp:
+      "Hasta cuatro cohetes pueden extraer antimateria a la vez. La tasa que ves aquí incluye la extracción de los cohetes y la producción de las megaestructuras. Mantén pulsado el botón para duplicar la extracción de los cohetes; no afecta a la producción de las megaestructuras.",
+    asteroidsHelp:
+      "Esta página muestra los asteroides descubiertos por el Telescopio Espacial. Cada entrada indica su rareza, distancia, antimateria restante y si un cohete la está usando o está agotada. Selecciona aquí un asteroide disponible como destino de un cohete.",
     miningTitle: "Minería",
     antimatterLocked: "La antimateria se desbloquea cuando un cohete llega a un asteroide.",
     miningRate: "Tasa de extracci\u00f3n",
     reasonInsufficientAntimatter: "No hay suficiente antimateria. Necesitas: {amount}.",
     title: "Minería espacial",
-    telescopeTitle: "Telescopio espacial",
+    telescopeTitle: "Telescopio Espacial",
     telescopeDescription:
       "Busca asteroides o estudia las estrellas. Los estudios necesitan energía.",
     telescopeCost: "Coste de construcción",
@@ -99,9 +146,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     surveyStudying: "Estudiando",
     surveyPillaging: "Saqueando el vacío",
     surveyPowerBlocked: "En pausa: el telescopio necesita energía",
-    surveyTimeRemaining: "Tiempo de estudio restante: {time}",
+    surveyTimeRemaining: "Tiempo restante: {time}",
     starStudyRange: "Alcance del estudio estelar",
-    asteroidsTitle: "Asteroides descubiertos",
+    asteroidsTitle: "Asteroides",
     asteroidsEmpty: "Todavía no se ha descubierto ningún asteroide.",
     asteroidRarity: "Rareza",
     rarityCommon: "Común",
@@ -110,6 +157,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     rarityLegendary: "Legendario",
     asteroidDistance: "Distancia",
     antimatterRemaining: "Antimateria restante",
+    asteroidComplexityHelp:
+      "Complejidad - Cuanto más alto es este número, más lenta será la extracción de Antimateria.",
+    asteroidComplexity: "Complejidad",
     autoTitle: "Telescopio automático",
     autoMode: "Acción",
     autoDisabled: "Automatización desactivada",
@@ -138,11 +188,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
       "La mejora solo está disponible mientras se extrae antimateria.",
     feedbackBuilt: "Telescopio espacial construido.",
     feedbackSurveyStarted: "Estudio del telescopio iniciado.",
+    feedbackPillageStarted: "El saqueo del vacío ha comenzado.",
     feedbackScanMissed: "El escaneo no encontró ningún asteroide.",
     feedbackAsteroidFound: "Asteroide descubierto: {name}",
     feedbackAsteroidSelected: "Seleccionado: {name}.",
     feedbackStudyComplete: "Estudio estelar completado. El alcance es {range}.",
-    feedbackPillageComplete: "El vacío ha sido saqueado.",
     reasonTechnologyLocked: "Investiga primero Telescopios atmosféricos.",
     reasonTelescopeRequired: "Construye primero un telescopio espacial.",
     reasonTelescopeBuilt: "El telescopio espacial ya está construido.",
@@ -157,13 +207,35 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "No hay suficiente {material}. Necesitas: {amount}.",
   },
   pt: {
+    miningHeaderHelp: "Isto mostra Antimatéria a ser produzida, onde, e por qual Minero Cohete.",
+    miningLayoutHelp:
+      "Esta página mostra a produção combinada; abre a página de um foguete para ver o seu destino e estado de extração.",
+    asteroidsHeaderHelp: "Aqui podes ver asteroides descobertos e analisá-los.",
+    asteroidsTableHelp:
+      "A tabela de Asteroides fornece informações sobre asteroides descobertos, os que estão sendo Minerados atualmente, os Esgotados e também os Destruídos.",
+    asteroidDistanceHelp:
+      "Distância: à velocidade base, o foguete demora 0,5 segundos por cada 100 unidades. A viagem de ida até um asteroide a 360.000 unidades demora 1.800 segundos (30 minutos); ida e volta demora 3.600 segundos (1 hora), antes dos bónus dos Atraidores de Asteroides.",
+    asteroidAntimatterHelp:
+      "Antimatéria - Esta é a quantidade disponível no Asteroide para ser Minerada.",
+    telescopeHeaderHelp:
+      "Aqui podes construir um telescópio para procurar asteroides para minerar Antimatéria, e para estudar as estrelas para possíveis viagens de colonização.",
+    telescopeBuildHelp: "Construa o telescópio espacial para procurar Asteroides para minerar.",
+    telescopeScanHelp: "Procure e descubra Asteroides - Energia: {power}kJ / s",
+    telescopeStudyHelp: "Estude as Estrelas! - Energia: {power}kJ / s",
+    telescopePillageHelp: "Aponte o feixe para o Vazio e saqueie suas riquezas! - Energia: {power}kJ / s",
+    reasonInvalidSelection: "Essa seleção já não está disponível.",
+    reasonActionUnavailable: "Essa ação não está disponível no momento.",
+    miningHelp:
+      "Até quatro foguetes podem extrair antimatéria ao mesmo tempo. A taxa apresentada inclui a extração dos foguetes e a produção das megaestruturas. Mantém o botão premido para duplicar a extração dos foguetes; não afeta a produção das megaestruturas.",
+    asteroidsHelp:
+      "Esta página lista os asteroides descobertos pelo Telescópio Espacial. Cada entrada mostra a raridade, a distância, a antimatéria restante e se está a ser usada por um foguete ou esgotada. Seleciona aqui um asteroide disponível como destino de um foguete.",
     miningTitle: "Mineração",
     antimatterLocked:
       "A antimat\u00e9ria \u00e9 desbloqueada quando um foguete chega a um asteroide.",
     miningRate: "Taxa de extra\u00e7\u00e3o",
     reasonInsufficientAntimatter: "Antimat\u00e9ria insuficiente. Necess\u00e1rio: {amount}.",
     title: "Mineração espacial",
-    telescopeTitle: "Telescópio espacial",
+    telescopeTitle: "Telescópio Espacial",
     telescopeDescription:
       "Procure asteroides ou estude as estrelas. Os estudos precisam de energia.",
     telescopeCost: "Custo de construção",
@@ -177,9 +249,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     surveyStudying: "Estudando",
     surveyPillaging: "Pilhando o vazio",
     surveyPowerBlocked: "Pausado: o telescópio precisa de energia",
-    surveyTimeRemaining: "Tempo de estudo restante: {time}",
+    surveyTimeRemaining: "Tempo restante: {time}",
     starStudyRange: "Alcance do estudo estelar",
-    asteroidsTitle: "Asteroides descobertos",
+    asteroidsTitle: "Asteroides",
     asteroidsEmpty: "Nenhum asteroide foi descoberto ainda.",
     asteroidRarity: "Raridade",
     rarityCommon: "Comum",
@@ -188,6 +260,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     rarityLegendary: "Lendário",
     asteroidDistance: "Distância",
     antimatterRemaining: "Antimatéria restante",
+    asteroidComplexityHelp:
+      "Complexidade - Quanto maior esse número, mais lenta será a extração de Antimatéria.",
+    asteroidComplexity: "Complexidade",
     autoTitle: "Telescópio automático",
     autoMode: "Ação",
     autoDisabled: "Automação desativada",
@@ -216,11 +291,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
       "O impulso só fica disponível enquanto houver extração de antimatéria.",
     feedbackBuilt: "Telescópio espacial construído.",
     feedbackSurveyStarted: "Estudo do telescópio iniciado.",
+    feedbackPillageStarted: "A pilhagem do vazio começou.",
     feedbackScanMissed: "A busca não encontrou nenhum asteroide.",
     feedbackAsteroidFound: "Asteroide descoberto: {name}",
     feedbackAsteroidSelected: "Selecionado: {name}.",
     feedbackStudyComplete: "Estudo estelar concluído. O alcance agora é {range}.",
-    feedbackPillageComplete: "O vazio foi pilhado.",
     reasonTechnologyLocked: "Pesquise Telescópios Atmosféricos primeiro.",
     reasonTelescopeRequired: "Construa um telescópio espacial primeiro.",
     reasonTelescopeBuilt: "O telescópio espacial já foi construído.",
@@ -235,7 +310,29 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Quantidade insuficiente de {material}. Necessário: {amount}.",
   },
   de: {
-    miningTitle: "Abbau",
+    miningHeaderHelp: "Dies zeigt Antimaterie, die produziert wird, wo und von welchem Raketenminer.",
+    miningLayoutHelp:
+      "Hier wird die Gesamtproduktion angezeigt; auf einer Raketenseite siehst du das Ziel und den Abbaustatus.",
+    asteroidsHeaderHelp: "Hier kannst du entdeckte Asteroiden sehen und sie analysieren.",
+    asteroidsTableHelp:
+      "Die Asteroiden-Tabelle gibt dir Informationen über entdeckte Asteroiden, die derzeit abgebaut werden, Erschöpfte und auch Zerstörte.",
+    asteroidDistanceHelp:
+      "Entfernung: Bei Basisgeschwindigkeit dauert ein Raketenflug 0,5 Sekunden pro 100 Entfernungseinheiten. Für den einfachen Flug zu einem 360.000 Einheiten entfernten Asteroiden braucht die Rakete 1.800 Sekunden (30 Minuten); der Hin- und Rückflug dauert 3.600 Sekunden (1 Stunde), vor Boni durch Asteroidenanzieher.",
+    asteroidAntimatterHelp:
+      "Antimaterie - Dies ist die Menge am Asteroiden, die abgebaut werden kann.",
+    telescopeHeaderHelp:
+      "Hier kannst du ein Teleskop bauen, um nach Asteroiden zum Abbau von Antimaterie zu suchen, und die Sterne für potenzielle Kolonisationsreisen zu studieren.",
+    telescopeBuildHelp: "Baue das Weltraumteleskop, um nach Asteroiden zum Abbauen zu suchen.",
+    telescopeScanHelp: "Suche und entdecke Asteroiden - Energie: {power}kJ / s",
+    telescopeStudyHelp: "Studiere die Sterne! - Energie: {power}kJ / s",
+    telescopePillageHelp: "Ziele den Strahl auf die Leere und plündere ihre Reichtümer! - Energie: {power}kJ / s",
+    reasonInvalidSelection: "Diese Auswahl ist nicht mehr verfügbar.",
+    reasonActionUnavailable: "Diese Aktion ist derzeit nicht verfügbar.",
+    miningHelp:
+      "Bis zu vier Raketen können gleichzeitig Antimaterie abbauen. Die angezeigte Rate umfasst den Raketenabbau und die Megastrukturproduktion. Halte die Schaltfläche gedrückt, um den Raketenabbau zu verdoppeln; die Megastrukturproduktion bleibt davon unberührt.",
+    asteroidsHelp:
+      "Diese Seite listet die vom Weltraumteleskop entdeckten Asteroiden. Jeder Eintrag zeigt Seltenheit, Entfernung, verbleibende Antimaterie und ob er von einer Rakete genutzt wird oder erschöpft ist. Wähle hier einen verfügbaren Asteroiden als Raketen-Ziel aus.",
+    miningTitle: "Bergbau",
     antimatterLocked:
       "Antimaterie wird freigeschaltet, sobald eine Rakete einen Asteroiden erreicht.",
     miningRate: "Abbaurate",
@@ -243,7 +340,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     title: "Weltraumbergbau",
     telescopeTitle: "Weltraumteleskop",
     telescopeDescription:
-      "Suche nach Asteroiden oder erforsche Sterne. Umfragen benötigen Energie.",
+      "Suche nach Asteroiden oder erforsche Sterne. Untersuchungen benötigen Energie.",
     telescopeCost: "Baukosten",
     telescopeBuild: "Teleskop bauen",
     telescopeBuilt: "Teleskop gebaut",
@@ -255,9 +352,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     surveyStudying: "Studium läuft",
     surveyPillaging: "Die Leere wird geplündert",
     surveyPowerBlocked: "Pausiert: Das Teleskop benötigt Energie",
-    surveyTimeRemaining: "Verbleibende Untersuchungszeit: {time}",
+    surveyTimeRemaining: "Verbleibende Zeit: {time}",
     starStudyRange: "Sternenforschungsbereich",
-    asteroidsTitle: "Entdeckte Asteroiden",
+    asteroidsTitle: "Asteroiden",
     asteroidsEmpty: "Bisher wurden keine Asteroiden entdeckt.",
     asteroidRarity: "Seltenheit",
     rarityCommon: "Gewöhnlich",
@@ -266,6 +363,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     rarityLegendary: "Legendär",
     asteroidDistance: "Entfernung",
     antimatterRemaining: "Verbleibende Antimaterie",
+    asteroidComplexityHelp:
+      "Komplexität - Je höher diese Zahl ist, desto langsamer wird Antimaterie vom Asteroiden extrahiert.",
+    asteroidComplexity: "Komplexität",
     autoTitle: "Automatisches Teleskop",
     autoMode: "Aktion",
     autoDisabled: "Automatisierung aus",
@@ -294,11 +394,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
       "Der Boost ist nur verfügbar, solange Antimaterie abgebaut wird.",
     feedbackBuilt: "Weltraumteleskop gebaut.",
     feedbackSurveyStarted: "Teleskopuntersuchung gestartet.",
+    feedbackPillageStarted: "Die Plünderung der Leere hat begonnen.",
     feedbackScanMissed: "Bei der Suche wurde kein Asteroid gefunden.",
     feedbackAsteroidFound: "Asteroid entdeckt: {name}",
     feedbackAsteroidSelected: "{name} ausgewählt.",
     feedbackStudyComplete: "Sternenforschung abgeschlossen. Reichweite: {range}.",
-    feedbackPillageComplete: "Die Leere wurde geplündert.",
     reasonTechnologyLocked: "Erforsche zuerst Atmosphärische Teleskope.",
     reasonTelescopeRequired: "Baue zuerst ein Weltraumteleskop.",
     reasonTelescopeBuilt: "Das Weltraumteleskop wurde bereits gebaut.",
@@ -313,12 +413,34 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Nicht genug {material}. Benötigt: {amount}.",
   },
   it: {
+    miningHeaderHelp: "Questo mostra Antimateria prodotta, dove, e da quale Minatore Razzo.",
+    miningLayoutHelp:
+      "Questa pagina mostra la produzione complessiva; apri la pagina di un razzo per vedere la destinazione e lo stato di estrazione.",
+    asteroidsHeaderHelp: "Qui puoi vedere gli asteroidi scoperti e analizzarli.",
+    asteroidsTableHelp:
+      "La tabella degli Asteroidi ti dà informazioni sugli asteroidi scoperti, quelli che sono attualmente minati, gli Esauriti, e anche quelli Distrutti.",
+    asteroidDistanceHelp:
+      "Distanza: alla velocità base, il razzo impiega 0,5 secondi ogni 100 unità. Il viaggio di andata verso un asteroide a 360.000 unità richiede 1.800 secondi (30 minuti); andata e ritorno richiedono 3.600 secondi (1 ora), prima dei bonus degli Attrattori di Asteroidi.",
+    asteroidAntimatterHelp:
+      "Antimateria - Questa è la quantità disponibile all'Asteroide da minare.",
+    telescopeHeaderHelp:
+      "Qui puoi costruire un telescopio per cercare asteroidi da estrarre per Antimateria, e per studiare le stelle per potenziali viaggi di colonizzazione.",
+    telescopeBuildHelp: "Costruisci il telescopio spaziale per cercare Asteroidi da estrarre.",
+    telescopeScanHelp: "Cerca e scopri Asteroidi - Energia: {power}kJ / s",
+    telescopeStudyHelp: "Studia le Stelle! - Energia: {power}kJ / s",
+    telescopePillageHelp: "Punta il raggio al Vuoto e saccheggia le sue ricchezze! - Energia: {power}kJ / s",
+    reasonInvalidSelection: "Questa selezione non è più disponibile.",
+    reasonActionUnavailable: "Questa azione non è al momento disponibile.",
+    miningHelp:
+      "Fino a quattro razzi possono estrarre antimateria contemporaneamente. Il tasso mostrato include l'estrazione dei razzi e la produzione delle megastrutture. Tieni premuto il pulsante per raddoppiare l'estrazione dei razzi; la produzione delle megastrutture non cambia.",
+    asteroidsHelp:
+      "Questa pagina elenca gli asteroidi scoperti dal Telescopio spaziale. Ogni voce mostra rarità, distanza, antimateria rimanente e se è usata da un razzo o esaurita. Seleziona qui un asteroide disponibile come destinazione di un razzo.",
     miningTitle: "Estrazione",
     antimatterLocked: "L'antimateria si sblocca quando un razzo raggiunge un asteroide.",
     miningRate: "Tasso di estrazione",
     reasonInsufficientAntimatter: "Antimateria insufficiente. Richiesta: {amount}.",
     title: "Estrazione spaziale",
-    telescopeTitle: "Telescopio spaziale",
+    telescopeTitle: "Telescopio Spaziale",
     telescopeDescription: "Cerca asteroidi o studia le stelle. Le ricerche richiedono energia.",
     telescopeCost: "Costo di costruzione",
     telescopeBuild: "Costruisci telescopio",
@@ -331,9 +453,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     surveyStudying: "Studio in corso",
     surveyPillaging: "Saccheggio del Vuoto in corso",
     surveyPowerBlocked: "In pausa: il telescopio richiede energia",
-    surveyTimeRemaining: "Tempo di indagine rimanente: {time}",
+    surveyTimeRemaining: "Tempo rimanente: {time}",
     starStudyRange: "Raggio di studio stellare",
-    asteroidsTitle: "Asteroidi scoperti",
+    asteroidsTitle: "Asteroidi",
     asteroidsEmpty: "Non è ancora stato scoperto alcun asteroide.",
     asteroidRarity: "Rarità",
     rarityCommon: "Comune",
@@ -342,6 +464,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     rarityLegendary: "Leggendario",
     asteroidDistance: "Distanza",
     antimatterRemaining: "Antimateria rimanente",
+    asteroidComplexityHelp:
+      "Complessità - Più alto è questo numero, più lenta sarà l'estrazione di Antimateria.",
+    asteroidComplexity: "Complessità",
     autoTitle: "Telescopio automatico",
     autoMode: "Azione",
     autoDisabled: "Automazione disattivata",
@@ -370,11 +495,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
       "Il potenziamento è disponibile solo mentre si estrae antimateria.",
     feedbackBuilt: "Telescopio spaziale costruito.",
     feedbackSurveyStarted: "Ricerca del telescopio avviata.",
+    feedbackPillageStarted: "Il saccheggio del Vuoto è iniziato.",
     feedbackScanMissed: "La scansione non ha trovato asteroidi.",
     feedbackAsteroidFound: "Asteroide scoperto: {name}",
     feedbackAsteroidSelected: "Selezionato: {name}.",
     feedbackStudyComplete: "Studio stellare completato. Il raggio è {range}.",
-    feedbackPillageComplete: "Il Vuoto è stato saccheggiato.",
     reasonTechnologyLocked: "Ricerca prima Telescopi atmosferici.",
     reasonTelescopeRequired: "Costruisci prima un telescopio spaziale.",
     reasonTelescopeBuilt: "Il telescopio spaziale è già stato costruito.",
@@ -389,6 +514,28 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Quantità insufficiente di {material}. Richiesti: {amount}.",
   },
   fr: {
+    miningHeaderHelp: "Ceci montre l'Antimatière produite, où, et par quel Mineur Fusée.",
+    miningLayoutHelp:
+      "Cette page affiche la production totale ; ouvrez la page d'une fusée pour consulter sa destination et son état d'extraction.",
+    asteroidsHeaderHelp: "Ici tu peux voir les astéroïdes découverts et les analyser.",
+    asteroidsTableHelp:
+      "Le tableau des Astéroïdes te donne des informations sur les astéroïdes découverts, ceux actuellement minés, les Épuisés, et aussi les Détruits.",
+    asteroidDistanceHelp:
+      "Distance : à vitesse de base, une fusée met 0,5 seconde par tranche de 100 unités. Le trajet aller vers un astéroïde situé à 360 000 unités dure 1 800 secondes (30 minutes) ; l'aller-retour dure 3 600 secondes (1 heure), avant les bonus des Attracteurs d'Astéroïdes.",
+    asteroidAntimatterHelp:
+      "Antimatière - C'est la quantité disponible à l'Astéroïde à miner.",
+    telescopeHeaderHelp:
+      "Ici tu peux construire un télescope pour chercher des astéroïdes à extraire pour de l'Antimatière, et pour étudier les étoiles pour des voyages de colonisation potentiels.",
+    telescopeBuildHelp: "Construisez le télescope spatial pour chercher des Astéroïdes à miner.",
+    telescopeScanHelp: "Recherchez et découvrez des Astéroïdes - Énergie: {power}kJ / s",
+    telescopeStudyHelp: "Étudiez les Étoiles! - Énergie: {power}kJ / s",
+    telescopePillageHelp: "Visez le Vide avec le faisceau et pillez ses richesses! - Énergie: {power}kJ / s",
+    reasonInvalidSelection: "Cette sélection n’est plus disponible.",
+    reasonActionUnavailable: "Cette action n’est pas disponible pour le moment.",
+    miningHelp:
+      "Jusqu'à quatre fusées peuvent extraire de l'antimatière en même temps. Le taux affiché inclut l'extraction des fusées et la production des mégastructures. Maintenez le bouton pour doubler l'extraction des fusées ; cela ne modifie pas la production des mégastructures.",
+    asteroidsHelp:
+      "Cette page répertorie les astéroïdes découverts par le Télescope spatial. Chaque entrée indique sa rareté, sa distance, l'antimatière restante et si elle est utilisée par une fusée ou épuisée. Sélectionnez ici un astéroïde disponible comme destination d'une fusée.",
     miningTitle: "Extraction",
     antimatterLocked:
       "L'antimati\u00e8re se d\u00e9bloque lorsqu'une fus\u00e9e atteint un ast\u00e9ro\u00efde.",
@@ -396,7 +543,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientAntimatter:
       "Antimati\u00e8re insuffisante. Quantit\u00e9 requise : {amount}.",
     title: "Exploitation spatiale",
-    telescopeTitle: "Télescope spatial",
+    telescopeTitle: "Télescope Spatial",
     telescopeDescription:
       "Cherchez des astéroïdes ou étudiez les étoiles. Les études demandent de l’énergie.",
     telescopeCost: "Coût de construction",
@@ -410,9 +557,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     surveyStudying: "Étude en cours",
     surveyPillaging: "Pillage du Vide en cours",
     surveyPowerBlocked: "En pause : le télescope a besoin d’énergie",
-    surveyTimeRemaining: "Temps d’étude restant : {time}",
+    surveyTimeRemaining: "Temps restant : {time}",
     starStudyRange: "Portée de l’étude stellaire",
-    asteroidsTitle: "Astéroïdes découverts",
+    asteroidsTitle: "Astéroïdes",
     asteroidsEmpty: "Aucun astéroïde découvert pour le moment.",
     asteroidRarity: "Rareté",
     rarityCommon: "Commun",
@@ -421,6 +568,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     rarityLegendary: "Légendaire",
     asteroidDistance: "Distance",
     antimatterRemaining: "Antimatière restante",
+    asteroidComplexityHelp:
+      "Complexité - Plus ce nombre est élevé, plus l'extraction d'Antimatière de l'Astéroïde sera lente.",
+    asteroidComplexity: "Complexité",
     autoTitle: "Télescope automatique",
     autoMode: "Action",
     autoDisabled: "Automatisation désactivée",
@@ -449,11 +599,11 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
       "Le boost est disponible uniquement lorsque de l’antimatière est extraite.",
     feedbackBuilt: "Télescope spatial construit.",
     feedbackSurveyStarted: "Étude du télescope commencée.",
+    feedbackPillageStarted: "Le pillage du Vide a commencé.",
     feedbackScanMissed: "Le balayage n’a trouvé aucun astéroïde.",
     feedbackAsteroidFound: "Astéroïde découvert : {name}",
     feedbackAsteroidSelected: "{name} sélectionné.",
     feedbackStudyComplete: "Étude stellaire terminée. Portée : {range}.",
-    feedbackPillageComplete: "Le Vide a été pillé.",
     reasonTechnologyLocked: "Recherchez d’abord Télescopes atmosphériques.",
     reasonTelescopeRequired: "Construisez d’abord un télescope spatial.",
     reasonTelescopeBuilt: "Le télescope spatial est déjà construit.",

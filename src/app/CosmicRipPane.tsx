@@ -12,19 +12,30 @@ import type { GameCommand } from "../engine/commands";
 import { displayCurrency } from "../engine/precision";
 import { selectEconomyAction } from "../engine/selectors";
 import {
+  cosmicRipStabilityProgress,
   cosmicRipTelemetryRate,
   cosmicRipUpgradeCost,
   type CosmicRipFailure,
 } from "../engine/cosmicRip";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
-import { cosmicRipText } from "../i18n/cosmicRipMessages";
+import {
+  cosmicRipObjectiveText,
+  cosmicRipStatusDescription,
+  cosmicRipTechnologyDescription,
+  cosmicRipText,
+  cosmicRipUpgradeDescription,
+} from "../i18n/cosmicRipMessages";
+import { starshipText } from "../i18n/starshipMessages";
 import { formatCurrency } from "./currencyFormatting";
 import { economyGoodName } from "./economyDisplay";
 import type { CosmicRipPaneId } from "./presentationNavigation";
 import { formatNumber } from "./numberFormatting";
 import { formatCountdown } from "./timeFormatting";
 import { CelestialIllustration } from "./CelestialIllustration";
+import { cosmicRipScannerRestoreFailureNotice } from "./cosmicRipEventNotifications";
+import { useGameNotifications } from "./NotificationStack";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface CosmicRipPaneProps {
   readonly state: GameState;
@@ -46,13 +57,95 @@ function cash(state: GameState, value: number): string {
   );
 }
 
+function CosmicRipEndingArtwork() {
+  return (
+    <svg
+      className="cosmic-rip-ending-art"
+      viewBox="0 0 640 180"
+      role="presentation"
+      aria-hidden="true"
+      focusable="false"
+      data-testid="cosmic-rip-ending-art"
+    >
+      <path
+        d="M66 91c66-39 125-53 190-33 30 9 52 22 64 32-12 10-34 23-64 32-65 20-124 6-190-31Z"
+        fill="var(--panel-raised)"
+        stroke="var(--star-color-settled)"
+        strokeWidth="2"
+        opacity=".8"
+      />
+      <path
+        d="M574 91c-66-39-125-53-190-33-30 9-52 22-64 32 12 10 34 23 64 32 65 20 124 6 190-31Z"
+        fill="var(--panel-raised)"
+        stroke="var(--star-color-settled)"
+        strokeWidth="2"
+        opacity=".8"
+      />
+      <ellipse
+        cx="320"
+        cy="90"
+        rx="202"
+        ry="61"
+        fill="none"
+        stroke="var(--accent-bright)"
+        strokeWidth="2"
+        opacity=".72"
+      />
+      <ellipse
+        cx="320"
+        cy="90"
+        rx="157"
+        ry="46"
+        fill="none"
+        stroke="var(--text-color)"
+        strokeWidth="1.5"
+        opacity=".62"
+      />
+      <circle cx="320" cy="90" r="34" fill="var(--accent-soft)" />
+      <path
+        d="m320 43 8 34 28 13-28 13-8 31-8-31-28-13 28-13 8-34Z"
+        fill="var(--ready-text)"
+        stroke="var(--accent-bright)"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <circle cx="320" cy="90" r="8" fill="var(--panel-raised)" />
+      <path
+        d="m131 48 3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Zm376 69 2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Z"
+        fill="var(--text-hover-color)"
+      />
+      <circle cx="214" cy="43" r="2.5" fill="var(--text-color)" />
+      <circle cx="423" cy="137" r="2.5" fill="var(--text-color)" />
+      <circle cx="548" cy="49" r="2" fill="var(--text-hover-color)" />
+      <circle cx="93" cy="125" r="2" fill="var(--text-hover-color)" />
+    </svg>
+  );
+}
+
 export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) {
   const [feedback, setFeedback] = useState("");
+  const notify = useGameNotifications();
   const locale = state.settings.locale;
   const copy = cosmicRipText(locale);
+  const objectiveCopy = cosmicRipObjectiveText(locale);
   const oneGpCost = `${number(state, 1)} ${copy.gpShort}`;
   const progress = state.permanent.cosmicRip;
+  const latestResearchedTechnology = [...COSMIC_RIP_TECHNOLOGIES]
+    .reverse()
+    .find((technology) => progress.researchedTechnologyIds.includes(technology.id));
+  const ripResearchStatus = latestResearchedTechnology
+    ? latestResearchedTechnology.id === "realityWeaveRegulator"
+      ? copy.fullyStabilised
+      : copy.technologyStatusMessages[latestResearchedTechnology.id]
+    : copy.ripFound;
+  const nextObjectiveId = !progress.ripFound
+    ? "scan"
+    : (COSMIC_RIP_TECHNOLOGIES.find(
+        (technology) => !progress.researchedTechnologyIds.includes(technology.id),
+      )?.id ?? "close");
   const rate = cosmicRipTelemetryRate(state);
+  const stability = cosmicRipStabilityProgress(progress);
+  const stabilityText = copy.stabilityPercentage.replace("{percentage}", number(state, stability));
   const affordability = (command: GameCommand) => {
     const result = selectEconomyAction(state, command);
     if (result.enabled) return { enabled: true, reason: null, failureCode: null } as const;
@@ -72,6 +165,14 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
     if (!result.accepted && result.failure) {
       const error = copy.errors[result.failure.code as keyof typeof copy.errors];
       if (error) setFeedback(error);
+      if (command.type === "cosmic-rip.scanner.restore") {
+        const notice = cosmicRipScannerRestoreFailureNotice(locale);
+        notify(notice.message, {
+          classification: notice.classification,
+          type: notice.type,
+          durationMs: notice.durationMs,
+        });
+      }
       return;
     }
     setFeedback("");
@@ -93,10 +194,20 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
       <header className="panel-heading">
         <div>
           <p className="eyebrow">{copy.status}</p>
-          <h2 id="cosmic-rip-title">{copy.title}</h2>
+          <div className="space-mining-title-row">
+            <h2 className="game-page-title" id="cosmic-rip-title">
+              {copy.title}
+            </h2>
+            <InfoTooltip
+              id="cosmic-rip-header-help"
+              label={`${copy.title} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+              content={copy.headerHelp}
+              testId="cosmic-rip-header-help"
+            />
+          </div>
         </div>
       </header>
-      <div className="deep-space-banner">
+      <div className="deep-space-banner page-artwork-row">
         <CelestialIllustration kind="cosmic-rip" />
       </div>
       <p className="cosmic-rip-introduction">{copy.introduction}</p>
@@ -111,27 +222,61 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
           {copy.rate}: <strong>{number(state, rate, 2)}/s</strong>
         </span>
       </div>
+      <div className="cosmic-rip-stability" data-testid="cosmic-rip-stability">
+        <div className="space-mining-title-row">
+          <strong>{copy.stabilityLabel}</strong>
+          <InfoTooltip
+            id="cosmic-rip-stability-help"
+            label={`${copy.stabilityLabel}: ${starshipText(locale, "scanMoreInfoLabel")}`}
+            content={cosmicRipStatusDescription(locale)}
+            testId="cosmic-rip-stability-help"
+          />
+        </div>
+        <output data-testid="cosmic-rip-stability-value">{stabilityText}</output>
+        <progress
+          aria-label={copy.stabilityLabel}
+          value={stability}
+          max={100}
+          data-testid="cosmic-rip-stability-progress"
+        />
+      </div>
 
       <section
         id="panel-cosmic-rip-situation"
         className="cosmic-rip-section"
         role="tabpanel"
-        aria-labelledby="cosmic-rip-situation-title"
+        aria-labelledby="tab-cosmic-rip-situation"
         tabIndex={0}
         hidden={activePane !== "cosmic-rip-situation"}
       >
-        <h3 id="cosmic-rip-situation-title">{copy.situationTitle}</h3>
+        <div className="space-mining-title-row">
+          <h3 id="cosmic-rip-situation-title">{copy.situationTitle}</h3>
+          <InfoTooltip
+            id="cosmic-rip-situation-help"
+            label={`${copy.situationTitle} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+            content={copy.situationHelp}
+            testId="cosmic-rip-situation-help"
+          />
+        </div>
         <p>
           {progress.closed
             ? copy.closed
             : progress.ripFound
-              ? copy.ripFound
+              ? ripResearchStatus
               : progress.scannerRestored
                 ? progress.scannedSectorIndexes.length > 0
                   ? copy.ripMissing
                   : copy.scanInstruction
                 : copy.scannerArrayTitle}
         </p>
+        {progress.scannerRestored && (
+          <p className="cosmic-rip-next-objective" data-testid="cosmic-rip-next-objective">
+            <span data-testid="cosmic-rip-next-objective-label">{objectiveCopy.label}</span>
+            <span className="green-ready-text" data-testid="cosmic-rip-next-objective-text">
+              {objectiveCopy.objectives[nextObjectiveId]}
+            </span>
+          </p>
+        )}
         {!progress.scannerRestored ? (
           <div className="cosmic-rip-control">
             <button
@@ -157,11 +302,19 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
         id="panel-cosmic-rip-scanner-array"
         className="cosmic-rip-section"
         role="tabpanel"
-        aria-labelledby="cosmic-rip-scan-title"
+        aria-labelledby="tab-cosmic-rip-scanner-array"
         tabIndex={0}
         hidden={activePane !== "cosmic-rip-scanner-array"}
       >
-        <h3 id="cosmic-rip-scan-title">{copy.scannerArrayTitle}</h3>
+        <div className="space-mining-title-row">
+          <h3 id="cosmic-rip-scan-title">{copy.scannerArrayTitle}</h3>
+          <InfoTooltip
+            id="cosmic-rip-scanner-array-help"
+            label={`${copy.scannerArrayTitle} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+            content={copy.scannerArrayHelp}
+            testId="cosmic-rip-scanner-array-help"
+          />
+        </div>
         {progress.scannerRestored ? (
           <>
             <p>{copy.scannerRestored}</p>
@@ -220,11 +373,10 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
         id="panel-cosmic-rip-rip"
         className="cosmic-rip-section"
         role="tabpanel"
-        aria-labelledby="cosmic-rip-page-title"
+        aria-labelledby="tab-cosmic-rip-rip"
         tabIndex={0}
         hidden={activePane !== "cosmic-rip-rip"}
       >
-        <h3 id="cosmic-rip-page-title">{copy.title}</h3>
         {progress.scannerRestored && progress.ripFound && !progress.closed ? (
           <>
             <section className="cosmic-rip-section" aria-labelledby="cosmic-rip-upgrades-title">
@@ -245,9 +397,17 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                     .join(" + ");
                   return (
                     <article className="cosmic-rip-upgrade" key={upgradeId}>
-                      <h4>
-                        {copy.upgradeNames[upgradeId]} <small>×{owned}</small>
-                      </h4>
+                      <div className="cosmic-rip-upgrade-title-row">
+                        <h4>
+                          {copy.upgradeNames[upgradeId]} <small>×{owned}</small>
+                        </h4>
+                        <InfoTooltip
+                          id={`cosmic-rip-upgrade-${upgradeId}-help`}
+                          label={`${copy.upgradeNames[upgradeId]}: ${starshipText(locale, "scanMoreInfoLabel")}`}
+                          content={cosmicRipUpgradeDescription(locale, upgradeId)}
+                          testId={`cosmic-rip-upgrade-${upgradeId}-help`}
+                        />
+                      </div>
                       <p>
                         +{number(state, definition.telemetryPerSecond, 2)} {copy.rate}
                       </p>
@@ -275,7 +435,15 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
             </section>
 
             <section className="cosmic-rip-section" aria-labelledby="cosmic-rip-tech-title">
-              <h3 id="cosmic-rip-tech-title">{copy.technologies}</h3>
+              <div className="space-mining-title-row">
+                <h3 id="cosmic-rip-tech-title">{copy.technologies}</h3>
+                <InfoTooltip
+                  id="cosmic-rip-technologies-help"
+                  label={`${copy.technologies} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  content={copy.technologyHelp}
+                  testId="cosmic-rip-technologies-help"
+                />
+              </div>
               <div className="cosmic-rip-technologies">
                 {techCommands.map(({ technology, command }) => {
                   const done = progress.researchedTechnologyIds.includes(technology.id);
@@ -299,13 +467,21 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                       key={technology.id}
                       data-testid={`cosmic-rip-technology-${technology.id}`}
                     >
-                      <h4>{copy.technologyNames[technology.id]}</h4>
+                      <div className="cosmic-rip-technology-title-row">
+                        <h4>{copy.technologyNames[technology.id]}</h4>
+                        <InfoTooltip
+                          id={`cosmic-rip-technology-${technology.id}-help`}
+                          label={`${copy.technologyNames[technology.id]}: ${starshipText(locale, "scanMoreInfoLabel")}`}
+                          content={cosmicRipTechnologyDescription(locale, technology.id)}
+                          testId={`cosmic-rip-technology-${technology.id}-help`}
+                        />
+                      </div>
                       <p>
                         {number(state, technology.telemetryCost)} {copy.telemetry} ·{" "}
                         {number(state, technology.durationMs / 1000)} s · {oneGpCost}
                       </p>
                       {done ? (
-                        <p>{copy.researched}</p>
+                        <p>{copy.technologyStatusMessages[technology.id]}</p>
                       ) : active ? (
                         <>
                           <p>{copy.researching}</p>
@@ -376,9 +552,12 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
               })()}
           </>
         ) : progress.closed ? (
-          <output className="cosmic-rip-closed cosmic-rip-status" data-testid="cosmic-rip-closed">
-            {copy.closed}
-          </output>
+          <div className="cosmic-rip-closed-state">
+            <CosmicRipEndingArtwork />
+            <output className="cosmic-rip-closed cosmic-rip-status" data-testid="cosmic-rip-closed">
+              {copy.closed}
+            </output>
+          </div>
         ) : (
           <p>{progress.ripFound ? copy.ripFound : copy.scanInstruction}</p>
         )}

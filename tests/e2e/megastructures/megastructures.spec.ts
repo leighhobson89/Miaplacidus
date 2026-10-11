@@ -1,7 +1,67 @@
+import { createRequire } from "node:module";
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
-import { MEGASTRUCTURE_TRACKS } from "../../../src/content/technology";
+import type { GameState } from "../../../src/engine/state";
+import { canonicalJson, makeEnvelope, type SaveEnvelopeV1 } from "../../../src/persistence/schema";
+import {
+  MEGASTRUCTURE_IDS,
+  MEGASTRUCTURE_TECHNOLOGY_IDS,
+  MEGASTRUCTURE_TRACKS,
+  TECHNOLOGY_CATALOG,
+} from "../../../src/content/technology";
+import { LOCALE_IDS } from "../../../src/content/ids";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import { economyLabel } from "../../../src/i18n/economyMessages";
+import { miaplacidusStoryText } from "../../../src/i18n/miaplacidusStoryMessages";
+import { starshipText } from "../../../src/i18n/starshipMessages";
+import { THEME_IDS } from "../../../src/content/themes";
+import {
+  megastructureStageProgress,
+  megastructureText,
+} from "../../../src/i18n/megastructureMessages";
+import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
+import { setNumberNotation } from "../_harness/settings-controls";
+
+type StoredEntry = readonly [string, string];
+
+const { compressToUTF16, decompressFromUTF16 } = createRequire(import.meta.url)(
+  "lz-string",
+) as typeof import("lz-string");
+
+function saveWithPendingHomecomingStory(entries: readonly StoredEntry[]): StoredEntry[] {
+  const values = new Map(entries);
+  const slotId = values.get("miaplacidus:v1:lastStartedSlot");
+  if (!slotId) throw new Error("The story test save was not marked as the latest save.");
+  const commitId = values.get(`miaplacidus:v1:head:${slotId}`);
+  if (!commitId) throw new Error("The story test save has no committed generation.");
+  const payloadKey = `miaplacidus:v1:slot:${slotId}:${commitId}`;
+  const payload = values.get(payloadKey);
+  if (!payload) throw new Error("The story test save payload could not be read.");
+  const decoded = decompressFromUTF16(payload);
+  if (!decoded) throw new Error("The story test save payload could not be decompressed.");
+  const envelope = JSON.parse(decoded) as SaveEnvelopeV1;
+  const state: GameState = {
+    ...envelope.state,
+    permanent: {
+      ...envelope.state.permanent,
+      megastructures: {
+        ...envelope.state.permanent.megastructures,
+        miaplacidusStoryPending: true,
+      },
+    },
+  };
+  const updated = makeEnvelope({
+    slotId,
+    pioneerName: envelope.pioneerName,
+    createdAt: envelope.createdAt,
+    savedAt: Math.max(Date.now(), envelope.savedAt),
+    revision: envelope.revision + 1,
+    state,
+  });
+  values.set(payloadKey, compressToUTF16(canonicalJson(updated)));
+  return [...values.entries()];
+}
 
 test("reveals Rebirth after a destination scan without changing the selected page @ui-navigation @galactic", async ({
   page,
@@ -69,10 +129,7 @@ test("reveals Rebirth after a destination scan without changing the selected pag
     .toBe(1);
 
   await expect(page.locator("#tab-interstellar")).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#tab-interstellar-starship")).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(page.locator("#tab-interstellar-starship")).toHaveAttribute("aria-selected", "true");
   // This route has already awarded Ascendency Points this run, so Colonise
   // remains correctly gated while the independent Rebirth gate opens.
   await expect(page.locator("#tab-interstellar-colonise")).toHaveCount(0);
@@ -88,10 +145,18 @@ test("reveals Rebirth after a destination scan without changing the selected pag
   expect(galacticChildIds[1]).toBe("tab-galactic-market");
 });
 
-test("opens Miaplacidus and completes its homecoming story through the player route @megastructures", async ({
+test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated tabs @megastructures @cosmic-rip @ui-navigation @p28-artwork-review", async ({
   page,
 }, testInfo) => {
   await startMetaFixture(page, "meta-megastructure-route");
+  await page.evaluate(() =>
+    window.miaplacidusTest!.runScenario("late-game-homecoming-continuation"),
+  );
+  const continuationState = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(continuationState.run.space.ascendencyAwardedThisRun).toBe(false);
+  expect(continuationState.permanent.megastructures.researchedTechnologyIds).toContain(
+    MEGASTRUCTURE_TRACKS.galacticMemoryArchive[1],
+  );
   await page.getByRole("tab", { name: "Galactic" }).click();
   await page.getByRole("tab", { name: "Megastructures" }).click();
 
@@ -115,7 +180,7 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
   const stageFourReasonId = await stageFourButton.getAttribute("aria-describedby");
   expect(stageFourReasonId).toBeTruthy();
   await expect(page.locator(`#${stageFourReasonId}`)).toHaveText(
-    "Requires 200,000 RP; short by 50,000 RP.",
+    "Requires 200K RP; short by 50K RP.",
   );
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
@@ -127,7 +192,7 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
     .getByRole("button", { name: "Set as destination" })
     .click();
 
-  await page.getByRole("tab", { name: "Starship construction" }).click();
+  await page.getByRole("tab", { name: "Starship" }).click();
   const starship = page.getByTestId("starship-pane");
   await starship.getByRole("button", { name: "Launch starship" }).click();
   await page
@@ -145,8 +210,12 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.starship.phase))
     .toBe("orbiting");
-  await page.locator("#tab-interstellar-colonise").click();
+  // Colonise is gated until the destination has been scanned.
+  await expect(page.locator("#tab-interstellar-colonise")).toHaveCount(0);
   await starship.getByTestId("starship-scan-system-button").click();
+  const coloniseTab = page.locator("#tab-interstellar-colonise");
+  await expect(coloniseTab).toBeVisible();
+  await coloniseTab.click();
   await starship.getByTestId("starship-enter-war-button").click();
   await starship.getByTestId("starship-battle-engage-button").click();
 
@@ -179,14 +248,129 @@ test("opens Miaplacidus and completes its homecoming story through the player ro
 
   const story = page.getByTestId("miaplacidus-endgame-story");
   for (let pageNumber = 0; pageNumber < 4; pageNumber += 1) {
-    await expect(story.getByText(`Chapter ${pageNumber + 1} of 4`)).toBeVisible();
-    await story.getByRole("button", { name: "Continue" }).click();
+    for (const locale of LOCALE_IDS) {
+      await page.evaluate((nextLocale) => {
+        window.miaplacidusTest!.dispatch({
+          type: "settings.update",
+          patch: { locale: nextLocale },
+        });
+      }, locale);
+      const localizedStory = miaplacidusStoryText(locale);
+      const chapterText = localizedStory.pages[pageNumber]!;
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(page.getByTestId("starship-feedback")).toHaveText(
+        starshipText(locale, "settlementComplete"),
+      );
+      await expect(
+        story.getByRole("heading", { name: localizedStory.title, exact: true }),
+      ).toBeVisible();
+      await expect(
+        story.getByText(
+          localizedStory.page
+            .replace("{current}", String(pageNumber + 1))
+            .replace("{total}", String(localizedStory.pages.length)),
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(story.locator("#miaplacidus-story-page")).toHaveText(chapterText);
+      await expect(
+        story.getByRole("button", { name: localizedStory.continue, exact: true }),
+      ).toBeVisible();
+    }
+    for (const themeId of THEME_IDS) {
+      for (const viewport of [
+        { width: 1280, height: 720 },
+        { width: 390, height: 844 },
+      ] as const) {
+        await page.setViewportSize(viewport);
+        await page.evaluate((nextTheme) => {
+          window.miaplacidusTest!.dispatch({
+            type: "settings.update",
+            patch: { locale: "en", themeId: nextTheme },
+          });
+        }, themeId);
+        await expect(page.locator("html")).toHaveAttribute("lang", "en");
+        await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+        const scene = story.locator(`.miaplacidus-story-scene.scene-${pageNumber + 1}`);
+        await expect(scene).toBeVisible();
+        await expect(scene).toHaveAttribute("aria-hidden", "true");
+        const sceneBounds = await scene.evaluate((element) => {
+          const sceneRect = element.getBoundingClientRect();
+          const dialogRect = element.closest("dialog")!.getBoundingClientRect();
+          const frame = document.querySelector(".game-frame")!;
+          const world = element.querySelector<HTMLElement>(".miaplacidus-story-world")!;
+          return {
+            viewportWidth: window.innerWidth,
+            documentWidth: document.documentElement.scrollWidth,
+            width: sceneRect.width,
+            height: sceneRect.height,
+            insideDialog:
+              sceneRect.left >= dialogRect.left &&
+              sceneRect.right <= dialogRect.right &&
+              sceneRect.top >= dialogRect.top &&
+              sceneRect.bottom <= dialogRect.bottom,
+            panelColor: getComputedStyle(frame).getPropertyValue("--bg-color").trim(),
+            sceneBackground: getComputedStyle(element).backgroundColor,
+            sceneBorder: getComputedStyle(element).borderColor,
+            worldColor: getComputedStyle(world).backgroundImage,
+          };
+        });
+        expect(sceneBounds.documentWidth).toBeLessThanOrEqual(sceneBounds.viewportWidth);
+        expect(sceneBounds.width).toBeGreaterThan(0);
+        expect(sceneBounds.height).toBeGreaterThan(0);
+        expect(sceneBounds.insideDialog).toBe(true);
+        expect(sceneBounds.panelColor).not.toBe("");
+        expect(sceneBounds.sceneBackground).not.toBe("");
+        expect(sceneBounds.sceneBorder).not.toBe("");
+        expect(sceneBounds.worldColor).not.toBe("none");
+
+        const representativeTheme = ["terminal", "light", "supernova", "space"][pageNumber]!;
+        const representativeWidth = pageNumber % 2 === 0 ? 1280 : 390;
+        if (themeId === representativeTheme && viewport.width === representativeWidth) {
+          const name = `p28-endgame-scene-${pageNumber + 1}-${themeId}-${viewport.width}.png`;
+          const artworkCapture = await page.screenshot({
+            path: testInfo.outputPath(name),
+            animations: "disabled",
+          });
+          await testInfo.attach(name, {
+            body: artworkCapture,
+            contentType: "image/png",
+          });
+        }
+      }
+    }
+    await story
+      .getByRole("button", { name: miaplacidusStoryText("en").continue, exact: true })
+      .click();
   }
   await expect(story).toHaveCount(0);
   const completed = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(completed.permanent.megastructures.miaplacidusStoryPending).toBe(false);
   expect(completed.permanent.megastructures.miaplacidusStoryShown).toBe(true);
+  await page.evaluate(() => {
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { locale: "en", themeId: "terminal" },
+    });
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await captureVisualCheckpoint(page, testInfo, "miaplacidus-homecoming-complete");
+  const cosmicRipTab = page.locator("#tab-cosmic-rip");
+  expect(completed.permanent.cosmicRip.unlocked).toBe(true);
+  expect(completed.permanent.cosmicRip.scannerRestored).toBe(false);
+  expect(completed.permanent.cosmicRip.ripFound).toBe(false);
+
+  await expect(cosmicRipTab).toBeVisible();
+  await cosmicRipTab.click();
+  const cosmicRipPanel = page.locator("#pane-cosmic-rip");
+  const cosmicRipChildTabs = cosmicRipPanel
+    .getByRole("navigation", { name: "Pages in this section" })
+    .getByRole("tab");
+  await expect(cosmicRipChildTabs).toHaveCount(1);
+  await expect(cosmicRipChildTabs).toHaveAttribute("id", "tab-cosmic-rip-situation");
+  await expect(page.locator("#tab-cosmic-rip-scanner-array")).toHaveCount(0);
+  await expect(page.locator("#tab-cosmic-rip-rip")).toHaveCount(0);
 });
 
 test("explains and associates missing technology and factory location gates @megastructures @megastructure-guidance", async ({
@@ -235,5 +419,116 @@ test("shows the research point requirement and shortfall for a disabled next sta
   await expect(nextStageButton).toBeDisabled();
   const reasonId = await nextStageButton.getAttribute("aria-describedby");
   expect(reasonId).toBeTruthy();
-  await expect(page.locator(`#${reasonId}`)).toHaveText("Requires 200,000 RP; short by 50,000 RP.");
+  await expect(page.locator(`#${reasonId}`)).toHaveText("Requires 200K RP; short by 50K RP.");
+});
+
+test("P-41 formats visible Megastructure and Tech Tree counts in every notation @p41-count-notation", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-megastructure-route");
+  const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const settledSystemIds = new Set(state.permanent.settledSystemIds);
+  const capturedCount = new Set(
+    state.permanent.megastructures.ancientManuscripts
+      .filter((record) => settledSystemIds.has(record.factorySystemId))
+      .map((record) => record.megastructureId),
+  ).size;
+  const researchedMegastructureTechs = new Set(
+    state.permanent.megastructures.researchedTechnologyIds,
+  );
+  const forceFieldCount = MEGASTRUCTURE_IDS.filter((id) =>
+    researchedMegastructureTechs.has(MEGASTRUCTURE_TRACKS[id][2]!),
+  ).length;
+  const researchedStandardCount = state.run.economy.researchedTechnologies.filter(
+    (id) => !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(id),
+  ).length;
+  const standardTechnologyCount = TECHNOLOGY_CATALOG.filter(
+    ({ id }) => !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(id),
+  ).length;
+  const visibleStandardCount = TECHNOLOGY_CATALOG.filter(
+    ({ id }) =>
+      !MEGASTRUCTURE_TECHNOLOGY_IDS.includes(id) &&
+      state.run.economy.revealedTechnologies.includes(id),
+  ).length;
+
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await expect
+      .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notation))
+      .toBe(notation);
+
+    const globalProgress = page
+      .getByTestId("global-stat-megastructure-progress")
+      .locator(".top-stat-value");
+    await expect(globalProgress).toHaveText(
+      `${formatNumber("en", capturedCount, 0, notation)}/${formatNumber("en", MEGASTRUCTURE_IDS.length, 0, notation)}`,
+    );
+
+    await page.locator("#tab-galaxy").click();
+    await page.locator("#tab-galactic-megastructures").click();
+    const megastructures = page.getByTestId("megastructure-pane");
+    const forceFieldCopy =
+      megastructureText("en")[forceFieldCount >= 4 ? "forceFieldCleared" : "forceField"];
+    await expect(megastructures.getByTestId("megastructure-force-field")).toHaveText(
+      forceFieldCopy
+        .replace("{level}", formatNumber("en", forceFieldCount, 0, notation))
+        .replace("{total}", formatNumber("en", MEGASTRUCTURE_IDS.length, 0, notation)),
+    );
+
+    for (const id of MEGASTRUCTURE_IDS) {
+      const completedStageCount = MEGASTRUCTURE_TRACKS[id].filter((technologyId) =>
+        researchedMegastructureTechs.has(technologyId),
+      ).length;
+      await expect(
+        megastructures.getByTestId(`megastructure-track-${id}`).locator("p").first(),
+      ).toHaveText(
+        megastructureStageProgress("en", completedStageCount, 5, (value) =>
+          formatNumber("en", value, 0, notation),
+        ),
+      );
+    }
+
+    await page.locator("#tab-research").click();
+    await page.locator("#tab-research-tech-tree").click();
+    const treeSummary = page.locator("#panel-research-tech-tree .economy-section-heading p");
+    await expect(treeSummary).toHaveText(
+      `${formatNumber("en", researchedStandardCount, 2, notation)} / ${formatNumber("en", standardTechnologyCount, 2, notation)} ${economyLabel("en", "researched")} · ${formatNumber("en", visibleStandardCount, 2, notation)} ${economyLabel("en", "shown")}`,
+    );
+  }
+});
+
+test("returns focus to Cosmic Rip after the forced homecoming story @p16-focus", async ({
+  freshGame,
+}) => {
+  await saveNowFromSettings(freshGame);
+  const storedEntries = await freshGame.evaluate(() => {
+    const entries: StoredEntry[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith("miaplacidus:v1:")) continue;
+      const value = localStorage.getItem(key);
+      if (value !== null) entries.push([key, value]);
+    }
+    return entries;
+  });
+  const storyPendingEntries = saveWithPendingHomecomingStory(storedEntries);
+  await freshGame.evaluate((entries) => {
+    for (const [key, value] of entries) localStorage.setItem(key, value);
+  }, storyPendingEntries);
+  await freshGame.reload();
+  await resumeSavedPioneer(freshGame, "Hydrogen Pioneer");
+
+  const story = freshGame.getByTestId("miaplacidus-endgame-story");
+  const continueButton = story.getByRole("button", { name: "Continue" });
+  await expect(story).toBeVisible();
+  await expect(continueButton).toBeFocused();
+  await freshGame.keyboard.press("Escape");
+  await expect(story).toBeVisible();
+  await expect(continueButton).toBeFocused();
+
+  for (let chapter = 0; chapter < 4; chapter += 1) await continueButton.click();
+  await expect(story).toHaveCount(0);
+  const cosmicRipTab = freshGame.locator("#tab-cosmic-rip");
+  await expect(cosmicRipTab).toBeVisible();
+  await expect(cosmicRipTab).toBeFocused();
 });

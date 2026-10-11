@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION,
   MAX_VISIBLE_NOTIFICATION_CLASSIFICATIONS,
   NotificationScheduler,
 } from "../../src/app/notificationScheduler";
@@ -59,15 +60,44 @@ describe("NotificationScheduler", () => {
     expect(scheduler.snapshot().map((item) => item.id)).toEqual([1, 2]);
   });
 
-  it("promotes every queued multi-card notice when its category becomes visible", () => {
+  it("caps every multi-card category at four and promotes queued cards as slots open", () => {
+    expect(MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION).toBe(4);
+    for (const classification of ["storage", "debug", "achievement"]) {
+      const scheduler = new NotificationScheduler<Notice>(1);
+      for (let id = 1; id <= 6; id += 1) scheduler.enqueue(notice(id, classification));
+
+      expect(scheduler.snapshot().map((item) => item.id)).toEqual([1, 2, 3, 4]);
+      expect(scheduler.dismiss(classification, 2).map((item) => item.id)).toEqual([5]);
+      expect(scheduler.snapshot().map((item) => item.id)).toEqual([1, 3, 4, 5]);
+      expect(scheduler.dismiss(classification, 1).map((item) => item.id)).toEqual([6]);
+      expect(scheduler.snapshot().map((item) => item.id)).toEqual([3, 4, 5, 6]);
+    }
+  });
+
+  it("caps queued multi-card notices when their category becomes visible", () => {
     const scheduler = new NotificationScheduler<Notice>(1);
 
     scheduler.enqueue(notice(1, "tech"));
-    scheduler.enqueue(notice(2, "achievement"));
-    scheduler.enqueue(notice(3, "achievement"));
+    for (let id = 2; id <= 7; id += 1) scheduler.enqueue(notice(id, "achievement"));
 
     expect(scheduler.snapshot().map((item) => item.id)).toEqual([1]);
-    expect(scheduler.dismiss("tech", 1).map((item) => item.id)).toEqual([2, 3]);
-    expect(scheduler.snapshot().map((item) => item.id)).toEqual([2, 3]);
+    expect(scheduler.dismiss("tech", 1).map((item) => item.id)).toEqual([2, 3, 4, 5]);
+    expect(scheduler.snapshot().map((item) => item.id)).toEqual([2, 3, 4, 5]);
+    expect(scheduler.dismiss("achievement", 3).map((item) => item.id)).toEqual([6]);
+    expect(scheduler.snapshot().map((item) => item.id)).toEqual([2, 4, 5, 6]);
+  });
+
+  it("clears visible and queued notices when notifications are turned off", () => {
+    const scheduler = new NotificationScheduler<Notice>(1);
+
+    scheduler.enqueue(notice(1, "tech"));
+    scheduler.enqueue(notice(2, "weather"));
+    expect(scheduler.snapshot().map((item) => item.id)).toEqual([1]);
+
+    scheduler.clear();
+    expect(scheduler.snapshot()).toEqual([]);
+    scheduler.enqueue(notice(3, "fuse"));
+    expect(scheduler.dismiss("fuse", 3)).toEqual([]);
+    expect(scheduler.snapshot()).toEqual([]);
   });
 });

@@ -14,9 +14,10 @@ export function hydrogenAutobuyerCount(
 }
 
 /** The source raises each next price by 13% and rounds each step upward. */
-export function hydrogenAutobuyerPrice(owned: number): number {
+export function hydrogenAutobuyerPrice(owned: number, initialPriceMultiplier = 1): number {
   if (!Number.isSafeInteger(owned) || owned < 0) return Number.POSITIVE_INFINITY;
-  let price = HYDROGEN_AUTOBUYER_INITIAL_PRICE;
+  let price = HYDROGEN_AUTOBUYER_INITIAL_PRICE * initialPriceMultiplier;
+  if (!Number.isFinite(price) || price < 0) return Number.POSITIVE_INFINITY;
   for (let index = 0; index < owned; index += 1) {
     price = Math.ceil(price * HYDROGEN_AUTOBUYER_PRICE_MULTIPLIER);
     if (!Number.isFinite(price)) return Number.POSITIVE_INFINITY;

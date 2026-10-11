@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
 import { COMPOUND_IDS, GALAXY_SEED_DEFAULT, MATERIAL_IDS } from "../content/ids";
 import { ROCKET_IDS, ROCKET_PART_REQUIREMENTS } from "../content/space";
 import { RANDOM_EVENT_IDS } from "../content/metaSignals";
 import { COSMIC_RIP_SECTOR_COUNT, COSMIC_RIP_TECHNOLOGIES } from "../content/cosmicRip";
+import { ENERGY_BUILDINGS } from "../content/economy";
 import { createStarCatalogue } from "../content/starCatalogue";
 import type { GameState } from "../engine/state";
 import { createEconomyTickPlan } from "../engine/economySimulation";
@@ -14,7 +16,6 @@ import {
   themeName,
   type SettingsStatisticId,
 } from "../i18n/settingsMessages";
-import { randomEventName } from "../i18n/metaSignalMessages";
 import { energyStatisticLabel, type EnergyStatisticId } from "../i18n/energyStatisticsMessages";
 import {
   cosmicRipTrackingNote,
@@ -22,13 +23,20 @@ import {
   eventTrackingNote,
   overviewStatisticLabel,
   runStatisticLabel,
+  statisticsEventLabel,
+  statisticsText,
   statisticsNotApplicableLabel,
 } from "../i18n/statisticsMessages";
 import { topStatusText } from "../i18n/topStatusMessages";
 import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
 import { formatDuration } from "./timeFormatting";
-import { selectInterstellarStatistics, selectRunApAnticipated } from "../engine/selectors";
+import { WeatherIcon } from "./TopStatusBar";
+import {
+  selectInterstellarStatistics,
+  selectRunApAnticipated,
+  selectStatisticsUnlockedTechnologyCount,
+} from "../engine/selectors";
 import {
   compoundPaneItems,
   cosmicRipPaneItems,
@@ -50,7 +58,7 @@ type StatisticsDisplayRow =
   | {
       readonly id?: string;
       readonly label: string;
-      readonly value: string;
+      readonly value: ReactNode;
       readonly ownerPaneId?: string;
     }
   | {
@@ -86,6 +94,7 @@ export function SettingsStatisticsPane({
   const energyPlan = createEconomyTickPlan(state);
   const interstellar = selectInterstellarStatistics(state);
   const technologies = state.run.economy.researchedTechnologies;
+  const unlockedTechnologyCount = selectStatisticsUnlockedTechnologyCount(state);
   const energyUnlocked = technologies.includes("basicPowerGeneration");
   const compoundsUnlocked = technologies.includes("compounds");
   const spaceMiningUnlocked = technologies.includes("atmosphericTelescopes");
@@ -154,9 +163,26 @@ export function SettingsStatisticsPane({
     heavyRain: topStatusText(locale, "weatherHeavyRain"),
     volcano: topStatusText(locale, "weatherVolcano"),
   }[currentWeather];
+  const currentWeatherValue = (
+    <span
+      className="star-data-weather-display"
+      role="img"
+      aria-label={weatherLabel}
+      title={weatherLabel}
+    >
+      <span className={`weather-symbol weather-symbol-${currentWeather}`}>
+        <WeatherIcon weather={currentWeather} />
+      </span>
+    </span>
+  );
   const rocketsBuiltThisRun = ROCKET_IDS.filter(
     (id) => state.run.space.rockets[id].builtParts >= ROCKET_PART_REQUIREMENTS[id],
   ).length;
+  const pendingSettledDestinationId = state.run.space.starship.destinationSystemId;
+  const pendingSettledDestination =
+    state.run.space.ascendencyAwardedThisRun &&
+    pendingSettledDestinationId !== null &&
+    state.permanent.settledSystemIds.includes(pendingSettledDestinationId);
   const runRows: readonly StatisticsDisplayRow[] = [
     valueRow(
       "runTime",
@@ -172,7 +198,7 @@ export function SettingsStatisticsPane({
     valueRow(
       "currentWeather",
       runStatisticLabel(locale, "currentWeather"),
-      weatherLabel,
+      currentWeatherValue,
       "interstellar-star-map",
     ),
     valueRow("cash", runStatisticLabel(locale, "cash"), money(state.run.cash), "galactic-market"),
@@ -198,7 +224,7 @@ export function SettingsStatisticsPane({
     statRow("researchPool", statNumber(state.run.researchPoints), "research-science-buildings"),
     statRow("resourceStock", statNumber(totalResources)),
     statRow("compoundStock", statNumber(totalCompounds)),
-    statRow("energyStored", statNumber(state.run.economy.power.quantity), "energy-storage"),
+    statRow("energyStored", statNumber(state.run.economy.power.quantity), "energy-summary"),
     statRow("recordedEvents", statNumber(state.run.randomEvents.history.length), "settings-events"),
     statRow(
       "unlockedAchievements",
@@ -218,15 +244,16 @@ export function SettingsStatisticsPane({
       formatDuration(locale, state.statistics.lifetimeActiveMs, state.settings.notation),
     ),
     statRow("pioneer", state.run.pioneerName),
-    statRow(
+    valueRow(
       "ascendencyPoints",
+      overviewStatisticLabel(locale, "currentAp"),
       statNumber(state.permanent.ascendencyPoints),
       "galactic-ascendency-perks",
     ),
     valueRow(
       "apGain",
       overviewStatisticLabel(locale, "apGain"),
-      statNumber(state.statistics.lifetimeAscendencyPointsGained),
+      statNumber(state.statistics.lifetimeSourceApGain),
       "galactic-ascendency-perks",
     ),
     statRow("runNumber", statNumber(state.permanent.rebirthCount + 1), "galactic-rebirth"),
@@ -239,7 +266,7 @@ export function SettingsStatisticsPane({
     valueRow(
       "tickerPrizes",
       overviewStatisticLabel(locale, "tickerPrizes"),
-      statNumber(state.run.newsTicker.claimedPrizeIds.length),
+      statNumber(state.statistics.lifetimeNewsTickerPrizeClaims),
       "settings-events",
     ),
     valueRow(
@@ -279,16 +306,24 @@ export function SettingsStatisticsPane({
     ),
   ];
   const spaceMiningRows: readonly StatisticsDisplayRow[] = [
-    statRow(
-      "spaceTelescopeBuilt",
-      settingsStatisticLabel(locale, state.run.space.telescopeBuilt ? "yes" : "no"),
-      "space-mining-telescope",
-    ),
-    statRow(
-      "launchPadBuilt",
-      settingsStatisticLabel(locale, state.run.space.launchPadBuilt ? "yes" : "no"),
-      "space-mining-launch-pad",
-    ),
+    {
+      id: "spaceTelescopeBuilt",
+      label: settingsStatisticLabel(locale, "spaceTelescopeBuilt"),
+      currentRun: settingsStatisticLabel(locale, state.run.space.telescopeBuilt ? "yes" : "no"),
+      lifetime: statisticsNotApplicableLabel(locale),
+      ...(availableOwnerPaneIds.has("space-mining-telescope")
+        ? { ownerPaneId: "space-mining-telescope" }
+        : {}),
+    },
+    {
+      id: "launchPadBuilt",
+      label: settingsStatisticLabel(locale, "launchPadBuilt"),
+      currentRun: settingsStatisticLabel(locale, state.run.space.launchPadBuilt ? "yes" : "no"),
+      lifetime: statisticsNotApplicableLabel(locale),
+      ...(availableOwnerPaneIds.has("space-mining-launch-pad")
+        ? { ownerPaneId: "space-mining-launch-pad" }
+        : {}),
+    },
     {
       id: "rocketsBuilt",
       label: settingsStatisticLabel(locale, "rocketsBuilt"),
@@ -301,7 +336,7 @@ export function SettingsStatisticsPane({
     {
       id: "asteroidsFound",
       label: settingsStatisticLabel(locale, "asteroidsFound"),
-      currentRun: statNumber(state.run.space.nextAsteroidSequence - 1),
+      currentRun: statNumber(state.run.space.asteroids.length),
       lifetime: statNumber(state.statistics.lifetimeAsteroidsDiscovered),
       ...(availableOwnerPaneIds.has("space-mining-asteroids")
         ? { ownerPaneId: "space-mining-asteroids" }
@@ -346,17 +381,19 @@ export function SettingsStatisticsPane({
       lifetime: statNumber(state.statistics.lifetimeScienceLabsBuilt),
       ownerPaneId: "research-science-buildings",
     },
-    statRow(
-      "techsUnlocked",
-      statNumber(state.run.economy.researchedTechnologies.length),
-      "research-tech-tree",
-    ),
+    {
+      id: "techsUnlocked",
+      label: settingsStatisticLabel(locale, "techsUnlocked"),
+      currentRun: statNumber(unlockedTechnologyCount),
+      lifetime: statNumber(unlockedTechnologyCount),
+      ownerPaneId: "research-tech-tree",
+    },
   ];
   const energyUnavailable = energyStatisticLabel(locale, "notApplicable");
   const energyCurrentRow = (
     id: EnergyStatisticId,
     value: string,
-    ownerPaneId = "energy-storage",
+    ownerPaneId = "energy-summary",
   ): StatisticsDisplayRow => ({
     id,
     label: energyStatisticLabel(locale, id),
@@ -368,7 +405,7 @@ export function SettingsStatisticsPane({
     id: EnergyStatisticId,
     currentRun: number,
     lifetime: number,
-    ownerPaneId = "energy-storage",
+    ownerPaneId = "energy-summary",
   ): StatisticsDisplayRow => ({
     id,
     label: energyStatisticLabel(locale, id),
@@ -377,23 +414,43 @@ export function SettingsStatisticsPane({
     ...(availableOwnerPaneIds.has(ownerPaneId) ? { ownerPaneId } : {}),
   });
   const power = state.run.economy.power;
+  const nominalEnergyProductionPerSecond = Math.floor(
+    ENERGY_BUILDINGS.powerPlant1.ratePerSecond * (state.run.upgrades.powerPlant1 ?? 0) +
+      ENERGY_BUILDINGS.powerPlant2.ratePerSecond * (state.run.upgrades.powerPlant2 ?? 0) +
+      ENERGY_BUILDINGS.powerPlant3.ratePerSecond * (state.run.upgrades.powerPlant3 ?? 0),
+  );
   const energyRows: readonly StatisticsDisplayRow[] = [
     energyCurrentRow(
       "powerCurrent",
       topStatusText(locale, power.tripped ? "trippedShort" : power.gridEnabled ? "on" : "off"),
     ),
-    energyCurrentRow("totalEnergy", `${statNumber(power.quantity)} kJ`),
+    energyCurrentRow(
+      "totalEnergy",
+      power.infinitePower
+        ? "∞ DYSON ∞"
+        : `${statNumber(
+            power.gridEnabled && !power.tripped
+              ? Math.floor(
+                  energyPlan.generationPerSecond - energyPlan.statisticsConsumptionPerSecond,
+                )
+              : 0,
+          )} kJ/s`,
+    ),
     energyCurrentRow(
       "totalProduction",
-      `${statNumber(Math.floor(energyPlan.generationPerSecond))} kJ/s`,
-      "energy-power-plant",
+      `${statNumber(nominalEnergyProductionPerSecond)} kJ/s`,
+      "energy-power",
     ),
     energyCurrentRow(
       "totalConsumption",
-      `${statNumber(Math.floor(energyPlan.demandPerSecond))} kJ/s`,
-      "energy-power-plant",
+      `${statNumber(Math.floor(energyPlan.statisticsConsumptionPerSecond))} kJ/s`,
+      "energy-power",
     ),
-    energyCurrentRow("totalBatteryStorage", `${statNumber(Math.floor(power.capacity / 1000))} MJ`),
+    energyCurrentRow(
+      "totalBatteryStorage",
+      `${statNumber(Math.floor(power.capacity / 1000))} MJ`,
+      "energy-batteries",
+    ),
     energyCounterRow(
       "energyTrips",
       state.run.energyTripsThisRun,
@@ -403,38 +460,37 @@ export function SettingsStatisticsPane({
       "basicPowerPlants",
       state.run.basicPowerPlantsBuiltThisRun,
       state.statistics.lifetimeBasicPowerPlantsBuilt,
-      "energy-power-plant",
+      "energy-power",
     ),
     energyCounterRow(
       "advancedPowerPlants",
       state.run.advancedPowerPlantsBuiltThisRun,
       state.statistics.lifetimeAdvancedPowerPlantsBuilt,
-      state.run.economy.researchedTechnologies.includes("advancedPowerGeneration")
-        ? "energy-advanced-power-plant"
-        : "energy-storage",
+      "energy-power",
     ),
     energyCounterRow(
       "solarPowerPlants",
       state.run.solarPowerPlantsBuiltThisRun,
       state.statistics.lifetimeSolarPowerPlantsBuilt,
-      state.run.economy.researchedTechnologies.includes("solarPowerGeneration")
-        ? "energy-solar-power-plant"
-        : "energy-storage",
+      "energy-power",
     ),
     energyCounterRow(
       "sodiumIonBatteries",
       state.run.sodiumIonBatteriesBuiltThisRun,
       state.statistics.lifetimeSodiumIonBatteriesBuilt,
+      "energy-batteries",
     ),
     energyCounterRow(
       "battery2",
       state.run.battery2BuiltThisRun,
       state.statistics.lifetimeBattery2Built,
+      "energy-batteries",
     ),
     energyCounterRow(
       "battery3",
       state.run.battery3BuiltThisRun,
       state.statistics.lifetimeBattery3Built,
+      "energy-batteries",
     ),
   ];
   const interstellarRow = (
@@ -480,37 +536,37 @@ export function SettingsStatisticsPane({
     interstellarRow(
       "fleetAttackStrength",
       statNumber(interstellar.fleetAttackStrength),
-      unavailableInterstellar,
+      statNumber(interstellar.fleetAttackStrength),
       "interstellar-fleet-hangar",
     ),
     interstellarRow(
       "envoy",
       statNumber(interstellar.envoy),
-      unavailableInterstellar,
+      statNumber(interstellar.envoy),
       "interstellar-fleet-hangar",
     ),
     interstellarRow(
       "scout",
       statNumber(interstellar.scout),
-      unavailableInterstellar,
+      statNumber(interstellar.scout),
       "interstellar-fleet-hangar",
     ),
     interstellarRow(
       "marauder",
       statNumber(interstellar.marauder),
-      unavailableInterstellar,
+      statNumber(interstellar.marauder),
       "interstellar-fleet-hangar",
     ),
     interstellarRow(
       "landStalker",
       statNumber(interstellar.landStalker),
-      unavailableInterstellar,
+      statNumber(interstellar.landStalker),
       "interstellar-fleet-hangar",
     ),
     interstellarRow(
       "navalStrafer",
       statNumber(interstellar.navalStrafer),
-      unavailableInterstellar,
+      statNumber(interstellar.navalStrafer),
       "interstellar-fleet-hangar",
     ),
     interstellarRow(
@@ -527,16 +583,14 @@ export function SettingsStatisticsPane({
     ),
     interstellarRow(
       "enemyDefenceRemaining",
-      interstellar.enemyDefenceRemaining === null
-        ? unavailableInterstellar
-        : statNumber(interstellar.enemyDefenceRemaining),
+      statNumber(interstellar.enemyDefenceRemaining),
       unavailableInterstellar,
       "interstellar-colonise",
     ),
     interstellarRow(
       "apFromStarVoyage",
       statNumber(interstellar.apFromStarVoyage),
-      unavailableInterstellar,
+      statNumber(interstellar.apFromStarVoyage),
       "interstellar-star-map",
     ),
     interstellarRow(
@@ -580,7 +634,12 @@ export function SettingsStatisticsPane({
       id: "cosmicRipGalacticPointsEarned",
       label: settingsStatisticLabel(locale, "cosmicRipGalacticPointsEarned"),
       currentRun: statisticsNotApplicableLabel(locale),
-      lifetime: statNumber(Math.max(0, state.permanent.settledSystemIds.length - 1)),
+      lifetime: statNumber(
+        Math.max(
+          0,
+          state.permanent.settledSystemIds.length - (pendingSettledDestination ? 1 : 0) - 1,
+        ),
+      ),
       ...(availableOwnerPaneIds.has("cosmic-rip-situation")
         ? { ownerPaneId: "cosmic-rip-situation" }
         : {}),
@@ -652,7 +711,7 @@ export function SettingsStatisticsPane({
   ];
   const eventRows: readonly StatisticsDisplayRow[] = RANDOM_EVENT_IDS.map((id) => ({
     id: `event-${id}`,
-    label: randomEventName(locale, id),
+    label: statisticsEventLabel(locale, id),
     currentRun: statNumber(state.run.randomEvents.eventCountsThisRun[id]),
     lifetime: statNumber(state.statistics.lifetimeRandomEventCounts[id]),
     ownerPaneId: "settings-events",
@@ -735,10 +794,13 @@ export function SettingsStatisticsPane({
       aria-labelledby="settings-statistics-heading"
       data-testid="settings-statistics"
     >
-      <h3 id="settings-statistics-heading">{settingsSectionName(locale, "statistics")}</h3>
+      <h2 className="game-page-title" id="settings-statistics-heading">
+        {settingsSectionName(locale, "statistics")}
+      </h2>
+      <p className="pane-intro">{statisticsText(locale, "description")}</p>
       {sections.map(({ heading, rows, note }) => (
         <section className="settings-stat-section" key={heading}>
-          <h4>{heading}</h4>
+          <h3>{heading}</h3>
           {note ? <p className="settings-stat-note">{note}</p> : null}
           <dl className="settings-stat-grid">
             {rows.map((row) => (

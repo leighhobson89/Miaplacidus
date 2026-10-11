@@ -1,11 +1,20 @@
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
-import { ACHIEVEMENT_CATALOGUE, achievementName } from "../../../src/content/achievements";
+import {
+  ACHIEVEMENT_CATALOGUE,
+  ACHIEVEMENT_IDS,
+  achievementName,
+  type AchievementDefinition,
+} from "../../../src/content/achievements";
+import { ACHIEVEMENT_DESCRIPTIONS } from "../../../src/content/achievementDescriptions.generated";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { THEME_IDS } from "../../../src/content/themes";
 import { achievementText } from "../../../src/i18n/achievementMessages";
 import { settingsLabel, settingsText } from "../../../src/i18n/settingsMessages";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import { formatCurrency } from "../../../src/app/currencyFormatting";
+import { setGameLocale, setNumberNotation } from "../_harness/settings-controls";
 
 test("shows unlocked game tabs and permanently awards the all-themes achievement", async ({
   page,
@@ -79,5 +88,132 @@ test("shows unlocked game tabs and permanently awards the all-themes achievement
       page.getByTestId("achievements-pane").locator('[data-achievement-id="collect50Hydrogen"] h3'),
     ).toHaveText(achievementName("collect50Hydrogen", locale));
     await settings.locator("#tab-settings-game-options").click();
+  }
+});
+
+test("P-41 formats the visible unlocked-achievement total in every notation @p41-achievement-count", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-rebirth-ready");
+  await page.getByRole("tab", { name: "Settings" }).click();
+  await page.locator("#tab-settings-visual").click();
+
+  const themeSelector = page.getByTestId("theme-selector");
+  for (const themeId of THEME_IDS.slice(1)) await themeSelector.selectOption(themeId);
+  await page.locator("#tab-settings-achievements").click();
+  await expect(page.locator('[data-achievement-id="tryAllThemes"]')).toHaveClass(/is-earned/);
+
+  const unlockedCount = await page.evaluate(() => {
+    const state = window.miaplacidusTest!.getState();
+    return new Set([
+      ...state.run.achievements.unlockedIds,
+      ...state.permanent.achievements.unlockedIds,
+    ]).size;
+  });
+  const total = page.getByTestId("achievements-pane").locator(".achievement-total strong");
+
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await expect
+      .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notation))
+      .toBe(notation);
+    await page.getByRole("tab", { name: "Settings" }).click();
+    await page.locator("#tab-settings-achievements").click();
+    await expect(total).toHaveText(formatNumber("en", unlockedCount, 0, notation));
+  }
+});
+
+test("P-41 formats a visible achievement cash reward in every notation @p41-achievement-currency", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-rebirth-ready");
+  const rewardDefinition = ACHIEVEMENT_CATALOGUE.find(
+    ({ id }) => id === "discoverBlackHole",
+  ) as AchievementDefinition;
+  expect(rewardDefinition.reward.type).toBe("cash");
+  if (rewardDefinition.reward.type !== "cash")
+    throw new Error("Expected a cash achievement reward");
+
+  const renderedRewards: Record<"condensed" | "standard" | "scientific", string> = {
+    condensed: "",
+    standard: "",
+    scientific: "",
+  };
+  for (const notation of ["condensed", "standard", "scientific"] as const) {
+    await setNumberNotation(page, notation);
+    await page.getByRole("tab", { name: "Settings" }).click();
+    await page.locator("#tab-settings-achievements").click();
+
+    const state = await page.evaluate(() => window.miaplacidusTest!.getState());
+    expect(state.settings.notation).toBe(notation);
+    const expected = formatCurrency(
+      "en",
+      rewardDefinition.reward.amount,
+      state.settings.currencyId ?? "usd",
+      0,
+      notation,
+    );
+    const rewardLine = page
+      .locator('[data-achievement-id="discoverBlackHole"]')
+      .locator(".achievement-copy p");
+    await expect(rewardLine).toContainText(expected);
+    renderedRewards[notation] = expected;
+  }
+
+  expect(renderedRewards.scientific).not.toBe(renderedRewards.standard);
+});
+
+test("P-44 exposes source achievement descriptions by keyboard and hover in every locale @p44-achievement-descriptions", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await startMetaFixture(page, "meta-rebirth-ready");
+
+  const longestAchievement: Record<(typeof LOCALE_IDS)[number], (typeof ACHIEVEMENT_IDS)[number]> = {
+    en: "settleUnoccupiedSystem",
+    es: "studyStarMoreThan20LYAway",
+    pt: "activateBlackHoleOver10x",
+    de: "activateBlackHoleOver10x",
+    it: "settleUnoccupiedSystem",
+    fr: "activateBlackHoleOver10x",
+  };
+
+  for (const locale of LOCALE_IDS) {
+    await setGameLocale(page, locale);
+    await page.locator("#tab-settings").click();
+    await page.locator("#tab-settings-achievements").click();
+
+    const cards = page.getByTestId("achievements-pane").locator("[data-achievement-id]");
+    await expect(cards).toHaveCount(ACHIEVEMENT_IDS.length);
+    const rendered = await page
+      .getByTestId("achievements-pane")
+      .locator("[role='tooltip']")
+      .evaluateAll((tooltips) =>
+        tooltips.map((tooltip) => [
+          tooltip.closest("[data-achievement-id]")?.getAttribute("data-achievement-id"),
+          tooltip.textContent?.trim(),
+        ]),
+      );
+    expect(rendered).toEqual(
+      ACHIEVEMENT_IDS.map((id) => [id, ACHIEVEMENT_DESCRIPTIONS[id][locale]]),
+    );
+
+    for (const id of ["collect50Hydrogen", longestAchievement[locale]] as const) {
+      const name = achievementName(id, locale);
+      const help = page.getByRole("button", {
+        name: `${achievementText(locale, "showDescription")}: ${name}`,
+      });
+      const tooltip = page.locator(`#achievement-description-${id}`);
+      await expect(help).toHaveAttribute("aria-describedby", `achievement-description-${id}`);
+      await help.focus();
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toHaveText(ACHIEVEMENT_DESCRIPTIONS[id][locale]);
+
+      const bounds = await tooltip.boundingBox();
+      const viewportWidth = await page.evaluate(() => window.innerWidth);
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewportWidth);
+    }
   }
 });

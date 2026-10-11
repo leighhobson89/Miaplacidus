@@ -22,6 +22,7 @@ describe("stable star catalogue", () => {
     const second = createStarCatalogue();
 
     expect(first).toEqual(second);
+    expect(second).toBe(first);
     expect(first).toHaveLength(GALAXY_STAR_COUNT);
     expect(new Set(first.map((star) => star.id)).size).toBe(GALAXY_STAR_COUNT);
     expect(new Set(first.map((star) => star.name)).size).toBe(GALAXY_STAR_COUNT);

@@ -8,6 +8,18 @@ export interface CondensedNumberParts {
   readonly suffix: string;
 }
 
+const numberFormatterCache = new Map<string, Intl.NumberFormat>();
+
+function numberFormatter(locale: LocaleId, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const cacheKey = `${locale}:${JSON.stringify(options)}`;
+  const cached = numberFormatterCache.get(cacheKey);
+  if (cached) return cached;
+
+  const formatter = new Intl.NumberFormat(locale, options);
+  numberFormatterCache.set(cacheKey, formatter);
+  return formatter;
+}
+
 export function condensedNumberParts(value: number): CondensedNumberParts | null {
   if (!Number.isFinite(value) || value < 1_000) return null;
   if (value >= 1_000_000_000_000) {
@@ -27,7 +39,7 @@ function formatCondensedNumber(
 ): string {
   const compact = condensedNumberParts(value);
   if (compact) {
-    const mantissa = new Intl.NumberFormat(locale, {
+    const mantissa = numberFormatter(locale, {
       useGrouping: false,
       maximumFractionDigits: 1,
       signDisplay,
@@ -36,7 +48,7 @@ function formatCondensedNumber(
   }
 
   const visibleValue = value >= 0 && maximumFractionDigits === 0 ? displayQuantity(value) : value;
-  return new Intl.NumberFormat(locale, { maximumFractionDigits, signDisplay }).format(visibleValue);
+  return numberFormatter(locale, { maximumFractionDigits, signDisplay }).format(visibleValue);
 }
 
 export function formatNumber(
@@ -50,7 +62,7 @@ export function formatNumber(
     return formatCondensedNumber(locale, value, maximumFractionDigits, signDisplay);
   }
 
-  return new Intl.NumberFormat(
+  return numberFormatter(
     locale,
     notation === "scientific"
       ? {

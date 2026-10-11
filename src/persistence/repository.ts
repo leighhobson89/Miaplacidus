@@ -125,6 +125,62 @@ function salvageRevision(encoded: string | null): number {
 }
 
 export function createSaveRepository(storage: StorageAdapter = browserStorage()): SaveRepository {
+  let cachedEntries: SaveIndexEntry[] | null = null;
+  let cachedStorageLength = -1;
+  let cachedIndexPayload: string | null = null;
+
+  function invalidateIndexCache(): void {
+    cachedEntries = null;
+    cachedStorageLength = -1;
+    cachedIndexPayload = null;
+  }
+
+  function rememberIndex(entries: readonly SaveIndexEntry[]): void {
+    try {
+      cachedEntries = entries.map((entry) => ({ ...entry }));
+      cachedStorageLength = storage.length;
+      cachedIndexPayload = storage.getItem(INDEX_KEY);
+    } catch {
+      invalidateIndexCache();
+    }
+  }
+
+  function writeIndex(entries: readonly SaveIndexEntry[]): void {
+    const serialized = JSON.stringify({ version: 1, entries });
+    try {
+      storage.setItem(INDEX_KEY, serialized);
+    } catch {
+      /* The index is a rebuildable cache. */
+    }
+    try {
+      if (storage.getItem(INDEX_KEY) === serialized) rememberIndex(entries);
+      else invalidateIndexCache();
+    } catch {
+      invalidateIndexCache();
+    }
+  }
+
+  // A different tab can write a save payload whose length and cached index do
+  // not change (for example, if it is interrupted before updating the index).
+  // Invalidate on browser storage events so the next listing can recover it.
+  if (typeof window !== "undefined") {
+    try {
+      const localStorage = window.localStorage;
+      if (storage === localStorage) {
+        window.addEventListener("storage", (event) => {
+          if (
+            event.storageArea === localStorage &&
+            (event.key === null || event.key.startsWith(SAVE_PREFIX))
+          ) {
+            invalidateIndexCache();
+          }
+        });
+      }
+    } catch {
+      // A restricted browser context can still use the supplied storage adapter.
+    }
+  }
+
   function rawHead(slotId: string): string | null {
     return storage.getItem(slotHeadKey(slotId));
   }
@@ -276,17 +332,20 @@ export function createSaveRepository(storage: StorageAdapter = browserStorage())
       }
     }
     entries.sort((a, b) => b.savedAt - a.savedAt || a.slotId.localeCompare(b.slotId));
-    try {
-      storage.setItem(INDEX_KEY, JSON.stringify({ version: 1, entries }));
-    } catch {
-      /* Index is a rebuildable cache. */
-    }
+    writeIndex(entries);
     return entries;
   }
 
   function list(): SaveIndexEntry[] {
     try {
       const cached = storage.getItem(INDEX_KEY);
+      if (
+        cachedEntries &&
+        cachedStorageLength === storage.length &&
+        cachedIndexPayload === cached
+      ) {
+        return cachedEntries.map((entry) => ({ ...entry }));
+      }
       if (cached) {
         try {
           const parsed = JSON.parse(cached) as { version?: number; entries?: SaveIndexEntry[] };
@@ -341,7 +400,8 @@ export function createSaveRepository(storage: StorageAdapter = browserStorage())
         "conflict",
         "This slot changed in another tab. Reload or export this run before saving.",
       );
-    const duplicate = list().find(
+    const indexEntriesBeforeCommit = list();
+    const duplicate = indexEntriesBeforeCommit.find(
       (entry) =>
         entry.status !== "orphan" &&
         entry.slotId !== slotId &&
@@ -358,10 +418,15 @@ export function createSaveRepository(storage: StorageAdapter = browserStorage())
       state: { ...state, run: { ...state.run, pioneerName: normalized.display } },
     });
     const commitId = makeId();
+    const newPayloadKey = payloadKey(slotId, commitId);
+    const payloadExisted = storage.getItem(newPayloadKey) !== null;
+    const headExisted = storage.getItem(slotHeadKey(slotId)) !== null;
+    const indexPayloadBeforeCommit = storage.getItem(INDEX_KEY);
+    const storageLengthBeforeCommit = storage.length;
     const encoded = encodeLocal(envelope);
     try {
-      storage.setItem(payloadKey(slotId, commitId), encoded);
-      const verified = storage.getItem(payloadKey(slotId, commitId));
+      storage.setItem(newPayloadKey, encoded);
+      const verified = storage.getItem(newPayloadKey);
       if (!verified || decodeLocal(verified).checksum !== envelope.checksum)
         throw new SaveError("corrupt-slot", "The new save did not pass readback validation.");
       const checkHead = rawHead(slotId);
@@ -397,13 +462,47 @@ export function createSaveRepository(storage: StorageAdapter = browserStorage())
       compressedChars: encoded.length,
       status: "ready",
     };
-    try {
-      const entries = list().filter((candidate) => candidate.slotId !== slotId);
+    const expectedStorageLength =
+      storageLengthBeforeCommit + Number(!payloadExisted) + Number(!headExisted);
+    if (
+      storage.getItem(INDEX_KEY) !== indexPayloadBeforeCommit ||
+      storage.length !== expectedStorageLength
+    ) {
+      // Preserve concurrent or interrupted writes before refreshing the cache.
+      rebuildIndex();
+    } else {
+      const entries = indexEntriesBeforeCommit.filter((candidate) => candidate.slotId !== slotId);
+      if (currentHead) {
+        const previousPayload = storage.getItem(payloadKey(slotId, currentHead));
+        entries.push(
+          current
+            ? {
+                slotId: `orphan:${slotId}:${currentHead}`,
+                pioneerName: `${current.pioneerName} (older generation)`,
+                lookupKey: "",
+                createdAt: 0,
+                savedAt: current.savedAt,
+                schemaVersion: 0,
+                revision: current.revision,
+                compressedChars: previousPayload?.length ?? 0,
+                status: "orphan",
+              }
+            : {
+                slotId: `orphan:${slotId}:${currentHead}`,
+                pioneerName: "Damaged generation",
+                lookupKey: "",
+                createdAt: 0,
+                savedAt: 0,
+                schemaVersion: 0,
+                revision: 0,
+                compressedChars: previousPayload?.length ?? 0,
+                status: "corrupt",
+              },
+        );
+      }
       entries.push(entry);
-      entries.sort((a, b) => b.savedAt - a.savedAt);
-      storage.setItem(INDEX_KEY, JSON.stringify({ version: 1, entries }));
-    } catch {
-      /* The committed head is authoritative; rebuild the index next time. */
+      entries.sort((a, b) => b.savedAt - a.savedAt || a.slotId.localeCompare(b.slotId));
+      writeIndex(entries);
     }
     return envelope;
   }

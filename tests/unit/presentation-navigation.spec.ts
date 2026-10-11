@@ -30,11 +30,19 @@ import { transition } from "../../src/engine/commands";
 const ids = (items: readonly { readonly id: string }[]) => items.map(({ id }) => id);
 
 describe("source-mapped child navigation", () => {
-  it("pins every child pane to its source option identity and rendered order", () => {
+  it("pins source option identities, owner-directed groups, and rendered child order", () => {
     const initial = createInitialGameState({ locale: "en" });
     const sourceIdentity = (
-      items: readonly { readonly id: string; readonly sourceOptionId?: string }[],
-    ) => items.map(({ id, sourceOptionId }) => [id, sourceOptionId] as const);
+      items: readonly {
+        readonly id: string;
+        readonly sourceOptionId?: string;
+        readonly sourceOptionIds?: readonly string[];
+      }[],
+    ) =>
+      items.map(
+        ({ id, sourceOptionId, sourceOptionIds }) =>
+          [id, sourceOptionIds ?? sourceOptionId] as const,
+      );
 
     const resourceGroups = resourcePaneGroups("en", RESOURCE_PANE_ORDER);
     const compoundGroups = compoundPaneGroups("en", COMPOUND_PANE_ORDER);
@@ -176,10 +184,9 @@ describe("source-mapped child navigation", () => {
         domain: "Energy",
         items: energyPaneItems("en", ["solarPowerGeneration", "advancedPowerGeneration"]),
         expected: [
-          ["energy-storage", "option1"],
-          ["energy-power-plant", "option2"],
-          ["energy-solar-power-plant", "option3"],
-          ["energy-advanced-power-plant", "option4"],
+          ["energy-summary", undefined],
+          ["energy-batteries", "option1"],
+          ["energy-power", ["option2", "option3", "option4"]],
         ],
       },
       {
@@ -187,7 +194,7 @@ describe("source-mapped child navigation", () => {
         items: researchPaneItems("en", true),
         expected: [
           ["research-science-buildings", "option1"],
-          ["research-tech-tree", "option3"],
+          ["research-tech-tree", ["option2", "option3"]],
           ["research-philosophy", "option4"],
         ],
       },
@@ -357,16 +364,33 @@ describe("source-mapped child navigation", () => {
     ]);
   });
 
-  it("keeps Energy and the unified Tech Tree ahead of their gated destinations", () => {
-    expect(ids(energyPaneItems("en", []))).toEqual(["energy-storage", "energy-power-plant"]);
+  it("keeps Energy grouped into Summary, Batteries, and Power pages", () => {
+    expect(ids(energyPaneItems("en", []))).toEqual([
+      "energy-summary",
+      "energy-batteries",
+      "energy-power",
+    ]);
     expect(ids(energyPaneItems("en", ["advancedPowerGeneration", "solarPowerGeneration"]))).toEqual(
-      [
-        "energy-storage",
-        "energy-power-plant",
-        "energy-solar-power-plant",
-        "energy-advanced-power-plant",
-      ],
+      ["energy-summary", "energy-batteries", "energy-power"],
     );
+    expect(energyPaneItems("en", []).map(({ label }) => label)).toEqual([
+      "Energy Summary",
+      "Batteries",
+      "Power",
+    ]);
+    const energyLabelsByLocale = {
+      en: ["Energy Summary", "Batteries", "Power"],
+      es: ["Resumen de energía", "Baterías", "Potencia"],
+      pt: ["Resumo de energia", "Baterias", "Potência"],
+      de: ["Energieübersicht", "Batterien", "Leistung"],
+      it: ["Riepilogo energia", "Batterie", "Potenza"],
+      fr: ["Résumé énergétique", "Batteries", "Puissance"],
+    } as const;
+    for (const locale of ["en", "es", "pt", "de", "it", "fr"] as const) {
+      expect(energyPaneItems(locale, []).map(({ label }) => label)).toEqual(
+        energyLabelsByLocale[locale],
+      );
+    }
     expect(ids(researchPaneItems("en", false))).toEqual([
       "research-science-buildings",
       "research-tech-tree",
@@ -447,7 +471,7 @@ describe("source-mapped child navigation", () => {
     ]);
   });
 
-  it("shows Colonise only while orbiting a scanned selected destination with a fleet", () => {
+  it("shows Colonise when the selected destination has been scanned", () => {
     const initial = createInitialGameState({ locale: "en" });
     const destination = createStarCatalogue().find(
       (star) => star.id !== initial.run.space.currentSystemId,
@@ -506,7 +530,19 @@ describe("source-mapped child navigation", () => {
                 ...orbitingAtScannedDestination.run.space.starship,
                 phase: "travelling",
               },
+              playerFleets: { ...orbitingAtScannedDestination.run.space.playerFleets, scout: 0 },
             },
+          },
+        }),
+      ),
+    ).toContain("interstellar-colonise");
+    expect(
+      ids(
+        interstellarPaneItems("en", {
+          ...orbitingAtScannedDestination,
+          run: {
+            ...orbitingAtScannedDestination.run,
+            space: { ...orbitingAtScannedDestination.run.space, systemEncounters: [] },
           },
         }),
       ),
@@ -571,6 +607,47 @@ describe("source-mapped child navigation", () => {
       "space-mining-launch-pad",
       "space-mining-rocket-1",
     ]);
+    const defaultRocketPage = spaceMiningPaneItems("en", rocketOneComplete).find(
+      (item) => item.id === "space-mining-rocket-1",
+    );
+    expect(defaultRocketPage?.label).toBe("Rocket 1");
+
+    const renamedRocket = {
+      ...rocketOneComplete,
+      run: {
+        ...rocketOneComplete.run,
+        space: {
+          ...rocketOneComplete.run.space,
+          rockets: {
+            ...rocketOneComplete.run.space.rockets,
+            rocket1: { ...rocketOneComplete.run.space.rockets.rocket1, name: "Pioneer" },
+          },
+        },
+      },
+    };
+    const renamedRocketPage = spaceMiningPaneItems("en", renamedRocket).find(
+      (item) => item.id === "space-mining-rocket-1",
+    );
+    expect(renamedRocketPage?.label).toBe("Pioneer");
+
+    const customNumberedName = {
+      ...renamedRocket,
+      run: {
+        ...renamedRocket.run,
+        space: {
+          ...renamedRocket.run.space,
+          rockets: {
+            ...renamedRocket.run.space.rockets,
+            rocket1: { ...renamedRocket.run.space.rockets.rocket1, name: "Rocket 2" },
+          },
+        },
+      },
+    };
+    expect(
+      spaceMiningPaneItems("en", customNumberedName).find(
+        (item) => item.id === "space-mining-rocket-1",
+      )?.label,
+    ).toBe("Rocket 2");
   });
 
   it("adds Cosmic Rip destinations only after their individual progression gates", () => {
@@ -614,7 +691,7 @@ describe("Galactic child navigation", () => {
     ]);
   });
 
-  it("keeps Casino and Perks available after rebirth while Rebirth awaits this run's scan", () => {
+  it("keeps Casino hidden after rebirth until the current run awards AP", () => {
     const initial = createInitialGameState({ locale: "en" });
     const state = {
       ...initial,
@@ -623,15 +700,26 @@ describe("Galactic child navigation", () => {
 
     expect(ids(galacticPaneItems("en", state))).toEqual([
       "galactic-market",
-      "galactic-casino",
       "galactic-ascendency-perks",
     ]);
     expect(
       galacticPaneItems("en", state).map(({ id, sourceOptionId }) => [id, sourceOptionId]),
     ).toEqual([
       ["galactic-market", "option2"],
-      ["galactic-casino", "option6"],
       ["galactic-ascendency-perks", "option3"],
+    ]);
+
+    const currentRunAp = {
+      ...state,
+      run: {
+        ...state.run,
+        space: { ...state.run.space, ascendencyAwardedThisRun: true },
+      },
+    };
+    expect(ids(galacticPaneItems("en", currentRunAp))).toEqual([
+      "galactic-market",
+      "galactic-casino",
+      "galactic-ascendency-perks",
     ]);
   });
 
@@ -798,33 +886,59 @@ describe("persistent navigation attention", () => {
     };
     const discovered = transition(initial, {
       type: "navigation.attention.discover",
-      pageIds: ["energy", "energy-power-plant", "energy-power-plant"],
+      pageIds: ["energy", "energy-power", "energy-power"],
     });
 
     expect(discovered.accepted).toBe(true);
-    expect(discovered.state.run.navigationAttentionIds).toEqual(["energy", "energy-power-plant"]);
+    expect(discovered.state.run.navigationAttentionIds).toEqual(["energy", "energy-power"]);
 
     const opened = transition(discovered.state, {
       type: "navigation.attention.clear",
-      pageId: "energy-power-plant",
+      pageId: "energy-power",
     });
     expect(opened.accepted).toBe(true);
     expect(opened.state.run.navigationAttentionIds).toEqual(["energy"]);
-    expect(opened.state.permanent.navigationVisitedIds).toEqual(["energy-power-plant"]);
+    expect(opened.state.permanent.navigationVisitedIds).toEqual(["energy-power"]);
 
     const rediscovered = transition(opened.state, {
       type: "navigation.attention.discover",
-      pageIds: ["energy-power-plant", "energy-storage"],
+      pageIds: ["energy-power", "energy-batteries"],
     });
-    expect(rediscovered.state.run.navigationAttentionIds).toEqual(["energy", "energy-storage"]);
+    expect(rediscovered.state.run.navigationAttentionIds).toEqual(["energy", "energy-batteries"]);
 
     const markedWithoutBadge = transition(rediscovered.state, {
       type: "navigation.attention.clear",
       pageId: "energy",
     });
     expect(markedWithoutBadge.state.permanent.navigationVisitedIds).toEqual([
-      "energy-power-plant",
+      "energy-power",
       "energy",
+    ]);
+  });
+
+  it("clears and records multiple visited navigation pages in one transition", () => {
+    const base = createInitialGameState({ locale: "en" });
+    const discovered = transition(
+      {
+        ...base,
+        run: { ...base.run, navigationAttentionInitialized: true },
+      },
+      {
+        type: "navigation.attention.discover",
+        pageIds: ["settings", "settings-visual", "miaplaedia"],
+      },
+    );
+    const visited = transition(discovered.state, {
+      type: "navigation.attention.clear-many",
+      pageIds: ["settings", "settings-visual", "settings", "miaplaedia"],
+    });
+
+    expect(visited.accepted).toBe(true);
+    expect(visited.state.run.navigationAttentionIds).toEqual([]);
+    expect(visited.state.permanent.navigationVisitedIds).toEqual([
+      "settings",
+      "settings-visual",
+      "miaplaedia",
     ]);
   });
 

@@ -14,7 +14,6 @@ import { philosophyText } from "../i18n/philosophyMessages";
 import { casinoUnlocked } from "../engine/galacticCasino";
 import type { CosmicopediaSectionId } from "../i18n/cosmicopediaMessages";
 import { type CompoundId, type MaterialId } from "../content/ids";
-import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import {
   ROCKET_IDS,
   ROCKET_PART_REQUIREMENTS,
@@ -50,12 +49,7 @@ const RESOURCE_SOURCE_OPTION_ID: Record<MaterialId, `option${number}`> = {
 export const RESOURCE_PANE_IDS: readonly string[] = RESOURCE_PANE_ORDER.map(
   (id) => `resources-${id}`,
 );
-export const ENERGY_PANE_IDS = [
-  "energy-storage",
-  "energy-power-plant",
-  "energy-solar-power-plant",
-  "energy-advanced-power-plant",
-] as const;
+export const ENERGY_PANE_IDS = ["energy-summary", "energy-batteries", "energy-power"] as const;
 export const RESEARCH_PANE_IDS = [
   "research-science-buildings",
   "research-tech-tree",
@@ -118,40 +112,28 @@ export function resourcePaneItems(
 
 export function energyPaneItems(
   locale: LocaleId,
-  researched: readonly string[],
+  _researched: readonly string[],
 ): readonly PaneNavigationItem[] {
   const panelId = "panel-energy";
-  const items: PaneNavigationItem[] = [
+  return [
     {
-      id: "energy-storage",
+      id: "energy-summary",
+      label: economyLabel(locale, "energySummary"),
+      panelId,
+    },
+    {
+      id: "energy-batteries",
       label: economyLabel(locale, "energyStorage"),
       panelId,
       sourceOptionId: "option1",
     },
     {
-      id: "energy-power-plant",
-      label: ECONOMY_BUILDING_NAMES.powerPlant1[locale],
+      id: "energy-power",
+      label: economyLabel(locale, "energyPower"),
       panelId,
-      sourceOptionId: "option2",
+      sourceOptionIds: ["option2", "option3", "option4"],
     },
   ];
-  if (researched.includes("solarPowerGeneration")) {
-    items.push({
-      id: "energy-solar-power-plant",
-      label: ECONOMY_BUILDING_NAMES.powerPlant2[locale],
-      panelId,
-      sourceOptionId: "option3",
-    });
-  }
-  if (researched.includes("advancedPowerGeneration")) {
-    items.push({
-      id: "energy-advanced-power-plant",
-      label: ECONOMY_BUILDING_NAMES.powerPlant3[locale],
-      panelId,
-      sourceOptionId: "option4",
-    });
-  }
-  return items;
 }
 
 export function researchPaneItems(
@@ -167,7 +149,7 @@ export function researchPaneItems(
     {
       id: "research-tech-tree",
       label: economyLabel(locale, "technologyTree"),
-      sourceOptionId: "option3",
+      sourceOptionIds: ["option2", "option3"],
     },
   ];
   if (includePhilosophy) {
@@ -458,15 +440,7 @@ export function interstellarPaneItems(
   const scannedDestinationEncounter =
     destinationId !== null &&
     state.run.space.systemEncounters.some((encounter) => encounter.systemId === destinationId);
-  const hasFleet =
-    state.run.space.fleetEnvoyBuilt ||
-    Object.values(state.run.space.playerFleets).some((count) => count > 0);
-  if (
-    scannedDestinationEncounter &&
-    starship.phase === "orbiting" &&
-    hasFleet &&
-    !state.run.space.ascendencyAwardedThisRun
-  ) {
+  if (scannedDestinationEncounter) {
     items.push({
       id: "interstellar-colonise",
       label: starshipText(locale, "colonise"),
@@ -524,9 +498,13 @@ export function spaceMiningPaneItems(
       const rocket = state.run.space.rockets[id];
       if (state.run.space.launchPadBuilt && rocket.builtParts >= ROCKET_PART_REQUIREMENTS[id]) {
         const rocketIndex = (Number(id.slice(-1)) || 1) as 1 | 2 | 3 | 4;
+        const customRocketName = rocket.name.trim();
         items.push({
           id: `space-mining-rocket-${rocketIndex}`,
-          label: rocketText(locale, "rocketLabel", { index: rocketIndex }),
+          label:
+            customRocketName && customRocketName !== `Rocket ${rocketIndex}`
+              ? customRocketName
+              : rocketText(locale, "rocketLabel", { index: rocketIndex }),
           sourceOptionId: `option${rocketIndex + 1}` as `option${number}`,
         });
       }

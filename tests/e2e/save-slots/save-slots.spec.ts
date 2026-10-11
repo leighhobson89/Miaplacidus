@@ -1,9 +1,11 @@
+import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { openSaveManager, openSaveSettings, saveNowFromSettings } from "../_harness/save-controls";
-import type { Page } from "@playwright/test";
+import { setGameLocale } from "../_harness/settings-controls";
 import { createRequire } from "node:module";
 import { createInitialGameState } from "../../../src/engine/state";
+import { saveText } from "../../../src/i18n/saveMessages";
 import {
   canonicalJson,
   checksumFor,
@@ -14,6 +16,14 @@ import {
 
 const { compressToEncodedURIComponent, decompressFromEncodedURIComponent, decompressFromUTF16 } =
   createRequire(import.meta.url)("lz-string") as typeof import("lz-string");
+
+async function tabUntilFocused(page: Page, target: Locator): Promise<void> {
+  for (let index = 0; index < 100; index += 1) {
+    if (await target.evaluate((element) => element === document.activeElement)) return;
+    await page.keyboard.press("Tab");
+  }
+  throw new Error("Keyboard traversal did not reach the expected control");
+}
 
 function decodePortableFixture(code: string) {
   expect(code).toMatch(/^MIA1:/);
@@ -167,7 +177,7 @@ test("a fresh pioneer starts directly and Miaplaedia has no replay control @save
   await expect(page.locator(".hydrogen-briefing")).toHaveCount(0);
 });
 
-test("keyboard can create a pioneer and search and resume a saved pioneer @save-slots @keyboard @accessibility", async ({
+test("keyboard can create a pioneer and search and resume a saved pioneer @save-slots @keyboard @accessibility @p21", async ({
   page,
 }) => {
   await page.goto("/?testSeed=74&testLocale=en");
@@ -185,7 +195,7 @@ test("keyboard can create a pioneer and search and resume a saved pioneer @save-
   await expect(page.locator(".run-name")).toHaveText("Ada Lovelace");
 
   await page.reload();
-  await page.keyboard.press("Tab");
+  await tabUntilFocused(page, pioneerName);
   await expect(pioneerName).toBeFocused();
   await page.keyboard.press("Control+A");
   await page.keyboard.type("Grace Hopper");
@@ -197,7 +207,7 @@ test("keyboard can create a pioneer and search and resume a saved pioneer @save-
   await expect(page.locator(".run-name")).toHaveText("Grace Hopper");
 
   await page.reload();
-  await page.keyboard.press("Tab");
+  await tabUntilFocused(page, pioneerName);
   await expect(pioneerName).toBeFocused();
   await page.keyboard.press("Control+A");
   await page.keyboard.type("Ada");
@@ -284,17 +294,177 @@ test("touch users can start and resume a saved pioneer from the picker @save-slo
   }
 });
 
-test("Escape closes Save Manager and restores focus to its opener @save-slots @keyboard @ui-navigation", async ({
+test("name and import forms remain usable with zoom, larger text, long labels, and a reduced mobile viewport @save-slots @p22-forms", async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 320, height: 720 },
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  const localOrigin = new URL(baseURL ?? "http://127.0.0.1:4173").origin;
+
+  try {
+    await page.goto(`${localOrigin}/?testSeed=84&testLocale=en`);
+    await page.evaluate(() => (document.documentElement.style.fontSize = "125%"));
+    await page.locator("#start-locale").selectOption("de");
+
+    const pioneerName = page.locator("#pioneer-name");
+    await page.setViewportSize({ width: 320, height: 520 });
+    await expect(page.locator("label[for='pioneer-name']")).toHaveText(
+      "Name der Pionierin oder des Pioniers",
+    );
+    await pioneerName.focus();
+    await pioneerName.fill("Skalierungspionierin");
+    const nameBounds = await pioneerName.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { top: bounds.top, bottom: bounds.bottom, viewport: window.innerHeight };
+    });
+    expect(nameBounds.top).toBeGreaterThanOrEqual(0);
+    expect(nameBounds.bottom).toBeLessThanOrEqual(nameBounds.viewport);
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".run-name")).toHaveText("Skalierungspionierin");
+
+    await page.evaluate(() => (document.documentElement.style.fontSize = "100%"));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openSaveSettings(page);
+    const importCode = page.locator("#import-code");
+    await importCode.fill(rebirthFixtureCode(1, "Importierter Spielstand"));
+    const previewButton = page.getByRole("button", { name: "Importvorschau" });
+    await previewButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("import-preview")).toBeVisible();
+
+    await page.evaluate(() => (document.documentElement.style.fontSize = "125%"));
+    await page.setViewportSize({ width: 390, height: 520 });
+    const importName = page.locator("#import-new-name");
+    await expect(page.locator("label[for='import-new-name']")).toContainText(
+      "Name des neuen Pioniers",
+    );
+    await importName.focus();
+    await importName.fill("Deutscher Importname");
+    const importBounds = await importName.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const visualViewport = window.visualViewport;
+      return {
+        top: bounds.top,
+        bottom: bounds.bottom,
+        left: bounds.left,
+        right: bounds.right,
+        viewportTop: visualViewport?.offsetTop ?? 0,
+        viewportLeft: visualViewport?.offsetLeft ?? 0,
+        viewportWidth: visualViewport?.width ?? document.documentElement.clientWidth,
+        viewportHeight: visualViewport?.height ?? window.innerHeight,
+      };
+    });
+    expect(importBounds.top).toBeGreaterThanOrEqual(importBounds.viewportTop);
+    expect(importBounds.bottom).toBeLessThanOrEqual(
+      importBounds.viewportTop + importBounds.viewportHeight,
+    );
+    expect(importBounds.left).toBeGreaterThanOrEqual(importBounds.viewportLeft);
+    expect(importBounds.right).toBeLessThanOrEqual(
+      importBounds.viewportLeft + importBounds.viewportWidth,
+    );
+    const importCard = await page.locator(".import-card").boundingBox();
+    expect(importCard).not.toBeNull();
+    expect(importCard!.x + importCard!.width).toBeLessThanOrEqual(390);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const importButton = page.getByRole("button", { name: "Als neuen Pionier importieren" });
+    await importButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("Spielstand importiert.", { exact: true })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test("name and import inputs stay in view under mobile zoom @save-slots @p22-zoom", async ({
+  browser,
+  baseURL,
+}) => {
+  const localOrigin = new URL(baseURL ?? "http://127.0.0.1:4173").origin;
+  const mobileContext = () =>
+    browser.newContext({
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: 1,
+      isMobile: true,
+      hasTouch: true,
+    });
+  const visibleInVisualViewport = async (locator: Locator) =>
+    locator.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      return {
+        top: bounds.top,
+        bottom: bounds.bottom,
+        left: bounds.left,
+        right: bounds.right,
+        viewportTop: viewport?.offsetTop ?? 0,
+        viewportLeft: viewport?.offsetLeft ?? 0,
+        viewportWidth: viewport?.width ?? document.documentElement.clientWidth,
+        viewportHeight: viewport?.height ?? window.innerHeight,
+      };
+    });
+  const isInsideViewport = (bounds: Awaited<ReturnType<typeof visibleInVisualViewport>>) => {
+    expect(bounds.bottom).toBeGreaterThan(bounds.viewportTop);
+    expect(bounds.top).toBeLessThan(bounds.viewportTop + bounds.viewportHeight);
+    expect(bounds.right).toBeGreaterThan(bounds.viewportLeft);
+    expect(bounds.left).toBeLessThan(bounds.viewportLeft + bounds.viewportWidth);
+  };
+
+  const nameContext = await mobileContext();
+  try {
+    const namePage = await nameContext.newPage();
+    await namePage.goto(`${localOrigin}/?testSeed=85&testLocale=de`);
+    const nameZoom = await nameContext.newCDPSession(namePage);
+    await nameZoom.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1.5 });
+    await namePage.setViewportSize({ width: 390, height: 520 });
+    const nameInput = namePage.locator("#pioneer-name");
+    await nameInput.focus();
+    await nameInput.fill("Zoom Pionier");
+    isInsideViewport(await visibleInVisualViewport(nameInput));
+    await namePage.keyboard.press("Enter");
+    await expect(namePage.locator(".run-name")).toHaveText("Zoom Pionier");
+  } finally {
+    await nameContext.close();
+  }
+
+  const importContext = await mobileContext();
+  try {
+    const importPage = await importContext.newPage();
+    await importPage.goto(`${localOrigin}/?testSeed=86&testLocale=de`);
+    await importPage.locator("#pioneer-name").fill("Zoom Import Test");
+    await importPage.getByTestId("start-game").click();
+    await openSaveSettings(importPage);
+    await importPage.locator("#import-code").fill(rebirthFixtureCode(1, "Importierter Spielstand"));
+    await importPage.getByRole("button", { name: "Importvorschau" }).click();
+
+    const importZoom = await importContext.newCDPSession(importPage);
+    await importZoom.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1.5 });
+    await importPage.setViewportSize({ width: 390, height: 520 });
+    const importName = importPage.locator("#import-new-name");
+    await importName.focus();
+    isInsideViewport(await visibleInVisualViewport(importName));
+  } finally {
+    await importContext.close();
+  }
+});
+
+test("save management stays inline in Saving and Loading @save-slots @keyboard @ui-navigation", async ({
   freshGame,
 }, testInfo) => {
   await openSaveManager(freshGame);
-  const manager = freshGame.getByRole("dialog", { name: "Hydrogen Pioneer" });
-  const opener = freshGame.getByTestId("save-manager-open");
+  const manager = freshGame.getByTestId("save-manager-inline");
   await expect(manager).toBeVisible();
+  await expect(freshGame.locator("dialog.save-manager")).toHaveCount(0);
+  await expect(freshGame.getByTestId("save-manager-open")).toHaveCount(0);
+  await expect(manager.getByLabel("New pioneer name")).toBeVisible();
   await freshGame.keyboard.press("Escape");
-  await expect(manager).toHaveCount(0);
-  await expect(opener).toBeFocused();
-  await captureVisualCheckpoint(freshGame, testInfo, "save-manager-focus-restored");
+  await expect(manager).toBeVisible();
+  await captureVisualCheckpoint(freshGame, testInfo, "saving-and-loading-inline-management");
 });
 
 test("two pioneers keep separate Hydrogen progress across switching and reload @save-slots @reload @save-load-local", async ({
@@ -578,7 +748,7 @@ test("portable save preview offers replace, new pioneer, and cancel before impor
   await expect(manager.getByRole("button", { name: "Import as a new pioneer" })).toBeVisible();
   await manager.getByLabel("I exported this save or do not need it").click();
   await manager.getByRole("button", { name: "Replace matching save" }).click();
-  await expect(manager.getByRole("status")).toContainText("Save imported");
+  await expect(manager.getByRole("status")).toHaveText("Save imported");
   await expect(manager.getByTestId("import-preview")).toHaveCount(0);
 
   await manager.getByLabel("Paste a MIAPLACIDUS save code").fill(portableCode);
@@ -709,13 +879,18 @@ test("quota failure exports the live run and leaves the previous generation load
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("1");
 });
 
-test("a second tab can play its loaded snapshot but cannot write over the active pioneer @save-slots @two-tabs", async ({
+test("a second tab can play its loaded snapshot but cannot write over the active pioneer @save-slots @two-tabs @p20-announcements", async ({
   freshGame,
-}, testInfo) => {
+}) => {
   const secondTab = await freshGame.context().newPage();
   await secondTab.goto("/?testSeed=75&testLocale=en");
   await resumePioneer(secondTab, "Hydrogen Pioneer");
   await openSaveSettings(secondTab);
+  const conflictAnnouncement = secondTab.getByTestId("save-conflict-announcement");
+  await expect(conflictAnnouncement).toHaveAttribute("role", "status");
+  await expect(conflictAnnouncement).toHaveAttribute("aria-live", "polite");
+  await expect(conflictAnnouncement).toHaveAttribute("aria-atomic", "true");
+  await expect(conflictAnnouncement).toHaveText("");
   await expect(secondTab.getByTestId("save-status")).toContainText("another tab");
   await secondTab.locator("#tab-hydrogen").click();
   const headKey = await secondTab.evaluate(
@@ -729,11 +904,180 @@ test("a second tab can play its loaded snapshot but cannot write over the active
     .poll(() => secondTab.evaluate((key) => localStorage.getItem(key!), headKey))
     .toBe(priorHead);
 
+  await setGameLocale(secondTab, "fr");
+  await expect(secondTab.locator("html")).toHaveAttribute("lang", "fr");
   await freshGame.getByRole("button", { name: "Collect 1 Hydrogen" }).click();
   await saveNowFromSettings(freshGame);
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("1");
+  const frenchConflict =
+    "La sauvegarde a changé dans un autre onglet. Rechargez ou exportez cette partie avant d'enregistrer.";
+  await expect(conflictAnnouncement).toHaveText(frenchConflict);
+  await expect(secondTab.getByRole("alert")).toHaveCount(0);
+  await expect(secondTab.locator(".save-conflict-banner")).toContainText(frenchConflict);
+
   await openSaveSettings(secondTab);
-  await expect(secondTab.getByTestId("save-status")).toContainText("changed in another tab");
-  await captureVisualCheckpoint(freshGame, testInfo, "single-writer-active-tab");
+  await expect(secondTab.getByTestId("save-status")).toHaveAttribute("aria-live", "polite");
+  await expect(secondTab.getByTestId("save-status")).toContainText(frenchConflict);
+  await secondTab.locator("#tab-hydrogen").click();
+  await expect(conflictAnnouncement).toHaveText(frenchConflict);
   await secondTab.close();
+});
+
+test("unsaved-exit choices preserve the active pioneer-selection focus @save-slots @p16-focus", async ({
+  freshGame,
+}) => {
+  await saveNowFromSettings(freshGame);
+  await freshGame.reload();
+  await startFreshPioneer(freshGame, "Grace");
+  await saveNowFromSettings(freshGame);
+  await freshGame.reload();
+  await resumePioneer(freshGame, "Hydrogen Pioneer");
+
+  const staleTab = await freshGame.context().newPage();
+  await staleTab.goto("/?testSeed=75&testLocale=en");
+  await resumePioneer(staleTab, "Hydrogen Pioneer");
+  await openSaveSettings(staleTab);
+  await expect(staleTab.getByTestId("save-status")).toContainText("another tab");
+
+  const graceSlot = staleTab
+    .getByTestId("save-manager-inline")
+    .getByRole("button", { name: /^Grace/ });
+  const exitDialog = staleTab.getByTestId("unsaved-exit-dialog");
+  await graceSlot.click();
+  await expect(exitDialog).toBeVisible();
+  await expect(exitDialog.getByRole("button").first()).toBeFocused();
+  await staleTab.keyboard.press("Escape");
+  await expect(exitDialog).toHaveCount(0);
+  await expect(graceSlot).toBeFocused();
+
+  await graceSlot.click();
+  await expect(exitDialog).toBeVisible();
+  await exitDialog.getByRole("button", { name: "Keep playing", exact: true }).click();
+  await expect(exitDialog).toHaveCount(0);
+  await expect(graceSlot).toBeFocused();
+
+  await graceSlot.click();
+  await expect(exitDialog).toBeVisible();
+  await exitDialog.getByRole("button", { name: "Manage saves", exact: true }).click();
+  await expect(exitDialog).toHaveCount(0);
+  await expect(staleTab.getByTestId("save-manager-inline")).toBeVisible();
+  await expect(graceSlot).toBeFocused();
+
+  await graceSlot.click();
+  await expect(exitDialog).toBeVisible();
+  await exitDialog.getByRole("button", { name: "Discard temporary run", exact: true }).click();
+  await expect(staleTab.locator("#pioneer-name")).toHaveValue("Grace");
+  await expect(staleTab.locator("#pioneer-name")).toBeFocused();
+});
+
+test("French unsaved-exit dialog copy and actions fit 320px @save-slots @p51-unsaved-exit", async ({
+  freshGame,
+}) => {
+  await saveNowFromSettings(freshGame);
+  await freshGame.reload();
+  await startFreshPioneer(freshGame, "Grace");
+  await saveNowFromSettings(freshGame);
+  await freshGame.reload();
+  await resumePioneer(freshGame, "Hydrogen Pioneer");
+  await setGameLocale(freshGame, "fr");
+  await saveNowFromSettings(freshGame);
+
+  const staleTab = await freshGame.context().newPage();
+  await staleTab.goto("/?testSeed=75&testLocale=fr");
+  await staleTab.locator("#pioneer-name").fill("Hydrogen Pioneer");
+  await staleTab.getByRole("option").filter({ hasText: "Hydrogen Pioneer" }).click();
+  await staleTab.getByTestId("start-game").click();
+  await expect(staleTab.locator("html")).toHaveAttribute("lang", "fr");
+  await staleTab.setViewportSize({ width: 320, height: 740 });
+  await openSaveSettings(staleTab);
+
+  const frenchConflict =
+    "La sauvegarde a chang\u00e9 dans un autre onglet. Rechargez ou exportez cette partie avant d'enregistrer.";
+  await expect(staleTab.getByTestId("save-status")).toContainText(frenchConflict);
+
+  const graceSlot = staleTab
+    .getByTestId("save-manager-inline")
+    .getByRole("button", { name: /^Grace/ });
+  await graceSlot.click();
+
+  const exitDialog = staleTab.getByTestId("unsaved-exit-dialog");
+  await expect(exitDialog).toBeVisible();
+  await expect(exitDialog.locator(".save-warning")).toHaveText(frenchConflict);
+  const frenchActions = [
+    "Gestion des sauvegardes",
+    "Continuer \u00e0 jouer",
+    "Abandonner la partie temporaire",
+  ];
+  for (const actionName of frenchActions) {
+    await expect(exitDialog.getByRole("button", { name: actionName, exact: true })).toBeVisible();
+  }
+
+  const layout = await exitDialog.evaluate((dialog) => {
+    const dialogRect = dialog.getBoundingClientRect();
+    const warning = dialog.querySelector<HTMLElement>(".save-warning");
+    if (!warning) throw new Error("The unsaved-exit warning is missing.");
+    const warningRect = warning.getBoundingClientRect();
+    const actions = Array.from(dialog.querySelectorAll<HTMLButtonElement>(".save-actions button"));
+    return {
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      documentWidth: document.documentElement.scrollWidth,
+      dialog: {
+        left: dialogRect.left,
+        top: dialogRect.top,
+        right: dialogRect.right,
+        bottom: dialogRect.bottom,
+        clientWidth: dialog.clientWidth,
+        scrollWidth: dialog.scrollWidth,
+      },
+      warning: {
+        left: warningRect.left,
+        top: warningRect.top,
+        right: warningRect.right,
+        bottom: warningRect.bottom,
+        clientWidth: warning.clientWidth,
+        scrollWidth: warning.scrollWidth,
+        clientHeight: warning.clientHeight,
+        scrollHeight: warning.scrollHeight,
+      },
+      actions: actions.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          text: button.innerText.trim(),
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          clientWidth: button.clientWidth,
+          scrollWidth: button.scrollWidth,
+          clientHeight: button.clientHeight,
+          scrollHeight: button.scrollHeight,
+        };
+      }),
+    };
+  });
+
+  expect(layout.viewportWidth).toBe(320);
+  expect(layout.viewportHeight).toBe(740);
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.dialog.left).toBeGreaterThanOrEqual(0);
+  expect(layout.dialog.top).toBeGreaterThanOrEqual(0);
+  expect(layout.dialog.right).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.dialog.bottom).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.dialog.scrollWidth).toBeLessThanOrEqual(layout.dialog.clientWidth);
+  expect(layout.warning.top).toBeGreaterThanOrEqual(layout.dialog.top);
+  expect(layout.warning.left).toBeGreaterThanOrEqual(layout.dialog.left);
+  expect(layout.warning.right).toBeLessThanOrEqual(layout.dialog.right);
+  expect(layout.warning.bottom).toBeLessThanOrEqual(layout.dialog.bottom);
+  expect(layout.warning.scrollWidth).toBeLessThanOrEqual(layout.warning.clientWidth);
+  expect(layout.warning.scrollHeight).toBeLessThanOrEqual(layout.warning.clientHeight + 1);
+  expect(layout.actions).toHaveLength(frenchActions.length);
+  for (const action of layout.actions) {
+    expect(action.left).toBeGreaterThanOrEqual(layout.dialog.left);
+    expect(action.top).toBeGreaterThanOrEqual(layout.dialog.top);
+    expect(action.right).toBeLessThanOrEqual(layout.dialog.right);
+    expect(action.bottom).toBeLessThanOrEqual(layout.dialog.bottom);
+    expect(action.scrollWidth).toBeLessThanOrEqual(action.clientWidth);
+    expect(action.scrollHeight).toBeLessThanOrEqual(action.clientHeight + 1);
+  }
 });

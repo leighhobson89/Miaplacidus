@@ -1,5 +1,5 @@
 import { createInitialGameState, isValidGameState, type GameState } from "./state";
-import { transition, type EngineResult, type GameCommand } from "./commands";
+import { transitionFromKnownValidState, type EngineResult, type GameCommand } from "./commands";
 import { selectGameSnapshot, type GameSnapshot } from "./selectors";
 import type { ClockSource } from "./clock";
 
@@ -9,11 +9,15 @@ export interface GameStoreOptions {
   readonly onListenerError?: (error: unknown) => void;
 }
 
+export type GameStateReducer = (state: GameState) => EngineResult;
+
 export interface GameStore {
   getState(): GameState;
   getSnapshot(): GameSnapshot;
   subscribe(listener: () => void): () => void;
   dispatch(command: GameCommand): EngineResult;
+  /** Present only in development and test builds for typed scenario reducers. */
+  dispatchReducer?: (reducer: GameStateReducer) => EngineResult;
   dispatchBatch(commands: readonly GameCommand[]): readonly EngineResult[];
   publishIfDue(): boolean;
   publishNow(): void;
@@ -40,27 +44,82 @@ export function createGameStore(initialState: GameState, options: GameStoreOptio
   let snapshot = selectGameSnapshot(state);
   let lastPublishedAt = readClock(options.clock, 0);
   let dirty = false;
+  let publishing = false;
   const listeners = new Set<() => void>();
 
   function publish(nowMs: number): void {
-    if (!dirty) return;
-    snapshot = selectGameSnapshot(state);
-    lastPublishedAt = nowMs;
-    dirty = false;
-    for (const listener of listeners) {
-      try {
-        listener();
-      } catch (error) {
-        try {
-          options.onListenerError?.(error);
-        } catch {
-          // A reporting adapter must not interrupt snapshot publication.
+    if (!dirty || publishing) return;
+    publishing = true;
+    let publishedAt = nowMs;
+    try {
+      while (dirty) {
+        snapshot = selectGameSnapshot(state);
+        lastPublishedAt = publishedAt;
+        dirty = false;
+        for (const listener of listeners) {
+          try {
+            listener();
+          } catch (error) {
+            try {
+              options.onListenerError?.(error);
+            } catch {
+              // A reporting adapter must not interrupt snapshot publication.
+            }
+          }
         }
+        publishedAt = readClock(options.clock, lastPublishedAt);
       }
+    } finally {
+      publishing = false;
     }
   }
 
-  return {
+  function reject(stateValue: GameState, code: "invalid-state" | "transition-failed") {
+    const failure =
+      code === "invalid-state"
+        ? ({ code: "invalid-state", messageKey: "engine.error.invalid-state" } as const)
+        : ({ code: "transition-failed", messageKey: "engine.error.recovered" } as const);
+    return {
+      accepted: false,
+      state: stateValue,
+      events: [],
+      failure,
+    } satisfies EngineResult;
+  }
+
+  function validateResult(result: EngineResult, previous: GameState): EngineResult {
+    if (!result.accepted) return result;
+    if (!isValidGameState(result.state)) return reject(previous, "invalid-state");
+    if (result.state.run.pioneerName !== previous.run.pioneerName)
+      return reject(previous, "transition-failed");
+    return result;
+  }
+
+  function validateTransitionResult(result: EngineResult, previous: GameState): EngineResult {
+    if (result.accepted && result.state.run.pioneerName !== previous.run.pioneerName)
+      return reject(previous, "transition-failed");
+    return result;
+  }
+
+  function commit(
+    result: EngineResult,
+    publishImmediately: boolean,
+    nowMs: number,
+    transitionValidated = false,
+  ): EngineResult {
+    const validated = transitionValidated
+      ? validateTransitionResult(result, state)
+      : validateResult(result, state);
+    if (!validated.accepted) return validated;
+    if (validated.state === state && validated.events.length === 0) return validated;
+    state = validated.state;
+    lastGoodState = state;
+    dirty = true;
+    if (publishImmediately || nowMs - lastPublishedAt >= publishIntervalMs) publish(nowMs);
+    return validated;
+  }
+
+  const store: GameStore = {
     getState: () => state,
     getSnapshot: () => snapshot,
     subscribe(listener) {
@@ -68,21 +127,14 @@ export function createGameStore(initialState: GameState, options: GameStoreOptio
       return () => listeners.delete(listener);
     },
     dispatch(command) {
-      const result = transition(state, command);
-      if (!result.accepted) return result;
-      state = result.state;
-      lastGoodState = state;
-      dirty = true;
+      const result = transitionFromKnownValidState(state, command);
       const nowMs = readClock(options.clock, lastPublishedAt);
-      if (command.type !== "clock.advance" || nowMs - lastPublishedAt >= publishIntervalMs) {
-        publish(nowMs);
-      }
-      return result;
+      return commit(result, command.type !== "clock.advance", nowMs, true);
     },
     dispatchBatch(commands) {
       const results: EngineResult[] = [];
       for (const command of commands) {
-        const result = transition(state, command);
+        const result = validateTransitionResult(transitionFromKnownValidState(state, command), state);
         results.push(result);
         if (!result.accepted) continue;
         state = result.state;
@@ -108,4 +160,18 @@ export function createGameStore(initialState: GameState, options: GameStoreOptio
       publish(readClock(options.clock, lastPublishedAt));
     },
   };
+
+  if (import.meta.env.DEV || MIAPLACIDUS_BUILD_MODE === "test") {
+    store.dispatchReducer = (reducer) => {
+      let result: EngineResult;
+      try {
+        result = reducer(state);
+      } catch {
+        return reject(state, "transition-failed");
+      }
+      return commit(result, true, readClock(options.clock, lastPublishedAt));
+    };
+  }
+
+  return store;
 }

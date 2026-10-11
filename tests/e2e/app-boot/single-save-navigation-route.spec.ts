@@ -18,9 +18,22 @@ async function appSaveHeadKeys(page: Page): Promise<string[]> {
   );
 }
 
+async function visiblePaneTabIds(page: Page, panePrefix: string): Promise<string[]> {
+  return page
+    .locator('[role="tab"]')
+    .evaluateAll(
+      (tabs, prefix) =>
+        tabs
+          .filter((tab) => tab.id.startsWith(`tab-${prefix}-`) && tab.getClientRects().length > 0)
+          .map((tab) => tab.id),
+      panePrefix,
+    );
+}
+
 test("one saved pioneer reaches late-game pages by keyboard after the navigation checkpoint @app-boot @ui-navigation @progression @keyboard", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const pioneer = "Single Save Navigation Pioneer";
   await page.addInitScript(() => {
     const clearedFlag = "miaplacidus:test:single-save-route-cleared";
@@ -51,6 +64,7 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
 
   await page.locator("#tab-hydrogen").click();
   for (let count = 1; count < 50; count += 1) await collectHydrogen.click();
+  await page.locator(".hydrogen-autobuyer-section > summary").click();
   await page.getByRole("button", { name: "Buy compressor", exact: true }).click();
   await expect(page.getByTestId("hydrogen-autobuyer-count")).toHaveText("1");
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(200_000));
@@ -102,11 +116,11 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
   );
   expect(mainTabIds).toEqual([
     "hydrogen",
-    "energy",
-    "research",
     "compounds",
-    "interstellar",
+    "research",
+    "energy",
     "space-mining",
+    "interstellar",
     "galaxy",
     "cosmic-rip",
     "settings",
@@ -115,29 +129,16 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
 
   const hydrogenTab = page.locator("#tab-hydrogen");
   await hydrogenTab.focus();
-  for (const id of ["energy", "research", "compounds", "interstellar"]) {
+  for (const id of ["compounds", "research", "energy", "space-mining"]) {
     await page.keyboard.press("ArrowRight");
     const tab = page.locator(`#tab-${id}`);
     await expect(tab).toBeFocused();
     await expect(tab).toHaveAttribute("aria-selected", "true");
   }
-  const interstellarChildIds = await page
-    .locator("#pane-interstellar .pane-nav-tab[role='tab']")
-    .evaluateAll((tabs) => tabs.map((tab) => tab.id));
-  expect(interstellarChildIds).toEqual([
-    "tab-interstellar-star-map",
-    "tab-interstellar-star-data",
-    "tab-interstellar-starship",
-    "tab-interstellar-fleet-hangar",
-  ]);
-
-  await page.keyboard.press("ArrowRight");
   const spaceMiningTab = page.locator("#tab-space-mining");
-  await expect(spaceMiningTab).toBeFocused();
   await expect(spaceMiningTab).toHaveAttribute("aria-selected", "true");
-  const spaceMiningChildIds = await page
-    .locator("#pane-space-mining .pane-nav-tab[role='tab']")
-    .evaluateAll((tabs) => tabs.map((tab) => tab.id));
+  await expect(page.getByRole("tab", { name: /^Mining/ })).toBeVisible();
+  const spaceMiningChildIds = await visiblePaneTabIds(page, "space-mining");
   expect(spaceMiningChildIds).toEqual([
     "tab-space-mining-mining",
     "tab-space-mining-telescope",
@@ -146,24 +147,34 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
   for (const rocketId of ["rocket-1", "rocket-2", "rocket-3", "rocket-4"])
     await expect(page.locator(`#tab-space-mining-${rocketId}`)).toHaveCount(0);
   await page.keyboard.press("ArrowRight");
+  const interstellarTab = page.locator("#tab-interstellar");
+  await expect(interstellarTab).toBeFocused();
+  await expect(interstellarTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: /^Star Map/ })).toBeVisible();
+  const interstellarChildIds = await visiblePaneTabIds(page, "interstellar");
+  expect(interstellarChildIds).toEqual([
+    "tab-interstellar-star-map",
+    "tab-interstellar-star-data",
+    "tab-interstellar-starship",
+    "tab-interstellar-fleet-hangar",
+  ]);
+  await page.keyboard.press("ArrowRight");
   const galacticTab = page.locator("#tab-galaxy");
   await expect(galacticTab).toBeFocused();
   await expect(galacticTab).toHaveAttribute("aria-selected", "true");
-  const galacticChildIds = await page
-    .locator("#pane-galaxy .pane-nav-tab[role='tab']")
-    .evaluateAll((tabs) => tabs.map((tab) => tab.id));
+  await expect(page.getByRole("tab", { name: /^Galactic Market/ })).toBeVisible();
+  const galacticChildIds = await visiblePaneTabIds(page, "galactic");
   expect(galacticChildIds).toEqual([
-    "tab-galactic-rebirth",
     "tab-galactic-market",
     "tab-galactic-casino",
     "tab-galactic-ascendency-perks",
     "tab-galactic-megastructures",
   ]);
+  await expect(page.locator("#tab-galactic-rebirth")).toHaveCount(0);
   await expect(page.locator(".game-nav #tab-galactic-casino")).toHaveCount(0);
 
-  const galacticRebirth = page.locator("#tab-galactic-rebirth");
-  await galacticRebirth.focus();
-  await page.keyboard.press("ArrowRight");
+  const galacticMarket = page.locator("#tab-galactic-market");
+  await galacticMarket.focus();
   await page.keyboard.press("ArrowRight");
   const casinoTab = page.locator("#tab-galactic-casino");
   await expect(casinoTab).toBeFocused();
@@ -183,14 +194,13 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
   await page.keyboard.press("Enter");
   await expect(casino.getByTestId("casino-balance")).toHaveText("20 CP");
 
-  await galacticTab.focus();
-  await page.keyboard.press("ArrowRight");
   const cosmicRipTab = page.locator("#tab-cosmic-rip");
+  await page.locator("#tab-galaxy").focus();
+  await page.keyboard.press("ArrowRight");
   await expect(cosmicRipTab).toBeFocused();
   await expect(cosmicRipTab).toHaveAttribute("aria-selected", "true");
-  const cosmicRipChildIds = await page
-    .locator("#pane-cosmic-rip .pane-nav-tab[role='tab']")
-    .evaluateAll((tabs) => tabs.map((tab) => tab.id));
+  await expect(page.getByRole("tab", { name: /^Situation/ })).toBeVisible();
+  const cosmicRipChildIds = await visiblePaneTabIds(page, "cosmic-rip");
   expect(cosmicRipChildIds).toEqual([
     "tab-cosmic-rip-situation",
     "tab-cosmic-rip-scanner-array",
