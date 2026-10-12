@@ -177,10 +177,10 @@ export type RunStatisticLabelId =
 const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> = {
   en: {
     runTime: "Run Time",
-    starSystem: "Star system",
-    currentWeather: "Current weather",
+    starSystem: "Star System",
+    currentWeather: "Current Weather",
     cash: "Cash",
-    apAnticipated: "AP anticipated",
+    apAnticipated: "AP Anticipated",
     antimatter: "Antimatter",
     currentSnapshotSection: "Current snapshot",
   },
@@ -204,9 +204,9 @@ const runStatisticLabels: Record<LocaleId, Record<RunStatisticLabelId, string>> 
   },
   de: {
     runTime: "Durchlaufzeit",
-    starSystem: "Sternsystem",
+    starSystem: "Sternensystem",
     currentWeather: "Aktuelles Wetter",
-    cash: "Bargeld",
+    cash: "Geld",
     apAnticipated: "Erwartete AP",
     antimatter: "Antimaterie",
     currentSnapshotSection: "Momentaufnahme",

@@ -207,7 +207,7 @@ test("keeps the Starship page focused through an arrival notice @p16-focus", asy
     .click();
   const launchNotice = page
     .locator('[data-testid="game-notification"][data-classification="starShip"]')
-    .filter({ hasText: "Starship launched toward Sirius" });
+    .filter({ hasText: "Travelling to Sirius" });
   await expect(launchNotice).toBeVisible();
   await expect(launchNotice).toHaveCount(0, { timeout: 5_000 });
 
@@ -221,7 +221,7 @@ test("keeps the Starship page focused through an arrival notice @p16-focus", asy
     .toBe("orbiting");
   const arrivalNotice = page
     .locator('[data-testid="game-notification"][data-classification="starShip"]')
-    .filter({ hasText: "Starship arrived at Sirius" });
+    .filter({ hasText: "StarShip has reached orbit of the Sirius system!" });
   await expectNoticeLeavesFocus(arrivalNotice, starshipTab);
 });
 

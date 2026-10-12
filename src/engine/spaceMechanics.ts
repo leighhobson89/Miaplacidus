@@ -183,7 +183,12 @@ function isUndisclosedFactorySystem(state: GameState, systemId: string): boolean
 function diplomacyIsAvailable(state: GameState): boolean {
   const starship = state.run.space.starship;
   const systemId = starship.destinationSystemId;
-  if (starship.phase !== "orbiting" || systemId === null || !state.run.space.fleetEnvoyBuilt)
+  if (
+    starship.phase !== "orbiting" ||
+    systemId === null ||
+    !state.run.space.fleetEnvoyBuilt ||
+    state.run.space.ascendencyAwardedThisRun
+  )
     return false;
   const encounter = state.run.space.systemEncounters.find((entry) => entry.systemId === systemId);
   if (
@@ -211,6 +216,13 @@ function currentEncounter(state: GameState) {
 
 function enemyFleetCount(encounter: NonNullable<ReturnType<typeof currentEncounter>>): number {
   return encounter.enemyFleets.air + encounter.enemyFleets.land + encounter.enemyFleets.sea;
+}
+
+function playerHasAnyFleet(state: GameState): boolean {
+  return (
+    state.run.space.fleetEnvoyBuilt ||
+    PLAYER_FLEET_IDS.some((fleetId) => state.run.space.playerFleets[fleetId] > 0)
+  );
 }
 
 function encounterCanSettle(encounter: NonNullable<ReturnType<typeof currentEncounter>>): boolean {
@@ -550,11 +562,14 @@ export function checkSpacePreconditions(
   }
   if (command.type === "space.diplomacy.enter-war") {
     const encounter = currentEncounter(state);
+    const playerPower = totalPlayerFleetPower(state.run.space.playerFleetCombatTotals).attackPower;
     return state.run.space.starship.phase === "orbiting" &&
+      !state.run.space.ascendencyAwardedThisRun &&
       encounter !== undefined &&
       encounter.warReady &&
       !encounter.warMode &&
-      enemyFleetCount(encounter) > 0
+      enemyFleetCount(encounter) > 0 &&
+      playerPower > 0
       ? { ok: true }
       : reject({
           code: "space-diplomacy-unavailable",
@@ -568,6 +583,7 @@ export function checkSpacePreconditions(
       0,
     );
     return state.run.space.starship.phase === "orbiting" &&
+      !state.run.space.ascendencyAwardedThisRun &&
       encounter !== undefined &&
       encounter.warMode &&
       !encounter.warReady &&
@@ -589,6 +605,8 @@ export function checkSpacePreconditions(
       systemId !== null &&
       encounter !== undefined &&
       encounterCanSettle(encounter) &&
+      playerHasAnyFleet(state) &&
+      !state.run.space.ascendencyAwardedThisRun &&
       !state.permanent.settledSystemIds.includes(systemId)
       ? { ok: true }
       : reject({

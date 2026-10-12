@@ -289,6 +289,7 @@ describe("megastructure progression", () => {
         },
         space: {
           ...initial.run.space,
+          fleetEnvoyBuilt: true,
           currentSystemId: manuscriptSite.id,
           weatherSystemId: manuscriptSite.id,
           systemProfiles: ensureDiscoveredStarSystemProfiles(

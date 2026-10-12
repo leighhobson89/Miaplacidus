@@ -27,13 +27,12 @@ export function compoundCreatedNotice(
   )
     return null;
 
-  const parts = new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(
-    philosophyCompoundRecipe(state, event.goodId as CompoundId)
+  const parts = philosophyCompoundRecipe(state, event.goodId as CompoundId)
     .map(
       ({ goodId, amount }) =>
         `${formatNumber(locale, amount * event.amount, 0, state.settings.notation)} ${economyGoodName(locale, goodId)}`,
-    ),
-  );
+    )
+    .join(", ");
   const message = formatEconomyMessage(locale, "compoundCreatedNotice", {
     amount: formatNumber(locale, event.amount, 0, state.settings.notation),
     compound: economyGoodName(locale, event.goodId),

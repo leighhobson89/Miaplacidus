@@ -1048,7 +1048,7 @@ test("Casino source row help is attached to each section in all locales @p44-cas
   }
 });
 
-test("rebirth keeps Casino hidden until this run awards AP while CP stays visible @ui-navigation", async ({
+test("rebirth restores the source Casino marker before this run awards AP @ui-navigation", async ({
   page,
 }) => {
   await startMetaFixture(page, "meta-post-rebirth-casino-access");
@@ -1067,38 +1067,29 @@ test("rebirth keeps Casino hidden until this run awards AP while CP stays visibl
   await expect(childTablist.locator("#tab-galactic-market")).toHaveCount(1);
   await expect(childTablist.locator("#tab-galactic-ascendency-perks")).toHaveCount(1);
   const casinoTab = childTablist.locator("#tab-galactic-casino");
-  await expect(casinoTab).toHaveCount(0);
+  await expect(casinoTab).toHaveCount(1);
   const childOrder = await childTablist
     .getByRole("tab")
     .evaluateAll((tabs) => tabs.map((tab) => tab.id));
-  expect(childOrder).toEqual(["tab-galactic-market", "tab-galactic-ascendency-perks"]);
+  expect(childOrder).toEqual([
+    "tab-galactic-market",
+    "tab-galactic-casino",
+    "tab-galactic-ascendency-perks",
+  ]);
 
-  const blockedPurchase = await page.evaluate(() =>
+  const acceptedPurchase = await page.evaluate(() =>
     window.miaplacidusTest!.dispatch({
       type: "casino.points.buy",
       goodId: "cash",
       amount: 1,
     }),
   );
-  expect(blockedPurchase).toBe(false);
+  expect(acceptedPurchase).toBe(true);
   expect(
     await page.evaluate(
       () => window.miaplacidusTest!.getState().permanent.galacticCasino.casinoPoints,
     ),
-  ).toBe(0);
-
-  // Test-only scenario action makes this run AP-awarded so the navigation gate can be checked
-  // without simulating the full endgame progression.
-  const awardedAp = await page.evaluate(() =>
-    window.miaplacidusTest!.applyDebugAction("unlock-all-tabs"),
-  );
-  expect(awardedAp).toBe(true);
-  await expect
-    .poll(() =>
-      page.evaluate(() => window.miaplacidusTest!.getState().run.space.ascendencyAwardedThisRun),
-    )
-    .toBe(true);
-  await expect(casinoTab).toBeVisible();
+  ).toBe(1);
 
   await casinoTab.click();
   const casino = page.getByTestId("galactic-casino-pane");

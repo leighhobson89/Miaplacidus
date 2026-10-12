@@ -5,6 +5,7 @@ import { MEGASTRUCTURE_IDS, MEGASTRUCTURE_TRACKS } from "../content/technology";
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import { createStarCatalogue, starTypeForSystem } from "../content/starCatalogue";
 import { createEconomyTickPlan } from "../engine/economySimulation";
+import { galacticTabUnlocked } from "../engine/galacticProgression";
 import { displayCurrency } from "../engine/precision";
 import { selectResearchProductionBreakdown, selectTopStatusEvent } from "../engine/selectors";
 import type { GameState } from "../engine/state";
@@ -133,7 +134,7 @@ export function AscendencyBalance({ state, locale }: Pick<Props, "state" | "loca
 }
 
 function CasinoBalance({ state, locale }: Pick<Props, "state" | "locale">) {
-  if (!(state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0)) return null;
+  if (!galacticTabUnlocked(state)) return null;
   const value = formatNumber(
     locale,
     state.permanent.galacticCasino.casinoPoints,
@@ -255,7 +256,7 @@ function CashBalance({ state, locale }: Pick<Props, "state" | "locale">) {
       valueTestId="cash-balance"
       tooltip={
         <>
-          <div>{translated(locale, "cash")}</div>
+          <div>{translated(locale, "cashTooltip")}</div>
           <div>{value}</div>
         </>
       }

@@ -691,7 +691,7 @@ describe("Galactic child navigation", () => {
     ]);
   });
 
-  it("keeps Casino hidden after rebirth until the current run awards AP", () => {
+  it("restores Casino visibility from the source marker on rebirth", () => {
     const initial = createInitialGameState({ locale: "en" });
     const state = {
       ...initial,
@@ -700,12 +700,14 @@ describe("Galactic child navigation", () => {
 
     expect(ids(galacticPaneItems("en", state))).toEqual([
       "galactic-market",
+      "galactic-casino",
       "galactic-ascendency-perks",
     ]);
     expect(
       galacticPaneItems("en", state).map(({ id, sourceOptionId }) => [id, sourceOptionId]),
     ).toEqual([
       ["galactic-market", "option2"],
+      ["galactic-casino", "option6"],
       ["galactic-ascendency-perks", "option3"],
     ]);
 

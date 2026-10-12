@@ -22,6 +22,7 @@ import { createEconomyTickPlan } from "../engine/economySimulation";
 import { MAX_FOREGROUND_STEP_MS } from "../engine/clock";
 import { createGameStore, type GameStore } from "../engine/store";
 import { createInitialGameState, type GameState } from "../engine/state";
+import { galacticTabUnlocked } from "../engine/galacticProgression";
 import {
   selectAutobuyerBuyMax,
   selectHydrogenAutobuyerPurchase,
@@ -225,8 +226,7 @@ function isGameTabAvailable(tabId: GameTabId, state: GameState): boolean {
       state.run.economy.researchedTechnologies.includes("stellarCartography")) ||
     (tabId === "space-mining" &&
       state.run.economy.researchedTechnologies.includes("atmosphericTelescopes")) ||
-    (tabId === "galaxy" &&
-      (state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0)) ||
+    (tabId === "galaxy" && galacticTabUnlocked(state)) ||
     (tabId === "cosmic-rip" && state.permanent.cosmicRip.unlocked) ||
     tabId === "settings" ||
     tabId === "miaplaedia"
@@ -406,6 +406,7 @@ interface FrameMetrics {
 
 interface GameSessionProps {
   readonly store: GameStore;
+  readonly offlineGainsNoticeOnStart: boolean;
   readonly testClock: TestClock;
   readonly seed: number;
   readonly frameMetrics: FrameMetrics;
@@ -514,6 +515,7 @@ function AppContent() {
     revision: number;
     persistent: boolean;
     releaseLock: () => void;
+    offlineGainsNoticeOnStart: boolean;
     warning?: SaveErrorCode;
   } | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(() => {
@@ -751,6 +753,7 @@ function AppContent() {
         revision,
         persistent,
         releaseLock,
+        offlineGainsNoticeOnStart: Boolean(existing),
         ...(unsavedWarning ? { warning: unsavedWarning } : {}),
       });
     } catch (error) {
@@ -849,6 +852,7 @@ function AppContent() {
       revision: envelope.revision,
       persistent: true,
       releaseLock: newLockRelease,
+      offlineGainsNoticeOnStart: false,
     });
     setLocale(envelope.state.settings.locale);
   }
@@ -874,6 +878,7 @@ function AppContent() {
           <GameSession
             key={session.slotId}
             store={store}
+            offlineGainsNoticeOnStart={session.offlineGainsNoticeOnStart}
             testClock={testClock}
             seed={initial.seed}
             frameMetrics={frameMetrics}
@@ -913,6 +918,7 @@ function AppContent() {
 
 function GameSession({
   store: engineStore,
+  offlineGainsNoticeOnStart,
   testClock,
   seed,
   frameMetrics,
@@ -984,6 +990,7 @@ function GameSession({
   const [debugScenarioOpen, setDebugScenarioOpen] = useState(false);
   const [debugLabOpen, setDebugLabOpen] = useState(false);
   const currentLocaleRef = useRef(snapshot.locale);
+  const offlineGainsNoticePending = useRef(offlineGainsNoticeOnStart);
   useEffect(() => {
     currentLocaleRef.current = snapshot.locale;
   }, [snapshot.locale]);
@@ -1108,6 +1115,17 @@ function GameSession({
     const tutorial = store.getState().permanent.progressionTutorial;
     if (tutorial.status === "active" && tutorial.stepId === "visitAudioSettings") {
       dispatchTutorialCommand({ type: "tutorial.advance", stepId: "visitAudioSettings" });
+    }
+  }, [dispatchTutorialCommand, store]);
+  const recordTutorialThemeSelectorInteraction = useCallback(() => {
+    const state = store.getState();
+    const tutorial = state.permanent.progressionTutorial;
+    if (
+      tutorial.status === "active" &&
+      tutorial.stepId === "chooseDarkTheme" &&
+      state.settings.themeId === "dark"
+    ) {
+      dispatchTutorialCommand({ type: "tutorial.advance", stepId: "chooseDarkTheme" });
     }
   }, [dispatchTutorialCommand, store]);
 
@@ -1246,7 +1264,11 @@ function GameSession({
     const onVisibilityChange = () => {
       const current = store.getState();
       const tickPlan = createEconomyTickPlan(current).tickPlan;
-      store.dispatch({
+      const announceOfflineGains =
+        offlineGainsNoticePending.current &&
+        document.visibilityState === "visible" &&
+        !current.run.clock.foreground;
+      const result = store.dispatch({
         type: "clock.advance",
         input: {
           wallNowMs: wallNow(),
@@ -1256,6 +1278,14 @@ function GameSession({
         tickPlan,
         offlineTickPlan: tickPlan,
       });
+      if (announceOfflineGains && result.accepted) {
+        offlineGainsNoticePending.current = false;
+        notify(saveText(currentLocaleRef.current, "offlineGainsAdded"), {
+          classification: "loadSave",
+          type: "info",
+          durationMs: 3000,
+        });
+      }
       store.publishNow();
       if (document.visibilityState === "hidden") persistCurrent(true);
     };
@@ -1276,7 +1306,11 @@ function GameSession({
       if (simulationTickDue) {
         const state = store.getState();
         const tickPlan = createEconomyTickPlan(state).tickPlan;
-        store.dispatch({
+        const announceOfflineGains =
+          offlineGainsNoticePending.current &&
+          document.visibilityState === "visible" &&
+          !state.run.clock.foreground;
+        const result = store.dispatch({
           type: "clock.advance",
           input: {
             wallNowMs: wallNow(),
@@ -1288,6 +1322,14 @@ function GameSession({
           tickPlan,
           offlineTickPlan: tickPlan,
         });
+        if (announceOfflineGains && result.accepted) {
+          offlineGainsNoticePending.current = false;
+          notify(saveText(currentLocaleRef.current, "offlineGainsAdded"), {
+            classification: "loadSave",
+            type: "info",
+            durationMs: 3000,
+          });
+        }
         store.publishIfDue();
         if (timestamp - lastPresentationPublishAt >= MAX_FOREGROUND_STEP_MS) {
           store.publishNow();
@@ -1302,7 +1344,7 @@ function GameSession({
       cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [store, testClock, frameMetrics, persistCurrent]);
+  }, [store, testClock, frameMetrics, notify, persistCurrent]);
 
   useEffect(() => {
     if (!DEBUG_ENABLED || (!import.meta.env.DEV && MIAPLACIDUS_BUILD_MODE !== "test")) return;
@@ -2675,8 +2717,7 @@ function GameSession({
                             />
                           </div>
                         ) : tab.id === "galaxy" &&
-                          (store.getState().run.space.ascendencyAwardedThisRun ||
-                            store.getState().permanent.rebirthCount > 0) ? (
+                          galacticTabUnlocked(store.getState()) ? (
                           <div className="tab-section-layout">
                             <PaneNavigation
                               items={galacticPanels}
@@ -2926,6 +2967,7 @@ function GameSession({
                             }}
                             onSoundEffectsDisable={playSoundEffectsDisableCue}
                             onBackgroundAudioToggle={recordTutorialBackgroundAudioToggle}
+                            onThemeSelectorInteraction={recordTutorialThemeSelectorInteraction}
                             onSaveNow={() => persistCurrent()}
                             saveManagerProps={{
                               locale: snapshot.locale,
@@ -2945,6 +2987,7 @@ function GameSession({
                                 saveRevisionRef.current = envelope.revision;
                                 setSaveRevision(envelope.revision);
                                 setSaveWritesPaused(false);
+                                offlineGainsNoticePending.current = true;
                                 onReplaceActive(envelope);
                               },
                               onDeleted: onDeleteActive,

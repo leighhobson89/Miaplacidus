@@ -313,7 +313,7 @@ test("profiles game-loop work for five seconds after the first Settings click @p
       longAnimationFrames: record?.longAnimationFrames ?? [],
       activePane: document.querySelector("#panel-settings-visual")?.hidden
         ? null
-        : "Visual Options",
+        : "Visual",
       settingsStatisticsMounted: document.querySelector("#panel-settings-statistics > *") !== null,
       artwork: document
         .querySelector("#pane-settings .page-artwork-row")

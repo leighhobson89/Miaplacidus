@@ -453,7 +453,7 @@ test("name and import inputs stay in view under mobile zoom @save-slots @p22-zoo
   }
 });
 
-test("save management stays inline in Saving and Loading @save-slots @keyboard @ui-navigation", async ({
+test("save management stays inline in Saving / Loading @save-slots @keyboard @ui-navigation", async ({
   freshGame,
 }, testInfo) => {
   await openSaveManager(freshGame);

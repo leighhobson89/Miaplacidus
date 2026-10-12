@@ -931,7 +931,7 @@ shutdown. This supersedes the older unclean runner status.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4826'
-node .\node_modules\playwright\cli.js test tests/e2e/economy/economy.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p54-energy-casino-4826 --grep 'Energy compares live generator mix with consumption accessibly|rebirth keeps Casino hidden until this run awards AP while CP stays visible'
+node .\node_modules\playwright\cli.js test tests/e2e/economy/economy.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p54-energy-casino-4826 --grep 'Energy compares live generator mix with consumption accessibly|rebirth restores the source Casino marker before this run awards AP'
 ```
 
 ## P-29 Resource and Compound audio cues (10 October 2026)

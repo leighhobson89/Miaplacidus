@@ -108,7 +108,7 @@ const messages: Record<
     achievements: "Achievements",
     sections: "Settings sections",
     preferencesSection: "Preferences",
-    savingSection: "Saving and Loading",
+    savingSection: "Saving / Loading",
     journal: "Meta journal",
     themes: {
       terminal: "Terminal",
@@ -172,7 +172,7 @@ const messages: Record<
     achievements: "Logros",
     sections: "Secciones de ajustes",
     preferencesSection: "Preferencias",
-    savingSection: "Guardar y cargar",
+    savingSection: "Guardar / Cargar",
     journal: "Diario meta",
     themes: {
       terminal: "Terminal",
@@ -236,7 +236,7 @@ const messages: Record<
     achievements: "Conquistas",
     sections: "Secções das configurações",
     preferencesSection: "Preferências",
-    savingSection: "Guardar e carregar",
+    savingSection: "Guardar / Carregar",
     journal: "Diário meta",
     themes: {
       terminal: "Terminal",
@@ -297,10 +297,10 @@ const messages: Record<
     newsTicker: "Nachrichtenticker",
     notifications: "Benachrichtigungen",
     reducedMotion: "Bewegung reduzieren",
-    achievements: "Errungenschaften",
+    achievements: "Erfolge",
     sections: "Einstellungsbereiche",
     preferencesSection: "Einstellungen",
-    savingSection: "Speichern und laden",
+    savingSection: "Speichern / Laden",
     journal: "Meta-Journal",
     themes: {
       terminal: "Terminal",
@@ -364,7 +364,7 @@ const messages: Record<
     achievements: "Traguardi",
     sections: "Sezioni delle impostazioni",
     preferencesSection: "Preferenze",
-    savingSection: "Salvataggio e caricamento",
+    savingSection: "Salvataggio / Caricamento",
     journal: "Diario meta",
     themes: {
       terminal: "Terminale",
@@ -428,7 +428,7 @@ const messages: Record<
     achievements: "Succès",
     sections: "Sections des paramètres",
     preferencesSection: "Préférences",
-    savingSection: "Sauvegarde et chargement",
+    savingSection: "Sauvegarde / Chargement",
     journal: "Journal méta",
     themes: {
       terminal: "Terminal",
@@ -483,7 +483,7 @@ export type SettingsSectionId =
 
 const sections: Record<LocaleId, Record<SettingsSectionId, string>> = {
   en: {
-    visual: "Visual Options",
+    visual: "Visual",
     gameOptions: "Game Options",
     getStarted: "Get Started",
     conceptsEarly: "Concepts - Early",
@@ -496,8 +496,8 @@ const sections: Record<LocaleId, Record<SettingsSectionId, string>> = {
     events: "Events",
   },
   es: {
-    visual: "Opciones visuales",
-    gameOptions: "Opciones del juego",
+    visual: "Visual",
+    gameOptions: "Opciones de Juego",
     getStarted: "Empezar",
     conceptsEarly: "Conceptos - Temprano",
     conceptsMid: "Conceptos - Medio",
@@ -509,8 +509,8 @@ const sections: Record<LocaleId, Record<SettingsSectionId, string>> = {
     events: "Eventos",
   },
   pt: {
-    visual: "Opções visuais",
-    gameOptions: "Opções do jogo",
+    visual: "Visual",
+    gameOptions: "Opções de Jogo",
     getStarted: "Começar",
     conceptsEarly: "Conceitos - Inicial",
     conceptsMid: "Conceitos - Intermédio",
@@ -522,21 +522,21 @@ const sections: Record<LocaleId, Record<SettingsSectionId, string>> = {
     events: "Eventos",
   },
   de: {
-    visual: "Darstellungs\u00adoptionen",
+    visual: "Visuell",
     gameOptions: "Spieloptionen",
     getStarted: "Erste Schritte",
     conceptsEarly: "Konzepte - Früh",
     conceptsMid: "Konzepte - Mitte",
     conceptsLate: "Konzepte - Spät",
-    statistics: "Statistik",
+    statistics: "Statistiken",
     philosophies: "Philosophien",
     story: "Geschichte",
     endGoal: "Konzepte - Endziel",
     events: "Ereignisse",
   },
   it: {
-    visual: "Opzioni visive",
-    gameOptions: "Opzioni di gioco",
+    visual: "Visuale",
+    gameOptions: "Opzioni di Gioco",
     getStarted: "Iniziare",
     conceptsEarly: "Concetti - Inizio",
     conceptsMid: "Concetti - Metà",
@@ -548,8 +548,8 @@ const sections: Record<LocaleId, Record<SettingsSectionId, string>> = {
     events: "Eventi",
   },
   fr: {
-    visual: "Options d’affichage",
-    gameOptions: "Options de jeu",
+    visual: "Visuel",
+    gameOptions: "Options de Jeu",
     getStarted: "Commencer",
     conceptsEarly: "Concepts - Début",
     conceptsMid: "Concepts - Milieu",

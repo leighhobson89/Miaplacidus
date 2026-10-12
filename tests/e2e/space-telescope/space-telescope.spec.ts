@@ -553,7 +553,7 @@ test("explains the one-unit rocket-part shortfall through its associated reason 
   await page.locator("#tab-space-mining-launch-pad").click();
 
   const rocket = page.getByTestId("rocket-card-rocket1");
-  const buildPart = rocket.getByRole("button", { name: "Build one part" });
+  const buildPart = rocket.getByRole("button", { name: "Build Rocket Part" });
   await expect(rocket).toContainText(`${formatNumber("en", 3_000)} Steel`);
   await expect(buildPart).toBeDisabled();
   await expect(buildPart).toHaveAttribute("aria-describedby", "rocket-rocket1-part-reason");
@@ -570,7 +570,7 @@ test("builds a rocket part at exact stock and charges every quoted cost @space-t
   await page.locator("#tab-space-mining-launch-pad").click();
 
   const rocket = page.getByTestId("rocket-card-rocket1");
-  const buildPart = rocket.getByRole("button", { name: "Build one part" });
+  const buildPart = rocket.getByRole("button", { name: "Build Rocket Part" });
   await expect(buildPart).toBeEnabled();
   await expect(buildPart).not.toHaveAttribute("aria-describedby", /.+/);
   const cashBefore = await page.evaluate(() => window.miaplacidusTest!.getState().run.cash);
@@ -658,7 +658,7 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
     .toBe(true);
   const rocket = page.getByTestId("rocket-card-rocket1");
   for (let part = 0; part < 12; part += 1) {
-    await rocket.getByRole("button", { name: "Build one part" }).click();
+    await rocket.getByRole("button", { name: "Build Rocket Part" }).click();
   }
   await expect
     .poll(() =>
@@ -668,7 +668,7 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
 
   const rocket2 = page.getByTestId("rocket-card-rocket2");
   for (let part = 0; part < 17; part += 1) {
-    await rocket2.getByRole("button", { name: "Build one part" }).click();
+    await rocket2.getByRole("button", { name: "Build Rocket Part" }).click();
   }
   await expect
     .poll(() =>
@@ -813,7 +813,7 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   const rocket = page.getByTestId("rocket-card-rocket1");
   await expect(rocket).toBeVisible();
   for (let part = 0; part < 12; part += 1) {
-    await rocket.getByRole("button", { name: "Build one part" }).click();
+    await rocket.getByRole("button", { name: "Build Rocket Part" }).click();
   }
   await expect
     .poll(() =>

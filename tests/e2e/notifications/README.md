@@ -286,14 +286,9 @@ Megastructures. The case also confirms that no Megastructure toast duplicates
 the badge. No new notification copy or engine event was needed. P-08 remains
 open for the other source families and Casino gaps.
 
-## P-08 Galactic tab unlock notice (9 October 2026)
+## P-08 Galactic tab unlock notice (9 October 2026; settlement trigger superseded 12 October)
 
-Cosmic Forge `game.js:11283` and `11353` emits the exact localized
-`notificationGalacticTabUnlocked` copy as a `warning` in the `special`
-classification for 3000ms after the first-run unlock confirmation. In the
-remake the Galactic top-level tab becomes available when the first settlement
-awards AP. The accepted `space.system.settled` event is the corresponding
-stable route; later zero-AP settlements and post-rebirth runs remain silent.
+The exact-copy results below are historical for the then-current settlement-target implementation; its assertions were updated on 12 October and have not been rerun. Source review now confirms that the synthetic `apAwardedThisRun` tech-array marker is added on first-run Starship arrival, which reveals Galactic and Casino before settlement; rebirth seeds it again. The remake routes the Galactic notice from first-run `space.starship.arrived`.
 The existing inline settlement feedback reports that AP and GP rewards were
 recorded, but does not identify the newly revealed Galactic tab, so the toast
 adds distinct progression guidance. The exact six-locale copy is asserted

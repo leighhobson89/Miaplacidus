@@ -1,6 +1,6 @@
 # Galactic Casino browser tests
 
-The unlocked casino fixture supplies the current-run AP award, enough cash, stock, and unlocked goods to use the player controls. The post-rebirth fixture starts with the current-run AP award cleared: the Casino child is hidden and Casino commands are rejected while CP remains visible from the Galactic rebirth gate. A test-only scenario action then marks the current run AP-awarded and verifies the Casino child and purchase control become available. The Casino remains a child pane under Galactic.
+The Casino fixture supplies enough cash, stock, and unlocked goods to use the player controls. Cosmic Forge unlocks the Casino from the synthetic `apAwardedThisRun` marker on first-run Starship arrival, and seeds that marker again on rebirth; the remake derives the same gate from arrival history/orbit state or rebirth count. The actual current-run AP award is separate and is not required to open the Casino. The Casino remains its own child pane under Galactic.
 
 Run the focused Casino browser checks with:
 
@@ -18,11 +18,11 @@ The browser area checks CP purchase settlement, Wheel special-prize flow, Double
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4501'; node .\node_modules\playwright\cli.js test --pass-with-no-tests tests/e2e/galactic-casino/p13-casino-narrow-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
-Verification on 5 October 2026: focused presentation-navigation and Casino unit tests passed 16/16. The Chrome journeys covered source child order, post-rebirth Casino access, and all four casino games with save/reload. The post-rebirth Casino access expectation was incorrect and is superseded by the 9 October source-parity correction below. An earlier run reported its assertions passing, then hung during shutdown and was interrupted. The roundtrip screenshot baseline was refreshed and visually reviewed for the current tabbed layout.
+Verification on 5 October 2026: focused presentation-navigation and Casino unit tests passed 16/16. The Chrome journeys covered source child order, post-rebirth Casino access, and all four casino games with save/reload. The post-rebirth Casino access expectation was incorrect; its original correction is itself superseded by the 12 October source trace below. An earlier run reported its assertions passing, then hung during shutdown and was interrupted. The roundtrip screenshot baseline was refreshed and visually reviewed for the current tabbed layout.
 
 The `@ui-navigation` browser checks confirm Galactic Casino appears as a separate child page after opening Galactic and is never a top-level game tab. The unlocked child order is Rebirth, Galactic Market, Galactic Casino, then Ascendency Perks.
 
-**9 October 2026 source-gate correction:** Cosmic Forge requires an AP award in the current run for Casino access; rebirth alone does not unlock the Casino. Unit and browser expectations now keep the Casino child hidden and reject Casino commands after rebirth until that run awards AP. The browser case also checks CP remains visible from the separate Galactic rebirth gate, then uses a test-only AP-award setup to verify Casino navigation and purchase become available. Focused Casino and presentation-navigation unit specs passed 35/35; the installed-Chrome post-rebirth browser journey passed 1/1. TypeScript passed.
+**9 October 2026 source-gate correction (superseded 12 October):** the then-current target and test expectations incorrectly treated actual AP award as the source Casino gate. A full source trace found that the synthetic marker is restored on first-run Starship arrival and seeded on rebirth; source `galacticMarketChecks()` exposes the Casino from that marker. The code and existing assertions now follow that lifecycle. The 9 October test results below describe the superseded gate and were not rerun after correction.
 
 5 October 2026 follow-up: the rendered child links now also assert stable page IDs and original source option IDs in that order (`option1`, `option2`, `option6`, `option3`). The three focused Chrome cases passed without browser shutdown hangs. The Casino screenshot was refreshed and visually reviewed after the Resources rail was restricted to the Resources tab, giving the Casino its full content width under Galactic.
 
@@ -182,11 +182,13 @@ CP stays visible` passed 1/1. Together with the Energy chart case, the process
 completed **2/2 in 8.7 seconds**, exit 0, with clean server/browser shutdown.
 This supersedes the older unclean runner status.
 
+**12 October source-gate correction:** the earlier post-rebirth run verified the then-current hidden-until-AP implementation. The source trace established that the rebirth-seeded synthetic marker unlocks Casino before the actual AP award. The existing browser assertion now covers visible navigation and a successful purchase in that state; this revised assertion has not been run.
+
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4826'
-node .\node_modules\playwright\cli.js test tests/e2e/economy/economy.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p54-energy-casino-4826 --grep 'Energy compares live generator mix with consumption accessibly|rebirth keeps Casino hidden until this run awards AP while CP stays visible'
+node .\node_modules\playwright\cli.js test tests/e2e/economy/economy.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p54-energy-casino-4826 --grep 'Energy compares live generator mix with consumption accessibly|rebirth restores the source Casino marker before this run awards AP'
 ```
 
 ## P-56 all-theme Casino visual review (10 October 2026)

@@ -207,7 +207,7 @@ test("P-41 formats the Rocket fueling ETA in every notation @p41-fuel-eta", asyn
   await page.getByRole("button", { name: "Build launch pad" }).click();
   const rocket = page.getByTestId("rocket-card-rocket1");
   for (let part = 0; part < 12; part += 1) {
-    await rocket.getByRole("button", { name: "Build one part" }).click();
+    await rocket.getByRole("button", { name: "Build Rocket Part" }).click();
   }
   await page.locator("#tab-space-mining-rocket-1").click();
   await rocket.getByRole("button", { name: "Buy fuel pump" }).click();

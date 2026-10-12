@@ -321,7 +321,7 @@ test("cancels the point-of-no-return prompt and arrives through the saved voyage
     .toBe("travelling");
   await expect(
     page.locator('[data-testid="game-notification"][data-classification="starShip"]'),
-  ).toContainText("Starship launched toward Sirius");
+  ).toContainText("Travelling to Sirius");
 
   const travelling = await page.evaluate(() => window.miaplacidusTest!.getState());
   const voyageTimerId = travelling.run.space.starship.timerId!;

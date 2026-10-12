@@ -46,6 +46,7 @@ export type SaveMessageKey =
   | "imported"
   | "importedAsNew"
   | "loaded"
+  | "offlineGainsAdded"
   | "conflict"
   | "readOnlyLock"
   | "errEmpty"
@@ -135,6 +136,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     imported: "Save imported.",
     importedAsNew: "Save imported. Choose its pioneer from the saved list to resume it.",
     loaded: "Game loaded successfully!",
+    offlineGainsAdded: "Offline Gains Added!",
     conflict: "A local save already uses this pioneer name. Choose what to do.",
     readOnlyLock:
       "This tab cannot change the save because it does not hold the save lock. Reload or export this run before making changes.",
@@ -226,6 +228,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     imported: "Partida importada.",
     importedAsNew: "Partida importada. Elige su pionero de la lista para reanudarla.",
     loaded: "¡Partida cargada correctamente!",
+    offlineGainsAdded: "¡Ganancias sin conexión añadidas!",
     conflict: "Ya existe una partida local con este nombre. Elige qué hacer.",
     readOnlyLock:
       "Esta pestaña no puede cambiar la partida porque no tiene su bloqueo. Recarga o exporta esta sesión antes de modificarla.",
@@ -323,6 +326,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     imported: "Salvamento importado.",
     importedAsNew: "Salvamento importado. Escolha o pioneiro na lista para o retomar.",
     loaded: "Jogo carregado com sucesso!",
+    offlineGainsAdded: "Ganhos offline adicionados!",
     conflict: "Já existe um salvamento local com este nome. Escolha uma ação.",
     readOnlyLock:
       "Esta aba não pode alterar o salvamento porque não possui o bloqueio. Recarregue ou exporte esta sessão antes de fazer alterações.",
@@ -420,6 +424,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     imported: "Spielstand importiert.",
     importedAsNew: "Spielstand importiert. Wähle den Pionier in der Liste aus, um fortzufahren.",
     loaded: "Spiel erfolgreich geladen!",
+    offlineGainsAdded: "Offline-Gewinne hinzugefügt!",
     conflict: "Ein lokaler Spielstand verwendet diesen Namen bereits. Wähle eine Aktion.",
     readOnlyLock:
       "Dieser Tab kann den Spielstand nicht ändern, weil er die Sperre nicht besitzt. Lade neu oder exportiere diesen Lauf, bevor du Änderungen vornimmst.",
@@ -519,6 +524,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     imported: "Salvataggio importato.",
     importedAsNew: "Salvataggio importato. Scegli il pioniere nell'elenco per riprenderlo.",
     loaded: "Partita caricata con successo!",
+    offlineGainsAdded: "Guadagni offline aggiunti!",
     conflict: "Esiste già un salvataggio locale con questo nome. Scegli un'azione.",
     readOnlyLock:
       "Questa scheda non può modificare il salvataggio perché non ne detiene il blocco. Ricarica o esporta questa sessione prima di apportare modifiche.",
@@ -616,6 +622,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     imported: "Sauvegarde importée.",
     importedAsNew: "Sauvegarde importée. Choisissez le pionnier dans la liste pour la reprendre.",
     loaded: "Partie chargée avec succès!",
+    offlineGainsAdded: "Gains hors ligne ajoutés!",
     conflict: "Une sauvegarde locale utilise déjà ce nom. Choisissez une action.",
     readOnlyLock:
       "Cet onglet ne peut pas modifier la sauvegarde, car il n'en détient pas le verrou. Rechargez ou exportez cette partie avant d'y apporter des modifications.",

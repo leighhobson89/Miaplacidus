@@ -262,16 +262,16 @@ rebirth. Its save/load also preserves that value. MIAPLACIDUS instead records
 completed routes at arrival into separate This Run and Lifetime values; its
 Statistics row omits partial in-flight distance. The source/remake distinction
 and recommendation are in the [parity plan](../../../docs/plans/statistics-presentation-parity.md)
-and [open decision](../../../docs/plans/open-decisions.md#open-owner-decision-star-ship-distance-travelled-statistics).
+and [owner decision](../../../docs/plans/open-decisions.md#p-55-statistics-semantics-decisions-12-october-2026).
 
 Focused display, arrival, and rebirth unit cases passed **4/4**. The existing
 v42 in-flight migration case currently fails at its stale schema expectation
 (45 expected, 47 current) before route-restoration assertions; no direct
-current-schema roundtrip for nonzero distance totals was found. Owner direction
-is required: retain separate completed-route This Run/Lifetime totals with
-in-flight progress on Starship, or require source-style duplicate current-trip
-values in both Statistics columns and reset them on rebirth. No gameplay change
-was made.
+current-schema roundtrip for nonzero distance totals was found. On 12 October
+the owner selected the documented remake behavior: retain separate completed-
+route This Run/Lifetime totals with in-flight progress on Starship. This
+resolves the semantic choice; the broader P-55 controlled source-value
+comparison remains open. No gameplay change was made.
 
 ## P-55 System Scanned Statistics source comparison (10 October 2026)
 

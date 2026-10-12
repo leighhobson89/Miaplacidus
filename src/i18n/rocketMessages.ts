@@ -14,7 +14,7 @@ const en = {
   rocketPageDescription:
     "Fuel this rocket, launch it into orbit, then send it to an available asteroid to mine Antimatter.",
   parts: "Parts built",
-  buildPart: "Build one part",
+  buildPart: "Build Rocket Part",
   partCost: "Next part cost",
   rocketName: "Rocket name",
   rename: "Rename",
@@ -73,7 +73,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     rocketPageDescription:
       "Reposta este cohete, lánzalo a la órbita y envíalo a un asteroide disponible para extraer Antimateria.",
     parts: "Piezas construidas",
-    buildPart: "Construir una pieza",
+    buildPart: "Construir Pieza de Cohete",
     partCost: "Coste de la siguiente pieza",
     rocketName: "Nombre del cohete",
     rename: "Renombrar",
@@ -127,7 +127,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     rocketPageDescription:
       "Abasteça este foguete, coloque-o em órbita e envie-o para um asteroide disponível para extrair Antimatéria.",
     parts: "Peças construídas",
-    buildPart: "Construir uma peça",
+    buildPart: "Construir Peça de Foguete",
     partCost: "Custo da próxima peça",
     rocketName: "Nome do foguete",
     rename: "Renomear",
@@ -181,7 +181,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     rocketPageDescription:
       "Betanke diese Rakete, bringe sie in den Orbit und schicke sie zu einem verfügbaren Asteroiden, um Antimaterie abzubauen.",
     parts: "Gebaute Teile",
-    buildPart: "Ein Teil bauen",
+    buildPart: "Raketenteil Bauen",
     partCost: "Kosten des nächsten Teils",
     rocketName: "Raketenname",
     rename: "Umbenennen",
@@ -236,7 +236,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     rocketPageDescription:
       "Rifornisci questo razzo, portalo in orbita e invialo verso un asteroide disponibile per estrarre Antimateria.",
     parts: "Parti costruite",
-    buildPart: "Costruisci una parte",
+    buildPart: "Costruisci Pezzo di Razzo",
     partCost: "Costo della prossima parte",
     rocketName: "Nome del razzo",
     rename: "Rinomina",
@@ -291,7 +291,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     rocketPageDescription:
       "Ravitaillez cette fusée, mettez-la en orbite et envoyez-la vers un astéroïde disponible pour extraire de l'Antimatière.",
     parts: "Pièces construites",
-    buildPart: "Construire une pièce",
+    buildPart: "Construire une Pièce de Fusée",
     partCost: "Coût de la prochaine pièce",
     rocketName: "Nom de la fusée",
     rename: "Renommer",

@@ -28,6 +28,7 @@ import {
 import { nextRandom, nextRandomInteger } from "./random";
 import type { GameState } from "./state";
 import type { SpaceEvent } from "./spaceCommands";
+import { galacticTabUnlocked } from "./galacticProgression";
 
 export type CasinoCommand =
   | {
@@ -174,7 +175,7 @@ export function isCasinoCommand(value: { readonly type: string }): value is Casi
 }
 
 export function casinoUnlocked(state: GameState): boolean {
-  return state.run.space.ascendencyAwardedThisRun;
+  return galacticTabUnlocked(state);
 }
 
 function isGoodUnlocked(state: GameState, goodId: EconomicGoodId): boolean {

@@ -148,9 +148,12 @@ export function createSpaceEventNoticeHandler(
         if (!changed) continue;
       }
       if (state.settings.notificationsEnabled === false) continue;
-      const notice = spaceEventNotice(getLocale(), event, state);
-      if (!notice) continue;
-      notify(notice);
+      const locale = getLocale();
+      const notice = spaceEventNotice(locale, event, state);
+      if (notice) notify(notice);
+      if (event.type === "space.starship.arrived" && state.permanent.rebirthCount === 0) {
+        notify(formatNotice(locale, "galacticTabUnlocked", "special", "warning"));
+      }
       if (
         event.type === "space.starship.arrived" &&
         starTypeForSystem(event.systemId) === "O" &&
@@ -207,19 +210,10 @@ export function spaceEventNotice(
     case "space.starship.arrived": {
       const narrative = starshipArrivalNotice(locale, event.systemId, state);
       if (narrative) return narrative;
-      return formatNotice(locale, "starshipArrived", "starShip", "success", {
-        system: systemName(event.systemId),
+      return formatNotice(locale, "starshipArrived", "starShip", "info", {
+        star: systemName(event.systemId),
       });
     }
-    case "space.system.settled":
-      if (
-        event.ascendencyPoints <= 0 ||
-        state.permanent.rebirthCount > 0 ||
-        !state.run.space.ascendencyAwardedThisRun
-      ) {
-        return null;
-      }
-      return formatNotice(locale, "galacticTabUnlocked", "special", "warning");
     case "space.rocket.launched": {
       const rocket = space.rockets[event.rocketId]?.name ?? event.rocketId;
       return formatNotice(locale, "rocketLaunched", "rocket", "info", { rocket });

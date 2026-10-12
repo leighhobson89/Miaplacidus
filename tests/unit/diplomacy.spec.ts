@@ -189,6 +189,11 @@ describe("interstellar diplomacy", () => {
         ...initial.run,
         space: {
           ...initial.run.space,
+          playerFleets: { ...initial.run.space.playerFleets, scout: 1 },
+          playerFleetCombatTotals: {
+            ...initial.run.space.playerFleetCombatTotals,
+            scout: { attackPower: 6, defensePower: 6 },
+          },
           systemEncounters: [{ ...createEncounter(), warReady: true }],
         },
       },

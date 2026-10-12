@@ -1,6 +1,6 @@
 # Product decisions for MIAPLACIDUS
 
-These decisions were supplied by the project owner on 2 October 2026 and govern the [master checklist](master-checklist.md). The filename is retained so existing links and work notes continue to resolve. No decision in the supplied table remains open; one Statistics semantics decision is pending below.
+These decisions were supplied by the project owner on 2 October 2026 and govern the [master checklist](master-checklist.md). The filename is retained so existing links and work notes continue to resolve. No owner decision remains pending; later clarifications are recorded below.
 
 | Topic | Decision | Consequence for the rebuild |
 |---|---|---|
@@ -16,13 +16,15 @@ These decisions were supplied by the project owner on 2 October 2026 and govern 
 | Localization | Keep `en`, `es`, `pt`, `de`, `it`, `fr`. The project owner gives a **quick OK** on translation quality. | Automated key/placeholder/layout checks accompany a concise review sample and final owner signoff. |
 | Analytics | **No analytics system for now.** | Do not implement telemetry collection, consent screens, endpoints or analytics preferences. Cosmic Rip's in-game telemetry is a gameplay resource and stays. |
 
-## Open owner decision: Star Ship Distance Travelled Statistics
+## P-55 Statistics semantics decisions (12 October 2026)
 
-Cosmic Forge maps both Run and All Time columns to the same `starShipTravelDistance` value. It shows current route progress during travel, full route distance on arrival, and resets the value on rebirth; its All Time column is not a lifetime total. MIAPLACIDUS records completed routes separately in This Run and Lifetime, and leaves in-flight progress off the Statistics page. The source comparison and implementation details are in the [Statistics parity plan](statistics-presentation-parity.md#interstellar-statistics-slice-implemented-verified-6-october).
+The owner selected **Use the documented remake behavior** for the three Statistics rows whose semantics had been pending. Keep the current MIAPLACIDUS behavior and do not change these values to mirror Cosmic Forge's source-specific scopes:
 
-**Recommendation:** keep MIAPLACIDUS's separate completed-route This Run and Lifetime totals, with live in-flight progress on the Starship page.
+- **Time Played / Run Time:** keep active-lifetime time and simulation-run time. Existing saves do not contain a reconstructable wall-clock start anchor, so do not reinterpret or fabricate elapsed history.
+- **Star Ship Distance Travelled:** keep completed-route This Run and Lifetime totals; show in-flight progress on the Starship page. Cosmic Forge's two columns instead alias current-trip progress/full distance and reset on rebirth.
+- **Enemy Total Defence Overcome:** keep Not Applicable in the remake. Cosmic Forge's label refers to a single-battle start-minus-current enemy-power delta; the remake has no cumulative lifetime meaning for that row.
 
-**Decision needed:** confirm that recommendation or require strict Cosmic Forge display behavior, where both Statistics columns show the same current-trip progress/full distance and reset on rebirth. This decision governs the meaning of both columns and where live in-flight distance is shown. Keep P-55 open and make no product change until the owner decides.
+This resolves the owner-decision subtask under P-55, not its source-value audit. The controlled row comparisons and remaining checklist evidence stay open in the [Statistics parity plan](statistics-presentation-parity.md).
 
 ## Working technical decisions
 

@@ -693,7 +693,7 @@ test("Settings pages fit all six locales at 320px @settings-locale-matrix", asyn
         const lineCharacterCounts = await title.evaluate((element) => {
           const textNode = element.firstChild;
           if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
-            throw new Error("German Visual Options title should contain a text node");
+            throw new Error("German Visual title should contain a text node");
           }
           const text = textNode.textContent ?? "";
           const range = document.createRange();
@@ -714,7 +714,7 @@ test("Settings pages fit all six locales at 320px @settings-locale-matrix", asyn
         ).toBeGreaterThan(0);
         expect(
           lineCharacterCounts.every((count) => count > 1),
-          `German Visual Options title should not orphan its final letter at 320px: ${lineCharacterCounts}`,
+          `German Visual title should not orphan its final letter at 320px: ${lineCharacterCounts}`,
         ).toBe(true);
       }
       const bounds = await page.evaluate((id) => {

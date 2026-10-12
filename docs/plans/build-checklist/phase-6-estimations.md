@@ -46,7 +46,6 @@ Each ticket keeps its existing completion and time estimates; the bullets below 
   - Add focused locale assertions for each correction and inspect the rendered result in all six locales, including long-text cases.
   - Update the localization audit with route coverage, corrections, and source copy intentionally adapted or excluded.
 - P-55 — Source screen coverage parity — **75% complete** — **180-270 mins**.
-  - Obtain owner decisions for Run Time/Time Played, Star Ship Distance Travelled, and Enemy Total Defence Overcome before changing their semantics.
   - Prepare matched source/remake states for each remaining row group and compare initial, triggered, saved/reloaded, and rebirth values.
   - Verify each counter changes only on its accepted source-equivalent event and resets or persists at the same run boundary.
   - Correct only confirmed value, label, unit, grouping, or scope mismatches; preserve rows already shown to match.
@@ -69,7 +68,6 @@ Each ticket keeps its existing completion and time estimates; the bullets below 
   - Record coverage and sign-off gaps; keep the separately parked performance follow-up out of P-56.
 - P-44 — Cosmicopedia message mapping — **70% complete** — **240-360 mins**.
   - Finish the source catalogue inventory and give every remaining Cosmic Forge text key a mapped, intentionally replaced, or excluded disposition.
-  - Map remaining notification messages to their exact owning pages or controls.
   - For each mapped message, record its source key, target catalogue/key, placeholders, locale set, and page or control owner.
   - Add missing typed strings in all six locales and preserve source placeholders, grammatical variants, and result distinctions.
   - Inspect each changed family for correct rendered placement, substitution, active locale, and navigation ownership.

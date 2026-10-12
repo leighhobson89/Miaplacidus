@@ -107,20 +107,32 @@ function stateWithFinalHiloPrize(base: ReturnType<typeof casinoReadyState>, priz
 }
 
 describe("Galactic Casino economy and games", () => {
-  it("requires an AP award in the current run to unlock casino actions", () => {
+  it("unlocks Casino actions on first Starship arrival before the AP award", () => {
     const state = createInitialGameState({ seed: 5 });
     const blocked = transition(state, { type: "casino.wheel.spin" });
     expect(blocked.accepted).toBe(false);
     expect(blocked.failure?.code).toBe("casino-locked");
 
-    const afterRebirth = {
+    const afterArrival = {
       ...state,
-      permanent: { ...state.permanent, rebirthCount: 1 },
+      run: {
+        ...state.run,
+        cash: 100_000,
+        space: {
+          ...state.run.space,
+          starshipDistanceTravelledThisRun: 4,
+          starship: { ...state.run.space.starship, phase: "orbiting" as const },
+        },
+      },
     };
-    expect(afterRebirth.run.space.ascendencyAwardedThisRun).toBe(false);
-    const stillBlocked = transition(afterRebirth, { type: "casino.wheel.spin" });
-    expect(stillBlocked.accepted).toBe(false);
-    expect(stillBlocked.failure?.code).toBe("casino-locked");
+    expect(afterArrival.run.space.ascendencyAwardedThisRun).toBe(false);
+    const unlocked = transition(afterArrival, {
+      type: "casino.points.buy",
+      goodId: "cash",
+      amount: 1,
+    });
+    expect(unlocked.accepted, JSON.stringify(unlocked.failure)).toBe(true);
+    expect(unlocked.state.permanent.galacticCasino.casinoPoints).toBe(1);
   });
 
   it("unlocks Casino actions when the first run awards AP", () => {
@@ -145,7 +157,7 @@ describe("Galactic Casino economy and games", () => {
     expect(result.state.permanent.galacticCasino.casinoPoints).toBe(1);
   });
 
-  it("blocks Casino actions after rebirth until this run awards AP", () => {
+  it("keeps Casino actions available after rebirth before this run awards AP", () => {
     const initial = createInitialGameState({ seed: 5 });
     const afterRebirth = {
       ...initial,
@@ -155,28 +167,11 @@ describe("Galactic Casino economy and games", () => {
     expect(afterRebirth.run.space.ascendencyAwardedThisRun).toBe(false);
     expect(afterRebirth.permanent.galacticCasino.casinoPoints).toBe(0);
 
-    const blocked = transition(afterRebirth, {
+    const result = transition(afterRebirth, {
       type: "casino.points.buy",
       goodId: "cash",
       amount: 1,
     });
-    expect(blocked.accepted).toBe(false);
-    expect(blocked.failure?.code).toBe("casino-locked");
-    expect(blocked.state.permanent.galacticCasino.casinoPoints).toBe(0);
-
-    const withCurrentRunAp = {
-      ...afterRebirth,
-      run: {
-        ...afterRebirth.run,
-        space: { ...afterRebirth.run.space, ascendencyAwardedThisRun: true },
-      },
-    };
-    const result = transition(withCurrentRunAp, {
-      type: "casino.points.buy",
-      goodId: "cash",
-      amount: 1,
-    });
-
     expect(result.accepted, JSON.stringify(result.failure)).toBe(true);
     expect(result.state.permanent.galacticCasino.casinoPoints).toBe(1);
   });

@@ -2,8 +2,8 @@ import type { LocaleId } from "../content/ids";
 
 const en = {
   starshipReady: "Starship can now be launched!",
-  starshipLaunched: "Starship launched toward {system}.",
-  starshipArrived: "Starship arrived at {system}.",
+  starshipLaunched: "Travelling to {system}",
+  starshipArrived: "StarShip has reached orbit of the {star} system!",
   oTypeStarReachedHeader: "TYPE O STAR REACHED",
   oTypeStarReachedText:
     "Your Starship has reached orbit of the {star} System.\n\nThe star burns with a ferocity you have only ever seen in theory.\nAn O-type sun: rare, impossibly bright, and violently alive.\n\nThe crew falls silent.\nEven the instruments hesitate before agreeing on the readings.",
@@ -21,7 +21,7 @@ const en = {
   asteroidDiscovered: "Asteroid Discovered!\n\n{asteroid}",
   legendaryAsteroidDiscovered:
     "Legendary Asteroid Discovered!\n\nThey named it after you!\n\n{asteroid}",
-  rocketLaunched: "{rocket} launched.",
+  rocketLaunched: "{rocket} Launched!",
   rocketFuelReady: "{rocket} is ready for Launch!",
   rocketOutbound: "{rocket} is travelling to {asteroid}.",
   rocketReturning: "{rocket} is returning from {asteroid}.",
@@ -61,8 +61,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
   en,
   es: {
     starshipReady: "¡La nave estelar ya puede lanzarse!",
-    starshipLaunched: "La nave estelar partió hacia {system}.",
-    starshipArrived: "La nave estelar llegó a {system}.",
+    starshipLaunched: "Viajando a {system}",
+    starshipArrived: "¡La nave estelar ha alcanzado la órbita del sistema {star}!",
     oTypeStarReachedHeader: "ESTRELLA TIPO O ALCANZADA",
     oTypeStarReachedText:
       "Tu Nave Estelar ha alcanzado la órbita del Sistema {star}.\n\nLa estrella arde con una ferocidad que solo has visto en teoría.\nUn sol tipo O: raro, increíblemente brillante, y violentamente vivo.\n\nLa tripulación calla.\nIncluso los instrumentos dudan antes de ponerse de acuerdo en las lecturas.",
@@ -80,7 +80,7 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
     asteroidDiscovered: "¡Asteroide descubierto!\n\n{asteroid}",
     legendaryAsteroidDiscovered:
       "¡Asteroide legendario descubierto!\n\n¡Le han puesto tu nombre!\n\n{asteroid}",
-    rocketLaunched: "Se lanzó {rocket}.",
+    rocketLaunched: "¡{rocket} lanzado!",
     rocketFuelReady: "¡{rocket} está listo para el lanzamiento!",
     rocketOutbound: "{rocket} viaja hacia {asteroid}.",
     rocketReturning: "{rocket} regresa desde {asteroid}.",
@@ -114,8 +114,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
   },
   pt: {
     starshipReady: "A nave estelar já pode ser lançada!",
-    starshipLaunched: "A nave estelar partiu em direção a {system}.",
-    starshipArrived: "A nave estelar chegou a {system}.",
+    starshipLaunched: "A viajar para {system}",
+    starshipArrived: "A nave estelar alcançou a órbita do sistema {star}!",
     oTypeStarReachedHeader: "ESTRELA DE TIPO O ALCANÇADA",
     oTypeStarReachedText:
       "A tua Nave Estelar alcançou a órbita do Sistema {star}.\n\nA estrela arde com uma ferocidade que só viste em teoria.\nUma estrela de tipo O: rara, incrivelmente brilhante e violentamente viva.\n\nA tripulação fica em silêncio.\nAté os instrumentos hesitam antes de concordarem com as leituras.",
@@ -133,7 +133,7 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
     asteroidDiscovered: "Asteroide descoberto!\n\n{asteroid}",
     legendaryAsteroidDiscovered:
       "Asteroide lendário descoberto!\n\nDeram-lhe o teu nome!\n\n{asteroid}",
-    rocketLaunched: "{rocket} foi lançado.",
+    rocketLaunched: "{rocket} lançado!",
     rocketFuelReady: "{rocket} está pronto para o lançamento!",
     rocketOutbound: "{rocket} está a caminho de {asteroid}.",
     rocketReturning: "{rocket} está voltando de {asteroid}.",
@@ -167,8 +167,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
   },
   de: {
     starshipReady: "Das Raumschiff kann jetzt starten!",
-    starshipLaunched: "Das Sternenschiff ist nach {system} gestartet.",
-    starshipArrived: "Das Sternenschiff hat {system} erreicht.",
+    starshipLaunched: "Unterwegs nach {system}",
+    starshipArrived: "Das Raumschiff hat den Orbit des Systems {star} erreicht!",
     oTypeStarReachedHeader: "TYP-O-STERN ERREICHT",
     oTypeStarReachedText:
       "Dein Sternenschiff hat die Umlaufbahn des {star}-Systems erreicht.\n\nDer Stern brennt mit einer Wildheit, die du nur in der Theorie gesehen hast.\nEine Sonne vom Typ O: selten, unglaublich hell und gewaltsam lebendig.\n\nDie Crew verstummt.\nSelbst die Instrumente zögern, bevor sie sich über die Messwerte einig sind.",
@@ -186,7 +186,7 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
     asteroidDiscovered: "Asteroid entdeckt!\n\n{asteroid}",
     legendaryAsteroidDiscovered:
       "Legendärer Asteroid entdeckt!\n\nEr wurde nach dir benannt!\n\n{asteroid}",
-    rocketLaunched: "{rocket} wurde gestartet.",
+    rocketLaunched: "{rocket} gestartet!",
     rocketFuelReady: "{rocket} ist startbereit!",
     rocketOutbound: "{rocket} fliegt zu {asteroid}.",
     rocketReturning: "{rocket} kehrt von {asteroid} zurück.",
@@ -220,8 +220,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
   },
   it: {
     starshipReady: "L'astronave può ora essere lanciata!",
-    starshipLaunched: "L'astronave è partita verso {system}.",
-    starshipArrived: "L'astronave è arrivata a {system}.",
+    starshipLaunched: "In viaggio verso {system}",
+    starshipArrived: "L'astronave ha raggiunto l'orbita del sistema {star}!",
     oTypeStarReachedHeader: "STELLA TIPO O RAGGIUNTA",
     oTypeStarReachedText:
       "La tua Nave Stellare ha raggiunto l'orbita del Sistema {star}.\n\nLa stella brucia con una ferocia che hai visto solo in teoria.\nUn sole di tipo O: raro, incredibilmente luminoso, e violentemente vivo.\n\nL'equipaggio tace.\nPersino gli strumenti esitano prima di concordare sulle letture.",
@@ -239,7 +239,7 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
     asteroidDiscovered: "Asteroide scoperto!\n\n{asteroid}",
     legendaryAsteroidDiscovered:
       "Asteroide leggendario scoperto!\n\nGli hanno dato il tuo nome!\n\n{asteroid}",
-    rocketLaunched: "{rocket} è stato lanciato.",
+    rocketLaunched: "{rocket} lanciato!",
     rocketFuelReady: "{rocket} è pronto al lancio!",
     rocketOutbound: "{rocket} sta viaggiando verso {asteroid}.",
     rocketReturning: "{rocket} sta tornando da {asteroid}.",
@@ -273,8 +273,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
   },
   fr: {
     starshipReady: "Le vaisseau stellaire peut maintenant être lancé !",
-    starshipLaunched: "Le vaisseau spatial est parti vers {system}.",
-    starshipArrived: "Le vaisseau spatial est arrivé à {system}.",
+    starshipLaunched: "En route vers {system}",
+    starshipArrived: "Le vaisseau stellaire a atteint l'orbite du système {star}!",
     oTypeStarReachedHeader: "ÉTOILE TYPE O ATTEINTE",
     oTypeStarReachedText:
       "Ton Vaisseau Stellaire a atteint l'orbite du Système {star}.\n\nL'étoile brûle avec une férocité que tu n'as vue qu'en théorie.\nUn soleil de type O: rare, incroyablement brillant, et violemment vivant.\n\nL'équipage se tait.\nMême les instruments hésitent avant de s'accorder sur les lectures.",
@@ -292,7 +292,7 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
     asteroidDiscovered: "Astéroïde découvert!\n\n{asteroid}",
     legendaryAsteroidDiscovered:
       "Astéroïde légendaire découvert!\n\nIl porte votre nom!\n\n{asteroid}",
-    rocketLaunched: "{rocket} a été lancé.",
+    rocketLaunched: "{rocket} lancé!",
     rocketFuelReady: "{rocket} est prêt au lancement!",
     rocketOutbound: "{rocket} se dirige vers {asteroid}.",
     rocketReturning: "{rocket} revient de {asteroid}.",

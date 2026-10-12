@@ -15,3 +15,9 @@ Compared the Galactic Casino page's visible heading and introduction, page and g
 ## Result
 
 The purchase description and Void Seer selector gaps are corrected. No further Casino copy change was warranted by this audit. Existing focused coverage includes `tests/unit/casino-title-parity.spec.ts`, `tests/unit/casino-wheel-help.spec.ts`, `tests/unit/casino-event-notifications.spec.ts`, and `tests/unit/casino-hilo-void-notifications.spec.ts`. No test, build, typecheck, formatter, or browser check was run in this implementation pass.
+
+## Visible row-label follow-up (12 October 2026)
+
+Cosmic Forge renders `tab7VisitingVoidSeerRowLabel` as the fourth Casino game's visible row label (`../../../../cosmicForge/cosmicForge/drawTab7Content.js:882-895`; locale values in `localization.json:1984,4608,7230,9853,12476,15099`). The remake used the shorter game name for the corresponding card heading and tooltip label (`src/app/GalacticCasinoPane.tsx:803-807`). Updated `casinoMessages.voidSeer` in all six locales to restore the source's “Visiting VoidSeer” label and translated equivalents. The Spanish label preserves the source's valid `Vacío` spelling. The card remains within the separate Galactic Casino child page.
+
+No tests, builds, typechecks, formatting checks, or browser review were run; P-44 remains open.

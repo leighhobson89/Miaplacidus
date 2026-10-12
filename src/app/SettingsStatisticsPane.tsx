@@ -7,6 +7,7 @@ import { ENERGY_BUILDINGS } from "../content/economy";
 import { createStarCatalogue } from "../content/starCatalogue";
 import type { GameState } from "../engine/state";
 import { createEconomyTickPlan } from "../engine/economySimulation";
+import { galacticTabUnlocked } from "../engine/galacticProgression";
 import { currentWeatherForSystem } from "../engine/weather";
 import { economyGoodName } from "./economyDisplay";
 import {
@@ -99,8 +100,7 @@ export function SettingsStatisticsPane({
   const compoundsUnlocked = technologies.includes("compounds");
   const spaceMiningUnlocked = technologies.includes("atmosphericTelescopes");
   const interstellarAvailable = technologies.includes("stellarCartography");
-  const galacticAvailable =
-    state.run.space.ascendencyAwardedThisRun || state.permanent.rebirthCount > 0;
+  const galacticAvailable = galacticTabUnlocked(state);
   const availableOwnerPaneIds = new Set([
     ...resourcePaneItems(locale, state.run.unlockedResources).map((item) => item.id),
     ...researchPaneItems(locale, false).map((item) => item.id),

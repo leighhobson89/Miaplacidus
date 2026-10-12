@@ -1150,7 +1150,7 @@ after rebirth. Saving/loading preserves that same field. MIAPLACIDUS instead
 shows separately accumulated completed-route This Run and Lifetime totals,
 updated on arrival; partial distance is not in the Statistics row. The source
 comparison and choice are recorded in the [parity plan](../../docs/plans/statistics-presentation-parity.md)
-and [open decisions](../../docs/plans/open-decisions.md#open-owner-decision-star-ship-distance-travelled-statistics).
+and [open decisions](../../docs/plans/open-decisions.md#p-55-statistics-semantics-decisions-12-october-2026).
 
 The focused display/arrival/rebirth cases passed **4/4** across the two
 Interstellar Statistics unit files. This later rerun supersedes the historical
@@ -1158,10 +1158,11 @@ Interstellar Statistics unit files. This later rerun supersedes the historical
 The v42 in-flight migration case was
 attempted but currently fails before its behavior assertions because it expects
 schema 45 while the current schema is 47. No pair-specific current-schema
-save roundtrip for nonzero distance values was found. Owner choice remains:
-keep the remake's completed-route run/lifetime totals with partial progress on
-Starship, or show source-style current-trip distance in both columns with a
-rebirth reset. No gameplay change was made.
+save roundtrip for nonzero distance values was found. On 12 October the owner
+selected the documented remake behavior: keep completed-route run/lifetime
+totals with partial progress on Starship. This resolves the semantic choice;
+the broader P-55 controlled source-value comparison remains open. No gameplay
+change was made.
 
 ## P-55 System Scanned Statistics source comparison (10 October 2026)
 

@@ -50,11 +50,10 @@ export function isProgressionTutorialMilestoneSatisfied(
     case "visitMiaplaediaConceptsEarly":
     case "visitMiaplaediaConceptsMid":
     case "visitMiaplaediaConceptsLate":
+    case "chooseDarkTheme":
     case "completeGuidedTour":
       return false;
     case "researchKnowledgeSharing":
       return state.run.economy.researchedTechnologies.includes("knowledgeSharing");
-    case "chooseDarkTheme":
-      return state.settings.themeId === "dark";
   }
 }

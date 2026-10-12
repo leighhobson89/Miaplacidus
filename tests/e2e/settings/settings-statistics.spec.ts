@@ -469,11 +469,11 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
   await expect(statisticCard(overview, "Star Ships Launched").locator("dd")).toHaveText("0");
   const run = statisticsSection("Run");
   await expect(statisticCard(run, "Run Time").locator("dd")).toBeVisible();
-  await expect(statisticCard(run, "Star system").locator("dd")).toHaveText("Spica");
-  const currentWeather = await statisticCard(run, "Current weather").locator("dd").innerText();
+  await expect(statisticCard(run, "Star System").locator("dd")).toHaveText("Spica");
+  const currentWeather = await statisticCard(run, "Current Weather").locator("dd").innerText();
   await expect(freshGame.locator("#location-status-tooltip")).toContainText(currentWeather);
   await expect(statisticCard(run, "Cash").locator("dd")).toBeVisible();
-  await expect(statisticCard(run, "AP anticipated").locator("dd")).toHaveText("0");
+  await expect(statisticCard(run, "AP Anticipated").locator("dd")).toHaveText("0");
   await expect(statisticCard(run, "Antimatter").locator("dd")).toHaveText("0");
   await expect(run.getByText(/AP anticipated is not tracked separately/)).toHaveCount(0);
   const currentSnapshot = statisticsSection("Current snapshot");

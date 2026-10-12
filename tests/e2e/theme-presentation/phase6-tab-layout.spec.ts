@@ -99,9 +99,9 @@ test("Settings pages use the requested artwork, headings, and inline save contro
   );
 
   for (const [paneId, heading] of [
-    ["settings-visual", "Visual Options"],
+    ["settings-visual", "Visual"],
     ["settings-game-options", "Game Options"],
-    ["settings-saves", "Saving and Loading"],
+    ["settings-saves", "Saving / Loading"],
   ] as const) {
     await settings.locator(`#tab-${paneId}`).click();
     await expect(
@@ -158,8 +158,8 @@ test("Settings child pages have durable desktop and phone visual captures @p66-v
     { id: "settings-events", title: "Events", noArtwork: true },
     { id: "settings-statistics", title: "Statistics", noArtwork: true },
     { id: "settings-game-options", title: "Game Options", noArtwork: false },
-    { id: "settings-visual", title: "Visual Options", noArtwork: false },
-    { id: "settings-saves", title: "Saving and Loading", noArtwork: false },
+    { id: "settings-visual", title: "Visual", noArtwork: false },
+    { id: "settings-saves", title: "Saving / Loading", noArtwork: false },
   ] as const;
   const views = [
     { width: 1280, height: 900, theme: "terminal", suffix: "terminal-desktop" },

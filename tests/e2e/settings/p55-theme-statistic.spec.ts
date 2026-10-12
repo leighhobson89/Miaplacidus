@@ -4,7 +4,7 @@ import { THEME_IDS } from "../../../src/content/themes";
 import { settingsText, themeName } from "../../../src/i18n/settingsMessages";
 import { setGameLocale } from "../_harness/settings-controls";
 
-test("P-55 Overview theme value follows selection and opens Visual Options in all locales @settings @statistics @p55-theme", async ({
+test("P-55 Overview theme value follows selection and opens Visual in all locales @settings @statistics @p55-theme", async ({
   freshGame,
 }) => {
   const settings = freshGame.getByTestId("settings-statistics");

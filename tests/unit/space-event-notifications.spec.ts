@@ -234,7 +234,10 @@ describe("space event notifications", () => {
           },
         },
       ),
-    ).toMatchObject({ message: "Starship arrived at Sirius.", classification: "starShip" });
+    ).toMatchObject({
+      message: "StarShip has reached orbit of the Sirius system!",
+      classification: "starShip",
+    });
   });
 
   it("localizes the Starship-ready notice in all six locales", () => {
@@ -596,17 +599,17 @@ describe("space event notifications", () => {
     expect(notice?.message.startsWith(expectedPrefix)).toBe(true);
   });
 
-  it("announces the Galactic tab when first-run settlement reveals it, using source copy in all locales", () => {
-    const event: EngineEvent = {
-      type: "space.system.settled",
-      systemId,
-      ascendencyPoints: 6,
-    };
-    const firstSettlementState: GameState = {
+  it("announces the Galactic tab on first-run Starship arrival using source copy in all locales", () => {
+    const event: EngineEvent = { type: "space.starship.arrived", systemId };
+    const firstArrivalState: GameState = {
       ...state,
       run: {
         ...state.run,
-        space: { ...state.run.space, ascendencyAwardedThisRun: true },
+        space: {
+          ...state.run.space,
+          starshipDistanceTravelledThisRun: 4,
+          starship: { ...state.run.space.starship, phase: "orbiting" },
+        },
       },
     };
     const sourceCopy = {
@@ -620,7 +623,18 @@ describe("space event notifications", () => {
 
     for (const locale of LOCALE_IDS) {
       expect(SPACE_NOTIFICATION_MESSAGES[locale].galacticTabUnlocked).toBe(sourceCopy[locale]);
-      expect(spaceEventNotice(locale, event, firstSettlementState)).toMatchObject({
+      const notices: Array<{
+        message: string;
+        classification: string;
+        type: string;
+        durationMs: number;
+      }> = [];
+      createSpaceEventNoticeHandler(
+        () => locale,
+        () => firstArrivalState,
+        (notice) => notices.push(notice),
+      )([event]);
+      expect(notices).toContainEqual({
         message: sourceCopy[locale],
         classification: "special",
         type: "warning",
@@ -628,16 +642,18 @@ describe("space event notifications", () => {
       });
     }
 
-    expect(spaceEventNotice("en", event, state)).toBeNull();
+    const settlement: EngineEvent = { type: "space.system.settled", systemId, ascendencyPoints: 6 };
+    expect(spaceEventNotice("en", settlement, firstArrivalState)).toBeNull();
     expect(
-      spaceEventNotice("en", { ...event, ascendencyPoints: 0 }, firstSettlementState),
-    ).toBeNull();
-    expect(
-      spaceEventNotice("en", event, {
-        ...firstSettlementState,
-        permanent: { ...firstSettlementState.permanent, rebirthCount: 1 },
-      }),
-    ).toBeNull();
+      createSpaceEventNoticeHandler(
+        () => "en",
+        () => ({
+          ...firstArrivalState,
+          permanent: { ...firstArrivalState.permanent, rebirthCount: 1 },
+        }),
+        () => {},
+      )([event]),
+    ).toBeUndefined();
   });
 
   it("keeps message placeholders in parity across all six locales", () => {

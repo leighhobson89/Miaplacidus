@@ -90,11 +90,13 @@ async function advanceForSimulation(
   await advanceOffline(page, Math.ceil(simulatedMs / OFFLINE_GAINS_RATE) + 1_000);
 }
 
-test("notifies on starship launch and arrival but stays quiet on travel shortening @notifications @starship @p20-announcements", async ({
+test("unlocks Galactic on first Starship arrival while keeping travel shortening silent @notifications @starship @p20-announcements @p08-galactic-unlock", async ({
   page,
 }) => {
   await startFixture(page, "space-starship-ready", "Starship Notice Pioneer");
   await page.getByRole("tab", { name: "Interstellar" }).click();
+  const galacticTab = page.locator("#tab-galaxy");
+  await expect(galacticTab).toHaveCount(0);
 
   const map = page.getByTestId("star-map-pane");
   await map.getByRole("searchbox", { name: "Search stars" }).fill("Sirius");
@@ -114,7 +116,7 @@ test("notifies on starship launch and arrival but stays quiet on travel shorteni
     .getByRole("button", { name: "Confirm launch" })
     .click();
 
-  await expect(notice).toContainText("Starship launched toward Sirius");
+  await expect(notice).toContainText("Travelling to Sirius");
   await expect(notice).toHaveCount(0);
 
   // A shortened travel milestone is accepted by the engine but intentionally has no toast.
@@ -126,7 +128,13 @@ test("notifies on starship launch and arrival but stays quiet on travel shorteni
   const hydrogenTab = page.locator("#tab-hydrogen");
   await expect(hydrogenTab).toHaveAttribute("aria-selected", "true");
   await advanceForSimulation(page, timer.durationMs - timer.elapsedMs + 1);
-  await expect(notice).toContainText("Starship arrived at Sirius");
+  await expect(notice).toContainText("StarShip has reached orbit of the Sirius system!");
+  await expect(galacticTab).toBeVisible();
+  const galacticUnlockNotice = page.locator(
+    '[data-testid="game-notification"][data-classification="special"]',
+  );
+  await expect(galacticUnlockNotice).toHaveText("Galactic Tab Unlocked!");
+  await expect(galacticUnlockNotice).toHaveClass(/notification-warning/);
   await expect(hydrogenTab).toHaveAttribute("aria-selected", "true");
   await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
   await expect(notice).toHaveRole("status");
@@ -173,7 +181,7 @@ test("routes accepted rocket launch, outbound, arrival, and return milestones @n
 
   const notice = page.locator('[data-testid="game-notification"][data-classification="rocket"]');
   const notificationRegion = page.getByTestId("notification-stack");
-  await expect(notice).toContainText("Rocket 1 launched.");
+  await expect(notice).toContainText("Rocket 1 Launched!");
   await dispatch(page, { type: "space.asteroid.select", asteroidId: asteroid.id });
   await dispatch(page, {
     type: "space.rocket.travel",
@@ -292,12 +300,12 @@ test("announces captured systems from Rapid Expansion after a conquest victory @
   await expect(rapidExpansionNotice).toHaveClass(/notification-info/);
 });
 
-test("announces the Galactic tab when the first system settlement unlocks it @notifications @p08-galactic-unlock", async ({
+test("settlement does not repeat the first-arrival Galactic unlock notice @notifications @p08-galactic-unlock", async ({
   page,
 }) => {
   await startFixture(page, "space-battle-victory", "Galactic Unlock Pioneer");
   const galacticTab = page.locator("#tab-galaxy");
-  await expect(galacticTab).toHaveCount(0);
+  await expect(galacticTab).toBeVisible();
   await page.getByRole("tab", { name: "Interstellar" }).click();
   await page.getByRole("tab", { name: "Colonise" }).click();
 
@@ -310,18 +318,14 @@ test("announces the Galactic tab when the first system settlement unlocks it @no
     phase = (await readState(page)).run.space.systemEncounters[0]!.battle.phase;
   }
   expect(phase).toBe("victory");
-  await expect(galacticTab).toHaveCount(0);
+  await expect(galacticTab).toBeVisible();
 
   await pane.getByTestId("starship-settle-system-button").click();
   await expect(pane.getByTestId("starship-feedback")).toHaveText(
     "System settled. Ascendency and Galactic Point rewards have been recorded.",
   );
   await expect(galacticTab).toBeVisible();
-  const notice = page.locator(
-    '[data-testid="game-notification"][data-classification="special"]',
-  );
-  await expect(notice).toHaveText("Galactic Tab Unlocked!");
-  await expect(notice).toHaveClass(/notification-warning/);
+  await expect(page.getByText("Galactic Tab Unlocked!", { exact: true })).toHaveCount(0);
 
   const settled = await readState(page);
   expect(settled.run.space.ascendencyAwardedThisRun).toBe(true);
@@ -329,7 +333,7 @@ test("announces the Galactic tab when the first system settlement unlocks it @no
   expect(
     await page.evaluate(() => window.miaplacidusTest!.dispatch({ type: "space.system.settle" })),
   ).toBe(false);
-  await expect(notice).toHaveCount(1);
+  await expect(page.getByText("Galactic Tab Unlocked!", { exact: true })).toHaveCount(0);
 });
 
 test("marks a newly eligible Megastructures page New until visited in every locale @notifications @p08-megastructure-attention", async ({

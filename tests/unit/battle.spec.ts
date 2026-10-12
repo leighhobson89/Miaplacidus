@@ -247,7 +247,7 @@ describe("space battle and settlement flow", () => {
     };
     expect(isValidGameState(nextState)).toBe(true);
     const secondSettlement = transition(nextState, { type: "space.system.settle" });
-    expect(secondSettlement.accepted).toBe(true);
+    expect(secondSettlement.accepted).toBe(false);
     expect(secondSettlement.state.permanent.ascendencyPoints).toBe(3);
     expect(secondSettlement.state.permanent.gloryPoints).toBe(0);
   });
@@ -266,6 +266,7 @@ describe("space battle and settlement flow", () => {
         ...base.run,
         space: {
           ...base.run.space,
+          fleetEnvoyBuilt: true,
           starship: {
             ...base.run.space.starship,
             destinationSystemId: oTypeSystemId,

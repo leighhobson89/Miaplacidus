@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { LOCALE_IDS } from "../content/ids";
 import { CURRENCY_CODES, CURRENCY_IDS, CURRENCY_SYMBOLS } from "../content/currency";
 import { THEME_IDS, type ThemeId } from "../content/themes";
@@ -49,6 +49,7 @@ interface SettingsPaneProps {
   readonly onAutoSaveIntervalChange: (interval: 300 | 900 | 1800 | 3600) => void;
   readonly onSoundEffectsDisable: () => void;
   readonly onBackgroundAudioToggle: () => void;
+  readonly onThemeSelectorInteraction: () => void;
   readonly onSaveNow: () => void;
   readonly activePane: SettingsPaneId;
   readonly onSelectPane: (paneId: SettingsPaneId) => void;
@@ -67,6 +68,7 @@ function settingsPanePropsAreEqual(previous: SettingsPaneProps, next: SettingsPa
     previous.store === next.store &&
     previous.onSoundEffectsDisable === next.onSoundEffectsDisable &&
     previous.onBackgroundAudioToggle === next.onBackgroundAudioToggle &&
+    previous.onThemeSelectorInteraction === next.onThemeSelectorInteraction &&
     previous.state.settings === next.state.settings &&
     previous.state.run.navigationAttentionIds === next.state.run.navigationAttentionIds
   );
@@ -87,11 +89,13 @@ export const SettingsPane = memo(function SettingsPane({
   onAutoSaveIntervalChange,
   onSoundEffectsDisable,
   onBackgroundAudioToggle,
+  onThemeSelectorInteraction,
   onSaveNow,
   activePane,
   onSelectPane,
   saveManagerProps,
 }: SettingsPaneProps) {
+  const themeSelectorInteractionPending = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenFailed, setFullscreenFailed] = useState(false);
   const locale = state.settings.locale;
@@ -180,12 +184,33 @@ export const SettingsPane = memo(function SettingsPane({
                     aria-label={settingsText(locale, "theme")}
                     aria-describedby="settings-theme-description"
                     value={state.settings.themeId}
-                    onChange={(event) =>
-                      store.dispatch({
+                    onPointerDown={() => {
+                      themeSelectorInteractionPending.current = true;
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === " " ||
+                        event.key === "Enter" ||
+                        event.key.startsWith("Arrow") ||
+                        event.key === "Home" ||
+                        event.key === "End" ||
+                        event.key.length === 1
+                      ) {
+                        themeSelectorInteractionPending.current = true;
+                      }
+                    }}
+                    onChange={(event) => {
+                      const result = store.dispatch({
                         type: "settings.update",
                         patch: { themeId: event.currentTarget.value as ThemeId },
-                      })
-                    }
+                      });
+                      if (result.accepted) onThemeSelectorInteraction();
+                    }}
+                    onBlur={() => {
+                      const interacted = themeSelectorInteractionPending.current;
+                      themeSelectorInteractionPending.current = false;
+                      if (interacted) onThemeSelectorInteraction();
+                    }}
                   >
                     {THEME_IDS.map((id) => (
                       <option key={id} value={id}>
