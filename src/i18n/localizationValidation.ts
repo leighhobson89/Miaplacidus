@@ -25,7 +25,10 @@ import { LOCALIZATION_VALIDATION_DATA as meta } from "./metaMessages";
 import { LOCALIZATION_VALIDATION_DATA as market } from "./marketMessages";
 import { LOCALIZATION_VALIDATION_DATA as metaSignal } from "./metaSignalMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventDescription } from "./randomEventDescriptionMessages";
+import { LOCALIZATION_VALIDATION_DATA as randomEventEndDialogs } from "./randomEventEndDialogMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventEndNotifications } from "./randomEventEndNotificationMessages";
+import { LOCALIZATION_VALIDATION_DATA as randomEventInstabilityNotifications } from "./randomEventInstabilityNotificationMessages";
+import { LOCALIZATION_VALIDATION_DATA as randomEventStartDialogs } from "./randomEventStartDialogMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventTriggerNotifications } from "./randomEventTriggerNotificationMessages";
 import { LOCALIZATION_VALIDATION_DATA as story } from "./miaplacidusStoryMessages";
 import { MESSAGES as coreMessages } from "./messages";
@@ -127,7 +130,10 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
   ...groupedCatalogues("market", market),
   ...groupedCatalogues("metaSignal", metaSignal),
   ...groupedCatalogues("randomEventDescription", randomEventDescription),
+  ...groupedCatalogues("randomEventEndDialogs", randomEventEndDialogs),
   ...groupedCatalogues("randomEventEndNotifications", randomEventEndNotifications),
+  ...groupedCatalogues("randomEventInstabilityNotifications", randomEventInstabilityNotifications),
+  ...groupedCatalogues("randomEventStartDialogs", randomEventStartDialogs),
   ...groupedCatalogues("randomEventTriggerNotifications", randomEventTriggerNotifications),
   ...groupedCatalogues("story", story),
   ...groupedCatalogues("philosophy", philosophy),

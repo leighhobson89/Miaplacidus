@@ -35,6 +35,7 @@ import {
 } from "../content/philosophy";
 import {
   MEGASTRUCTURE_IDS,
+  MEGASTRUCTURE_TRACKS,
   MEGASTRUCTURE_TECHNOLOGY_IDS,
   TECHNOLOGY_CATALOG,
 } from "../content/technology";
@@ -161,6 +162,10 @@ export interface RunState {
   readonly sodiumIonBatteriesBuiltThisRun: number;
   readonly battery2BuiltThisRun: number;
   readonly battery3BuiltThisRun: number;
+  /** Whether Dyson's stage-two plant-rate mutation was applied during this run. */
+  readonly dysonPlantRateBoostActiveThisRun: boolean;
+  /** Whether Dyson's stage-one battery-capacity mutation was applied during this run. */
+  readonly dysonBatteryCapacityBoostActiveThisRun: boolean;
   /** Source `techUnlockedArray` markers that are not researched technologies, this run. */
   readonly sourceSyntheticTechnologyMarkersThisRun: number;
   readonly goods: Readonly<Record<EconomicGoodId, GoodState>>;
@@ -312,6 +317,7 @@ export interface MegastructureProgress {
   readonly forceFieldRewardClaimed: boolean;
   readonly miaplacidusStoryPending: boolean;
   readonly miaplacidusStoryShown: boolean;
+  readonly megastructureOptionNotificationShown: boolean;
 }
 
 export function createInitialMegastructureProgress(): MegastructureProgress {
@@ -324,6 +330,7 @@ export function createInitialMegastructureProgress(): MegastructureProgress {
     forceFieldRewardClaimed: false,
     miaplacidusStoryPending: false,
     miaplacidusStoryShown: false,
+    megastructureOptionNotificationShown: false,
   };
 }
 
@@ -415,7 +422,7 @@ export interface StatisticsState {
 }
 
 export interface GameState {
-  readonly schemaVersion: 52;
+  readonly schemaVersion: 55;
   readonly run: RunState;
   readonly permanent: PermanentState;
   readonly settings: SettingsState;
@@ -433,6 +440,8 @@ export type LegacyRunStateV1 = Omit<
   | "sodiumIonBatteriesBuiltThisRun"
   | "battery2BuiltThisRun"
   | "battery3BuiltThisRun"
+  | "dysonPlantRateBoostActiveThisRun"
+  | "dysonBatteryCapacityBoostActiveThisRun"
   | "sourceSyntheticTechnologyMarkersThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
@@ -506,6 +515,8 @@ export type LegacyRunStateV2 = Omit<
   | "sodiumIonBatteriesBuiltThisRun"
   | "battery2BuiltThisRun"
   | "battery3BuiltThisRun"
+  | "dysonPlantRateBoostActiveThisRun"
+  | "dysonBatteryCapacityBoostActiveThisRun"
   | "sourceSyntheticTechnologyMarkersThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
@@ -562,6 +573,8 @@ export type LegacyRunStateV3 = Omit<
   | "sodiumIonBatteriesBuiltThisRun"
   | "battery2BuiltThisRun"
   | "battery3BuiltThisRun"
+  | "dysonPlantRateBoostActiveThisRun"
+  | "dysonBatteryCapacityBoostActiveThisRun"
   | "sourceSyntheticTechnologyMarkersThisRun"
   | "goodsProducedThisRun"
   | "philosophyAbilityActive"
@@ -693,7 +706,7 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
   ) as Record<EconomicGoodId, GoodState>;
 
   const initialState: GameState = {
-    schemaVersion: 52,
+    schemaVersion: 55,
     run: {
       pioneerName: options.pioneerName?.trim() || "Pioneer",
       hydrogenAutobuyerEnabled: true,
@@ -710,6 +723,8 @@ export function createInitialGameState(options: InitialStateOptions = {}): GameS
       sodiumIonBatteriesBuiltThisRun: 0,
       battery2BuiltThisRun: 0,
       battery3BuiltThisRun: 0,
+      dysonPlantRateBoostActiveThisRun: false,
+      dysonBatteryCapacityBoostActiveThisRun: false,
       sourceSyntheticTechnologyMarkersThisRun: 0,
       goods,
       goodsProducedThisRun: createGoodProductionCounts(),
@@ -1576,7 +1591,7 @@ export function isValidGameState(value: unknown): value is GameState {
     return false;
   const state = value as Partial<GameState>;
   if (
-    state.schemaVersion !== 52 ||
+    state.schemaVersion !== 55 ||
     !state.run ||
     !state.permanent ||
     !state.settings ||
@@ -1602,6 +1617,8 @@ export function isValidGameState(value: unknown): value is GameState {
       "sodiumIonBatteriesBuiltThisRun",
       "battery2BuiltThisRun",
       "battery3BuiltThisRun",
+      "dysonPlantRateBoostActiveThisRun",
+      "dysonBatteryCapacityBoostActiveThisRun",
       "sourceSyntheticTechnologyMarkersThisRun",
       "goods",
       "goodsProducedThisRun",
@@ -1823,6 +1840,8 @@ export function isValidGameState(value: unknown): value is GameState {
     run.battery2BuiltThisRun < 0 ||
     !Number.isSafeInteger(run.battery3BuiltThisRun) ||
     run.battery3BuiltThisRun < 0 ||
+    typeof run.dysonPlantRateBoostActiveThisRun !== "boolean" ||
+    typeof run.dysonBatteryCapacityBoostActiveThisRun !== "boolean" ||
     !Number.isSafeInteger(run.sourceSyntheticTechnologyMarkersThisRun) ||
     run.sourceSyntheticTechnologyMarkersThisRun < 0 ||
     typeof run.goods !== "object" ||
@@ -1873,6 +1892,7 @@ export function isValidGameState(value: unknown): value is GameState {
       "forceFieldRewardClaimed",
       "miaplacidusStoryPending",
       "miaplacidusStoryShown",
+      "megastructureOptionNotificationShown",
     ]) ||
     !Array.isArray(permanent.megastructures.ancientManuscripts) ||
     permanent.megastructures.ancientManuscripts.length > 4 ||
@@ -1892,6 +1912,7 @@ export function isValidGameState(value: unknown): value is GameState {
     typeof permanent.megastructures.forceFieldRewardClaimed !== "boolean" ||
     typeof permanent.megastructures.miaplacidusStoryPending !== "boolean" ||
     typeof permanent.megastructures.miaplacidusStoryShown !== "boolean" ||
+    typeof permanent.megastructures.megastructureOptionNotificationShown !== "boolean" ||
     !Array.isArray(run.space.systemEncounters) ||
     run.space.systemEncounters.length > 100 ||
     (run.space.selectedAsteroidId !== null && typeof run.space.selectedAsteroidId !== "string") ||
@@ -2720,6 +2741,7 @@ function upgradeToCurrentState(value: Record<string, unknown>): GameState | null
     forceFieldRewardClaimed: false,
     miaplacidusStoryPending: false,
     miaplacidusStoryShown: false,
+    megastructureOptionNotificationShown: false,
   };
   const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
   const initialSettledSystemId =
@@ -4082,6 +4104,166 @@ export function upgradeGameStateV51(value: unknown): GameState | null {
     run: {
       ...runState,
       sourceSyntheticTechnologyMarkersThisRun: apMarkerKnownPresent ? 1 : 0,
+    },
+  };
+  return upgradeGameStateV52(candidate);
+}
+
+/** Adds run-scoped Dyson state and source-rate Cosmic Rip history in v53. */
+export function upgradeGameStateV52(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const run = legacy["run"];
+  const permanent = legacy["permanent"];
+  if (
+    legacy["schemaVersion"] !== 52 ||
+    !run ||
+    typeof run !== "object" ||
+    Array.isArray(run) ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent)
+  )
+    return null;
+  const runState = run as Record<string, unknown>;
+  const permanentState = permanent as Record<string, unknown>;
+  const megastructures = permanentState["megastructures"];
+  const researchedTechnologyIds =
+    megastructures && typeof megastructures === "object" && !Array.isArray(megastructures)
+      ? (megastructures as Record<string, unknown>)["researchedTechnologyIds"]
+      : undefined;
+  const ripValue = permanentState["cosmicRip"];
+  const ripState =
+    ripValue && typeof ripValue === "object" && !Array.isArray(ripValue)
+      ? (ripValue as Record<string, unknown>)
+      : undefined;
+  const statisticsValue = legacy["statistics"];
+  const statisticsState =
+    statisticsValue && typeof statisticsValue === "object" && !Array.isArray(statisticsValue)
+      ? (statisticsValue as Record<string, unknown>)
+      : undefined;
+  if (
+    !ripState ||
+    !Array.isArray(ripState["researchedTechnologyIds"]) ||
+    typeof ripState["telemetryData"] !== "number" ||
+    !Number.isFinite(ripState["telemetryData"]) ||
+    ripState["telemetryData"] < 0 ||
+    !statisticsState ||
+    typeof statisticsState["lifetimeCosmicRipTelemetryDataEarned"] !== "number" ||
+    !Number.isFinite(statisticsState["lifetimeCosmicRipTelemetryDataEarned"]) ||
+    statisticsState["lifetimeCosmicRipTelemetryDataEarned"] < 0
+  )
+    return null;
+  const researchedRipTechIds = ripState["researchedTechnologyIds"] as unknown[];
+  const activeRipTechId = ripState["activeResearchTechnologyId"];
+  const telemetrySpent = COSMIC_RIP_TECHNOLOGIES.reduce(
+    (spent, technology) =>
+      spent +
+      (researchedRipTechIds.includes(technology.id) || activeRipTechId === technology.id
+        ? technology.telemetryCost
+        : 0),
+    0,
+  );
+  const previousTelemetryBalance = ripState["telemetryData"] as number;
+  const previousTelemetryEarned = statisticsState["lifetimeCosmicRipTelemetryDataEarned"] as number;
+  // V52 produced telemetry at 1/100 of the source rate. Subtract the unchanged
+  // cost of completed/started research when reconstructing the current balance.
+  const sourceRateScale = 100;
+  const reconstructedTelemetryBalance =
+    previousTelemetryBalance * sourceRateScale + telemetrySpent * (sourceRateScale - 1);
+  // The balance accepts finite values above MAX_SAFE_INTEGER. Preserve those
+  // values; saturate only when the rate conversion exceeds Number's finite range.
+  const sourceEquivalentBalance = Number.isFinite(reconstructedTelemetryBalance)
+    ? Number(reconstructedTelemetryBalance.toFixed(8))
+    : Number.MAX_VALUE;
+  const reconstructedTelemetryEarned = previousTelemetryEarned * sourceRateScale;
+  const sourceEquivalentEarned = Number.isFinite(reconstructedTelemetryEarned)
+    ? reconstructedTelemetryEarned
+    : Number.MAX_VALUE;
+  // v52 did not record when a permanent Dyson purchase affected plant rates.
+  // Preserve the legacy running value on migration; a new rebirth starts false.
+  const dysonStageTwoId = MEGASTRUCTURE_TRACKS.dysonSphere[1];
+  const candidate = {
+    ...legacy,
+    schemaVersion: 53,
+    run: {
+      ...runState,
+      dysonPlantRateBoostActiveThisRun:
+        Array.isArray(researchedTechnologyIds) && researchedTechnologyIds.includes(dysonStageTwoId),
+    },
+    permanent: {
+      ...permanentState,
+      cosmicRip: { ...ripState, telemetryData: sourceEquivalentBalance },
+    },
+    statistics: {
+      ...statisticsState,
+      lifetimeCosmicRipTelemetryDataEarned: sourceEquivalentEarned,
+    },
+  };
+  return upgradeGameStateV53(candidate);
+}
+
+/** Adds the run-scoped Dyson stage-one battery-capacity effect in v54. */
+export function upgradeGameStateV53(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const run = legacy["run"];
+  const permanent = legacy["permanent"];
+  if (
+    legacy["schemaVersion"] !== 53 ||
+    !run ||
+    typeof run !== "object" ||
+    Array.isArray(run) ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent)
+  )
+    return null;
+  const runState = run as Record<string, unknown>;
+  const permanentState = permanent as Record<string, unknown>;
+  const megastructures = permanentState["megastructures"];
+  const researchedTechnologyIds =
+    megastructures && typeof megastructures === "object" && !Array.isArray(megastructures)
+      ? (megastructures as Record<string, unknown>)["researchedTechnologyIds"]
+      : undefined;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 54,
+    run: {
+      ...runState,
+      dysonBatteryCapacityBoostActiveThisRun:
+        Array.isArray(researchedTechnologyIds) &&
+        researchedTechnologyIds.includes(MEGASTRUCTURE_TRACKS.dysonSphere[0]),
+    },
+  };
+  return upgradeGameStateV54(candidate);
+}
+
+/** Adds the persisted Megastructures availability-notice guard in v55. */
+export function upgradeGameStateV54(value: unknown): GameState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const legacy = value as Record<string, unknown>;
+  const permanent = legacy["permanent"];
+  if (
+    legacy["schemaVersion"] !== 54 ||
+    !permanent ||
+    typeof permanent !== "object" ||
+    Array.isArray(permanent)
+  )
+    return null;
+  const permanentState = permanent as Record<string, unknown>;
+  const megastructures = permanentState["megastructures"];
+  if (!megastructures || typeof megastructures !== "object" || Array.isArray(megastructures))
+    return null;
+  const candidate = {
+    ...legacy,
+    schemaVersion: 55,
+    permanent: {
+      ...permanentState,
+      megastructures: {
+        ...(megastructures as Record<string, unknown>),
+        megastructureOptionNotificationShown: false,
+      },
     },
   };
   return isValidGameState(candidate) ? (candidate as unknown as GameState) : null;

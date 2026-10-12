@@ -1,0 +1,11 @@
+# Compound Create power gate audit (12 October 2026)
+
+**Scope:** P-51/E-57 source-to-remake control-state review for the manual Compound Create action.
+
+Cosmic Forge's `game.js:7661-7720` checks `getPowerOnOff()` while updating the Create control. With power off, it applies `red-disabled-text`; `styles.css:2907-2915` gives red-disabled buttons `pointer-events: none`. The shared text beside each Create button also states that power must be on. The normal source click handler in `drawTab4Content.js:13-18` calls `createCompound`; the presentation gate is the player-facing control boundary.
+
+The current remake renderer in `src/app/EconomyPanes.tsx` disabled the button only when ingredient, capacity, or unlock checks failed. Its six-locale `createHelp` copy already stated the power requirement, but the button remained enabled when the grid was off or tripped. The renderer now disables it unless Infinite Power is active or `gridEnabled && !tripped`, and points `aria-describedby` at the existing localized help when this is the reason. If an ingredient/capacity reason is also present, both descriptions are referenced. The engine command contract is unchanged because the source restriction is enforced by its visible control.
+
+The source button reads the stateful `getPowerOnOff()` flag rather than calculating supply in the renderer. The source power updater can retain that flag during its five-second activation grace and turns it off after an eligible deficit/depletion check (`constantsAndGlobalVars.js:185,3335-3348`; `game.js:2981-3021`). The remake represents this control state with `gridEnabled` and `tripped`; its simulation keeps the grid active through `deficitMs` and sets `tripped` at its ten-second boundary (`commands.ts:2470-2499`). The presentation gate follows that explicit remake state, with Infinite Power bypassing the normal grid gate, instead of inferring a second power state from generation and charge. This slice does not change the distinct energy-transition timing.
+
+This is a static comparison of source UI logic/CSS and the active React renderer. No browser state, tests, build, typecheck, or formatting check was run. E-57's remaining locale/layout inspection and P-51's viewport/theme matrix remain open.

@@ -266,7 +266,7 @@ to this visible guidance with `aria-describedby`; the remake hides the selector
 until the prize is won, while the source describes enabling it at that point.
 A focused six-locale unit copy assertion and browser assertions for rendered
 copy and the selector association were added but not run. See the
-[P-44 handoff](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+[P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 
 The latest installed-Chrome rerun before adding Wheel help passed **1/1 in

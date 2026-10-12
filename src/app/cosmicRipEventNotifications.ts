@@ -1,7 +1,9 @@
 import type { LocaleId } from "../content/ids";
-import type { CosmicRipTechnologyId } from "../content/cosmicRip";
+import { COSMIC_RIP_SECTOR_IDS, type CosmicRipTechnologyId } from "../content/cosmicRip";
 import type { EngineEvent } from "../engine/commands";
 import { cosmicRipText } from "../i18n/cosmicRipMessages";
+import { cosmicRipMilestoneResultDialogCopy } from "../i18n/cosmicRipMilestoneResultDialogMessages";
+import type { RandomEventDialogCopy } from "../i18n/randomEventDialogTypes";
 import type { GameNotificationType } from "./NotificationStack";
 
 export interface CosmicRipEventNotice {
@@ -11,20 +13,18 @@ export interface CosmicRipEventNotice {
   readonly durationMs: number;
 }
 
-const SECTOR_NAMES = [
-  "MIAPLAC-7411",
-  "MIAPLAC-7412",
-  "MIAPLAC-7413",
-  "MIAPLAC-7422",
-  "MIAPLAC-7423",
-  "MIAPLAC-7424",
-  "MIAPLAC-7432",
-  "MIAPLAC-7433",
-  "MIAPLAC-7434",
-] as const;
-
 function sectorName(sectorIndex: number): string {
-  return SECTOR_NAMES[sectorIndex] ?? `Sector ${sectorIndex + 1}`;
+  return COSMIC_RIP_SECTOR_IDS[sectorIndex] ?? `Sector ${sectorIndex + 1}`;
+}
+
+function cosmicRipClosureResultDialog(locale: LocaleId): RandomEventDialogCopy {
+  const copy = cosmicRipText(locale);
+  return {
+    title: copy.closedTitle,
+    summary: "",
+    lines: [{ text: copy.closed }],
+    confirmLabel: copy.closedDialogEndLabel,
+  };
 }
 
 export function cosmicRipEventNotice(
@@ -83,11 +83,22 @@ export function cosmicRipTechnologyResearchedNotice(
 export function createCosmicRipEventNoticeHandler(
   getLocale: () => LocaleId,
   notify: (notice: CosmicRipEventNotice) => void,
+  enqueueResultDialog: (dialog: RandomEventDialogCopy, onConfirm?: () => void) => void = () => {},
+  onClosureConfirmed: () => void = () => {},
 ): (events: readonly EngineEvent[]) => void {
   return (events) => {
     for (const event of events) {
-      const notice = cosmicRipEventNotice(getLocale(), event);
+      const locale = getLocale();
+      const notice = cosmicRipEventNotice(locale, event);
       if (notice) notify(notice);
+
+      if (event.type === "cosmic-rip.scanner-restored") {
+        enqueueResultDialog(cosmicRipMilestoneResultDialogCopy(locale, "scannerRestored"));
+      } else if (event.type === "cosmic-rip.sector-scanned" && event.found) {
+        enqueueResultDialog(cosmicRipMilestoneResultDialogCopy(locale, "ripLocated"));
+      } else if (event.type === "cosmic-rip.closed") {
+        enqueueResultDialog(cosmicRipClosureResultDialog(locale), onClosureConfirmed);
+      }
     }
   };
 }

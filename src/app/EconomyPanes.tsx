@@ -36,6 +36,8 @@ import { MEGASTRUCTURE_TECHNOLOGY_IDS, TECHNOLOGY_CATALOG } from "../content/tec
 import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import { TECHNOLOGY_DESCRIPTIONS } from "../content/technologyDescriptions";
+import { starTypeForSystem } from "../content/starCatalogue";
+import { oTypePowerPlantMultiplier } from "../content/starTypeRules";
 import {
   economyGoodOverviewHelp,
   economyLabel,
@@ -69,6 +71,7 @@ import {
   dispatchEconomyStoragePurchase,
 } from "./economyActionNotifications";
 import { starshipText } from "../i18n/starshipMessages";
+import { megastructurePowerPlantMultiplier } from "../engine/megastructures";
 
 interface EconomyPanesProps {
   readonly tabId: string;
@@ -262,19 +265,41 @@ function GoodStorageCard({
       : BASE_STORAGE_MULTIPLIER,
   );
   const waterCost = id === "water" ? good.storageCapacity * 0.3 : 0;
+  const titleId = `good-${id}-storage-title`;
+  const helpId = `good-${id}-storage-help`;
+  const capacityId = `good-${id}-storage-capacity`;
+  const costId = `good-${id}-storage-cost`;
+  const reasonId = `good-${id}-storage-reason`;
+  const purchaseDescription = [
+    titleId,
+    ...(storageHelp ? [helpId] : []),
+    capacityId,
+    costId,
+    ...(storageReason ? [reasonId] : []),
+  ].join(" ");
   return (
     <article className="upgrade-card hydrogen-storage-card" data-testid={`storage-card-${id}`}>
       <div className="card-icon storage-icon" aria-hidden="true">
         {"\u25c8"}
       </div>
       <div className="card-copy">
-        <h3>{t("storage")}</h3>
-        {storageHelp && <p className="economy-action-description">{storageHelp}</p>}
-        <p>
+        <h3 id={titleId}>
+          {t("storage")}
+          <span className="sr-only">: {name(locale, id)}</span>
+        </h3>
+        {storageHelp && (
+          <p className="economy-action-description" id={helpId}>
+            {storageHelp}
+          </p>
+        )}
+        <p id={capacityId}>
           {t("capacity")}: {format(state, good.storageCapacity, 0)} {"\u2192"}{" "}
           {format(state, nextCapacity, 0)}
         </p>
-        <span className="cost-line">
+        <span className="cost-line" id={costId}>
+          <span className="sr-only">
+            {t("increaseStorage")} {name(locale, id)}: {" "}
+          </span>
           <strong>
             {format(state, storagePurchaseCost(good.storageCapacity))} {SYMBOL[id]}
           </strong>
@@ -293,12 +318,12 @@ function GoodStorageCard({
           type="button"
           className="secondary-button"
           disabled={!storage.enabled}
-          aria-describedby={storageReason ? `good-${id}-storage-reason` : undefined}
+          aria-describedby={purchaseDescription}
           onClick={() => dispatchEconomyStoragePurchase(store, id, notify)}
         >
           {t("increaseStorage")}
         </button>
-        <span className="control-reason" id={`good-${id}-storage-reason`}>
+        <span className="control-reason" id={reasonId}>
           {storageReason ?? ""}
         </span>
       </div>
@@ -702,13 +727,23 @@ function ResourceAutobuyerTiers({
             `${format(state, buyMax.totalCost)} ${name(locale, id)}`,
             `+${format(state, buyMax.count * effectiveRate, 2)} ${t("perSecond")}`,
           );
+          const summaryId = `resource-${id}-autobuyer-${tier}-summary`;
+          const helpId = `resource-${id}-autobuyer-${tier}-help`;
+          const reasonId = `resource-${id}-autobuyer-${tier}-reason`;
+          const buyMaxPreviewId = `resource-${id}-autobuyer-${tier}-buy-max-preview`;
+          const purchaseDescription = [
+            summaryId,
+            ...(autobuyerHelp ? [helpId] : []),
+            ...(reason ? [reasonId] : []),
+          ].join(" ");
+          const buyMaxDescription = `${purchaseDescription} ${buyMaxPreviewId}`;
           return (
             <div className="economy-tier" key={tier}>
-              <span>
+              <span id={summaryId}>
                 {t("buyTier")} {tier}: {format(state, owned)} · +{format(state, effectiveRate, 2)}/s
               </span>
               {autobuyerHelp && (
-                <p className="economy-action-description">
+                <p className="economy-action-description" id={helpId}>
                   {autobuyerHelp}
                   {tier > 1 && <> {format(state, buyer.energyPerSecond)} kJ / s</>}
                 </p>
@@ -718,7 +753,7 @@ function ResourceAutobuyerTiers({
                   type="button"
                   className="text-button"
                   disabled={!purchase.enabled}
-                  aria-describedby={reason ? `resource-${id}-autobuyer-${tier}-reason` : undefined}
+                  aria-describedby={purchaseDescription}
                   onClick={() =>
                     dispatchEconomyAutobuyerPurchase(
                       store,
@@ -741,7 +776,7 @@ function ResourceAutobuyerTiers({
                   type="button"
                   className="text-button"
                   disabled={!buyMax.enabled}
-                  aria-describedby={reason ? `resource-${id}-autobuyer-${tier}-reason` : undefined}
+                  aria-describedby={buyMaxDescription}
                   onClick={() =>
                     dispatchEconomyAutobuyerPurchase(
                       store,
@@ -760,10 +795,10 @@ function ResourceAutobuyerTiers({
                 </button>
               )}
               {gateMet && isBulkPurchasingAvailable(state) && (
-                <p className="economy-rate">{buyMaxDetails}</p>
+                <p className="economy-rate" id={buyMaxPreviewId}>{buyMaxDetails}</p>
               )}
               {gateMet && reason && (
-                <p className="control-reason" id={`resource-${id}-autobuyer-${tier}-reason`}>
+                <p className="control-reason" id={reasonId}>
                   {reason}
                 </p>
               )}
@@ -771,7 +806,12 @@ function ResourceAutobuyerTiers({
                 <button
                   type="button"
                   className="text-button"
+                  aria-label={formatEconomyMessage(locale, "autobuyerToggleLabel", {
+                    good: name(locale, id),
+                    tier: String(tier),
+                  })}
                   aria-pressed={state.run.economy.autobuyerEnabled[tierId]}
+                  aria-describedby={[summaryId, ...(autobuyerHelp ? [helpId] : [])].join(" ")}
                   onClick={() =>
                     store.dispatch({
                       type: "economy.autobuyer.toggle",
@@ -1187,6 +1227,7 @@ function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProp
             good: name(locale, id),
             inputs: requiredInputs,
           });
+          const legacyTitleId = `legacy-compound-${id}-title`;
           const saleReason = economyActionReason(state, sale.failure);
           return (
             <section
@@ -1206,7 +1247,7 @@ function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProp
                   <header className="economy-card-heading">
                     <EconomicGoodEmblem goodId={id} />
                     <div>
-                      <h3>{name(locale, id)}</h3>
+                      <h3 id={legacyTitleId}>{name(locale, id)}</h3>
                       <p>{SYMBOL[id]}</p>
                     </div>
                     <strong>
@@ -1316,9 +1357,10 @@ function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProp
                             `${format(state, buyMax.totalCost)} ${name(locale, id)}`,
                             `+${format(state, buyMax.count * effectiveRate, 2)} ${t("perSecond")}`,
                           );
+                          const summaryId = `legacy-compound-${id}-autobuyer-${tier}-summary`;
                           return (
                             <div className="economy-tier" key={tier}>
-                              <span>
+                              <span id={summaryId}>
                                 {t("buyTier")} {tier}: {format(state, owned)} · +
                                 {format(state, effectiveRate, 2)}/s ·{" "}
                                 {format(state, buyer.energyPerSecond)} kJ/s
@@ -1386,7 +1428,16 @@ function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProp
                                     <button
                                       type="button"
                                       className="text-button"
+                                      aria-label={formatEconomyMessage(
+                                        locale,
+                                        "autobuyerToggleLabel",
+                                        {
+                                          good: name(locale, id),
+                                          tier: String(tierNumber),
+                                        },
+                                      )}
                                       aria-pressed={state.run.economy.autobuyerEnabled[key]}
+                                      aria-describedby={`${legacyTitleId} ${summaryId}`}
                                       onClick={() =>
                                         store.dispatch({
                                           type: "economy.autobuyer.toggle",
@@ -1564,6 +1615,9 @@ function CompoundGoodPane({
     .join(" + ");
   const creation = selectCompoundCreation(state, id, amount);
   const creationReason = economyActionReason(state, creation.failure);
+  const power = state.run.economy.power;
+  const powerAvailableForCreation =
+    power.infinitePower || (power.gridEnabled && !power.tripped);
   const requiredInputs = creation.requiredInputs
     .map((input) => `${format(state, input.amount)} ${name(locale, input.goodId)}`)
     .join(" + ");
@@ -1607,7 +1661,11 @@ function CompoundGoodPane({
                 {t("recipe")}: <strong>{recipeText}</strong>
               </p>
               <div className="compound-create-controls">
-                {createHelp && <p className="economy-action-description">{createHelp}</p>}
+                {createHelp && (
+                  <p className="economy-action-description" id={`compound-${id}-create-help`}>
+                    {createHelp}
+                  </p>
+                )}
                 <label htmlFor={`compound-${id}-amount`}>{t("amount")}</label>
                 <div className="compound-create-row">
                   <input
@@ -1623,8 +1681,17 @@ function CompoundGoodPane({
                   <button
                     type="button"
                     className="primary-button"
-                    disabled={!creation.enabled}
-                    aria-describedby={creationReason ? `compound-${id}-create-reason` : undefined}
+                    disabled={!creation.enabled || !powerAvailableForCreation}
+                    aria-describedby={
+                      [
+                        creationReason ? `compound-${id}-create-reason` : null,
+                        !powerAvailableForCreation && createHelp
+                          ? `compound-${id}-create-help`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
                     onClick={() => dispatchManualCompoundCreation(store, id, amount, notify)}
                   >
                     {t("create")} {name(locale, id)}
@@ -1739,13 +1806,23 @@ function CompoundAutobuyerDetails({
           `${format(state, buyMax.totalCost)} ${name(locale, id)}`,
           `+${format(state, buyMax.count * effectiveRate, 2)} ${t("perSecond")}`,
         );
+        const summaryId = `compound-${id}-autobuyer-${tier}-summary`;
+        const helpId = `compound-${id}-autobuyer-${tier}-help`;
+        const reasonId = `compound-${id}-autobuyer-${tier}-reason`;
+        const buyMaxPreviewId = `compound-${id}-autobuyer-${tier}-buy-max-preview`;
+        const purchaseDescription = [
+          summaryId,
+          ...(autobuyerHelp ? [helpId] : []),
+          ...(reason ? [reasonId] : []),
+        ].join(" ");
+        const buyMaxDescription = `${purchaseDescription} ${buyMaxPreviewId}`;
         return (
           <div className="economy-tier" key={tier}>
-            <span>
+            <span id={summaryId}>
               {t("buyTier")} {tier}: {format(state, owned)} · +{format(state, effectiveRate, 2)}/s
             </span>
             {autobuyerHelp && (
-              <p className="economy-action-description">
+              <p className="economy-action-description" id={helpId}>
                 {autobuyerHelp}
                 {tier > 1 && <> {format(state, buyer.energyPerSecond)} kJ / s</>}
               </p>
@@ -1756,7 +1833,7 @@ function CompoundAutobuyerDetails({
                   type="button"
                   className="text-button"
                   disabled={!purchase.enabled}
-                  aria-describedby={reason ? `compound-${id}-autobuyer-${tier}-reason` : undefined}
+                  aria-describedby={purchaseDescription}
                   onClick={() =>
                     dispatchEconomyAutobuyerPurchase(store, purchaseCommand, id, tierNumber, notify)
                   }
@@ -1769,9 +1846,7 @@ function CompoundAutobuyerDetails({
                       type="button"
                       className="text-button"
                       disabled={!buyMax.enabled}
-                      aria-describedby={
-                        reason ? `compound-${id}-autobuyer-${tier}-reason` : undefined
-                      }
+                      aria-describedby={buyMaxDescription}
                       onClick={() =>
                         dispatchEconomyAutobuyerPurchase(
                           store,
@@ -1788,11 +1863,13 @@ function CompoundAutobuyerDetails({
                     >
                       {t("buyMax")}
                     </button>
-                    <p className="economy-rate">{maxPreview}</p>
+                    <p className="economy-rate" id={buyMaxPreviewId}>
+                      {maxPreview}
+                    </p>
                   </>
                 )}
                 {reason && (
-                  <p className="control-reason" id={`compound-${id}-autobuyer-${tier}-reason`}>
+                  <p className="control-reason" id={reasonId}>
                     {reason}
                   </p>
                 )}
@@ -1800,7 +1877,12 @@ function CompoundAutobuyerDetails({
                   <button
                     type="button"
                     className="text-button"
+                    aria-label={formatEconomyMessage(locale, "autobuyerToggleLabel", {
+                      good: name(locale, id),
+                      tier: String(tierNumber),
+                    })}
                     aria-pressed={state.run.economy.autobuyerEnabled[key]}
+                    aria-describedby={[summaryId, ...(autobuyerHelp ? [helpId] : [])].join(" ")}
                     onClick={() =>
                       store.dispatch({
                         type: "economy.autobuyer.toggle",
@@ -2119,11 +2201,21 @@ function TechnologyPrerequisiteTree({
                             shortfall: format(state, technology.price - state.run.researchPoints),
                           })
                         : null;
+                    const missingPrerequisites = technology.requires
+                      .filter((required) => !researched.includes(required))
+                      .map((required) => techName(locale, required));
+                    const prerequisiteReason = missingPrerequisites.length
+                      ? formatEconomyMessage(locale, "technologyPrerequisitesMissing", {
+                          technologies: missingPrerequisites.join(", "),
+                        })
+                      : null;
                     const status = done
                       ? t("researched")
                       : canResearch
                         ? t("ready")
-                        : (researchPointsShortfall ?? t("lockedBy"));
+                        : ([prerequisiteReason, researchPointsShortfall]
+                            .filter(Boolean)
+                            .join(" ") || t("lockedBy"));
                     const technologyLabel = techName(locale, technology.id);
                     const description = TECHNOLOGY_DESCRIPTIONS[technology.id][locale];
                     const tooltipDescription = description.replace(/\s*\/\s*\/\s*/g, "\n");
@@ -2308,6 +2400,9 @@ function ResearchPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
                 ].join(" + ");
                 const maxResult = `+${format(state, maxPlan.count * def.ratePerSecond, 2)} RP/s`;
                 const actionHelp = researchActionHelp(locale, id);
+                const titleId = `research-building-${id}-title`;
+                const descriptionId = `research-building-${id}-description`;
+                const rateId = `research-building-${id}-rate`;
                 return (
                   <article
                     className="economy-card"
@@ -2323,19 +2418,19 @@ function ResearchPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
                   >
                     <header className="economy-entity-heading">
                       <EconomyStructureEmblem kind="laboratory" />
-                      <h4>{techName(locale, id)}</h4>
+                      <h4 id={titleId}>{techName(locale, id)}</h4>
                     </header>
-                    <p className="economy-action-description">
+                    <p className="economy-action-description" id={descriptionId}>
                       {id === "scienceLab"
                         ? `${actionHelp} ${format(state, def.energyPerSecond)} kJ / s`
                         : actionHelp}
                     </p>
-                    <p>
+                    <p id={rateId}>
                       +{format(state, def.ratePerSecond, 2)} RP/s ·{" "}
                       {format(state, def.energyPerSecond)} kJ/s
                     </p>
                     <p>
-                      {t("owned")}: {format(state, owned)}
+                      {t("researchQuantity")}: {format(state, owned)}
                     </p>
                     <p>{money(state, price)}</p>
                     {gateMet ? (
@@ -2392,7 +2487,9 @@ function ResearchPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
                         data-tutorial-target={
                           id === "scienceKit" ? "science-kit-toggle" : undefined
                         }
+                        aria-labelledby={titleId}
                         aria-pressed={state.run.economy.buildingEnabled[id]}
+                        aria-describedby={`${descriptionId} ${rateId}`}
                         onClick={() =>
                           store.dispatch({
                             type: "economy.building.toggle",
@@ -2612,6 +2709,21 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
               const outputMultiplier =
                 repeatedPerkMultiplier(state.permanent.acquiredPerks, "optimizedPowerGrids", 1.35) *
                 (id === "powerPlant2" ? state.run.economy.power.environmentalMultiplier : 1);
+              const assignedSystemId = state.permanent.oTypePowerPlantAssignments[id];
+              const plantStarMultiplier = oTypePowerPlantMultiplier(
+                starTypeForSystem(assignedSystemId ?? state.run.space.currentSystemId),
+                assignedSystemId !== null && state.permanent.settledSystemIds.includes(assignedSystemId),
+              );
+              const sourceEquivalentRate = Math.round(
+                def.ratePerSecond *
+                  repeatedPerkMultiplier(
+                    state.permanent.acquiredPerks,
+                    "optimizedPowerGrids",
+                    1.35,
+                  ) *
+                  megastructurePowerPlantMultiplier(state) *
+                  plantStarMultiplier,
+              );
               const owned = count(state, id);
               const energyDroneDiscount = 0.95 ** philosophyRepeatableRank(state, "energyDrones");
               const cashPrice = scaledPriceAfterPurchases(
@@ -2645,11 +2757,33 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                 ),
               ].join(" + ");
               const maxResult = `+${format(state, def.ratePerSecond * outputMultiplier * maxPlan.count, 2)} kJ/s`;
+              const plantNameId = `energy-building-${id}-name`;
+              const generationId = `energy-building-${id}-generation`;
+              const plantHelpId = `energy-building-${id}-purchase-help`;
+              const plantCostId = `energy-building-${id}-cost`;
+              const plantPreviewId = `energy-building-${id}-buy-max-preview`;
+              const purchaseReasonId = `energy-building-${id}-reason`;
+              const bulkReasonId = `energy-building-${id}-bulk-reason`;
+              const purchaseDescription = [
+                plantNameId,
+                generationId,
+                plantHelpId,
+                plantCostId,
+                ...(purchaseReason ? [purchaseReasonId] : []),
+              ].join(" ");
+              const bulkDescription = [
+                plantNameId,
+                generationId,
+                plantHelpId,
+                plantCostId,
+                plantPreviewId,
+                ...(bulkReason ? [bulkReasonId] : []),
+              ].join(" ");
               return (
                 <article className="economy-card" key={id} data-building-id={id}>
                   <header className="economy-entity-heading">
                     <EconomyStructureEmblem kind="power-plant" />
-                    <h3>{techName(locale, id)}</h3>
+                    <h3 id={plantNameId}>{techName(locale, id)}</h3>
                     <InfoTooltip
                       id={`energy-building-${id}-help`}
                       label={`${techName(locale, id)} — ${starshipText(locale, "scanMoreInfoLabel")}`}
@@ -2657,16 +2791,23 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                       testId={`energy-building-${id}-help`}
                     />
                   </header>
-                  <p>
-                    +{format(state, def.ratePerSecond * outputMultiplier)} kJ/s{" "}
+                  <p id={generationId}>
+                    {t("plantNominalOutput")}: +
+                    {format(state, def.ratePerSecond * outputMultiplier)} kJ/s{" "}
                     {def.fuel
                       ? `· ${format(state, def.fuel.unitsPerSecond)} ${name(locale, def.fuel.goodId)} / s`
                       : ""}
                   </p>
-                  {id === "powerPlant1" && <p>{t("powerPlantSupplyHelp")}</p>}
-                  {id === "powerPlant2" && <p>{t("solarPowerPlantRenewable")}</p>}
-                  {id === "powerPlant3" && <p>{t("advancedPowerPlantHelp")}</p>}
-                  <p>
+                  {id === "powerPlant1" && (
+                    <p id={plantHelpId}>{t("powerPlantSupplyHelp")}</p>
+                  )}
+                  {id === "powerPlant2" && (
+                    <p id={plantHelpId}>{t("solarPowerPlantRenewable")}</p>
+                  )}
+                  {id === "powerPlant3" && (
+                    <p id={plantHelpId}>{t("advancedPowerPlantHelp")}</p>
+                  )}
+                  <p id={plantCostId}>
                     {t("owned")}: {format(state, owned)} · {money(state, cashPrice)}{" "}
                     {costs && `+ ${costs}`}
                   </p>
@@ -2676,21 +2817,21 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                         type="button"
                         className="secondary-button"
                         disabled={!purchaseCheck.enabled}
-                        aria-describedby={
-                          purchaseReason ? `energy-building-${id}-reason` : undefined
-                        }
+                        aria-describedby={purchaseDescription}
                         onClick={() => store.dispatch(singleCommand)}
                       >
-                        {t("buy")}
+                        {formatEconomyMessage(
+                          locale,
+                          id === "powerPlant2" ? "addMaxPowerPlantRate" : "addPowerPlantRate",
+                          { rate: String(sourceEquivalentRate) },
+                        )}
                       </button>
                       {isBulkPurchasingAvailable(state) && (
                         <button
                           type="button"
                           className="secondary-button"
                           disabled={!maxPlan.enabled}
-                          aria-describedby={
-                            bulkReason ? `energy-building-${id}-bulk-reason` : undefined
-                          }
+                          aria-describedby={bulkDescription}
                           onClick={() => store.dispatch(bulkCommand)}
                         >
                           {t("buyMax")}
@@ -2703,17 +2844,17 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                     </p>
                   )}
                   {purchaseReason && (
-                    <p className="control-reason" id={`energy-building-${id}-reason`}>
+                    <p className="control-reason" id={purchaseReasonId}>
                       {purchaseReason}
                     </p>
                   )}
                   {unlocked && isBulkPurchasingAvailable(state) && (
-                    <p className="economy-rate">
+                    <p className="economy-rate" id={plantPreviewId}>
                       {buyMaxPreview(state, maxPlan.count, maxCosts, maxResult)}
                     </p>
                   )}
                   {unlocked && isBulkPurchasingAvailable(state) && bulkReason && (
-                    <p className="control-reason" id={`energy-building-${id}-bulk-reason`}>
+                    <p className="control-reason" id={bulkReasonId}>
                       {bulkReason}
                     </p>
                   )}
@@ -2731,7 +2872,9 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                           })
                         }
                       />
-                      {state.run.economy.buildingEnabled[id] ? t("pause") : t("resume")}
+                      {state.run.economy.buildingEnabled[id]
+                        ? t("deactivatePowerPlant")
+                        : t("activatePowerPlant")}
                     </label>
                   )}
                 </article>
@@ -2781,11 +2924,30 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                 ),
               ].join(" + ");
               const maxResult = `+${format(state, def.capacity * maxPlan.count)} kJ ${t("capacity")}`;
+              const batteryNameId = `battery-${id}-name`;
+              const batteryCapacityId = `battery-${id}-capacity`;
+              const batteryCostId = `battery-${id}-cost`;
+              const batteryPreviewId = `battery-${id}-buy-max-preview`;
+              const purchaseReasonId = `battery-${id}-reason`;
+              const bulkReasonId = `battery-${id}-bulk-reason`;
+              const purchaseDescription = [
+                batteryNameId,
+                batteryCapacityId,
+                batteryCostId,
+                ...(purchaseReason ? [purchaseReasonId] : []),
+              ].join(" ");
+              const bulkDescription = [
+                batteryNameId,
+                batteryCapacityId,
+                batteryCostId,
+                batteryPreviewId,
+                ...(bulkReason ? [bulkReasonId] : []),
+              ].join(" ");
               return (
                 <article className="economy-card" key={id} data-building-id={id}>
                   <header className="economy-entity-heading">
                     <EconomyStructureEmblem kind="battery" />
-                    <h3>{techName(locale, id)}</h3>
+                    <h3 id={batteryNameId}>{techName(locale, id)}</h3>
                     <InfoTooltip
                       id={`energy-${id}-help`}
                       label={`${techName(locale, id)} — ${starshipText(locale, "scanMoreInfoLabel")}`}
@@ -2793,10 +2955,10 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                       testId={`energy-${id}-help`}
                     />
                   </header>
-                  <p>
+                  <p id={batteryCapacityId}>
                     +{format(state, def.capacity)} kJ {t("capacity")}
                   </p>
-                  <p>
+                  <p id={batteryCostId}>
                     {t("owned")}: {format(state, owned)} · {money(state, cashPrice)} + {costs}
                   </p>
                   {unlocked ? (
@@ -2805,17 +2967,19 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                         type="button"
                         className="secondary-button"
                         disabled={!purchaseCheck.enabled}
-                        aria-describedby={purchaseReason ? `battery-${id}-reason` : undefined}
+                        aria-describedby={purchaseDescription}
                         onClick={() => store.dispatch(singleCommand)}
                       >
-                        {t("buy")}
+                        {formatEconomyMessage(locale, "addEnergyCapacity", {
+                          capacity: format(state, Math.floor(def.capacity / 1000)),
+                        })}
                       </button>
                       {isBulkPurchasingAvailable(state) && (
                         <button
                           type="button"
                           className="secondary-button"
                           disabled={!maxPlan.enabled}
-                          aria-describedby={bulkReason ? `battery-${id}-bulk-reason` : undefined}
+                          aria-describedby={bulkDescription}
                           onClick={() => store.dispatch(bulkCommand)}
                         >
                           {t("buyMax")}
@@ -2828,17 +2992,17 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                     </p>
                   )}
                   {purchaseReason && (
-                    <p className="control-reason" id={`battery-${id}-reason`}>
+                    <p className="control-reason" id={purchaseReasonId}>
                       {purchaseReason}
                     </p>
                   )}
                   {unlocked && isBulkPurchasingAvailable(state) && (
-                    <p className="economy-rate">
+                    <p className="economy-rate" id={batteryPreviewId}>
                       {buyMaxPreview(state, maxPlan.count, maxCosts, maxResult)}
                     </p>
                   )}
                   {unlocked && isBulkPurchasingAvailable(state) && bulkReason && (
-                    <p className="control-reason" id={`battery-${id}-bulk-reason`}>
+                    <p className="control-reason" id={bulkReasonId}>
                       {bulkReason}
                     </p>
                   )}

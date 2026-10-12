@@ -26,7 +26,11 @@ import type { GameStore } from "../engine/store";
 import { antimatterMiningRatePerSecond, rocketFuelRatePerSecond } from "../engine/spaceMechanics";
 import { spaceText, type SpaceMessageKey } from "../i18n/spaceMessages";
 import { economyLabel } from "../i18n/economyMessages";
-import { rocketText, type RocketMessageKey } from "../i18n/rocketMessages";
+import {
+  localizedRocketUserName,
+  rocketText,
+  type RocketMessageKey,
+} from "../i18n/rocketMessages";
 import { rocketPartCost } from "../engine/spaceRules";
 import { philosophyDiscountedSpaceCost, philosophyRepeatableRank } from "../engine/philosophy";
 import { permanentPerkPurchaseCount } from "../content/economyRules";
@@ -131,9 +135,19 @@ function disabledReason(state: GameState, result: PreconditionResult): string | 
 
 function rocketPhaseText(
   state: GameState,
-  phase: GameState["run"]["space"]["rockets"]["rocket1"]["phase"],
+  rocketId: RocketId,
 ): string {
-  return rocketText(state.settings.locale, phase);
+  const locale = state.settings.locale;
+  const rocket = state.run.space.rockets[rocketId];
+  if (rocket.phase === "ready") {
+    if (rocket.fuelQuantity >= ROCKET_FUEL_CAPACITY[rocketId]) {
+      return rocketText(locale, "readyForLaunch");
+    }
+    return rocket.fuelPumpEnabled
+      ? rocketText(locale, "fuelling")
+      : rocketText(locale, "readyForRefuel");
+  }
+  return rocketText(locale, rocket.phase);
 }
 
 function RocketAssemblyCard({
@@ -147,6 +161,12 @@ function RocketAssemblyCard({
 }) {
   const locale = state.settings.locale;
   const rocket = state.run.space.rockets[rocketId];
+  const rocketDisplayName = localizedRocketUserName(locale, rocket.name);
+  const rocketHeadingId = `rocket-${rocketId}-heading`;
+  const rocketNameLabelId = `rocket-${rocketId}-name-label`;
+  const rocketRenameTextId = `rocket-${rocketId}-rename-label`;
+  const rocketPartButtonTextId = `rocket-${rocketId}-part-button-label`;
+  const rocketPartCostId = `rocket-${rocketId}-part-cost`;
   const [name, setName] = useState(rocket.name);
   const [feedback, setFeedback] = useState("");
   const requiredParts = ROCKET_PART_REQUIREMENTS[rocketId];
@@ -239,14 +259,22 @@ function RocketAssemblyCard({
   }
 
   return (
-    <article className="space-rocket-card" data-testid={`rocket-card-${rocketId}`}>
+    <article
+      className="space-rocket-card"
+      aria-labelledby={rocketHeadingId}
+      data-testid={`rocket-card-${rocketId}`}
+    >
       <div className="space-card-heading">
-        <span className="status-pill">{rocketPhaseText(state, rocket.phase)}</span>
+        <h3 id={rocketHeadingId}>{rocketDisplayName}</h3>
+        <span className="status-pill">{rocketPhaseText(state, rocketId)}</span>
       </div>
       <div className="space-rocket-rename">
-        <label htmlFor={`${rocketId}-name`}>{rocketText(locale, "rocketName")}</label>
+        <label id={rocketNameLabelId} htmlFor={`${rocketId}-name`}>
+          {rocketText(locale, "rocketName")}
+        </label>
         <input
           id={`${rocketId}-name`}
+          aria-labelledby={`${rocketNameLabelId} ${rocketHeadingId}`}
           value={name}
           maxLength={12}
           onChange={(event) => setName(event.currentTarget.value)}
@@ -254,34 +282,38 @@ function RocketAssemblyCard({
         <button
           className="text-button"
           type="button"
+          aria-labelledby={`${rocketHeadingId} ${rocketRenameTextId}`}
           onClick={() => {
             const cleanName = name.trim();
             setName(cleanName);
             dispatch({ type: "space.rocket.rename", rocketId, name: cleanName }, cleanName);
           }}
         >
-          {rocketText(locale, "rename")}
+          <span id={rocketRenameTextId}>{rocketText(locale, "rename")}</span>
         </button>
       </div>
       <p className="space-rocket-parts">
-        {rocketText(locale, "parts")}:{" "}
+        {rocketText(locale, "builtPartsLabel")}{" "}
         <strong>
           {number(state, rocket.builtParts)} / {number(state, requiredParts)}
         </strong>
       </p>
       {rocket.builtParts < requiredParts && (
         <>
-          <p className="cost-line">
+          <p className="cost-line" id={rocketPartCostId}>
             {rocketText(locale, "partCost")}: {costLines(state, partCost).join(", ")}
           </p>
           <button
             className="secondary-button"
             type="button"
             disabled={!partCheck.ok}
-            aria-describedby={partReason ? `rocket-${rocketId}-part-reason` : undefined}
+            aria-labelledby={`${rocketHeadingId} ${rocketPartButtonTextId}`}
+            aria-describedby={
+              partReason ? `${rocketPartCostId} rocket-${rocketId}-part-reason` : rocketPartCostId
+            }
             onClick={() => dispatch(partCommand, rocketText(locale, "parts"))}
           >
-            {rocketText(locale, "buildPart")}
+            <span id={rocketPartButtonTextId}>{rocketText(locale, "buildPart")}</span>
           </button>
           {partReason && (
             <p className="control-reason" id={`rocket-${rocketId}-part-reason`}>
@@ -302,7 +334,7 @@ function RocketAssemblyCard({
               </p>
               {!rocket.fuelPumpPurchased ? (
                 <>
-                  <p className="cost-line">
+                  <p className="cost-line" id={`rocket-${rocketId}-pump-cost`}>
                     {rocketText(locale, "pumpCost")}:{" "}
                     {money(state, ROCKET_FUEL_PUMP_BASE_COST[rocketId])}
                   </p>
@@ -310,7 +342,10 @@ function RocketAssemblyCard({
                     className="secondary-button"
                     type="button"
                     disabled={!pumpCheck.ok}
-                    aria-describedby={pumpReason ? `rocket-${rocketId}-pump-reason` : undefined}
+                    aria-describedby={[
+                      `rocket-${rocketId}-pump-cost`,
+                      ...(pumpReason ? [`rocket-${rocketId}-pump-reason`] : []),
+                    ].join(" ")}
                     onClick={() => dispatch(pumpCommand, rocketText(locale, "startFueling"))}
                   >
                     {rocketText(locale, "buyPump")}
@@ -442,7 +477,7 @@ function RocketAssemblyCard({
                 className="space-survey-progress"
                 max={100}
                 value={remainingPercent(state, journeyTimer.id)}
-                aria-label={rocketPhaseText(state, rocket.phase)}
+                aria-label={rocketPhaseText(state, rocketId)}
               />
             </>
           )}
@@ -1092,7 +1127,11 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
       >
         {!space.launchPadBuilt && activePane === "space-mining-launch-pad" ? (
           <>
-            <ul className="space-cost-list" aria-label={rocketText(locale, "launchPadCost")}>
+            <ul
+              className="space-cost-list"
+              id="launch-pad-build-cost"
+              aria-label={rocketText(locale, "launchPadCost")}
+            >
               {costLines(
                 state,
                 philosophyDiscountedSpaceCost(
@@ -1110,7 +1149,10 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
               className="primary-button"
               type="button"
               disabled={!launchPadBuildCheck.ok}
-              aria-describedby={launchPadBuildReason ? "launch-pad-build-reason" : undefined}
+              aria-describedby={[
+                "launch-pad-build-cost",
+                ...(launchPadBuildReason ? ["launch-pad-build-reason"] : []),
+              ].join(" ")}
               onClick={() => dispatch({ type: "space.launch-pad.build" })}
             >
               {rocketText(locale, "buildLaunchPad")}

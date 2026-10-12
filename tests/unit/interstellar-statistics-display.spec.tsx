@@ -257,7 +257,7 @@ describe("Interstellar Statistics display", () => {
     const locale = state.settings.locale;
     const number = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
     const lightYears = (value: number) =>
-      `${formatNumber(locale, value, 2, state.settings.notation)} ${interstellarStatisticLabel(locale, "lightYearUnit")}`;
+      `${String(value)} ${interstellarStatisticLabel(locale, "lightYearUnit")}`;
     const notApplicable = interstellarStatisticLabel(locale, "notApplicable");
     const encounter = state.run.space.systemEncounters[0]!;
     const selected = selectInterstellarStatistics(state);
@@ -284,7 +284,7 @@ describe("Interstellar Statistics display", () => {
     expect(statisticValues(markup, "enemy")).toEqual([encounter.raceName, notApplicable]);
     expect(statisticValues(markup, "enemyDefenceOvercome")).toEqual([notApplicable, notApplicable]);
     expect(statisticValues(markup, "enemyDefenceRemaining")).toEqual([
-      number(enemyFleetPower(encounter.enemyFleets)),
+      String(enemyFleetPower(encounter.enemyFleets)),
       notApplicable,
     ]);
     expect(statisticValues(markup, "apFromStarVoyage")).toEqual([

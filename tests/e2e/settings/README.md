@@ -35,7 +35,7 @@ Mined” counts completed outbound arrivals when a rocket reaches an asteroid,
 before extraction begins. The run count resets at rebirth while the all-time
 count persists; telescope/Launch Pad all-time values are not applicable.
 
-**P-55 Space Mining status scopes (10 October 2026):** Telescope Built and
+<a id="p-55-space-mining-status-scopes-10-october-2026"></a> **P-55 Space Mining status scopes (10 October 2026):** Telescope Built and
 Launch Pad Built now display This Run Yes/No plus Lifetime N/A, matching the
 source's run getters and explicit Not Applicable All Time getters. The
 `statistics-display.spec.tsx` unit case checks fresh No/N/A and built Yes/N/A
@@ -813,18 +813,19 @@ The native-select regression now verifies both source behaviors: opening the
 notation select plays `clickSwitch.mp3`, and choosing a different value plays
 `clickButton.mp3`. `settings.update` patches for locale, theme, currency, or
 notation now use the option-selection cue; other settings patches retain the
-switch cue. `spaceMechanics.ts` emits one aggregate `space.battle.round` per
-simulation round and one `space.battle.finished` outcome event; it does not
-expose per-ship impact events or timing. Matching Cosmic Forge's exact
-per-impact explosion cadence would require new combat event/timing granularity,
-so that remains outside this presentation-only fix. Remaining P-29 work is the
-broader source-callsite-to-remake cue crosswalk and visible route checks for
-antimatter boost, Black Hole, News and Casino claims, power-trip/weather alarms,
-and force-field/megastructure and battle outcomes. The Telescope/Rocket visible
+switch cue. P-29 now emits ordered aggregate `space.battle.impact` and
+`space.battle.death` events around damage resolution. Audio applies source-style
+20% attempts per represented shooter candidate and the strict `>80ms`/`>140ms`
+laser/explosion guards synchronously. The engine still has no individual unit
+geometry, visibility, or animation timestamps, so exact target eligibility and
+intra-volley death timing remain approximations; this implementation has not
+been tested or browser-reviewed. Remaining P-29 work includes the broader
+source-callsite-to-remake cue crosswalk and visible route checks for antimatter
+boost, Black Hole, News and Casino claims, power-trip/weather alarms, and
+force-field/megastructure and battle outcomes. The Telescope/Rocket visible
 routes are documented in the [Space Telescope README](../space-telescope/README.md);
 Resource/Compound visible routes are documented in the
-[Economy README](../economy/README.md). Per-impact battle audio remains
-unrepresentable with the current aggregate engine events.
+[Economy README](../economy/README.md).
 
 **Resource and Compound action crosswalk:** Cosmic Forge's
 `drawTab1Content.js` routes ordinary collect and autobuyer buttons through
@@ -1149,8 +1150,8 @@ current trip's progress while travelling, the full route on arrival, and zero
 after rebirth. Saving/loading preserves that same field. MIAPLACIDUS instead
 shows separately accumulated completed-route This Run and Lifetime totals,
 updated on arrival; partial distance is not in the Statistics row. The source
-comparison and choice are recorded in the [parity plan](../../docs/plans/statistics-presentation-parity.md)
-and [open decisions](../../docs/plans/open-decisions.md#p-55-statistics-semantics-decisions-12-october-2026).
+comparison and choice are recorded in the [parity plan](../../../docs/plans/statistics-presentation-parity.md)
+and [open decisions](../../../docs/plans/open-decisions.md#p-55-statistics-semantics-decisions-12-october-2026).
 
 The focused display/arrival/rebirth cases passed **4/4** across the two
 Interstellar Statistics unit files. This later rerun supersedes the historical
@@ -1174,9 +1175,9 @@ destination and uses Not Applicable for Lifetime. The scan transition, selector
 and rendered row agree. Focused selector/display cases passed **3/3**; the
 accepted 70% scan case now also asserts the statistic changes from false to true
 and passed **1/1**. No separate scope choice appears in
-[`open-decisions.md`](../../docs/plans/open-decisions.md); the owner's Colonise
+[`open-decisions.md`](../../../docs/plans/open-decisions.md); the owner's Colonise
 page-placement decision does not specify a different Statistics scope. See the
-[source comparison](../../docs/plans/statistics-presentation-parity.md#interstellar-system-scanned-scope-comparison-10-october-2026).
+[source comparison](../../../docs/plans/statistics-presentation-parity.md#interstellar-system-scanned-scope-comparison-updated-12-october-2026).
 
 ## P-55 Star Ship Built Statistics source comparison (10 October 2026)
 
@@ -1187,7 +1188,7 @@ rebirth. MIAPLACIDUS derives the same row from required module completion. The
 focused Statistics lifecycle unit passed **1/1**: optional Scanner unbuilt,
 portable save roundtrip, launched ship, and false again after rebirth. The
 Statistics display test maps the row to This Run Yes / Lifetime Not Applicable.
-See the [source and selector comparison](../../docs/plans/statistics-presentation-parity.md#p-55-star-ship-built-statistics-source-comparison-10-october-2026).
+See the [source and selector comparison](../../../docs/plans/statistics-presentation-parity.md#p-55-star-ship-built-statistics-source-comparison-10-october-2026).
 
 ## P-55 Energy Times Tripped source comparison (10 October 2026)
 
@@ -1199,7 +1200,7 @@ repeated tripped tick, recovery, retrip, portable save/load, then rebirth:
 counts reach 3/5, persist while tripped, then reset to 0/5. The six-locale
 Statistics display assertion checks the 3/5 scope values. The focused run
 passed **4/4** across Energy, display, Local Saves, and Meta Progression unit
-files. See the [source comparison and test command](../../docs/plans/statistics-presentation-parity.md#p-55-energy-times-tripped-source-comparison-10-october-2026).
+files. See the [source comparison and test command](../../../docs/plans/statistics-presentation-parity.md#p-55-energy-times-tripped-source-comparison-10-october-2026).
 
 ## P-56 Settings Statistics and Save & Loading visual matrix (10 October 2026)
 

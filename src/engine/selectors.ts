@@ -18,7 +18,12 @@ import {
   type PurchaseCommand,
   type PreconditionResult,
 } from "./commands";
-import { COMPOUND_CATALOG, MATERIAL_CATALOG, SCIENCE_BUILDINGS } from "../content/economy";
+import {
+  COMPOUND_CATALOG,
+  ENERGY_BUILDINGS,
+  MATERIAL_CATALOG,
+  SCIENCE_BUILDINGS,
+} from "../content/economy";
 import type { RandomEventId } from "../content/metaSignals";
 import {
   affordablePurchaseCount,
@@ -41,6 +46,7 @@ import {
   storageCapacityAfterPurchase,
 } from "../content/economyRules";
 import { createEconomyTickPlan } from "./economySimulation";
+import { megastructurePowerPlantMultiplier } from "./megastructures";
 import { CASINO_CP_BASE_COST, CASINO_CP_VALUES } from "../content/galacticCasino";
 import type { CasinoCommand } from "./galacticCasino";
 import { enemyFleetPower, totalPlayerFleetPower } from "./fleetMechanics";
@@ -156,7 +162,8 @@ export function selectInterstellarStatistics(state: GameState): InterstellarStat
     starshipBuilt: isStarshipReady(space),
     distanceTravelledThisRun: space.starshipDistanceTravelledThisRun,
     distanceTravelledLifetime: state.statistics.lifetimeStarshipDistanceTravelled,
-    systemScanned: encounter !== null,
+    // Cosmic Forge keeps this run flag true after the first accepted system scan.
+    systemScanned: space.systemEncounters.length > 0,
     fleetAttackStrength: Math.floor(
       totalPlayerFleetPower(space.playerFleetCombatTotals).attackPower,
     ),
@@ -236,6 +243,27 @@ export function selectResearchProductionBreakdown(state: GameState): ResearchPro
     megastructureOtherBonus: Math.max(0, total - scienceKits - scienceClubs - poweredScienceLabs),
     total,
   };
+}
+
+/**
+ * Source Statistics applies stored-rate perks per plant, then sums without grid/fuel state.
+ */
+export function selectStatisticsEnergyProduction(state: GameState): number {
+  const optimizedGridMultiplier = repeatedPerkMultiplier(
+    state.permanent.acquiredPerks,
+    "optimizedPowerGrids",
+    1.35,
+  );
+  const dysonMultiplier = megastructurePowerPlantMultiplier(state);
+  const plantRate = (plantId: "powerPlant1" | "powerPlant2" | "powerPlant3") =>
+    ENERGY_BUILDINGS[plantId].ratePerSecond *
+    optimizedGridMultiplier *
+    dysonMultiplier *
+    (state.run.upgrades[plantId] ?? 0);
+
+  return Math.floor(
+    plantRate("powerPlant1") + plantRate("powerPlant2") + plantRate("powerPlant3"),
+  );
 }
 
 export function selectGood(state: GameState, goodId: EconomicGoodId): GoodState {

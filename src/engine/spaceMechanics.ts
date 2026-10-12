@@ -100,6 +100,25 @@ export interface SpaceTransition {
   readonly events: readonly (SpaceEvent | TimerEvent)[];
 }
 
+type BattleCueEvent = Extract<
+  SpaceEvent,
+  { readonly type: "space.battle.impact" | "space.battle.death" }
+>;
+
+function retainFinalDeathCueCounts<FleetId extends string>(
+  events: readonly BattleCueEvent[],
+  side: "player" | "enemy",
+  finalLosses: Readonly<Record<FleetId, number>>,
+): BattleCueEvent[] {
+  const remaining = new Map<string, number>(Object.entries(finalLosses));
+  return events.flatMap((event): BattleCueEvent[] => {
+    if (event.type !== "space.battle.death" || event.side !== side) return [event];
+    const count = Math.min(event.count, remaining.get(event.fleetId) ?? 0);
+    remaining.set(event.fleetId, (remaining.get(event.fleetId) ?? 0) - count);
+    return count > 0 ? [{ ...event, count }] : [];
+  });
+}
+
 function reject(failure: SpaceCommandFailure): PreconditionResult {
   return { ok: false, failure };
 }
@@ -1092,6 +1111,9 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
     if (anomaly === "energyDampeningField") return sum - 15;
     return sum;
   }, 0);
+  const round = encounter.battle.round + 1;
+  const playerAttackCueEvents: BattleCueEvent[] = [];
+  const enemyAttackCueEvents: BattleCueEvent[] = [];
   const baseEnemyDamagePerPlayer = Math.max(0, 0.2 - 0.001 * encounter.defenseRating) * 60;
   for (const fleetId of PLAYER_FLEET_IDS) {
     const count = playerCount(fleetId);
@@ -1106,6 +1128,17 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
       enemyCount,
     );
     if (targetId === null) continue;
+    playerAttackCueEvents.push({
+      type: "space.battle.impact",
+      systemId,
+      round,
+      attackerSide: "player",
+      attackerFleetId: fleetId,
+      targetSide: "enemy",
+      targetFleetId: targetId,
+      candidateCount: count,
+    });
+    const targetCountBeforeDamage = enemyCount(targetId);
     const stats = playerFleetUnitStats(state, fleetId);
     const bonusApplies =
       targetId === stats.bonusAgainstType &&
@@ -1113,6 +1146,17 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
     const bonus = bonusApplies ? 1 + stats.bonusPercentage / 100 : 1;
     const damage = count * baseEnemyDamagePerPlayer * (1 + attackAnomalyModifier / 100) * bonus;
     enemyPools[targetId] = Math.max(0, enemyPools[targetId] - damage);
+    const targetDeaths = targetCountBeforeDamage - enemyCount(targetId);
+    if (targetDeaths > 0) {
+      playerAttackCueEvents.push({
+        type: "space.battle.death",
+        systemId,
+        round,
+        side: "enemy",
+        fleetId: targetId,
+        count: targetDeaths,
+      });
+    }
   }
 
   let damageDealtToPlayers = 0;
@@ -1129,9 +1173,31 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
       playerCount,
     );
     if (targetId === null) continue;
+    enemyAttackCueEvents.push({
+      type: "space.battle.impact",
+      systemId,
+      round,
+      attackerSide: "enemy",
+      attackerFleetId: fleetId,
+      targetSide: "player",
+      targetFleetId: targetId,
+      candidateCount: count,
+    });
+    const targetCountBeforeDamage = playerCount(targetId);
     const damage = Math.min(playerPools[targetId], count * 0.1 * 60);
     playerPools[targetId] = Math.max(0, playerPools[targetId] - damage);
     damageDealtToPlayers += damage;
+    const targetDeaths = targetCountBeforeDamage - playerCount(targetId);
+    if (targetDeaths > 0) {
+      enemyAttackCueEvents.push({
+        type: "space.battle.death",
+        systemId,
+        round,
+        side: "player",
+        fleetId: targetId,
+        count: targetDeaths,
+      });
+    }
   }
   if (encounter.lifeformTraits.includes("powerSiphon") && damageDealtToPlayers > 0) {
     let healing = damageDealtToPlayers * 0.25;
@@ -1181,6 +1247,16 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
       Math.max(0, encounter.enemyFleets[fleetId] - nextEnemyFleets[fleetId]),
     ]),
   ) as Record<(typeof ENEMY_FLEET_IDS)[number], number>;
+  const confirmedEnemyAttackCueEvents = retainFinalDeathCueCounts(
+    playerAttackCueEvents,
+    "enemy",
+    enemyShipLosses,
+  );
+  const confirmedPlayerAttackCueEvents = retainFinalDeathCueCounts(
+    enemyAttackCueEvents,
+    "player",
+    playerShipLosses,
+  );
   const casualties =
     Object.values(playerShipLosses).some((losses) => losses > 0) ||
     Object.values(enemyShipLosses).some((losses) => losses > 0)
@@ -1262,6 +1338,8 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
   return {
     state: battleState,
     events: [
+      ...confirmedEnemyAttackCueEvents,
+      ...confirmedPlayerAttackCueEvents,
       ...(casualties ? [casualties] : []),
       ...(result === null
         ? [{ type: "space.battle.round", systemId, round: battle.round } as const]

@@ -1,6 +1,22 @@
 import type { LocaleId } from "./ids";
 
 export const ECONOMY_BUILDING_NAMES = {
+  powerPlant: {
+    en: "Power Plant",
+    es: "Planta de Energía",
+    pt: "Central Elétrica",
+    de: "Kraftwerk",
+    it: "Centrale Elettrica",
+    fr: "Centrale Électrique",
+  },
+  battery: {
+    en: "Battery",
+    es: "Batería",
+    pt: "Bateria",
+    de: "Akku",
+    it: "Batteria",
+    fr: "Batterie",
+  },
   scienceKit: {
     en: "Science Kit",
     es: "Kit de Ciencia",

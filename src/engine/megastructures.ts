@@ -78,11 +78,11 @@ export function megastructureResearchRateBonus(state: GameState): number {
 }
 
 export function megastructurePowerPlantMultiplier(state: GameState): number {
-  return hasMegastructureTechnology(state, MEGASTRUCTURE_TRACKS.dysonSphere[1]!) ? 1.25 : 1;
+  return state.run.dysonPlantRateBoostActiveThisRun ? 1.25 : 1;
 }
 
 export function megastructureBatteryCapacityMultiplier(state: GameState): number {
-  return hasMegastructureTechnology(state, MEGASTRUCTURE_TRACKS.dysonSphere[0]!) ? 2 : 1;
+  return state.run.dysonBatteryCapacityBoostActiveThisRun ? 2 : 1;
 }
 
 export function megastructureResourceRateMultiplier(state: GameState): number {
@@ -145,6 +145,15 @@ export function applyMegastructureTechnology(state: GameState, technologyId: Tec
     state.permanent.megastructures.forceFieldRewardClaimed || nextMilestone >= 4;
   let next: GameState = {
     ...state,
+    run: {
+      ...state.run,
+      ...(structureId === "dysonSphere" && stage === 1
+        ? { dysonBatteryCapacityBoostActiveThisRun: true }
+        : {}),
+      ...(structureId === "dysonSphere" && stage === 2
+        ? { dysonPlantRateBoostActiveThisRun: true }
+        : {}),
+    },
     permanent: {
       ...state.permanent,
       megastructures: {
@@ -210,6 +219,9 @@ export function restoreMegastructureProgressOnRebirth(state: GameState): GameSta
     ...state,
     run: {
       ...state.run,
+      // Cosmic Forge resets Dyson stages 1 and 2 with the resource snapshot.
+      dysonPlantRateBoostActiveThisRun: false,
+      dysonBatteryCapacityBoostActiveThisRun: false,
       economy: {
         ...state.run.economy,
         researchedTechnologies: Array.from(
@@ -220,11 +232,9 @@ export function restoreMegastructureProgressOnRebirth(state: GameState): GameSta
         ),
         power: {
           ...state.run.economy.power,
-          ...(researched.some(
-            (technologyId) =>
-              technologyId === MEGASTRUCTURE_TRACKS.dysonSphere[3] ||
-              technologyId === MEGASTRUCTURE_TRACKS.dysonSphere[4],
-          )
+          infinitePower: false,
+          gridEnabled: false,
+          ...(researched.includes(MEGASTRUCTURE_TRACKS.dysonSphere[4])
             ? {
                 infinitePower: true,
                 gridEnabled: true,

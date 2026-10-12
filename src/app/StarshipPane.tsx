@@ -696,7 +696,7 @@ export function StarshipPane({
                   <h3>{starshipText(state.settings.locale, MODULE_LABELS[moduleId])}</h3>
                 </div>
                 <p className="space-rocket-parts">
-                  {starshipText(state.settings.locale, "parts")}: {number(state, module.builtParts)}{" "}
+                  {starshipText(state.settings.locale, "parts")} {number(state, module.builtParts)}{" "}
                   / {number(state, definition.parts)}
                 </p>
                 {nextCost && (
@@ -874,7 +874,7 @@ export function StarshipPane({
           data-travel-progress={starshipTravelProgressFraction(state)}
           hidden={!showSystemScan}
         >
-          <h3>{starshipText(state.settings.locale, "scanSystem")}</h3>
+          <h3>{starshipText(state.settings.locale, "performSystemScan")}</h3>
           {encounter ? (
             <div data-testid="starship-scan-complete">
               <p>{starshipText(state.settings.locale, "scanComplete")}</p>

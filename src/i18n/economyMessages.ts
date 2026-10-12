@@ -52,6 +52,7 @@ type EconomyLabel =
   | "energySummary"
   | "increaseStorage"
   | "autobuyers"
+  | "autobuyerToggleLabel"
   | "buyTier"
   | "pause"
   | "resume"
@@ -91,6 +92,7 @@ type EconomyLabel =
   | "powerPlant1Help"
   | "powerPlant2Help"
   | "powerPlant3Help"
+  | "plantNominalOutput"
   | "battery1Help"
   | "battery2Help"
   | "battery3Help"
@@ -100,10 +102,13 @@ type EconomyLabel =
   | "capacity"
   | "activatePower"
   | "deactivatePower"
+  | "activatePowerPlant"
+  | "deactivatePowerPlant"
   | "research"
   | "points"
   | "scienceBuildings"
   | "scienceBuildingsHelp"
+  | "researchQuantity"
   | "researchSectionHelp"
   | "technologies"
   | "technology"
@@ -112,6 +117,7 @@ type EconomyLabel =
   | "shown"
   | "noAffordableTechnologies"
   | "researchPointsShortfall"
+  | "technologyPrerequisitesMissing"
   | "researchTech"
   | "zoom"
   | "zoomIn"
@@ -125,6 +131,9 @@ type EconomyLabel =
   | "trip"
   | "recovery"
   | "buy"
+  | "addPowerPlantRate"
+  | "addMaxPowerPlantRate"
+  | "addEnergyCapacity"
   | "buyMax"
   | "disabled"
   | "initialHydrogen"
@@ -216,8 +225,9 @@ const en: Record<EconomyLabel, string> = {
   energyPowerHelp:
     "Here you can buy upgrades for generating power which is needed for more advanced buildings.",
   energySummary: "Energy Summary",
-  increaseStorage: "Increase storage",
+  increaseStorage: "Increase Storage",
   autobuyers: "Autobuyers",
+  autobuyerToggleLabel: "Autobuyer for {good}, tier {tier}",
   buyTier: "Buy tier",
   pause: "Pause",
   resume: "Resume",
@@ -268,6 +278,7 @@ const en: Record<EconomyLabel, string> = {
     "This building produces clean, renewable energy without using resources, but its efficiency is weather dependant!",
   powerPlant3Help:
     "This building produces significantly more power than its earlier iteration, but consumes more resources.",
+  plantNominalOutput: "Nominal output per plant",
   battery1Help:
     "Store small amount of energy for use if power starts being used faster than it can be generated.",
   battery2Help:
@@ -280,11 +291,14 @@ const en: Record<EconomyLabel, string> = {
   capacity: "Capacity",
   activatePower: "Power On",
   deactivatePower: "Power Off",
+  activatePowerPlant: "Activate",
+  deactivatePowerPlant: "Deactivate",
   research: "Research",
   points: "Research points",
   scienceBuildings: "Science buildings",
   scienceBuildingsHelp:
     "Here you can buy upgrades to generate research points for unlocking new technology.",
+  researchQuantity: "Quantity",
   researchSectionHelp:
     "In the Research section, you can unlock new technologies to progress through the game, and also get upgrades to farm research points.",
   technologies: "Technologies",
@@ -295,6 +309,7 @@ const en: Record<EconomyLabel, string> = {
   noAffordableTechnologies: "Earn more research points to reveal technologies.",
   researchPointsShortfall:
     "Research Points shortfall: {current} available; {required} required ({shortfall} more needed).",
+  technologyPrerequisitesMissing: "Research {technologies} first.",
   researchTech: "Research technology",
   zoom: "Zoom",
   zoomIn: "Zoom in",
@@ -309,11 +324,14 @@ const en: Record<EconomyLabel, string> = {
   trip: "Power trip",
   recovery: "Recovered",
   buy: "Buy",
+  addPowerPlantRate: "Add {rate} kJ /s",
+  addMaxPowerPlantRate: "Add (max) {rate} kJ /s",
+  addEnergyCapacity: "Add {capacity} MJ",
   buyMax: "Buy max",
   disabled: "Disabled",
   initialHydrogen: "Hydrogen starts unlocked",
   increaseAllStorage: "Increase affordable storage",
-  researchAutobuyer: "Research available technologies automatically",
+  researchAutobuyer: "Research AutoBuyer",
   notation: "Number notation",
   standardNotation: "Standard",
   scientificNotation: "Scientific",
@@ -406,8 +424,9 @@ const es: Record<EconomyLabel, string> = {
   energyPowerHelp:
     "Aquí puedes comprar mejoras para generar energía que se necesita para edificios más avanzados.",
   energySummary: "Resumen de energía",
-  increaseStorage: "Aumentar almacenamiento",
+  increaseStorage: "Aumentar Almacenamiento",
   autobuyers: "Compradores automáticos",
+  autobuyerToggleLabel: "Comprador automático de {good}, nivel {tier}",
   buyTier: "Comprar nivel",
   pause: "Pausar",
   resume: "Reanudar",
@@ -458,6 +477,7 @@ const es: Record<EconomyLabel, string> = {
     "¡Este edificio produce energía limpia y renovable sin usar recursos, pero su eficiencia depende del clima!",
   powerPlant3Help:
     "Este edificio produce significativamente más energía que su versión anterior, pero consume más recursos.",
+  plantNominalOutput: "Producción nominal por planta",
   battery1Help:
     "Almacena una pequeña cantidad de energía para usar si la energía comienza a usarse más rápido de lo que se puede generar.",
   battery2Help:
@@ -470,19 +490,23 @@ const es: Record<EconomyLabel, string> = {
   capacity: "Capacidad",
   activatePower: "Encender",
   deactivatePower: "Apagar",
+  activatePowerPlant: "Activar",
+  deactivatePowerPlant: "Desactivar",
   research: "Investigación",
   points: "Puntos de investigación",
   scienceBuildings: "Edificios científicos",
   scienceBuildingsHelp:
     "Aquí puedes comprar mejoras para generar puntos de investigación para desbloquear nueva tecnología.",
+  researchQuantity: "Cantidad",
   researchSectionHelp:
     "En la sección de Investigación, puedes desbloquear nuevas tecnologías para progresar en el juego, y también obtener mejoras para farmear puntos de investigación.",
   technologies: "Tecnologías",
   technology: "Tecnología",
-  technologyTree: "Árbol tecnológico",
+  technologyTree: "Árbol Tecnológico",
   treeProgress: "Investiga para revelar tecnologías en el árbol.",
   shown: "Visibles",
   noAffordableTechnologies: "Consigue más puntos de investigación para revelar tecnologías.",
+  technologyPrerequisitesMissing: "Investiga primero {technologies}.",
   researchPointsShortfall:
     "Faltan puntos de investigación: hay {current}; se necesitan {required} (faltan {shortfall}).",
   researchTech: "Investigar tecnología",
@@ -499,11 +523,14 @@ const es: Record<EconomyLabel, string> = {
   trip: "Corte eléctrico",
   recovery: "Restablecida",
   buy: "Comprar",
+  addPowerPlantRate: "Añadir {rate} kJ /s",
+  addMaxPowerPlantRate: "Añadir (máx) {rate} kJ /s",
+  addEnergyCapacity: "Añadir {capacity} MJ",
   buyMax: "Comprar máximo",
   disabled: "Desactivado",
   initialHydrogen: "El hidrógeno empieza desbloqueado",
   increaseAllStorage: "Ampliar almacenamiento asequible",
-  researchAutobuyer: "Investigar tecnologías disponibles automáticamente",
+  researchAutobuyer: "Autocomprador de Investigación",
   notation: "Notación numérica",
   standardNotation: "Estándar",
   scientificNotation: "Científica",
@@ -594,8 +621,9 @@ const pt: Record<EconomyLabel, string> = {
   energyPowerHelp:
     "Aqui podes comprar melhorias para gerar energia, necessária para edifícios mais avançados.",
   energySummary: "Resumo de energia",
-  increaseStorage: "Aumentar armazenamento",
+  increaseStorage: "Aumentar Armazenamento",
   autobuyers: "Compradores automáticos",
+  autobuyerToggleLabel: "Compra automática de {good}, nível {tier}",
   buyTier: "Comprar nível",
   pause: "Pausar",
   resume: "Retomar",
@@ -646,6 +674,7 @@ const pt: Record<EconomyLabel, string> = {
     "Este edifício produz energia limpa e renovável sem usar recursos, mas sua eficiência depende do clima!",
   powerPlant3Help:
     "Este edifício produz significativamente mais energia que sua versão anterior, mas consome mais recursos.",
+  plantNominalOutput: "Produção nominal por central",
   battery1Help:
     "Armazena uma pequena quantidade de energia para usar caso a energia comece a ser consumida mais rapidamente do que pode ser gerada.",
   battery2Help:
@@ -658,19 +687,23 @@ const pt: Record<EconomyLabel, string> = {
   capacity: "Capacidade",
   activatePower: "Ligar",
   deactivatePower: "Desligar",
+  activatePowerPlant: "Ativar",
+  deactivatePowerPlant: "Desativar",
   research: "Investigação",
   points: "Pontos de pesquisa",
   scienceBuildings: "Edifícios científicos",
   scienceBuildingsHelp:
     "Aqui podes comprar melhorias para gerar pontos de investigação e desbloquear novas tecnologias.",
+  researchQuantity: "Quantidade",
   researchSectionHelp:
     "Na secção de Investigação, podes desbloquear novas tecnologias para progredir no jogo e também obter melhorias para obter pontos de investigação.",
   technologies: "Tecnologias",
   technology: "Tecnologia",
-  technologyTree: "Árvore tecnológica",
+  technologyTree: "Árvore Tecnológica",
   treeProgress: "Pesquisa para revelar tecnologias na árvore.",
   shown: "Exibidas",
   noAffordableTechnologies: "Obtenha mais pontos de pesquisa para revelar tecnologias.",
+  technologyPrerequisitesMissing: "Pesquise {technologies} primeiro.",
   researchPointsShortfall:
     "Faltam pontos de pesquisa: disponíveis {current}; necessários {required} (faltam {shortfall}).",
   researchTech: "Pesquisar tecnologia",
@@ -687,11 +720,14 @@ const pt: Record<EconomyLabel, string> = {
   trip: "Corte de energia",
   recovery: "Restabelecida",
   buy: "Comprar",
+  addPowerPlantRate: "Adicionar {rate} kJ /s",
+  addMaxPowerPlantRate: "Adicionar (máx.) {rate} kJ /s",
+  addEnergyCapacity: "Adicionar {capacity} MJ",
   buyMax: "Comprar o máximo",
   disabled: "Desativado",
   initialHydrogen: "O hidrogénio começa desbloqueado",
   increaseAllStorage: "Aumentar armazenamento acessível",
-  researchAutobuyer: "Pesquisar tecnologias disponíveis automaticamente",
+  researchAutobuyer: "AutoComprador de Investigação",
   notation: "Notação numérica",
   standardNotation: "Padrão",
   scientificNotation: "Científica",
@@ -710,7 +746,7 @@ const pt: Record<EconomyLabel, string> = {
   fusionSourceShort: "São necessários {amount} {source}; disponíveis: {available}.",
   fusionWholeAmount: "Introduza uma quantidade inteira de unidades para fundir.",
   buyMaxPreview: "Comprar o máximo: {count} · custo total {costs} · resultado {result}.",
-  buyMaxInsufficientMaterials: "Você precisa de {required} {good}; disponível: {available}.",
+  buyMaxInsufficientMaterials: "São necessários {required} {good}; disponíveis: {available}.",
   researchToUnlock: "Pesquisa {technology} para desbloquear este sistema.",
   nanoBrokersRequirement: "Nano Brokers {level}",
   researchAutomation: "Automação Robótica de Pesquisa",
@@ -788,8 +824,9 @@ const de: Record<EconomyLabel, string> = {
   energyPowerHelp:
     "Hier kannst du Upgrades zum Erzeugen von Energie kaufen, die für fortgeschrittenere Gebäude benötigt wird.",
   energySummary: "Energieübersicht",
-  increaseStorage: "Lager erweitern",
+  increaseStorage: "Lager Erhöhen",
   autobuyers: "Automatische Käufer",
+  autobuyerToggleLabel: "Automatischer Käufer für {good}, Stufe {tier}",
   buyTier: "Stufe kaufen",
   pause: "Pausieren",
   resume: "Fortsetzen",
@@ -840,6 +877,7 @@ const de: Record<EconomyLabel, string> = {
     "Dieses Gebäude erzeugt saubere, erneuerbare Energie ohne Ressourcenverbrauch, aber seine Effizienz ist wetterabhängig!",
   powerPlant3Help:
     "Dieses Gebäude erzeugt deutlich mehr Energie als seine frühere Version, verbraucht aber mehr Ressourcen.",
+  plantNominalOutput: "Nennleistung je Anlage",
   battery1Help:
     "Speichert eine kleine Energiemenge für den Fall, dass Energie schneller verbraucht als erzeugt wird.",
   battery2Help:
@@ -852,11 +890,14 @@ const de: Record<EconomyLabel, string> = {
   capacity: "Kapazität",
   activatePower: "Strom An",
   deactivatePower: "Strom Aus",
+  activatePowerPlant: "Aktivieren",
+  deactivatePowerPlant: "Deaktivieren",
   research: "Forschung",
   points: "Forschungspunkte",
   scienceBuildings: "Forschungsgebäude",
   scienceBuildingsHelp:
     "Hier kannst du Upgrades kaufen, um Forschungspunkte zum Freischalten neuer Technologien zu generieren.",
+  researchQuantity: "Menge",
   researchSectionHelp:
     "Im Forschungsbereich kannst du neue Technologien freischalten, um im Spiel voranzukommen, und auch Upgrades erhalten, um Forschungspunkte zu farmen.",
   technologies: "Technologien",
@@ -865,6 +906,7 @@ const de: Record<EconomyLabel, string> = {
   treeProgress: "Forsche, um Technologien im Baum sichtbar zu machen.",
   shown: "Sichtbar",
   noAffordableTechnologies: "Sammle mehr Forschungspunkte, um Technologien aufzudecken.",
+  technologyPrerequisitesMissing: "Erforsche zuerst {technologies}.",
   researchPointsShortfall:
     "Forschungspunkte fehlen: {current} verfügbar; {required} benötigt ({shortfall} fehlen).",
   researchTech: "Technologie erforschen",
@@ -881,11 +923,14 @@ const de: Record<EconomyLabel, string> = {
   trip: "Stromausfall",
   recovery: "Wiederhergestellt",
   buy: "Kaufen",
+  addPowerPlantRate: "{rate} kJ /s Hinzufügen",
+  addMaxPowerPlantRate: "(max) {rate} kJ /s Hinzufügen",
+  addEnergyCapacity: "{capacity} MJ Hinzufügen",
   buyMax: "Maximum kaufen",
   disabled: "Deaktiviert",
   initialHydrogen: "Wasserstoff ist anfangs freigeschaltet",
   increaseAllStorage: "Bezahlbare Lager erweitern",
-  researchAutobuyer: "Verfügbare Technologien automatisch erforschen",
+  researchAutobuyer: "Forschungs-Autokäufer",
   notation: "Zahlennotation",
   standardNotation: "Standard",
   scientificNotation: "Wissenschaftlich",
@@ -977,8 +1022,9 @@ const it: Record<EconomyLabel, string> = {
   energyPowerHelp:
     "Qui puoi acquistare potenziamenti per generare energia necessaria per edifici più avanzati.",
   energySummary: "Riepilogo energia",
-  increaseStorage: "Aumenta deposito",
+  increaseStorage: "Aumenta Stoccaggio",
   autobuyers: "Acquisti automatici",
+  autobuyerToggleLabel: "Acquisto automatico di {good}, livello {tier}",
   buyTier: "Compra livello",
   pause: "Pausa",
   resume: "Riprendi",
@@ -1029,6 +1075,7 @@ const it: Record<EconomyLabel, string> = {
     "Questo edificio produce energia pulita e rinnovabile senza usare risorse, ma la sua efficienza dipende dal tempo!",
   powerPlant3Help:
     "Questo edificio produce significativamente più energia della sua versione precedente, ma consuma più risorse.",
+  plantNominalOutput: "Produzione nominale per centrale",
   battery1Help:
     "Immagazzina una piccola quantità di energia da usare se l'energia inizia a essere consumata più velocemente di quanto possa essere generata.",
   battery2Help:
@@ -1041,19 +1088,23 @@ const it: Record<EconomyLabel, string> = {
   capacity: "Capacità",
   activatePower: "Accendi",
   deactivatePower: "Spegni",
+  activatePowerPlant: "Attiva",
+  deactivatePowerPlant: "Disattiva",
   research: "Ricerca",
   points: "Punti ricerca",
   scienceBuildings: "Edifici scientifici",
   scienceBuildingsHelp:
     "Qui puoi acquistare potenziamenti per generare punti ricerca per sbloccare nuove tecnologie.",
+  researchQuantity: "Quantità",
   researchSectionHelp:
     "Nella sezione Ricerca, puoi sbloccare nuove tecnologie per progredire nel gioco, e anche ottenere potenziamenti per farmare punti ricerca.",
   technologies: "Tecnologie",
   technology: "Tecnologia",
-  technologyTree: "Albero tecnologico",
+  technologyTree: "Albero Tecnologico",
   treeProgress: "Fai ricerca per rivelare le tecnologie nell’albero.",
   shown: "Visibili",
   noAffordableTechnologies: "Ottieni più punti ricerca per rivelare nuove tecnologie.",
+  technologyPrerequisitesMissing: "Ricerca prima {technologies}.",
   researchPointsShortfall:
     "Punti ricerca mancanti: {current} disponibili; ne servono {required} (ne mancano {shortfall}).",
   researchTech: "Ricerca tecnologia",
@@ -1070,11 +1121,14 @@ const it: Record<EconomyLabel, string> = {
   trip: "Interruzione elettrica",
   recovery: "Ripristinata",
   buy: "Compra",
+  addPowerPlantRate: "Aggiungi {rate} kJ /s",
+  addMaxPowerPlantRate: "Aggiungi (max) {rate} kJ /s",
+  addEnergyCapacity: "Aggiungi {capacity} MJ",
   buyMax: "Compra il massimo",
   disabled: "Disattivato",
   initialHydrogen: "L'idrogeno è sbloccato all'inizio",
   increaseAllStorage: "Aumenta i depositi accessibili",
-  researchAutobuyer: "Ricerca automaticamente le tecnologie disponibili",
+  researchAutobuyer: "Auto Acquirente di Ricerca",
   notation: "Notazione numerica",
   standardNotation: "Standard",
   scientificNotation: "Scientifica",
@@ -1169,8 +1223,9 @@ const fr: Record<EconomyLabel, string> = {
   energyPowerHelp:
     "Ici tu peux acheter des améliorations pour générer de l'énergie nécessaire pour des bâtiments plus avancés.",
   energySummary: "Résumé énergétique",
-  increaseStorage: "Augmenter le stockage",
+  increaseStorage: "Augmenter Stockage",
   autobuyers: "Achats automatiques",
+  autobuyerToggleLabel: "Automatisme de {good}, niveau {tier}",
   buyTier: "Acheter le niveau",
   pause: "Mettre en pause",
   resume: "Reprendre",
@@ -1221,6 +1276,7 @@ const fr: Record<EconomyLabel, string> = {
     "Ce bâtiment produit de l'énergie propre et renouvelable sans utiliser de ressources, mais son efficacité dépend de la météo!",
   powerPlant3Help:
     "Ce bâtiment produit beaucoup plus d'énergie que sa version précédente, mais consomme plus de ressources.",
+  plantNominalOutput: "Production nominale par centrale",
   battery1Help:
     "Stockez une petite quantité d'énergie à utiliser si l'énergie commence à être consommée plus vite qu'elle ne peut être générée.",
   battery2Help:
@@ -1233,19 +1289,23 @@ const fr: Record<EconomyLabel, string> = {
   capacity: "Capacité",
   activatePower: "Activer",
   deactivatePower: "Désactiver",
+  activatePowerPlant: "Activer",
+  deactivatePowerPlant: "Désactiver",
   research: "Recherche",
   points: "Points de recherche",
   scienceBuildings: "Bâtiments scientifiques",
   scienceBuildingsHelp:
     "Ici tu peux acheter des améliorations pour générer des points de recherche pour débloquer de nouvelles technologies.",
+  researchQuantity: "Quantité",
   researchSectionHelp:
     "Dans la section Recherche, tu peux débloquer de nouvelles technologies pour progresser dans le jeu, et aussi obtenir des améliorations pour farmer des points de recherche.",
   technologies: "Technologies",
   technology: "Technologie",
-  technologyTree: "Arbre technologique",
+  technologyTree: "Arbre Technologique",
   treeProgress: "Faites des recherches pour révéler les technologies de l’arbre.",
   shown: "Affichées",
   noAffordableTechnologies: "Gagnez des points de recherche pour révéler des technologies.",
+  technologyPrerequisitesMissing: "Recherchez d'abord {technologies}.",
   researchPointsShortfall:
     "Points de recherche manquants : {current} disponibles ; {required} nécessaires (il en manque {shortfall}).",
   researchTech: "Rechercher la technologie",
@@ -1262,11 +1322,14 @@ const fr: Record<EconomyLabel, string> = {
   trip: "Coupure électrique",
   recovery: "Rétablie",
   buy: "Acheter",
+  addPowerPlantRate: "Ajouter {rate} kJ /s",
+  addMaxPowerPlantRate: "Ajouter (max) {rate} kJ /s",
+  addEnergyCapacity: "Ajouter {capacity} MJ",
   buyMax: "Acheter le maximum",
   disabled: "Désactivé",
   initialHydrogen: "L'hydrogène est débloqué au départ",
   increaseAllStorage: "Augmenter le stockage abordable",
-  researchAutobuyer: "Rechercher automatiquement les technologies disponibles",
+  researchAutobuyer: "Auto-Acheteur de Recherche",
   notation: "Notation numérique",
   standardNotation: "Standard",
   scientificNotation: "Scientifique",

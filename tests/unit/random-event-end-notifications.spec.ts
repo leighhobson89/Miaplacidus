@@ -25,7 +25,7 @@ describe("random event end notifications", () => {
       "Endless Summer has ended.",
       "Mining operations restored.",
       "Supply chains restored.",
-      "The singularity calms; Black Hole strength and duration return to standard.",
+      "Black Hole Instability stabilised.",
     ]);
     expect(notices.every((notice) => notice.type === "info" && notice.durationMs === 5000)).toBe(
       true,

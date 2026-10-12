@@ -31,6 +31,7 @@ export type CosmicRipFailure = {
     | "cosmic-rip-scanner-restored"
     | "cosmic-rip-scanner-required"
     | "cosmic-rip-sector-invalid"
+    | "cosmic-rip-already-located"
     | "cosmic-rip-sector-scanned"
     | "cosmic-rip-insufficient-gp"
     | "cosmic-rip-insufficient-cost"
@@ -170,6 +171,7 @@ export function checkCosmicRipCommand(
       return failure("cosmic-rip-sector-invalid");
     if (progress.scannedSectorIndexes.includes(command.sectorIndex))
       return failure("cosmic-rip-sector-scanned");
+    if (progress.ripFound) return failure("cosmic-rip-already-located");
     return state.permanent.gloryPoints >= COSMIC_RIP_SCAN_GP
       ? null
       : failure("cosmic-rip-insufficient-gp");
@@ -343,14 +345,15 @@ export function advanceCosmicRip(state: GameState, elapsedMs: number): CosmicRip
   // Cosmic Forge adds each positive raw production delta to the all-time
   // statistic separately from the telemetry balance's floating-point value.
   const telemetryEarned = telemetryRate > 0 ? telemetryGain : 0;
+  const updatedTelemetryEarned =
+    state.statistics.lifetimeCosmicRipTelemetryDataEarned + telemetryEarned;
   const statistics =
     telemetryEarned > 0
       ? {
           ...state.statistics,
-          lifetimeCosmicRipTelemetryDataEarned: Math.min(
-            Number.MAX_SAFE_INTEGER,
-            state.statistics.lifetimeCosmicRipTelemetryDataEarned + telemetryEarned,
-          ),
+          lifetimeCosmicRipTelemetryDataEarned: Number.isFinite(updatedTelemetryEarned)
+            ? updatedTelemetryEarned
+            : Number.MAX_VALUE,
         }
       : state.statistics;
   let nextProgress = {

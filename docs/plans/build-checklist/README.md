@@ -13,6 +13,8 @@ The [single master checklist](../master-checklist.md) is the project control doc
 | 7 | [Verification and release](07-verification-release.md) | Browser and responsive mobile quality, parity evidence, release and optional flagged demo |
 | 8 | [Big fix pass](08-big-fix.md) | Reproduce, prioritize and resolve the tracked production and research autobuyer reports |
 
+Focused PXX source and presentation audits, plus the dated Phase 6 handoff crosswalks, are archived under [docs/archive/audits](../../archive/audits/README.md) and remain linked from the relevant checklist and parity evidence. This directory contains the eight active phase checklists, Phase 6 estimate reference, bug checklist, and this index only.
+
 MIAPLACIDUS retains Cosmic Forge gameplay breadth. Cloud saves, Electron, original-game save compatibility and analytics are excluded by the [decision record](../open-decisions.md). Visual assets are remade; the 30 Cosmic Forge MP3s are reused unchanged under the project owner's explicit 2026-10-04 authorization, as recorded in the [asset manifest](../miaplacidus-asset-manifest.md). The [parity ledger](../feature-parity-checklist.md) records coverage by functional area without creating a second work queue.
 
 Phase 4 source and state contracts: [telescope, asteroids and rockets](../space-mining-contract.md) and [stable star catalogue](../star-catalogue-contract.md). Settings and Test Lab placement are recorded in the [Phase 6 checklist](06-presentation.md) for implementation with the presentation phase.

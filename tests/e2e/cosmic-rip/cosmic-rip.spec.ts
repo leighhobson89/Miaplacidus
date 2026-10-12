@@ -2,7 +2,11 @@ import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-controls";
-import { COSMIC_RIP_TECHNOLOGIES, COSMIC_RIP_UPGRADES } from "../../../src/content/cosmicRip";
+import {
+  COSMIC_RIP_SECTOR_IDS,
+  COSMIC_RIP_TECHNOLOGIES,
+  COSMIC_RIP_UPGRADES,
+} from "../../../src/content/cosmicRip";
 import { LOCALE_IDS, type EconomicGoodId } from "../../../src/content/ids";
 import { THEME_IDS } from "../../../src/content/themes";
 import { economyGoodName } from "../../../src/app/economyDisplay";
@@ -206,7 +210,10 @@ test("empty Cosmic Rip sector scans show a localized Cosmic Rip notification", a
 
   const notice = page.locator('[data-testid="game-notification"][data-classification="cosmicRip"]');
   await expect(notice).toHaveText(
-    cosmicRipText("en").sectorScanEmptyNotification.replace("{sector}", "MIAPLAC-7411"),
+    cosmicRipText("en").sectorScanEmptyNotification.replace(
+      "{sector}",
+      COSMIC_RIP_SECTOR_IDS[0],
+    ),
   );
 });
 
@@ -632,7 +639,7 @@ test("shows scanner, upgrade and technology precondition reasons @cosmic-rip", a
     const localizedCopy = cosmicRipText(locale);
     await expect(sector).toHaveAttribute(
       "aria-label",
-      `${localizedCopy.sector} 1, 1 ${localizedCopy.gpShort}`,
+      `${COSMIC_RIP_SECTOR_IDS[0]}, 1 ${localizedCopy.gpShort}`,
     );
     await expect(page.locator("#cosmic-rip-sector-0-reason")).toHaveText(
       localizedCopy.errors["cosmic-rip-insufficient-gp"],

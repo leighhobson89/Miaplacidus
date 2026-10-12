@@ -1,22 +1,13 @@
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { formatNumber } from "../../../src/app/numberFormatting";
-import { COSMIC_RIP_TECHNOLOGIES } from "../../../src/content/cosmicRip";
+import {
+  COSMIC_RIP_SECTOR_IDS,
+  COSMIC_RIP_TECHNOLOGIES,
+} from "../../../src/content/cosmicRip";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { cosmicRipStabilityProgress } from "../../../src/engine/cosmicRip";
 import { cosmicRipText } from "../../../src/i18n/cosmicRipMessages";
-
-const EMPTY_SECTOR_NAMES = [
-  "MIAPLAC-7411",
-  "MIAPLAC-7412",
-  "MIAPLAC-7413",
-  "MIAPLAC-7422",
-  "MIAPLAC-7423",
-  "MIAPLAC-7424",
-  "MIAPLAC-7432",
-  "MIAPLAC-7433",
-  "MIAPLAC-7434",
-] as const;
 
 async function selectLocale(page: import("@playwright/test").Page, locale: LocaleId) {
   await page.evaluate((nextLocale) => {
@@ -160,14 +151,14 @@ test("P-45 Cosmic Rip scan status and notices are localized in all six locales @
     await expect(sector).toBeDisabled();
     await expect(sector).toHaveAttribute(
       "aria-label",
-      `${copy.sector} ${sectorIndex + 1}, ${copy.sectorScanned}`,
+      `${COSMIC_RIP_SECTOR_IDS[sectorIndex]}, ${copy.sectorScanned}`,
     );
     await expect(sector.locator("small")).toHaveText(copy.sectorScanned);
     await expect(scanner.locator(".cosmic-rip-status")).toHaveText(copy.ripMissing);
 
     const noticeText = copy.sectorScanEmptyNotification.replace(
       "{sector}",
-      EMPTY_SECTOR_NAMES[sectorIndex]!,
+      COSMIC_RIP_SECTOR_IDS[sectorIndex]!,
     );
     await expect(
       page

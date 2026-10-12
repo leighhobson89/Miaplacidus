@@ -260,6 +260,7 @@ export type GameCommand =
   | { readonly type: "navigation.attention.discover"; readonly pageIds: readonly string[] }
   | { readonly type: "navigation.attention.clear"; readonly pageId: string }
   | { readonly type: "navigation.attention.clear-many"; readonly pageIds: readonly string[] }
+  | { readonly type: "megastructure.option-notice.mark-shown" }
   | { readonly type: "random.draw"; readonly purpose: string }
   | { readonly type: "onboarding.complete" }
   | { readonly type: "tutorial.start" }
@@ -833,7 +834,8 @@ function checkPreconditionsForValidState(
     command.type === "navigation.attention.initialize" ||
     command.type === "navigation.attention.discover" ||
     command.type === "navigation.attention.clear" ||
-    command.type === "navigation.attention.clear-many"
+    command.type === "navigation.attention.clear-many" ||
+    command.type === "megastructure.option-notice.mark-shown"
   )
     return { ok: true };
   switch (command.type) {
@@ -1675,6 +1677,24 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
           ...state,
           run: { ...state.run, navigationAttentionIds },
           permanent: { ...state.permanent, navigationVisitedIds },
+        },
+        [],
+        state,
+      );
+    }
+    if (command.type === "megastructure.option-notice.mark-shown") {
+      const megastructures = state.permanent.megastructures;
+      if (megastructures.megastructureOptionNotificationShown) return success(state, [], state);
+      return success(
+        {
+          ...state,
+          permanent: {
+            ...state.permanent,
+            megastructures: {
+              ...megastructures,
+              megastructureOptionNotificationShown: true,
+            },
+          },
         },
         [],
         state,

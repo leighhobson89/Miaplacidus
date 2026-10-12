@@ -218,12 +218,10 @@ export function audioCueForEvent(event: EngineEvent, state: GameState): AudioCue
       return null;
     case "space.battle.round":
     case "space.battle.finished":
-      // Battle shots are rate-limited when the confirmed round event arrives.
-      // Battle completion has no separate impact in Cosmic Forge.
+      // Battle cues are handled at their ordered impact/death event boundaries.
       return null;
     case "space.battle.casualties":
-      // The audio adapter emits only confirmed casualties, throttled at the
-      // same 140ms cadence as Cosmic Forge's explosion animation callback.
+      // This event is a summary; individual audio attempts have separate events.
       return null;
     case "black-hole.warp-activated":
       return "blackHoleActivated";
@@ -238,54 +236,65 @@ export function audioCueForEvent(event: EngineEvent, state: GameState): AudioCue
   }
 }
 
+interface BattleCueSelectors {
+  readonly laser: (candidateCount: number, onCue?: (cue: AudioCue) => void) => void;
+  readonly explosion: (deathCount: number, onCue?: (cue: AudioCue) => void) => void;
+}
+
 function createBattleCueSelectors(
   now: () => number,
   random: () => number,
-): {
-  readonly laser: () => AudioCue | null;
-  readonly laserRetryDelay: () => number | null;
-  readonly explosion: () => AudioCue | null;
-  readonly explosionRetryDelay: () => number | null;
-} {
+): BattleCueSelectors {
   // Cosmic Forge initializes both source guards at performance time zero.
   let lastLaserAt = 0;
   let lastExplosionAt = 0;
   return {
-    laser() {
-      const currentTime = now();
-      if (
-        !Number.isFinite(currentTime) ||
-        currentTime - lastLaserAt <= BATTLE_LASER_COOLDOWN_MS
-      ) {
-        return null;
+    laser(candidateCount, onCue) {
+      if (!Number.isSafeInteger(candidateCount) || candidateCount <= 0) return;
+      for (let index = 0; index < candidateCount; index += 1) {
+        // The source rolls for each eligible shooter-target candidate before
+        // the laser callback applies its shared strict cooldown.
+        if (random() > 0.2) continue;
+        const currentTime = now();
+        if (
+          !Number.isFinite(currentTime) ||
+          currentTime - lastLaserAt <= BATTLE_LASER_COOLDOWN_MS
+        ) {
+          continue;
+        }
+        lastLaserAt = currentTime;
+        const cue = random() < 0.5 ? "laserGun1" : "laserGun2";
+        onCue?.(cue);
       }
-      lastLaserAt = currentTime;
-      return random() < 0.5 ? "laserGun1" : "laserGun2";
     },
-    laserRetryDelay() {
-      const currentTime = now();
-      if (!Number.isFinite(currentTime)) return null;
-      if (!Number.isFinite(lastLaserAt)) return 1;
-      return Math.max(1, BATTLE_LASER_COOLDOWN_MS + 1 - (currentTime - lastLaserAt));
-    },
-    explosion() {
-      const currentTime = now();
-      if (
-        !Number.isFinite(currentTime) ||
-        currentTime - lastExplosionAt <= BATTLE_EXPLOSION_COOLDOWN_MS
-      ) {
-        return null;
+    explosion(deathCount, onCue) {
+      if (!Number.isSafeInteger(deathCount) || deathCount <= 0) return;
+      for (let index = 0; index < deathCount; index += 1) {
+        const currentTime = now();
+        if (
+          !Number.isFinite(currentTime) ||
+          currentTime - lastExplosionAt <= BATTLE_EXPLOSION_COOLDOWN_MS
+        ) {
+          continue;
+        }
+        lastExplosionAt = currentTime;
+        const cue = random() < 0.5 ? "shipBattleExplode1" : "shipBattleExplode2";
+        onCue?.(cue);
       }
-      lastExplosionAt = currentTime;
-      return random() < 0.5 ? "shipBattleExplode1" : "shipBattleExplode2";
-    },
-    explosionRetryDelay() {
-      const currentTime = now();
-      if (!Number.isFinite(currentTime)) return null;
-      if (!Number.isFinite(lastExplosionAt)) return 1;
-      return Math.max(1, BATTLE_EXPLOSION_COOLDOWN_MS + 1 - (currentTime - lastExplosionAt));
     },
   };
+}
+
+function recordSuppressedBattleCueAttempts(
+  events: readonly EngineEvent[],
+  selectors: BattleCueSelectors,
+): void {
+  // Cosmic Forge advances its timestamps before the audio manager applies
+  // mute. Keep the same throttle state when this adapter suppresses playback.
+  for (const event of events) {
+    if (event.type === "space.battle.impact") selectors.laser(event.candidateCount);
+    else if (event.type === "space.battle.death") selectors.explosion(event.count);
+  }
 }
 
 function cuesForEvent(event: EngineEvent, state: GameState): readonly AudioCue[] {
@@ -395,10 +404,7 @@ function handleResult(
   result: EngineResult,
   boostSoundLoop: ReturnType<typeof createBoostSoundLoop>,
   isAudioFocused: () => boolean,
-  queueBattleLasers: (count: number) => void,
-  clearBattleLasers: () => void,
-  queueBattleExplosions: (count: number) => void,
-  clearBattleExplosions: () => void,
+  battleCueSelectors: BattleCueSelectors,
 ): void {
   if (!result.accepted) return;
   const isArrivalNoticeMarker = command.type === "space.starship.arrival-notice.mark-notified";
@@ -418,8 +424,7 @@ function handleResult(
     effectsEnabled && audioUnlocked,
   );
   if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || effectsVolume <= 0) {
-    clearBattleLasers();
-    clearBattleExplosions();
+    recordSuppressedBattleCueAttempts(result.events, battleCueSelectors);
     return;
   }
 
@@ -434,24 +439,20 @@ function handleResult(
   }
   for (const event of result.events) {
     if (command.type === "clock.advance" && event.type === "resource.sold") continue;
-    if (event.type === "space.battle.round") {
-      // One aggregate round is the only available proxy for shots; its event
-      // payload has no per-shot count or timestamp.
-      queueBattleLasers(1);
+    if (event.type === "space.battle.impact") {
+      battleCueSelectors.laser(event.candidateCount, (cue) => playEffect(cue, effectsVolume));
       continue;
     }
-    if (event.type === "space.battle.casualties") {
-      const lostShips =
-        Object.values(event.playerShipLosses).reduce((sum, losses) => sum + losses, 0) +
-        Object.values(event.enemyShipLosses).reduce((sum, losses) => sum + losses, 0);
-      if (lostShips > 0) queueBattleExplosions(lostShips);
+    if (event.type === "space.battle.death") {
+      battleCueSelectors.explosion(event.count, (cue) => playEffect(cue, effectsVolume));
       continue;
     }
-    if (event.type === "space.battle.finished") {
-      // This result event does not identify a shot. Also stop approximated
-      // round/loss cues so they cannot continue after the battle has ended.
-      clearBattleLasers();
-      clearBattleExplosions();
+    if (
+      event.type === "space.battle.round" ||
+      event.type === "space.battle.casualties" ||
+      event.type === "space.battle.finished"
+    ) {
+      // State summary events have no separate audio attempt.
       continue;
     }
     for (const cue of cuesForEvent(event, result.state)) cues.add(cue);
@@ -513,83 +514,6 @@ export function withGameAudio(
   let documentVisible = typeof document === "undefined" || document.visibilityState !== "hidden";
   let audioFocused = windowFocused && documentVisible;
   const isAudioFocused = () => audioFocused;
-  let pendingBattleLasers = 0;
-  let battleLaserTimer: ReturnType<typeof setTimeout> | null = null;
-  let pendingBattleExplosions = 0;
-  let battleExplosionTimer: ReturnType<typeof setTimeout> | null = null;
-  let audioDisposed = false;
-  const clearBattleLasers = () => {
-    pendingBattleLasers = 0;
-    if (battleLaserTimer !== null) clearTimeout(battleLaserTimer);
-    battleLaserTimer = null;
-  };
-  const clearBattleExplosions = () => {
-    pendingBattleExplosions = 0;
-    if (battleExplosionTimer !== null) clearTimeout(battleExplosionTimer);
-    battleExplosionTimer = null;
-  };
-  const playNextBattleLaser = () => {
-    battleLaserTimer = null;
-    if (audioDisposed || pendingBattleLasers <= 0) return;
-    const state = store.getState();
-    const effectsEnabled = state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
-    const volume = state.settings.soundEffectsVolume ?? 0.5;
-    if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || volume <= 0) {
-      clearBattleLasers();
-      return;
-    }
-    const cue = battleCueSelectors.laser();
-    if (!cue) {
-      const retryDelay = battleCueSelectors.laserRetryDelay();
-      if (retryDelay === null) {
-        clearBattleLasers();
-        return;
-      }
-      battleLaserTimer = setTimeout(playNextBattleLaser, retryDelay);
-      return;
-    }
-    pendingBattleLasers -= 1;
-    playEffect(cue, volume);
-    if (pendingBattleLasers > 0) {
-      battleLaserTimer = setTimeout(playNextBattleLaser, BATTLE_LASER_COOLDOWN_MS + 1);
-    }
-  };
-  const queueBattleLasers = (count: number) => {
-    if (!Number.isFinite(count) || count <= 0 || audioDisposed) return;
-    pendingBattleLasers += Math.floor(count);
-    if (battleLaserTimer === null) playNextBattleLaser();
-  };
-  const playNextBattleExplosion = () => {
-    battleExplosionTimer = null;
-    if (audioDisposed || pendingBattleExplosions <= 0) return;
-    const state = store.getState();
-    const effectsEnabled = state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
-    const volume = state.settings.soundEffectsVolume ?? 0.5;
-    if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || volume <= 0) {
-      clearBattleExplosions();
-      return;
-    }
-    const cue = battleCueSelectors.explosion();
-    if (!cue) {
-      const retryDelay = battleCueSelectors.explosionRetryDelay();
-      if (retryDelay === null) {
-        clearBattleExplosions();
-        return;
-      }
-      battleExplosionTimer = setTimeout(playNextBattleExplosion, retryDelay);
-      return;
-    }
-    pendingBattleExplosions -= 1;
-    playEffect(cue, volume);
-    if (pendingBattleExplosions > 0) {
-      battleExplosionTimer = setTimeout(playNextBattleExplosion, BATTLE_EXPLOSION_COOLDOWN_MS + 1);
-    }
-  };
-  const queueBattleExplosions = (count: number) => {
-    if (!Number.isFinite(count) || count <= 0 || audioDisposed) return;
-    pendingBattleExplosions += Math.floor(count);
-    if (battleExplosionTimer === null) playNextBattleExplosion();
-  };
   const syncAudioFocus = () => {
     const nextAudioFocused = windowFocused && documentVisible;
     if (audioFocused === nextAudioFocused) return;
@@ -597,8 +521,6 @@ export function withGameAudio(
     if (audioFocused) {
       updateAmbience(store.getState(), true);
     } else {
-      clearBattleLasers();
-      clearBattleExplosions();
       stopEffects();
       for (const audio of ambienceTracks.values()) audio.pause();
     }
@@ -659,10 +581,7 @@ export function withGameAudio(
         result,
         boostSoundLoop,
         isAudioFocused,
-        queueBattleLasers,
-        clearBattleLasers,
-        queueBattleExplosions,
-        clearBattleExplosions,
+        battleCueSelectors,
       );
       if (result.accepted) publishEvents(result.events);
       return result;
@@ -677,10 +596,7 @@ export function withGameAudio(
             result,
             boostSoundLoop,
             isAudioFocused,
-            queueBattleLasers,
-            clearBattleLasers,
-            queueBattleExplosions,
-            clearBattleExplosions,
+            battleCueSelectors,
           );
       });
       publishEvents(results.flatMap((result) => (result.accepted ? result.events : [])));
@@ -696,9 +612,6 @@ export function withGameAudio(
       boostSoundLoop.update(state, [], effectsEnabled && audioUnlocked);
     },
     dispose() {
-      audioDisposed = true;
-      clearBattleLasers();
-      clearBattleExplosions();
       eventListeners.clear();
       if (typeof window !== "undefined") {
         window.removeEventListener("blur", handleWindowBlur);

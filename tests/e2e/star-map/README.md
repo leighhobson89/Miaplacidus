@@ -18,7 +18,7 @@ The Star Map tests also assert that an unreported factory system is absent from 
 
 **P-14 touch/keyboard sign-off (9 October 2026):** the combined installed-Chrome control matrix passed 4/4 touch cases and 3/3 keyboard cases, covering marker selection, touch pan/zoom, four-direction keyboard pan, Enter zoom/reset, and the shared allocation/Casino journeys. The marker touch test now scrolls the chosen marker into the viewport before dispatching a touch emulation tap; this avoids testing an off-screen target. Fleet Hangar keyboard/touch passed 2/2 separately; see the Starship README.
 
-**P-13 narrow Star Map context (9 October 2026):** the focused route case selects Sirius at 390px and 320px and checks that the current Antimatter balance, selected-system panel, required travel cost, and enabled destination action remain visible. It also checks that the status card and selection panel stay within the viewport and the document has no horizontal overflow. Installed Chrome passed **1/1 in 7.8 seconds** on port 4498. This verifies the selected-route slice of P-13; broad theme and locale screenshot review remains under P-51/P-56.
+<a id="p-13-narrow-star-map-context-9-october-2026"></a> **P-13 narrow Star Map context (9 October 2026):** the focused route case selects Sirius at 390px and 320px and checks that the current Antimatter balance, selected-system panel, required travel cost, and enabled destination action remain visible. It also checks that the status card and selection panel stay within the viewport and the document has no horizontal overflow. Installed Chrome passed **1/1 in 7.8 seconds** on port 4498. This verifies the selected-route slice of P-13; broad theme and locale screenshot review remains under P-51/P-56.
 
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4498'; node .\node_modules\playwright\cli.js test --pass-with-no-tests tests/e2e/star-map/star-map.spec.ts -g '@p13-context' --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
@@ -210,7 +210,7 @@ target's explicit sort selector and per-row Show on map buttons, which
 320px and 390px. The remake has no map-mode selector corresponding to
 `infoTooltipStarMapModes`; type filtering
 and search are not equivalent to the source's Normal/Distance/Studied/In Range
-modes. The full dispositions are in the [P-44 handoff](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+modes. The full dispositions are in the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 
 The latest installed-Chrome rerun of `p44-star-scan-info-tooltips.spec.ts`

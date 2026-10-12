@@ -68,6 +68,9 @@ import {
   migrateSaveV49,
   migrateSaveV50,
   migrateSaveV51,
+  migrateSaveV52,
+  migrateSaveV53,
+  migrateSaveV54,
 } from "./migrations";
 
 export const PORTABLE_PREFIX = "MIA1:";
@@ -509,8 +512,32 @@ function parseEnvelope(json: string): SaveEnvelopeV1 {
     parsed &&
     typeof parsed === "object" &&
     "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 52
+  ) {
+    return migrateSaveV52(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 53
+  ) {
+    return migrateSaveV53(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
+    (parsed as { schemaVersion?: unknown }).schemaVersion === 54
+  ) {
+    return migrateSaveV54(parsed, checksumFor);
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "schemaVersion" in parsed &&
     typeof (parsed as { schemaVersion?: unknown }).schemaVersion === "number" &&
-    (parsed as { schemaVersion: number }).schemaVersion > 52
+    (parsed as { schemaVersion: number }).schemaVersion > 55
   ) {
     throw new SaveError("future-version", "This save was made by a newer version of MIAPLACIDUS.");
   }

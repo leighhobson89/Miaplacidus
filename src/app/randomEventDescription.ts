@@ -1,7 +1,9 @@
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
-import type { RandomEventHistoryEntry } from "../content/metaSignals";
-import type { LocaleId } from "../content/ids";
+import type { ActiveRandomEvent, RandomEventHistoryEntry } from "../content/metaSignals";
+import { ECONOMIC_GOOD_IDS, type LocaleId } from "../content/ids";
+import { ROCKET_IDS, type RocketId } from "../content/space";
 import { randomEventDescriptionTemplate } from "../i18n/randomEventDescriptionMessages";
+import { localizedRocketUserName } from "../i18n/rocketMessages";
 import { economyGoodName } from "./economyDisplay";
 import { formatNumber, type NumberNotation } from "./numberFormatting";
 
@@ -12,7 +14,10 @@ export function randomEventHistoryDescription(
   notation: NumberNotation,
 ): string {
   const details = entry.details;
-  const amount = (value: number) => formatNumber(locale, value, 0, notation);
+  const amount = (value: number) =>
+    notation === "normal"
+      ? formatNumber(locale, Math.floor(value), 0, notation)
+      : formatNumber(locale, value, 0, notation);
   switch (entry.id) {
     case "powerPlantExplosion":
       return details?.kind === "buildingDestroyed"
@@ -41,7 +46,7 @@ export function randomEventHistoryDescription(
     case "rocketInstantArrival":
       return details?.kind === "rocketInstantArrival"
         ? randomEventDescriptionTemplate(locale, "eventDescRocketInstantArrivalNamed", {
-            rocketName: details.rocketName,
+            rocketName: localizedRocketUserName(locale, details.rocketName),
           })
         : randomEventDescriptionTemplate(locale, "eventDescRocketInstantArrival");
     case "antimatterReaction": {
@@ -58,7 +63,7 @@ export function randomEventHistoryDescription(
             })
           : "";
       return randomEventDescriptionTemplate(locale, "eventDescAntimatterReaction", {
-        rocketName,
+        rocketName: localizedRocketUserName(locale, rocketName),
         asteroidName,
         lossText,
       });
@@ -86,7 +91,7 @@ export function randomEventHistoryDescription(
     case "minerBrokeDown":
       return details?.kind === "minerBrokeDown"
         ? randomEventDescriptionTemplate(locale, "eventDescMinerRateZeroNamed", {
-            rocketName: details.rocketName,
+            rocketName: localizedRocketUserName(locale, details.rocketName),
           })
         : randomEventDescriptionTemplate(locale, "eventDescMinerRateZero");
     case "supplyChainDisruption":
@@ -101,4 +106,44 @@ export function randomEventHistoryDescription(
     case "blackHoleInstability":
       return randomEventDescriptionTemplate(locale, "eventDescBlackHoleShifting");
   }
+}
+
+/** Renders the source's live detail for active timed effects without changing saved history. */
+export function randomEventActiveEffectDescription(
+  locale: LocaleId,
+  entry: RandomEventHistoryEntry,
+  effect: ActiveRandomEvent,
+  rockets: Readonly<Record<RocketId, { readonly name: string }>>,
+  notation: NumberNotation,
+): string {
+  if (entry.id !== effect.id || effect.remainingMs <= 0)
+    return randomEventHistoryDescription(locale, entry, notation);
+
+  if (effect.id === "minerBrokeDown") {
+    const rocketId = ROCKET_IDS.find((id) => id === effect.targetId);
+    const rocketName = rocketId ? rockets[rocketId]?.name : undefined;
+    if (rocketName) {
+      return randomEventDescriptionTemplate(locale, "eventDescMinerRateZeroNamed", {
+        rocketName: localizedRocketUserName(locale, rocketName),
+      });
+    }
+  }
+
+  if (effect.id === "supplyChainDisruption") {
+    const percentDown = Math.round((1 - effect.multiplier) * 100);
+    if (Number.isInteger(percentDown) && percentDown >= 60 && percentDown <= 80) {
+      const goodId = ECONOMIC_GOOD_IDS.find((id) => id === effect.targetId);
+      if (goodId) {
+        return randomEventDescriptionTemplate(locale, "eventDescProductionReducedNamed", {
+          itemName: economyGoodName(locale, goodId),
+          percentDown: String(percentDown),
+        });
+      }
+      return randomEventDescriptionTemplate(locale, "eventDescProductionReduced", {
+        percentDown: String(percentDown),
+      });
+    }
+  }
+
+  return randomEventHistoryDescription(locale, entry, notation);
 }

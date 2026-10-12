@@ -3,6 +3,7 @@ import {
   COSMIC_RIP_CLOSURE_GP,
   COSMIC_RIP_SCANNER_REPAIR_GP,
   COSMIC_RIP_SECTOR_COUNT,
+  COSMIC_RIP_SECTOR_IDS,
   COSMIC_RIP_TECHNOLOGIES,
   COSMIC_RIP_UPGRADES,
   type CosmicRipUpgradeId,
@@ -130,6 +131,10 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
   const objectiveCopy = cosmicRipObjectiveText(locale);
   const oneGpCost = `${number(state, 1)} ${copy.gpShort}`;
   const progress = state.permanent.cosmicRip;
+  const foundSectorId =
+    progress.ripLocationSectorIndex === null
+      ? null
+      : (COSMIC_RIP_SECTOR_IDS[progress.ripLocationSectorIndex] ?? null);
   const latestResearchedTechnology = [...COSMIC_RIP_TECHNOLOGIES]
     .reverse()
     .find((technology) => progress.researchedTechnologyIds.includes(technology.id));
@@ -222,25 +227,6 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
           {copy.rate}: <strong>{number(state, rate, 2)}/s</strong>
         </span>
       </div>
-      <div className="cosmic-rip-stability" data-testid="cosmic-rip-stability">
-        <div className="space-mining-title-row">
-          <strong>{copy.stabilityLabel}</strong>
-          <InfoTooltip
-            id="cosmic-rip-stability-help"
-            label={`${copy.stabilityLabel}: ${starshipText(locale, "scanMoreInfoLabel")}`}
-            content={cosmicRipStatusDescription(locale)}
-            testId="cosmic-rip-stability-help"
-          />
-        </div>
-        <output data-testid="cosmic-rip-stability-value">{stabilityText}</output>
-        <progress
-          aria-label={copy.stabilityLabel}
-          value={stability}
-          max={100}
-          data-testid="cosmic-rip-stability-progress"
-        />
-      </div>
-
       <section
         id="panel-cosmic-rip-situation"
         className="cosmic-rip-section"
@@ -258,18 +244,31 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
             testId="cosmic-rip-situation-help"
           />
         </div>
-        <p>
-          {progress.closed
-            ? copy.closed
-            : progress.ripFound
+        {progress.closed ? (
+          <div className="cosmic-rip-closed-state">
+            <CosmicRipEndingArtwork />
+            <h4 className="cosmic-rip-closed-title">{copy.closedTitle}</h4>
+            <output
+              className="cosmic-rip-closed cosmic-rip-status"
+              data-testid="cosmic-rip-closed"
+              tabIndex={-1}
+            >
+              {copy.closed}
+            </output>
+          </div>
+        ) : null}
+        {!progress.closed && (
+          <p>
+            {progress.ripFound
               ? ripResearchStatus
               : progress.scannerRestored
                 ? progress.scannedSectorIndexes.length > 0
                   ? copy.ripMissing
                   : copy.scanInstruction
                 : copy.scannerArrayTitle}
-        </p>
-        {progress.scannerRestored && (
+          </p>
+        )}
+        {!progress.closed && progress.scannerRestored && (
           <p className="cosmic-rip-next-objective" data-testid="cosmic-rip-next-objective">
             <span data-testid="cosmic-rip-next-objective-label">{objectiveCopy.label}</span>
             <span className="green-ready-text" data-testid="cosmic-rip-next-objective-text">
@@ -277,7 +276,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
             </span>
           </p>
         )}
-        {!progress.scannerRestored ? (
+        {!progress.closed && !progress.scannerRestored ? (
           <div className="cosmic-rip-control">
             <button
               className="primary-button"
@@ -296,6 +295,31 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
             )}
           </div>
         ) : null}
+        {!progress.closed &&
+          progress.researchedTechnologyIds.length === COSMIC_RIP_TECHNOLOGIES.length &&
+          (() => {
+            const command: GameCommand = { type: "cosmic-rip.close" };
+            const check = affordability(command);
+            const reasonId = "cosmic-rip-close-reason";
+            return (
+              <div className="cosmic-rip-control">
+                <button
+                  className="primary-button cosmic-rip-close"
+                  type="button"
+                  disabled={!check.enabled}
+                  aria-describedby={check.reason ? reasonId : undefined}
+                  onClick={() => run(command)}
+                >
+                  {copy.closeRip} · {number(state, COSMIC_RIP_CLOSURE_GP)} {copy.gpShort}
+                </button>
+                {check.reason && (
+                  <p className="control-reason" id={reasonId}>
+                    {check.reason}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
       </section>
 
       <section
@@ -317,47 +341,56 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
         </div>
         {progress.scannerRestored ? (
           <>
+            <h4 className="cosmic-rip-closed-title">{copy.scannerRestoredTitle}</h4>
             <p>{copy.scannerRestored}</p>
-            <p>{copy.scanInstruction}</p>
-            <div className="cosmic-rip-sectors">
-              {Array.from({ length: COSMIC_RIP_SECTOR_COUNT }, (_, sectorIndex) => {
-                const scanned = progress.scannedSectorIndexes.includes(sectorIndex);
-                const found = scanned && sectorIndex === progress.ripLocationSectorIndex;
-                const command: GameCommand = { type: "cosmic-rip.sector.scan", sectorIndex };
-                const check = affordability(command);
-                const reasonId = `cosmic-rip-sector-${sectorIndex}-reason`;
-                const accessibleStatus = found
-                  ? `, ${copy.sectorFound}`
-                  : scanned
-                    ? `, ${copy.sectorScanned}`
-                    : `, ${oneGpCost}`;
-                return (
-                  <div className="cosmic-rip-sector-control" key={sectorIndex}>
-                    <button
-                      className={`cosmic-rip-sector${found ? " is-found" : ""}`}
-                      type="button"
-                      disabled={!check.enabled}
-                      onClick={() => run(command)}
-                      aria-describedby={check.reason ? reasonId : undefined}
-                      aria-label={`${copy.sector} ${sectorIndex + 1}${accessibleStatus}`}
-                      data-testid={`cosmic-rip-sector-${sectorIndex}`}
-                    >
-                      <span>
-                        {copy.sector} {sectorIndex + 1}
-                      </span>
-                      <small>
-                        {found ? copy.sectorFound : scanned ? copy.sectorScanned : oneGpCost}
-                      </small>
-                    </button>
-                    {check.reason && (
-                      <p className="control-reason" id={reasonId}>
-                        {check.reason}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            {progress.ripFound ? (
+              <div className="cosmic-rip-sectors" data-testid="cosmic-rip-found-sector">
+                <button className="cosmic-rip-sector is-found" type="button" disabled>
+                  <span>{foundSectorId ?? copy.sectorFound}</span>
+                  <small>{copy.sectorFound}</small>
+                </button>
+              </div>
+            ) : (
+              <>
+                <p>{copy.scanInstruction}</p>
+                <div className="cosmic-rip-sectors">
+                  {Array.from({ length: COSMIC_RIP_SECTOR_COUNT }, (_, sectorIndex) => {
+                    const scanned = progress.scannedSectorIndexes.includes(sectorIndex);
+                    const command: GameCommand = { type: "cosmic-rip.sector.scan", sectorIndex };
+                    const check = affordability(command);
+                    const reasonId = `cosmic-rip-sector-${sectorIndex}-reason`;
+                    const sectorId = COSMIC_RIP_SECTOR_IDS[sectorIndex];
+                    const accessibleStatus = scanned
+                      ? `, ${copy.sectorScanned}`
+                      : `, ${oneGpCost}`;
+                    return (
+                      <div className="cosmic-rip-sector-control" key={sectorIndex}>
+                        <button
+                          className="cosmic-rip-sector"
+                          type="button"
+                          disabled={!check.enabled}
+                          onClick={() => run(command)}
+                          aria-describedby={check.reason ? reasonId : undefined}
+                          aria-label={`${sectorId}${accessibleStatus}`}
+                          data-testid={`cosmic-rip-sector-${sectorIndex}`}
+                        >
+                          <span>{sectorId}</span>
+                          <small>{scanned ? copy.sectorScanned : oneGpCost}</small>
+                        </button>
+                        {check.reason && (
+                          <p className="control-reason" id={reasonId}>
+                            {check.reason}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {progress.ripFound && (
+              <h4 className="cosmic-rip-closed-title">{copy.ripFoundTitle}</h4>
+            )}
             <output className="cosmic-rip-status">
               {progress.ripFound
                 ? copy.ripFound
@@ -365,6 +398,62 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                   ? copy.ripMissing
                   : ""}
             </output>
+            {progress.ripFound && (
+              <section className="cosmic-rip-section" aria-labelledby="cosmic-rip-upgrades-title">
+                <h3 id="cosmic-rip-upgrades-title">{copy.upgrades}</h3>
+                <div className="cosmic-rip-upgrades">
+                  {(Object.keys(COSMIC_RIP_UPGRADES) as CosmicRipUpgradeId[]).map((upgradeId) => {
+                    const definition = COSMIC_RIP_UPGRADES[upgradeId];
+                    const cost = cosmicRipUpgradeCost(state, upgradeId);
+                    const command: GameCommand = { type: "cosmic-rip.upgrade.purchase", upgradeId };
+                    const check = affordability(command);
+                    const reasonId = `cosmic-rip-upgrade-${upgradeId}-reason`;
+                    const owned = progress[`${upgradeId}Count`];
+                    const materials = Object.entries(cost.goods)
+                      .map(
+                        ([goodId, amount]) =>
+                          `${number(state, amount!)} ${economyGoodName(locale, goodId as EconomicGoodId)}`,
+                      )
+                      .join(" + ");
+                    return (
+                      <article className="cosmic-rip-upgrade" key={upgradeId}>
+                        <div className="cosmic-rip-upgrade-title-row">
+                          <h4>
+                            {copy.upgradeNames[upgradeId]} <small>×{owned}</small>
+                          </h4>
+                          <InfoTooltip
+                            id={`cosmic-rip-upgrade-${upgradeId}-help`}
+                            label={`${copy.upgradeNames[upgradeId]}: ${starshipText(locale, "scanMoreInfoLabel")}`}
+                            content={cosmicRipUpgradeDescription(locale, upgradeId)}
+                            testId={`cosmic-rip-upgrade-${upgradeId}-help`}
+                          />
+                        </div>
+                        <p>
+                          +{number(state, definition.telemetryPerSecond, 2)} {copy.rate}
+                        </p>
+                        <p>
+                          {cash(state, cost.cash)} + {materials}
+                        </p>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={!check.enabled}
+                          aria-describedby={check.reason ? reasonId : undefined}
+                          onClick={() => run(command)}
+                        >
+                          {copy.purchase}
+                        </button>
+                        {check.reason && (
+                          <p className="control-reason" id={reasonId}>
+                            {check.reason}
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
           </>
         ) : null}
       </section>
@@ -377,63 +466,26 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
         tabIndex={0}
         hidden={activePane !== "cosmic-rip-rip"}
       >
-        {progress.scannerRestored && progress.ripFound && !progress.closed ? (
+        {progress.scannerRestored && progress.ripFound ? (
           <>
-            <section className="cosmic-rip-section" aria-labelledby="cosmic-rip-upgrades-title">
-              <h3 id="cosmic-rip-upgrades-title">{copy.upgrades}</h3>
-              <div className="cosmic-rip-upgrades">
-                {(Object.keys(COSMIC_RIP_UPGRADES) as CosmicRipUpgradeId[]).map((upgradeId) => {
-                  const definition = COSMIC_RIP_UPGRADES[upgradeId];
-                  const cost = cosmicRipUpgradeCost(state, upgradeId);
-                  const command: GameCommand = { type: "cosmic-rip.upgrade.purchase", upgradeId };
-                  const check = affordability(command);
-                  const reasonId = `cosmic-rip-upgrade-${upgradeId}-reason`;
-                  const owned = progress[`${upgradeId}Count`];
-                  const materials = Object.entries(cost.goods)
-                    .map(
-                      ([goodId, amount]) =>
-                        `${number(state, amount!)} ${economyGoodName(locale, goodId as EconomicGoodId)}`,
-                    )
-                    .join(" + ");
-                  return (
-                    <article className="cosmic-rip-upgrade" key={upgradeId}>
-                      <div className="cosmic-rip-upgrade-title-row">
-                        <h4>
-                          {copy.upgradeNames[upgradeId]} <small>×{owned}</small>
-                        </h4>
-                        <InfoTooltip
-                          id={`cosmic-rip-upgrade-${upgradeId}-help`}
-                          label={`${copy.upgradeNames[upgradeId]}: ${starshipText(locale, "scanMoreInfoLabel")}`}
-                          content={cosmicRipUpgradeDescription(locale, upgradeId)}
-                          testId={`cosmic-rip-upgrade-${upgradeId}-help`}
-                        />
-                      </div>
-                      <p>
-                        +{number(state, definition.telemetryPerSecond, 2)} {copy.rate}
-                      </p>
-                      <p>
-                        {cash(state, cost.cash)} + {materials}
-                      </p>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={!check.enabled}
-                        aria-describedby={check.reason ? reasonId : undefined}
-                        onClick={() => run(command)}
-                      >
-                        {copy.purchase}
-                      </button>
-                      {check.reason && (
-                        <p className="control-reason" id={reasonId}>
-                          {check.reason}
-                        </p>
-                      )}
-                    </article>
-                  );
-                })}
+            <div className="cosmic-rip-stability" data-testid="cosmic-rip-stability">
+              <div className="space-mining-title-row">
+                <strong>{copy.stabilityLabel}</strong>
+                <InfoTooltip
+                  id="cosmic-rip-stability-help"
+                  label={`${copy.stabilityLabel}: ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  content={cosmicRipStatusDescription(locale)}
+                  testId="cosmic-rip-stability-help"
+                />
               </div>
-            </section>
-
+              <output data-testid="cosmic-rip-stability-value">{stabilityText}</output>
+              <progress
+                aria-label={copy.stabilityLabel}
+                value={stability}
+                max={100}
+                data-testid="cosmic-rip-stability-progress"
+              />
+            </div>
             <section className="cosmic-rip-section" aria-labelledby="cosmic-rip-tech-title">
               <div className="space-mining-title-row">
                 <h3 id="cosmic-rip-tech-title">{copy.technologies}</h3>
@@ -526,38 +578,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                 })}
               </div>
             </section>
-            {progress.researchedTechnologyIds.length === COSMIC_RIP_TECHNOLOGIES.length &&
-              (() => {
-                const command: GameCommand = { type: "cosmic-rip.close" };
-                const check = affordability(command);
-                const reasonId = "cosmic-rip-close-reason";
-                return (
-                  <div className="cosmic-rip-control">
-                    <button
-                      className="primary-button cosmic-rip-close"
-                      type="button"
-                      disabled={!check.enabled}
-                      aria-describedby={check.reason ? reasonId : undefined}
-                      onClick={() => run(command)}
-                    >
-                      {copy.closeRip} · {number(state, COSMIC_RIP_CLOSURE_GP)} {copy.gpShort}
-                    </button>
-                    {check.reason && (
-                      <p className="control-reason" id={reasonId}>
-                        {check.reason}
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
           </>
-        ) : progress.closed ? (
-          <div className="cosmic-rip-closed-state">
-            <CosmicRipEndingArtwork />
-            <output className="cosmic-rip-closed cosmic-rip-status" data-testid="cosmic-rip-closed">
-              {copy.closed}
-            </output>
-          </div>
         ) : (
           <p>{progress.ripFound ? copy.ripFound : copy.scanInstruction}</p>
         )}

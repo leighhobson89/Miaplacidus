@@ -93,6 +93,7 @@ import { cosmicRipText } from "../i18n/cosmicRipMessages";
 import { starshipText } from "../i18n/starshipMessages";
 import { localizedRocketUserName } from "../i18n/rocketMessages";
 import { technologyNotificationText } from "../i18n/technologyNotificationMessages";
+import { spaceNotificationText } from "../i18n/spaceNotificationMessages";
 import { createSpaceEventNoticeHandler } from "./spaceEventNotifications";
 import { createCasinoEventNoticeHandler } from "./casinoEventNotifications";
 import { createBlackHoleEventNoticeHandler } from "./blackHoleEventNotifications";
@@ -100,6 +101,8 @@ import {
   createCosmicRipEventNoticeHandler,
   cosmicRipTechnologyResearchedNotice,
 } from "./cosmicRipEventNotifications";
+import { cosmicRipResearchResultDialog } from "../i18n/cosmicRipResearchResultDialogMessages";
+import { megastructureResearchResultCopy } from "../i18n/megastructureResearchResultMessages";
 import {
   createGalacticMarketEventNoticeHandler,
   galacticMarketLockdownEntryNotice,
@@ -107,6 +110,13 @@ import {
 import { createPhilosophyEventNoticeHandler } from "./philosophyEventNotifications";
 import { createAchievementEventNoticeHandler } from "./achievementEventNotifications";
 import { createRandomEventEndNoticeHandler } from "./randomEventEndNotifications";
+import {
+  RandomEventResultDialog,
+  type RandomEventDialogEntry,
+} from "./RandomEventResultDialog";
+import { CosmicRipEndingCinematic } from "./CosmicRipEndingCinematic";
+import type { RandomEventDialogCopy } from "../i18n/randomEventDialogTypes";
+import { createRandomEventInstabilityNoticeHandler } from "./randomEventInstabilityNotifications";
 import { createRandomEventTriggeredNoticeHandler } from "./randomEventTriggeredNotifications";
 import { dispatchEconomySale } from "./economySaleNotifications";
 import {
@@ -981,6 +991,29 @@ function GameSession({
   const [exitConfirmation, setExitConfirmation] = useState(false);
   const [pendingPioneerName, setPendingPioneerName] = useState<string | null>(null);
   const exitDialogRef = useRef<HTMLDialogElement>(null);
+  const [randomEventResultDialogs, setRandomEventResultDialogs] = useState<
+    readonly RandomEventDialogEntry[]
+  >([]);
+  const [cosmicRipEndingVisible, setCosmicRipEndingVisible] = useState(false);
+  const showCosmicRipEnding = useCallback(() => setCosmicRipEndingVisible(true), []);
+  const completeCosmicRipEnding = useCallback(() => {
+    setCosmicRipEndingVisible(false);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('[data-testid="cosmic-rip-closed"]')?.focus();
+    });
+  }, []);
+  const randomEventDialogSequence = useRef(0);
+  const enqueueRandomEventResultDialog = useCallback(
+    (dialog: RandomEventDialogCopy, onConfirm?: () => void) => {
+    randomEventDialogSequence.current += 1;
+    const id = randomEventDialogSequence.current;
+      setRandomEventResultDialogs((current) => [
+        ...current,
+        { ...dialog, id, ...(onConfirm ? { onConfirm } : {}) },
+      ]);
+    },
+    [],
+  );
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(
     repository?.readPreferences().autoSaveEnabled ?? true,
   );
@@ -1417,6 +1450,39 @@ function GameSession({
   }, [currentState.settings.notificationsEnabled, setNotificationsEnabled]);
 
   useEffect(() => {
+    const state = store.getState();
+    const megastructures = state.permanent.megastructures;
+    if (
+      megastructures.megastructureOptionNotificationShown ||
+      !megastructures.ancientManuscripts.some(
+        (record) => record.factorySystemId === state.run.space.currentSystemId,
+      )
+    )
+      return;
+
+    const result = store.dispatch({ type: "megastructure.option-notice.mark-shown" });
+    if (
+      !result.accepted ||
+      !result.state.permanent.megastructures.megastructureOptionNotificationShown
+    )
+      return;
+    notify(spaceNotificationText(snapshot.locale, "megastructureOptionAvailable"), {
+      classification: "tech",
+      type: "info",
+      durationMs: 3000,
+    });
+    persistCurrent();
+  }, [
+    currentState.permanent.megastructures.ancientManuscripts,
+    currentState.permanent.megastructures.megastructureOptionNotificationShown,
+    currentState.run.space.currentSystemId,
+    notify,
+    persistCurrent,
+    snapshot.locale,
+    store,
+  ]);
+
+  useEffect(() => {
     const routeSpaceEvents = createSpaceEventNoticeHandler(
       () => currentLocaleRef.current,
       () => store.getState(),
@@ -1460,9 +1526,11 @@ function GameSession({
           type: notice.type,
           durationMs: notice.durationMs,
         }),
+      enqueueRandomEventResultDialog,
+      showCosmicRipEnding,
     );
     return store.subscribeEvents(routeCosmicRipEvents);
-  }, [notify, store]);
+  }, [enqueueRandomEventResultDialog, notify, showCosmicRipEnding, store]);
 
   useEffect(() => {
     const routeGalacticMarketEvents = createGalacticMarketEventNoticeHandler(
@@ -1524,6 +1592,20 @@ function GameSession({
   }, [announceScreenReader, notify, store]);
 
   useEffect(() => {
+    const routeRandomEventInstabilityNotices = createRandomEventInstabilityNoticeHandler(
+      () => currentLocaleRef.current,
+      () => store.getState().settings.notificationsEnabled !== false,
+      (notice) =>
+        notify(notice.message, {
+          classification: notice.classification,
+          type: notice.type,
+          durationMs: notice.durationMs,
+        }),
+    );
+    return store.subscribeEvents(routeRandomEventInstabilityNotices);
+  }, [notify, store]);
+
+  useEffect(() => {
     const routeRandomEventTriggeredNotices = createRandomEventTriggeredNoticeHandler(
       () => currentLocaleRef.current,
       () => store.getState(),
@@ -1533,9 +1615,10 @@ function GameSession({
           type: notice.type,
           durationMs: notice.durationMs,
         }),
+      enqueueRandomEventResultDialog,
     );
     return store.subscribeEvents(routeRandomEventTriggeredNotices);
-  }, [notify, store]);
+  }, [enqueueRandomEventResultDialog, notify, store]);
 
   useEffect(() => {
     const routeRandomEventEndNotices = createRandomEventEndNoticeHandler(
@@ -1562,9 +1645,10 @@ function GameSession({
         }
         return null;
       },
+      enqueueRandomEventResultDialog,
     );
     return store.subscribeEvents(routeRandomEventEndNotices);
-  }, [notify, store]);
+  }, [enqueueRandomEventResultDialog, notify, store]);
 
   useEffect(() => {
     const routeStorageFullNotices = createStorageFullNoticeHandler(
@@ -1606,6 +1690,8 @@ function GameSession({
         ),
         { classification: "tech", type: "info", durationMs: 3000 },
       );
+      const megastructureResult = megastructureResearchResultCopy(snapshot.locale, technologyId);
+      if (megastructureResult) enqueueRandomEventResultDialog(megastructureResult);
     }
 
     for (const technologyId of cosmicRipTechs) {
@@ -1616,6 +1702,9 @@ function GameSession({
         type: notice.type,
         durationMs: notice.durationMs,
       });
+      enqueueRandomEventResultDialog(
+        cosmicRipResearchResultDialog(snapshot.locale, technologyId),
+      );
     }
 
     previousNotificationState.current = {
@@ -1628,6 +1717,7 @@ function GameSession({
     currentState.permanent.cosmicRip.researchedTechnologyIds,
     currentState.permanent.rebirthCount,
     currentState.run.economy.researchedTechnologies,
+    enqueueRandomEventResultDialog,
     notify,
     snapshot.locale,
     store,
@@ -1968,6 +2058,19 @@ function GameSession({
         onOpenMiaplaediaPane={openTutorialMiaplaediaPane}
       />
       <GameNotificationRegion />
+      <RandomEventResultDialog
+        entries={randomEventResultDialogs}
+        onDismiss={(id) =>
+          setRandomEventResultDialogs((current) => current.filter((entry) => entry.id !== id))
+        }
+      />
+      {cosmicRipEndingVisible ? (
+        <CosmicRipEndingCinematic
+          locale={snapshot.locale}
+          reducedMotion={currentState.settings.reducedMotion}
+          onComplete={completeCosmicRipEnding}
+        />
+      ) : null}
       {exitConfirmation && (
         <dialog
           ref={exitDialogRef}
@@ -2415,11 +2518,16 @@ function GameSession({
                                       {"\u25c8"}
                                     </div>
                                     <div className="card-copy">
-                                      <h3>{t("hydrogen.storage.title")}</h3>
-                                      <p className="economy-action-description">
+                                      <h3 id="hydrogen-storage-title">
+                                        {t("hydrogen.storage.title")}
+                                      </h3>
+                                      <p
+                                        className="economy-action-description"
+                                        id="hydrogen-storage-help"
+                                      >
                                         {economyActionHelp(snapshot.locale, "hydrogen", "storage")}
                                       </p>
-                                      <span className="cost-line">
+                                      <span className="cost-line" id="hydrogen-storage-cost">
                                         {t("hydrogen.storage.price")}:{" "}
                                         <strong>
                                           {formatNumber(
@@ -2431,20 +2539,25 @@ function GameSession({
                                           {"H\u2082"}
                                         </strong>{" "}
                                         <span aria-hidden="true">{"\u00b7"}</span>{" "}
-                                        {formatNumber(
-                                          snapshot.locale,
-                                          hydrogen.storageCapacity,
-                                          0,
-                                          snapshot.notation,
-                                        )}{" "}
-                                        {"\u2192"}{" "}
-                                        {formatNumber(
-                                          snapshot.locale,
-                                          hydrogenActions.storagePurchase.capacityAfterPurchase ??
-                                            hydrogen.storageCapacity * HYDROGEN_STORAGE_MULTIPLIER,
-                                          0,
-                                          snapshot.notation,
-                                        )}
+                                        <span id="hydrogen-storage-capacity">
+                                          <span className="sr-only">
+                                            {economyLabel(snapshot.locale, "capacity")}: {" "}
+                                          </span>
+                                          {formatNumber(
+                                            snapshot.locale,
+                                            hydrogen.storageCapacity,
+                                            0,
+                                            snapshot.notation,
+                                          )}
+                                          {" \u2192 "}
+                                          {formatNumber(
+                                            snapshot.locale,
+                                            hydrogenActions.storagePurchase.capacityAfterPurchase ??
+                                              hydrogen.storageCapacity * HYDROGEN_STORAGE_MULTIPLIER,
+                                            0,
+                                            snapshot.notation,
+                                          )}
+                                        </span>
                                       </span>
                                     </div>
                                     <div className="card-controls">
@@ -2453,7 +2566,13 @@ function GameSession({
                                         className="secondary-button"
                                         data-tutorial-target="hydrogen-storage-purchase"
                                         disabled={!hydrogenActions.storagePurchase.enabled}
-                                        aria-describedby="storage-reason"
+                                        aria-describedby={[
+                                          "hydrogen-storage-title",
+                                          "hydrogen-storage-help",
+                                          "hydrogen-storage-cost",
+                                          "hydrogen-storage-capacity",
+                                          "storage-reason",
+                                        ].join(" ")}
                                         onClick={() =>
                                           dispatchEconomyStoragePurchase(store, "hydrogen", notify)
                                         }
@@ -2493,8 +2612,13 @@ function GameSession({
                                         {"\u2699"}
                                       </div>
                                       <div className="card-copy">
-                                        <h3>{t("hydrogen.autobuyer.title")}</h3>
-                                        <p className="economy-action-description">
+                                        <h3 id="hydrogen-autobuyer-title">
+                                          {t("hydrogen.autobuyer.title")}
+                                        </h3>
+                                        <p
+                                          className="economy-action-description"
+                                          id="hydrogen-autobuyer-help"
+                                        >
                                           {economyActionHelp(
                                             snapshot.locale,
                                             "hydrogen",
@@ -2504,7 +2628,7 @@ function GameSession({
                                             },
                                           )}
                                         </p>
-                                        <p className="economy-rate">
+                                        <p className="economy-rate" id="hydrogen-autobuyer-rate">
                                           +
                                           {formatNumber(
                                             snapshot.locale,
@@ -2514,7 +2638,7 @@ function GameSession({
                                           )}{" "}
                                           {economyLabel(snapshot.locale, "perSecond")}
                                         </p>
-                                        <span className="cost-line">
+                                        <span className="cost-line" id="hydrogen-autobuyer-price">
                                           {t("hydrogen.autobuyer.owned")}:{" "}
                                           <strong data-testid="hydrogen-autobuyer-count">
                                             {formatNumber(
@@ -2540,7 +2664,10 @@ function GameSession({
                                           .getState()
                                           .permanent.acquiredPerks.includes("bulkPurchasing") && (
                                           <>
-                                            <p className="economy-rate">
+                                            <p
+                                              className="economy-rate"
+                                              id="hydrogen-autobuyer-buy-max-preview"
+                                            >
                                               {hydrogenAutobuyerBulkPreview}
                                             </p>
                                             <span
@@ -2558,7 +2685,13 @@ function GameSession({
                                           className="secondary-button"
                                           data-tutorial-target="hydrogen-autobuyer-purchase"
                                           disabled={!hydrogenActions.autobuyerPurchase.enabled}
-                                          aria-describedby="autobuyer-reason"
+                                          aria-describedby={[
+                                            "hydrogen-autobuyer-title",
+                                            "hydrogen-autobuyer-help",
+                                            "hydrogen-autobuyer-rate",
+                                            "hydrogen-autobuyer-price",
+                                            "autobuyer-reason",
+                                          ].join(" ")}
                                           onClick={() =>
                                             dispatchEconomyAutobuyerPurchase(
                                               store,
@@ -2579,7 +2712,14 @@ function GameSession({
                                               type="button"
                                               className="text-button"
                                               disabled={!hydrogenActions.autobuyerBuyMax.enabled}
-                                              aria-describedby="autobuyer-buy-max-reason"
+                                              aria-describedby={[
+                                                "hydrogen-autobuyer-title",
+                                                "hydrogen-autobuyer-help",
+                                                "hydrogen-autobuyer-rate",
+                                                "hydrogen-autobuyer-price",
+                                                "hydrogen-autobuyer-buy-max-preview",
+                                                "autobuyer-buy-max-reason",
+                                              ].join(" ")}
                                               onClick={() =>
                                                 dispatchEconomyAutobuyerPurchase(
                                                   store,
@@ -2613,7 +2753,21 @@ function GameSession({
                                           <button
                                             type="button"
                                             className="text-button"
+                                            aria-label={formatEconomyMessage(
+                                              snapshot.locale,
+                                              "autobuyerToggleLabel",
+                                              {
+                                                good: economyGoodName(snapshot.locale, "hydrogen"),
+                                                tier: "1",
+                                              },
+                                            )}
                                             aria-pressed={snapshot.hydrogenAutobuyerEnabled}
+                                            aria-describedby={[
+                                              "hydrogen-autobuyer-title",
+                                              "hydrogen-autobuyer-help",
+                                              "hydrogen-autobuyer-rate",
+                                              "hydrogen-autobuyer-price",
+                                            ].join(" ")}
                                             onClick={() =>
                                               store.dispatch({
                                                 type: "hydrogen.autobuyer.toggle",
@@ -2943,6 +3097,7 @@ function GameSession({
                               }
                             }}
                             savePersistent={savePersistent}
+                            saveStatusAnnouncementEnabled={!saveWritesPaused}
                             saveStatus={
                               saveFailureText ||
                               saveStatus ||

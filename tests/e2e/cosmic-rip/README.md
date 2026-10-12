@@ -182,7 +182,7 @@ collection to its Sensor Buoy/Rip Research Orbiter telemetry network. Situation
 shows current status/stability and the next objective; the final close action
 is on the separate Cosmic Rip page. Existing E-57 and P-38 cases cover the
 localized controls/objectives, but they do not assert a translation of the
-source's long header help. See the [P-44 handoff](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+source's long header help. See the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 ## P-56 Cosmic Rip visual matrix (10 October 2026)
 

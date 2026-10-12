@@ -79,6 +79,12 @@ export type RandomEventEngineEvent =
       readonly negative: boolean;
     }
   | {
+      readonly type: "random-event.black-hole-instability-shifted";
+      readonly powerMultiplier: number;
+      readonly durationMultiplier: number;
+      readonly durationAffected: boolean;
+    }
+  | {
       readonly type: "random-event.ended";
       readonly id: RandomEventId;
       readonly targetId: string | null;
@@ -180,6 +186,10 @@ function trigger(
   if (!randomEventEligible(stateValue, id)) return null;
   let state = stateValue;
   let details: RandomEventHistoryDetails | undefined;
+  let initialInstabilityShift: Extract<
+    RandomEventEngineEvent,
+    { readonly type: "random-event.black-hole-instability-shifted" }
+  > | null = null;
   if (id === "scienceTheft") {
     const amount = Math.ceil(state.run.researchPoints / 2);
     if (amount > 0) details = { kind: "researchHalved", amount };
@@ -428,6 +438,12 @@ function trigger(
       powerMultiplier,
       durationMultiplier,
     );
+    initialInstabilityShift = {
+      type: "random-event.black-hole-instability-shifted",
+      powerMultiplier,
+      durationMultiplier,
+      durationAffected: !activeHole,
+    };
   }
 
   const probabilities = {
@@ -468,7 +484,13 @@ function trigger(
     },
     statistics: { ...state.statistics, lifetimeRandomEventCounts },
   };
-  return { state, events: [{ type: "random-event.triggered", id, negative }] };
+  return {
+    state,
+    events: [
+      ...(initialInstabilityShift ? [initialInstabilityShift] : []),
+      { type: "random-event.triggered", id, negative },
+    ],
+  };
 }
 
 function attempt(
@@ -504,25 +526,36 @@ export function advanceRandomEvents(stateValue: GameState, elapsedMs: number) {
     if (remainingMs <= 0 && effect.id !== "blackHoleInstability") return [];
     let updated = { ...effect, remainingMs: Math.max(0, remainingMs) };
     if (effect.id === "blackHoleInstability") {
-      let untilShift = effect.nextShiftInMs;
-      const activeElapsed = Math.min(elapsedMs, effect.remainingMs);
-      while (untilShift <= activeElapsed) {
-        const powerRoll = nextRandom(state.run.random);
-        const durationRoll = state.permanent.blackHole.alwaysOn
-          ? null
-          : nextRandom(powerRoll.state);
-        state = { ...state, run: { ...state.run, random: durationRoll?.state ?? powerRoll.state } };
-        const roundHundredth = (value: number) => Math.round(value * 100) / 100;
-        const powerMultiplier = roundHundredth(powerRoll.value + 0.5);
-        updated = {
-          ...updated,
-          powerMultiplier,
-          multiplier: powerMultiplier,
-          durationMultiplier: durationRoll ? roundHundredth(durationRoll.value + 0.5) : 1,
-        };
-        untilShift += 60_000;
+      if (remainingMs > 0) {
+        let untilShift = effect.nextShiftInMs;
+        const activeElapsed = Math.min(elapsedMs, effect.remainingMs);
+        while (untilShift <= activeElapsed) {
+          const powerRoll = nextRandom(state.run.random);
+          const durationRoll = state.permanent.blackHole.alwaysOn
+            ? null
+            : nextRandom(powerRoll.state);
+          state = { ...state, run: { ...state.run, random: durationRoll?.state ?? powerRoll.state } };
+          const roundHundredth = (value: number) => Math.round(value * 100) / 100;
+          const powerMultiplier = roundHundredth(powerRoll.value + 0.5);
+          const durationMultiplier = durationRoll
+            ? roundHundredth(durationRoll.value + 0.5)
+            : 1;
+          updated = {
+            ...updated,
+            powerMultiplier,
+            multiplier: powerMultiplier,
+            durationMultiplier,
+          };
+          events.push({
+            type: "random-event.black-hole-instability-shifted",
+            powerMultiplier,
+            durationMultiplier,
+            durationAffected: durationRoll !== null,
+          });
+          untilShift += 60_000;
+        }
+        updated.nextShiftInMs = Math.max(1, untilShift - activeElapsed);
       }
-      updated.nextShiftInMs = Math.max(1, untilShift - activeElapsed);
       if (remainingMs <= 0) return [];
     }
     return [updated];

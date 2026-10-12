@@ -21,7 +21,10 @@ import {
 import type { LocaleNewsCopy } from "../i18n/sourceNewsCopy";
 import { InfoTooltip } from "./InfoTooltip";
 import { RandomEventArtwork } from "./RandomEventArtwork";
-import { randomEventHistoryDescription } from "./randomEventDescription";
+import {
+  randomEventActiveEffectDescription,
+  randomEventHistoryDescription,
+} from "./randomEventDescription";
 
 function eventTotalDuration(
   locale: GameState["settings"]["locale"],
@@ -186,9 +189,11 @@ export function MetaJournalPane({
                     <div>
                       <span>{randomEventName(locale, effect.id)}</span>
                       <small data-testid="active-event-description">
-                        {randomEventHistoryDescription(
+                        {randomEventActiveEffectDescription(
                           locale,
                           historyEntry,
+                          effect,
+                          state.run.space.rockets,
                           state.settings.notation,
                         )}
                       </small>

@@ -3,7 +3,6 @@ import { COMPOUND_IDS, GALAXY_SEED_DEFAULT, MATERIAL_IDS } from "../content/ids"
 import { ROCKET_IDS, ROCKET_PART_REQUIREMENTS } from "../content/space";
 import { RANDOM_EVENT_IDS } from "../content/metaSignals";
 import { COSMIC_RIP_SECTOR_COUNT, COSMIC_RIP_TECHNOLOGIES } from "../content/cosmicRip";
-import { ENERGY_BUILDINGS } from "../content/economy";
 import { createStarCatalogue } from "../content/starCatalogue";
 import type { GameState } from "../engine/state";
 import { createEconomyTickPlan } from "../engine/economySimulation";
@@ -36,6 +35,7 @@ import { WeatherIcon } from "./TopStatusBar";
 import {
   selectInterstellarStatistics,
   selectRunApAnticipated,
+  selectStatisticsEnergyProduction,
   selectStatisticsUnlockedTechnologyCount,
 } from "../engine/selectors";
 import {
@@ -79,6 +79,7 @@ export function SettingsStatisticsPane({
 }) {
   const locale = state.settings.locale;
   const statNumber = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
+  const rawStatNumber = (value: number) => String(value);
   const money = (value: number) =>
     formatCurrency(locale, value, state.settings.currencyId ?? "usd", 2, state.settings.notation);
   const totalResources = MATERIAL_IDS.reduce(
@@ -414,15 +415,15 @@ export function SettingsStatisticsPane({
     ...(availableOwnerPaneIds.has(ownerPaneId) ? { ownerPaneId } : {}),
   });
   const power = state.run.economy.power;
-  const nominalEnergyProductionPerSecond = Math.floor(
-    ENERGY_BUILDINGS.powerPlant1.ratePerSecond * (state.run.upgrades.powerPlant1 ?? 0) +
-      ENERGY_BUILDINGS.powerPlant2.ratePerSecond * (state.run.upgrades.powerPlant2 ?? 0) +
-      ENERGY_BUILDINGS.powerPlant3.ratePerSecond * (state.run.upgrades.powerPlant3 ?? 0),
-  );
+  const powerIsOn =
+    power.infinitePower ||
+    (power.capacity > 0 ? power.quantity > 0.00001 : energyPlan.generationPerSecond > 0);
+  const powerStatusKey = powerIsOn ? "on" : power.tripped ? "trippedShort" : "off";
+  const statisticsEnergyProductionPerSecond = selectStatisticsEnergyProduction(state);
   const energyRows: readonly StatisticsDisplayRow[] = [
     energyCurrentRow(
       "powerCurrent",
-      topStatusText(locale, power.tripped ? "trippedShort" : power.gridEnabled ? "on" : "off"),
+      topStatusText(locale, powerStatusKey),
     ),
     energyCurrentRow(
       "totalEnergy",
@@ -438,7 +439,7 @@ export function SettingsStatisticsPane({
     ),
     energyCurrentRow(
       "totalProduction",
-      `${statNumber(nominalEnergyProductionPerSecond)} kJ/s`,
+      `${statNumber(statisticsEnergyProductionPerSecond)} kJ/s`,
       "energy-power",
     ),
     energyCurrentRow(
@@ -506,8 +507,9 @@ export function SettingsStatisticsPane({
     ...(ownerPaneId && availableOwnerPaneIds.has(ownerPaneId) ? { ownerPaneId } : {}),
   });
   const lightYears = (value: number) =>
-    `${formatNumber(locale, value, 2, state.settings.notation)} ${interstellarStatisticLabel(locale, "lightYearUnit")}`;
+    `${rawStatNumber(value)} ${interstellarStatisticLabel(locale, "lightYearUnit")}`;
   const unavailableInterstellar = interstellarStatisticLabel(locale, "notApplicable");
+  const apFromStarVoyageValue = String(Math.floor(interstellar.apFromStarVoyage));
   const interstellarRows: readonly StatisticsDisplayRow[] = [
     interstellarRow(
       "starStudyRange",
@@ -583,14 +585,14 @@ export function SettingsStatisticsPane({
     ),
     interstellarRow(
       "enemyDefenceRemaining",
-      statNumber(interstellar.enemyDefenceRemaining),
+      rawStatNumber(interstellar.enemyDefenceRemaining),
       unavailableInterstellar,
       "interstellar-colonise",
     ),
     interstellarRow(
       "apFromStarVoyage",
-      statNumber(interstellar.apFromStarVoyage),
-      statNumber(interstellar.apFromStarVoyage),
+      apFromStarVoyageValue,
+      apFromStarVoyageValue,
       "interstellar-star-map",
     ),
     interstellarRow(

@@ -24,6 +24,7 @@
 - [Reuse and replacement decisions](plans/reuse-decisions.md) — what to port, adapt, or redesign.
 - [Test harness plan](plans/test-harness.md) — implemented M-01 browser coverage, visual baselines and focused test commands.
 - [Run and deploy guide](run-and-deploy.md) — start the Vite development server, preview the production build and publish `dist/` to a static host.
+- [Archived PXX audits and Phase 6 handoffs](archive/audits/README.md) — dated source-to-remake findings linked from the active checklists and parity ledger.
 - [Completed F-11–F-18 toolchain plan](archive/plans/2026-10-02-toolchain-project-structure.md) — app scaffold, module rules, build modes and typed catalogue IDs.
 - [Completed F-19–F-30 engine/simulation plan](archive/plans/2026-10-02-engine-and-simulation-core.md) — scoped state, commands, clocks, timers, transactions, snapshots and recovery.
 - [Product decisions](plans/open-decisions.md) — the owner's settled scope, delivery and save choices.

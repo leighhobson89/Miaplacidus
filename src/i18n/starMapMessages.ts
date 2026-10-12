@@ -240,7 +240,7 @@ const additionalMessages: Readonly<
     mapModeNormal: "Normal",
     mapModeDistance: "Distancia",
     mapModeStudied: "Estudiadas",
-    mapModeInRange: "Al alcance",
+    mapModeInRange: "En Alcance",
     mapModesHelp:
       "Normal muestra todo el campo estelar, incluidas las estrellas no estudiadas. Distancia colorea las estrellas estudiadas seg\u00fan su distancia; la m\u00e1s lejana aparece en rojo. Estudiadas muestra solo estrellas estudiadas. Al alcance tambi\u00e9n muestra solo estrellas estudiadas y colorea en rojo los destinos cuyo coste de viaje supera la antimateria actual. La b\u00fasqueda est\u00e1 disponible en Normal y Distancia; al cambiar a Estudiadas o Al alcance se borra la b\u00fasqueda. Las estrellas actuales y colonizadas conservan su estilo de estado.",
     searchUnavailableInMode: "La b\u00fasqueda solo est\u00e1 disponible en Normal y Distancia.",
@@ -285,7 +285,7 @@ const additionalMessages: Readonly<
     mapModeNormal: "Normal",
     mapModeDistance: "Distância",
     mapModeStudied: "Estudadas",
-    mapModeInRange: "Ao alcance",
+    mapModeInRange: "Ao Alcance",
     mapModesHelp:
       "Normal mostra todo o campo estelar, incluindo estrelas n\u00e3o estudadas. Dist\u00e2ncia colore as estrelas estudadas pela dist\u00e2ncia; a mais distante aparece em vermelho. Estudadas mostra apenas estrelas estudadas. Ao alcance tamb\u00e9m mostra apenas estrelas estudadas e colore em vermelho os destinos cujo custo de viagem supera a antimat\u00e9ria atual. A pesquisa fica dispon\u00edvel em Normal e Dist\u00e2ncia; mudar para Estudadas ou Ao alcance limpa a pesquisa. As estrelas atual e colonizadas mant\u00eam o estilo de estado.",
     searchUnavailableInMode:
@@ -328,7 +328,7 @@ const additionalMessages: Readonly<
     mapModesLabel: "Anzeigemodi der Sternkarte",
     mapModeNormal: "Normal",
     mapModeDistance: "Entfernung",
-    mapModeStudied: "Erforscht",
+    mapModeStudied: "Untersucht",
     mapModeInRange: "In Reichweite",
     mapModesHelp:
       "Normal zeigt das gesamte Sternenfeld einschlie\u00dflich unerforschter Sterne. Entfernung f\u00e4rbt erforschte Sterne nach Entfernung; der am weitesten entfernte erscheint rot. Erforscht zeigt nur erforschte Sterne. In Reichweite zeigt ebenfalls nur erforschte Sterne und f\u00e4rbt Ziele rot, deren Reisekosten die aktuelle Antimaterie \u00fcbersteigen. Die Suche ist in Normal und Entfernung verf\u00fcgbar; beim Wechsel zu Erforscht oder In Reichweite wird die Suche geleert. Aktuelle und besiedelte Sterne behalten ihre Statusfarbe.",
@@ -374,7 +374,7 @@ const additionalMessages: Readonly<
     mapModeNormal: "Normale",
     mapModeDistance: "Distanza",
     mapModeStudied: "Studiate",
-    mapModeInRange: "A portata",
+    mapModeInRange: "A Portata",
     mapModesHelp:
       "Normale mostra l'intero campo stellare, incluse le stelle non studiate. Distanza colora le stelle studiate in base alla distanza; la pi\u00f9 lontana appare rossa. Studiate mostra solo le stelle studiate. A portata mostra solo le stelle studiate e colora in rosso le destinazioni il cui costo di viaggio supera l'antimateria attuale. La ricerca \u00e8 disponibile in Normale e Distanza; passando a Studiate o A portata la ricerca viene cancellata. Le stelle attuali e colonizzate mantengono il loro stile di stato.",
     searchUnavailableInMode: "La ricerca \u00e8 disponibile solo in Normale e Distanza.",
@@ -415,10 +415,10 @@ const additionalMessages: Readonly<
   },
   fr: {
     mapModesLabel: "Modes d'affichage de la carte stellaire",
-    mapModeNormal: "Normal",
+    mapModeNormal: "Normale",
     mapModeDistance: "Distance",
     mapModeStudied: "\u00c9tudi\u00e9es",
-    mapModeInRange: "\u00c0 port\u00e9e",
+    mapModeInRange: "\u00c0 Port\u00e9e",
     mapModesHelp:
       "Normal affiche tout le champ stellaire, y compris les \u00e9toiles non \u00e9tudi\u00e9es. Distance colore les \u00e9toiles \u00e9tudi\u00e9es selon leur distance; la plus \u00e9loign\u00e9e appara\u00eet en rouge. \u00c9tudi\u00e9es affiche uniquement les \u00e9toiles \u00e9tudi\u00e9es. \u00c0 port\u00e9e affiche aussi uniquement les \u00e9toiles \u00e9tudi\u00e9es et colore en rouge les destinations dont le co\u00fbt de voyage d\u00e9passe l'antimati\u00e8re actuelle. La recherche est disponible en modes Normal et Distance; passer \u00e0 \u00c9tudi\u00e9es ou \u00c0 port\u00e9e efface la recherche. Les \u00e9toiles actuelle et colonis\u00e9es gardent leur style d'\u00e9tat.",
     searchUnavailableInMode: "La recherche est disponible en modes Normal et Distance.",

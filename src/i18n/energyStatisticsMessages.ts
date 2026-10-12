@@ -31,7 +31,7 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
     sodiumIonBatteries: "Sodium Ion Batteries",
     battery2: "Battery2",
     battery3: "Battery3",
-    notApplicable: "Not applicable",
+    notApplicable: "N/A",
   },
   es: {
     energySection: "Energía",
@@ -47,7 +47,7 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
     sodiumIonBatteries: "Baterías de ion sodio",
     battery2: "Batería2",
     battery3: "Batería3",
-    notApplicable: "No disponible",
+    notApplicable: "N/D",
   },
   pt: {
     energySection: "Energia",
@@ -63,7 +63,7 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
     sodiumIonBatteries: "Baterias de íons de sódio",
     battery2: "Bateria2",
     battery3: "Bateria3",
-    notApplicable: "Não aplicável",
+    notApplicable: "N/D",
   },
   de: {
     energySection: "Energie",
@@ -79,7 +79,7 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
     sodiumIonBatteries: "Natrium-Ionen-Batterien",
     battery2: "Batterie2",
     battery3: "Batterie3",
-    notApplicable: "Nicht zutreffend",
+    notApplicable: "K.A.",
   },
   it: {
     energySection: "Energia",
@@ -95,7 +95,7 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
     sodiumIonBatteries: "Batterie agli ioni di sodio",
     battery2: "Batteria2",
     battery3: "Batteria3",
-    notApplicable: "Non applicabile",
+    notApplicable: "N/D",
   },
   fr: {
     energySection: "Énergie",
@@ -111,7 +111,7 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
     sodiumIonBatteries: "Batteries sodium-ion",
     battery2: "Batterie2",
     battery3: "Batterie3",
-    notApplicable: "Sans objet",
+    notApplicable: "S.O.",
   },
 };
 

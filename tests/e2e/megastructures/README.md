@@ -22,7 +22,7 @@ main tab. This test forces only the pending-story flag in a saved envelope; it
 does not repeat the natural late-game route. The combined installed-Chrome
 P-16 batch passed 9/9 selected routes in 29.8 seconds on port 4261.
 
-**P-45 homecoming-story locale coverage (9 October 2026):** the seeded
+<a id="p-45-homecoming-story-locale-coverage-9-october-2026"></a> **P-45 homecoming-story locale coverage (9 October 2026):** the seeded
 `late-game-homecoming-continuation` journey now switches through all six
 locales on each of the four visible story pages. It checks the document
 language, localized title, chapter counter, page text, and Continue label,

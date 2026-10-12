@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { BLACK_HOLE_BASE_CHARGE_MS, type BlackHoleUpgradeId } from "../content/blackHole";
+import {
+  BLACK_HOLE_BASE_CHARGE_MS,
+  BLACK_HOLE_DURATION_INCREMENT_MS,
+  BLACK_HOLE_HIGH_POWER_INCREMENT,
+  BLACK_HOLE_MINIMUM_CHARGE_MS,
+  BLACK_HOLE_POWER_INCREMENT,
+  BLACK_HOLE_RECHARGE_FACTOR,
+  type BlackHoleUpgradeId,
+} from "../content/blackHole";
 import { BLACK_HOLE_CHARGE_TIMER_ID } from "../engine/blackHole";
 import type { GameCommand } from "../engine/commands";
 import { selectEconomyAction, type EconomyActionSelection } from "../engine/selectors";
@@ -28,6 +36,47 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
   const locale = state.settings.locale;
   const copy = blackHoleText(locale);
   const hole = state.permanent.blackHole;
+  const nextPower =
+    hole.power +
+    (hole.power >= 50 ? BLACK_HOLE_HIGH_POWER_INCREMENT : BLACK_HOLE_POWER_INCREMENT);
+  const currentChargeMs = Math.round(BLACK_HOLE_BASE_CHARGE_MS * hole.rechargeMultiplier);
+  const nextRechargeMultiplier = Math.max(
+    BLACK_HOLE_MINIMUM_CHARGE_MS / BLACK_HOLE_BASE_CHARGE_MS,
+    hole.rechargeMultiplier * BLACK_HOLE_RECHARGE_FACTOR,
+  );
+  const nextChargeMs = Math.max(
+    BLACK_HOLE_MINIMUM_CHARGE_MS,
+    Math.round(BLACK_HOLE_BASE_CHARGE_MS * nextRechargeMultiplier),
+  );
+  const rechargeMaxed = hole.alwaysOn || currentChargeMs <= BLACK_HOLE_MINIMUM_CHARGE_MS;
+  const upgradeValues: Record<
+    BlackHoleUpgradeId,
+    {
+      readonly current: number;
+      readonly next: number;
+      readonly unit: string;
+      readonly digits: number;
+    }
+  > = {
+    power: {
+      current: hole.power,
+      next: nextPower,
+      unit: "×",
+      digits: Number.isInteger(hole.power) && Number.isInteger(nextPower) ? 0 : 1,
+    },
+    duration: {
+      current: hole.durationMs / 1000,
+      next: (hole.durationMs + BLACK_HOLE_DURATION_INCREMENT_MS) / 1000,
+      unit: " s",
+      digits: 0,
+    },
+    recharge: {
+      current: Math.max(BLACK_HOLE_MINIMUM_CHARGE_MS, currentChargeMs) / 1000,
+      next: nextChargeMs / 1000,
+      unit: " s",
+      digits: 1,
+    },
+  };
   const chargeTimer = state.run.timers[BLACK_HOLE_CHARGE_TIMER_ID];
   const charging = chargeTimer?.status === "running";
   const chargeProgress = charging
@@ -213,6 +262,19 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
               const price = hole[`${upgradeId}Price`];
               const selection = selectEconomyAction(state, nextCommand);
               const reason = disabledReason(selection);
+              const isMaxed = upgradeId !== "power" && rechargeMaxed;
+              const isFinalRechargeUpgrade =
+                upgradeId === "recharge" &&
+                !rechargeMaxed &&
+                nextChargeMs <= BLACK_HOLE_MINIMUM_CHARGE_MS;
+              const maxedCopy =
+                upgradeId === "duration"
+                  ? copy.upgradeMaxed.duration
+                  : copy.upgradeMaxed.recharge.replace(
+                      "{seconds}",
+                      number(state, BLACK_HOLE_MINIMUM_CHARGE_MS / 1000),
+                    );
+              const value = upgradeValues[upgradeId];
               return (
                 <div className="black-hole-upgrade" key={upgradeId}>
                   <button
@@ -222,7 +284,33 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
                     aria-describedby={reason ? `black-hole-${upgradeId}-reason` : undefined}
                     onClick={() => runCommand(nextCommand)}
                   >
-                    {copy.upgradeNames[upgradeId]} · {number(state, price)} RP
+                    <span>{copy.upgradeNames[upgradeId]}</span>
+                    {isMaxed ? (
+                      <span>
+                        {upgradeId === "duration" ? copy.duration : copy.recharge}: {maxedCopy}
+                      </span>
+                    ) : isFinalRechargeUpgrade ? (
+                      <>
+                        <span>
+                          {number(state, value.current, value.digits)}
+                          {value.unit} → {copy.rechargeFinalUpgrade}
+                        </span>
+                        <span>
+                          {number(state, price)} {copy.researchPoints}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {number(state, value.current, value.digits)}
+                          {value.unit} → {number(state, value.next, value.digits)}
+                          {value.unit}
+                        </span>
+                        <span>
+                          {number(state, price)} {copy.researchPoints}
+                        </span>
+                      </>
+                    )}
                   </button>
                   {reason && (
                     <p className="control-reason" id={`black-hole-${upgradeId}-reason`}>

@@ -916,7 +916,7 @@ test("a second tab can play its loaded snapshot but cannot write over the active
   await expect(secondTab.locator(".save-conflict-banner")).toContainText(frenchConflict);
 
   await openSaveSettings(secondTab);
-  await expect(secondTab.getByTestId("save-status")).toHaveAttribute("aria-live", "polite");
+  await expect(secondTab.getByTestId("save-status")).not.toHaveAttribute("aria-live");
   await expect(secondTab.getByTestId("save-status")).toContainText(frenchConflict);
   await secondTab.locator("#tab-hydrogen").click();
   await expect(conflictAnnouncement).toHaveText(frenchConflict);

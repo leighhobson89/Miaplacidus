@@ -9,6 +9,7 @@ const en = {
     "Your Starship has reached orbit of the {star} System.\n\nThe star burns with a ferocity you have only ever seen in theory.\nAn O-type sun: rare, impossibly bright, and violently alive.\n\nThe crew falls silent.\nEven the instruments hesitate before agreeing on the readings.",
   factoryStarReachedText:
     "Your Starship arrived at the {star} System!\nYou gasp at what you see! The main star has been completely enveloped by a gigantic structure!\nIt looks to be some kind of {structure}\nNo wonder we didn't discover this System before,\nthe star is not visible due to the size of this structure!\nThis system is going to be heavily defended for sure, but if we can conquer it,\nfor sure it will open up vast opportunities for us...",
+  megastructureOptionAvailable: "The MegaStructure Option is now available in the Galactic Tab!",
   galacticTabUnlocked: "Galactic Tab Unlocked!",
   telescopeBuilt: "Space Telescope Built!",
   launchPadBuilt: "Launch Pad Built!",
@@ -23,8 +24,6 @@ const en = {
     "Legendary Asteroid Discovered!\n\nThey named it after you!\n\n{asteroid}",
   rocketLaunched: "{rocket} Launched!",
   rocketFuelReady: "{rocket} is ready for Launch!",
-  rocketOutbound: "{rocket} is travelling to {asteroid}.",
-  rocketReturning: "{rocket} is returning from {asteroid}.",
   rocketArrived: "{rocket} has reached {asteroid} and started mining Antimatter!",
   rocketReturned: "{rocket} has returned to be refuelled!",
   rain: "Rain in {system} is blocking rocket launches.",
@@ -68,6 +67,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "Tu Nave Estelar ha alcanzado la órbita del Sistema {star}.\n\nLa estrella arde con una ferocidad que solo has visto en teoría.\nUn sol tipo O: raro, increíblemente brillante, y violentamente vivo.\n\nLa tripulación calla.\nIncluso los instrumentos dudan antes de ponerse de acuerdo en las lecturas.",
     factoryStarReachedText:
       "¡Tu nave estelar ha llegado al sistema {star}!\n¡Te quedas boquiabierto! ¡La estrella principal está completamente envuelta por una estructura gigantesca!\nParece ser una especie de {structure}\nCon razón no habíamos descubierto este sistema antes:\n¡la estrella no se ve debido al tamaño de esta estructura!\nSeguro que este sistema estará fuertemente defendido, pero si logramos conquistarlo,\nsin duda nos abrirá enormes oportunidades...",
+    megastructureOptionAvailable:
+      "¡La opción de Megaestructura ya está disponible en la pestaña Galáctica!",
     galacticTabUnlocked: "¡Pestaña Galáctica desbloqueada!",
     telescopeBuilt: "¡Telescopio Espacial construido!",
     launchPadBuilt: "¡Plataforma de Lanzamiento construida!",
@@ -82,8 +83,6 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "¡Asteroide legendario descubierto!\n\n¡Le han puesto tu nombre!\n\n{asteroid}",
     rocketLaunched: "¡{rocket} lanzado!",
     rocketFuelReady: "¡{rocket} está listo para el lanzamiento!",
-    rocketOutbound: "{rocket} viaja hacia {asteroid}.",
-    rocketReturning: "{rocket} regresa desde {asteroid}.",
     rocketArrived: "¡{rocket} ha llegado a {asteroid} y ha empezado a extraer Antimateria!",
     rocketReturned: "¡{rocket} ha vuelto para repostar!",
     rain: "La lluvia en {system} impide los lanzamientos de cohetes.",
@@ -121,6 +120,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "A tua Nave Estelar alcançou a órbita do Sistema {star}.\n\nA estrela arde com uma ferocidade que só viste em teoria.\nUma estrela de tipo O: rara, incrivelmente brilhante e violentamente viva.\n\nA tripulação fica em silêncio.\nAté os instrumentos hesitam antes de concordarem com as leituras.",
     factoryStarReachedText:
       "A tua nave estelar chegou ao sistema {star}!\nFicas boquiaberto! A estrela principal está completamente envolta por uma estrutura gigantesca!\nParece ser uma espécie de {structure}\nNão é de admirar que não tivéssemos descoberto este sistema antes:\na estrela não é visível devido ao tamanho desta estrutura!\nCertamente este sistema será fortemente defendido, mas se conseguirmos conquistá-lo,\nsem dúvida abrirá enormes oportunidades para nós...",
+    megastructureOptionAvailable:
+      "A opção de Megaestrutura já está disponível no separador Galáctico!",
     galacticTabUnlocked: "Separador Galáctico desbloqueado!",
     telescopeBuilt: "Telescópio Espacial construído!",
     launchPadBuilt: "Plataforma de Lançamento construída!",
@@ -135,8 +136,6 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "Asteroide lendário descoberto!\n\nDeram-lhe o teu nome!\n\n{asteroid}",
     rocketLaunched: "{rocket} lançado!",
     rocketFuelReady: "{rocket} está pronto para o lançamento!",
-    rocketOutbound: "{rocket} está a caminho de {asteroid}.",
-    rocketReturning: "{rocket} está voltando de {asteroid}.",
     rocketArrived: "{rocket} chegou a {asteroid} e começou a extrair Antimatéria!",
     rocketReturned: "{rocket} regressou para reabastecer!",
     rain: "A chuva em {system} está impedindo lançamentos de foguetes.",
@@ -174,6 +173,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "Dein Sternenschiff hat die Umlaufbahn des {star}-Systems erreicht.\n\nDer Stern brennt mit einer Wildheit, die du nur in der Theorie gesehen hast.\nEine Sonne vom Typ O: selten, unglaublich hell und gewaltsam lebendig.\n\nDie Crew verstummt.\nSelbst die Instrumente zögern, bevor sie sich über die Messwerte einig sind.",
     factoryStarReachedText:
       "Dein Raumschiff hat das System {star} erreicht!\nDu staunst über das, was du siehst! Der Hauptstern ist vollständig von einer gigantischen Struktur umhüllt!\nEs scheint sich um eine Art {structure} zu handeln\nKein Wunder, dass wir dieses System bisher nicht entdeckt haben,\nder Stern ist wegen der Größe dieser Struktur nicht sichtbar!\nDieses System wird sicher stark verteidigt sein, aber wenn wir es erobern können,\neröffnet es uns ganz sicher gewaltige Möglichkeiten...",
+    megastructureOptionAvailable:
+      "Die Megastruktur-Option ist jetzt im Galaktischen Tab verfügbar!",
     galacticTabUnlocked: "Galaktischer Tab freigeschaltet!",
     telescopeBuilt: "Weltraumteleskop gebaut!",
     launchPadBuilt: "Startplattform gebaut!",
@@ -188,8 +189,6 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "Legendärer Asteroid entdeckt!\n\nEr wurde nach dir benannt!\n\n{asteroid}",
     rocketLaunched: "{rocket} gestartet!",
     rocketFuelReady: "{rocket} ist startbereit!",
-    rocketOutbound: "{rocket} fliegt zu {asteroid}.",
-    rocketReturning: "{rocket} kehrt von {asteroid} zurück.",
     rocketArrived: "{rocket} hat {asteroid} erreicht und beginnt mit dem Antimaterie-Abbau!",
     rocketReturned: "{rocket} ist zum Auftanken zurückgekehrt!",
     rain: "Regen auf {system} verhindert Raketenstarts.",
@@ -227,6 +226,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "La tua Nave Stellare ha raggiunto l'orbita del Sistema {star}.\n\nLa stella brucia con una ferocia che hai visto solo in teoria.\nUn sole di tipo O: raro, incredibilmente luminoso, e violentemente vivo.\n\nL'equipaggio tace.\nPersino gli strumenti esitano prima di concordare sulle letture.",
     factoryStarReachedText:
       "La tua astronave è arrivata al sistema {star}!\nResti a bocca aperta! La stella principale è completamente avvolta da una struttura gigantesca!\nSembra essere una specie di {structure}\nNon c'è da stupirsi che non avessimo scoperto prima questo sistema:\nla stella non è visibile a causa delle dimensioni di questa struttura!\nQuesto sistema sarà sicuramente ben difeso, ma se riusciamo a conquistarlo,\nci aprirà di certo enormi opportunità...",
+    megastructureOptionAvailable:
+      "L'opzione Megastruttura è ora disponibile nella scheda Galattica!",
     galacticTabUnlocked: "Scheda Galattica sbloccata!",
     telescopeBuilt: "Telescopio Spaziale costruito!",
     launchPadBuilt: "Piattaforma di Lancio costruita!",
@@ -241,8 +242,6 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "Asteroide leggendario scoperto!\n\nGli hanno dato il tuo nome!\n\n{asteroid}",
     rocketLaunched: "{rocket} lanciato!",
     rocketFuelReady: "{rocket} è pronto al lancio!",
-    rocketOutbound: "{rocket} sta viaggiando verso {asteroid}.",
-    rocketReturning: "{rocket} sta tornando da {asteroid}.",
     rocketArrived: "{rocket} ha raggiunto {asteroid} e ha iniziato a estrarre Antimateria!",
     rocketReturned: "{rocket} è tornato per il rifornimento!",
     rain: "La pioggia su {system} impedisce i lanci dei razzi.",
@@ -280,6 +279,8 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "Ton Vaisseau Stellaire a atteint l'orbite du Système {star}.\n\nL'étoile brûle avec une férocité que tu n'as vue qu'en théorie.\nUn soleil de type O: rare, incroyablement brillant, et violemment vivant.\n\nL'équipage se tait.\nMême les instruments hésitent avant de s'accorder sur les lectures.",
     factoryStarReachedText:
       "Votre vaisseau est arrivé dans le système {star}!\nVous restez bouche bée! L'étoile principale est entièrement enveloppée par une structure gigantesque!\nCela semble être une sorte de {structure}\nPas étonnant que nous n'ayons pas découvert ce système plus tôt,\nl'étoile est invisible à cause de la taille de cette structure!\nCe système sera sûrement lourdement défendu, mais si nous parvenons à le conquérir,\nil nous ouvrira à coup sûr d'immenses opportunités...",
+    megastructureOptionAvailable:
+      "L'option Mégastructure est désormais disponible dans l'onglet Galactique!",
     galacticTabUnlocked: "Onglet Galactique débloqué!",
     telescopeBuilt: "Télescope Spatial construit!",
     launchPadBuilt: "Pas de Tir construit!",
@@ -294,8 +295,6 @@ export const SPACE_NOTIFICATION_MESSAGES: Record<
       "Astéroïde légendaire découvert!\n\nIl porte votre nom!\n\n{asteroid}",
     rocketLaunched: "{rocket} lancé!",
     rocketFuelReady: "{rocket} est prêt au lancement!",
-    rocketOutbound: "{rocket} se dirige vers {asteroid}.",
-    rocketReturning: "{rocket} revient de {asteroid}.",
     rocketArrived: "{rocket} a atteint {asteroid} et a commencé à extraire de l'Antimatière!",
     rocketReturned: "{rocket} est revenu pour être ravitaillé!",
     rain: "La pluie sur {system} empêche les lancements de fusées.",

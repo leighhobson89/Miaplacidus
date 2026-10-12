@@ -152,7 +152,7 @@ localized confirmation prompt states that conversion uses the current AP
 price. There is no source-style tooltip repeating the base-rate and rounding
 formula. The existing E-57 Market locale case verifies preview and dialog copy
 in all six locales at 320px/390px; the source/target distinction is recorded
-in the [P-44 handoff](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+in the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 ## P-56 Galactic Market content visual matrix (10 October 2026)
 

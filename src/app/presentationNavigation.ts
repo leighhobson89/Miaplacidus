@@ -541,7 +541,7 @@ export function cosmicRipPaneItems(
     });
   }
   if (state.permanent.cosmicRip.ripFound) {
-    items.push({ id: "cosmic-rip-rip", label: copy.title, sourceOptionId: "option3" });
+    items.push({ id: "cosmic-rip-rip", label: copy.ripPaneTitle, sourceOptionId: "option3" });
   }
   return items;
 }

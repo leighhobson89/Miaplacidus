@@ -42,6 +42,7 @@ interface SettingsPaneProps {
   readonly onPaneVisit: (id: string) => void;
   readonly onNavigateToPane?: (paneId: string) => void;
   readonly saveStatus: string;
+  readonly saveStatusAnnouncementEnabled: boolean;
   readonly savePersistent: boolean;
   readonly autoSaveEnabled: boolean;
   readonly autoSaveInterval: 300 | 900 | 1800 | 3600;
@@ -82,6 +83,7 @@ export const SettingsPane = memo(function SettingsPane({
   onPaneVisit,
   onNavigateToPane,
   saveStatus,
+  saveStatusAnnouncementEnabled,
   savePersistent,
   autoSaveEnabled,
   autoSaveInterval,
@@ -615,13 +617,14 @@ export const SettingsPane = memo(function SettingsPane({
             <p className="pane-intro">{settingsText(locale, "savingSectionDescription")}</p>
             <section className="settings-save-controls">
               <div className="settings-section-heading">
-                <output
+                <div
                   className={savePersistent ? "save-state saved-state" : "save-state unsaved-state"}
                   data-testid="save-status"
-                  aria-live="polite"
+                  role={saveStatusAnnouncementEnabled ? "status" : undefined}
+                  aria-live={saveStatusAnnouncementEnabled ? "polite" : undefined}
                 >
                   {saveStatus}
-                </output>
+                </div>
               </div>
               <div className="settings-save-options">
                 <label className="settings-toggle" htmlFor="settings-autosave">

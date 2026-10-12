@@ -4608,6 +4608,48 @@ body:has(.game-frame[data-theme="space"]) {
   backdrop-filter: blur(6px);
 }
 
+.random-event-result-dialog {
+  width: min(36rem, calc(100vw - 2rem));
+  max-width: none;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  margin: auto;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.55);
+}
+
+.random-event-result-dialog::backdrop {
+  background: rgba(2, 7, 18, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.random-event-result-dialog h2 {
+  margin: 0 0 1rem;
+  color: var(--ink);
+  font-family: var(--font-display);
+  overflow-wrap: anywhere;
+}
+
+.random-event-result-copy p {
+  margin: 0 0 0.85rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.random-event-result-copy p:last-child {
+  margin-bottom: 0;
+}
+
+.random-event-result-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.4rem;
+}
+
 .miaplacidus-story-dialog h2 {
   margin: 0 0 1rem;
   color: var(--ink);
@@ -5207,6 +5249,12 @@ body:has(.game-frame[data-theme="space"]) {
 }
 .space-rocket-card h4 {
   margin: 0;
+}
+.space-rocket-card .space-card-heading h3 {
+  min-width: 0;
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 .space-rocket-rename {
   display: grid;
@@ -6479,6 +6527,404 @@ body:has(.game-frame[data-theme="space"]) {
   margin: 0;
   overflow-wrap: anywhere;
   text-align: center;
+}
+
+.cosmic-rip-closed-title {
+  margin: 0;
+  color: var(--accent-bright, #59d5c8);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.cosmic-rip-cinematic {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  color: #e9f6ff;
+  background: #02050c;
+}
+
+.cosmic-rip-cinematic-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 900px at 78% 78%, rgb(0 120 70 / 25%), transparent 60%),
+    radial-gradient(900px 700px at 92% 60%, rgb(0 150 90 / 18%), transparent 62%),
+    #000;
+}
+
+.cosmic-rip-cinematic-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgb(120 255 180 / 95%) 0 1px, transparent 2px),
+    radial-gradient(circle at 22% 75%, rgb(255 255 255 / 85%) 0 1px, transparent 2px),
+    radial-gradient(circle at 35% 40%, rgb(255 255 255 / 75%) 0 1px, transparent 2px),
+    radial-gradient(circle at 60% 25%, rgb(140 255 210 / 90%) 0 1px, transparent 2px),
+    radial-gradient(circle at 75% 70%, rgb(255 255 255 / 70%) 0 1px, transparent 2px),
+    radial-gradient(circle at 88% 18%, rgb(255 255 255 / 60%) 0 1px, transparent 2px);
+  background-size: 440px 440px, 520px 520px, 600px 600px, 680px 680px, 760px 760px, 840px 840px;
+  background-position: 0 0;
+  filter: drop-shadow(0 0 2px rgb(120 255 200 / 18%));
+  animation: cosmic-rip-starfield-drift 36s linear infinite;
+}
+
+.cosmic-rip-cinematic-star {
+  position: absolute;
+  left: var(--star-left);
+  top: var(--star-top);
+  width: var(--star-size);
+  height: var(--star-size);
+  border-radius: 50%;
+  background: #d5fff3;
+  box-shadow: 0 0 0.65rem rgb(104 255 225 / 75%);
+  animation: cosmic-rip-star-twinkle 2.8s ease-in-out var(--star-delay) infinite alternate;
+}
+
+.cosmic-rip-cinematic-rip {
+  position: absolute;
+  left: 7.5%;
+  top: 5.5%;
+  width: min(26vw, 13.125rem);
+  height: min(52vh, 23.75rem);
+  min-height: 12rem;
+  overflow: visible;
+  transform: rotate(-6deg);
+  filter: drop-shadow(0 0 1rem rgb(110 255 170 / 55%)) drop-shadow(0 0 1.5rem rgb(0 160 80 / 35%));
+  animation: cosmic-rip-rift-close 14s ease-in-out forwards;
+}
+
+.cosmic-rip-cinematic-rip::before,
+.cosmic-rip-cinematic-rip::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(46% 0%, 58% 10%, 62% 25%, 55% 40%, 60% 55%, 54% 70%, 58% 86%, 50% 100%, 42% 88%, 45% 70%, 40% 55%, 46% 40%, 40% 25%, 44% 10%);
+}
+
+.cosmic-rip-cinematic-rip::before {
+  border-radius: 58% 42% 65% 35% / 22% 30% 70% 78%;
+  background:
+    radial-gradient(circle at 40% 30%, rgb(0 0 0 / 95%) 0 35%, rgb(0 0 0 / 65%) 36% 50%, transparent 55%),
+    radial-gradient(closest-side at 50% 50%, rgb(40 255 170 / 25%), rgb(0 170 90 / 8%) 55%, transparent 75%),
+    linear-gradient(180deg, rgb(30 255 160 / 75%), rgb(0 120 50 / 22%) 55%, transparent 100%);
+}
+
+.cosmic-rip-cinematic-rip::after {
+  inset: -0.625rem;
+  border-radius: 58% 42% 65% 35% / 22% 30% 70% 78%;
+  background: radial-gradient(circle at 45% 28%, rgb(200 255 240 / 18%), rgb(40 255 170 / 14%) 30%, transparent 62%);
+  mix-blend-mode: screen;
+  filter: blur(0.4px);
+}
+
+.cosmic-rip-cinematic-rip-zip {
+  position: absolute;
+  z-index: 1;
+  left: 7.5%;
+  top: 5.5%;
+  width: min(26vw, 13.125rem);
+  height: min(52vh, 23.75rem);
+  min-height: 12rem;
+  transform: rotate(-6deg);
+  opacity: 0;
+  filter: drop-shadow(0 0 0.8rem #a6ffe8);
+  animation: cosmic-rip-zip-sequence 14s ease-in-out forwards;
+}
+
+.cosmic-rip-cinematic-rip-zip::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    radial-gradient(circle at 50% 50%, rgb(0 0 0 / 35%), transparent 70%),
+    linear-gradient(90deg, transparent 0%, rgb(20 255 150 / 65%) 46%, rgb(230 255 250 / 95%) 50%, rgb(20 255 150 / 65%) 54%, transparent 100%),
+    linear-gradient(180deg, rgb(40 255 170 / 55%), rgb(0 120 60 / 18%) 60%, transparent 100%);
+  clip-path: polygon(48% 0%, 52% 0%, 54% 12%, 52% 25%, 54% 38%, 52% 50%, 54% 62%, 52% 75%, 54% 88%, 52% 100%, 48% 100%, 46% 88%, 48% 75%, 46% 62%, 48% 50%, 46% 38%, 48% 25%, 46% 12%);
+}
+
+.cosmic-rip-cinematic-flash {
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / 50%);
+  opacity: 0;
+  animation: cosmic-rip-flash 14s ease-out forwards;
+}
+
+.cosmic-rip-cinematic-ship {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1rem;
+  height: 1rem;
+  clip-path: polygon(50% 0%, 0 100%, 100% 100%);
+  background: rgb(220 255 245 / 85%);
+  filter: drop-shadow(0 0 0.3rem rgb(120 255 230 / 25%));
+  animation: cosmic-rip-ship-flight var(--ship-duration) linear var(--ship-delay) both;
+}
+
+.cosmic-rip-cinematic-credits,
+.cosmic-rip-cinematic-victory,
+.cosmic-rip-cinematic-end {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  width: min(92vw, 58rem);
+  text-align: center;
+  text-shadow: 0 0 1.2rem rgb(79 255 217 / 50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cosmic-rip-cinematic-credits {
+  top: 60%;
+  transform: translateX(-50%);
+  color: #aefbea;
+  font-size: clamp(0.8rem, 2.5vw, 1.25rem);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: normal;
+  overflow-wrap: anywhere;
+}
+
+.cosmic-rip-cinematic-credits h3 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(0.85rem, 2vw, 1.15rem);
+  letter-spacing: 0.18em;
+}
+
+.cosmic-rip-cinematic-credits ul {
+  display: grid;
+  gap: clamp(0.2rem, 0.8vh, 0.45rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cosmic-rip-cinematic-credits p {
+  margin: 0;
+}
+
+.cosmic-rip-cinematic-credit-game {
+  margin-top: 0.65rem !important;
+  font-size: 0.82em;
+}
+
+.cosmic-rip-cinematic-victory {
+  top: 10%;
+  width: 90vw;
+  display: grid;
+  gap: clamp(0.35rem, 1.2vh, 0.8rem);
+  transform: translateX(-50%);
+  animation: cosmic-rip-victory-sequence 22s ease-in-out forwards;
+}
+
+.cosmic-rip-cinematic-victory strong {
+  color: #a8ffe6;
+  font-size: clamp(2.4rem, 8vw, 6rem);
+  letter-spacing: 0.14em;
+}
+
+.cosmic-rip-cinematic-victory span {
+  font-size: clamp(1rem, 2.7vw, 1.75rem);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.cosmic-rip-cinematic[data-stage="credits"] .cosmic-rip-cinematic-credits {
+  animation: cosmic-rip-credits-roll 12s linear forwards;
+}
+
+.cosmic-rip-cinematic-blackout {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: none;
+  overflow: hidden;
+  background: var(--container-bg-color, #1e1e1e);
+  opacity: 0;
+  transition: opacity 0.95s ease;
+}
+
+.cosmic-rip-cinematic-blackout .cosmic-rip-cinematic-star {
+  background: var(--green-ready-text, #d7ff70);
+  box-shadow: 0 0 4px var(--green-ready-text, #d7ff70);
+  animation: none;
+  opacity: 1;
+}
+
+.cosmic-rip-cinematic[data-stage="closing"] .cosmic-rip-cinematic-blackout,
+.cosmic-rip-cinematic[data-stage="blackout"] .cosmic-rip-cinematic-blackout,
+.cosmic-rip-cinematic[data-stage="end"] .cosmic-rip-cinematic-blackout {
+  display: block;
+}
+
+.cosmic-rip-cinematic[data-stage="blackout"] .cosmic-rip-cinematic-scene,
+.cosmic-rip-cinematic[data-stage="end"] .cosmic-rip-cinematic-scene {
+  opacity: 0;
+  transition: opacity 0.95s ease;
+}
+
+.cosmic-rip-cinematic[data-stage="blackout"] .cosmic-rip-cinematic-blackout,
+.cosmic-rip-cinematic[data-stage="end"] .cosmic-rip-cinematic-blackout {
+  opacity: 1;
+}
+
+.cosmic-rip-cinematic-end {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--green-ready-text, #d7ff70);
+  font-size: clamp(2.5rem, 12vw, 12.5rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0;
+  transform: scale(0.9);
+  text-transform: uppercase;
+}
+
+.cosmic-rip-cinematic[data-stage="end"] .cosmic-rip-cinematic-end {
+  animation: cosmic-rip-the-end 1s ease-out 0s forwards;
+}
+
+.cosmic-rip-cinematic-skip {
+  position: absolute;
+  z-index: 3;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  min-width: 44px;
+  min-height: 44px;
+  max-width: min(90vw, 24rem);
+  white-space: normal;
+}
+
+.cosmic-rip-cinematic-skip:focus-visible {
+  outline: 3px solid #b6fff1;
+  outline-offset: 3px;
+}
+
+.cosmic-rip-cinematic-static-ending {
+  display: none;
+  position: relative;
+  z-index: 2;
+  width: min(88vw, 48rem);
+  padding: 1.25rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.cosmic-rip-cinematic-static-ending p {
+  margin: 0.75rem 0;
+  font-size: clamp(1rem, 3.2vw, 1.45rem);
+  line-height: 1.5;
+}
+
+.cosmic-rip-cinematic-static-ending > p:first-child {
+  color: #aefbea;
+  font-size: clamp(0.9rem, 2.6vw, 1.25rem);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.cosmic-rip-cinematic-static-ending h3 {
+  margin: 1.5rem 0;
+  color: #a8ffe6;
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  letter-spacing: 0.1em;
+}
+
+.cosmic-rip-cinematic-static-ending strong {
+  display: block;
+  margin-top: 2rem;
+  font-size: clamp(1.75rem, 7vw, 3.5rem);
+  letter-spacing: 0.14em;
+}
+
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-scene {
+  background: #000;
+}
+
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-stars,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-blackout,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-star,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-rip,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-rip-zip,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-flash,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-ships,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-credits,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-victory,
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-end {
+  display: none;
+  animation: none !important;
+  transition: none !important;
+}
+
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-static-ending {
+  display: block;
+}
+
+.cosmic-rip-cinematic[data-reduced-motion="true"] .cosmic-rip-cinematic-blackout {
+  display: none !important;
+}
+
+@keyframes cosmic-rip-starfield-drift {
+  to { background-position: 840px 480px; }
+}
+
+@keyframes cosmic-rip-star-twinkle {
+  to { opacity: 0.35; }
+}
+
+@keyframes cosmic-rip-rift-close {
+  0%, 44% { opacity: 1; }
+  53%, 100% { opacity: 0; }
+}
+
+@keyframes cosmic-rip-zip-sequence {
+  0%, 55% { opacity: 0; }
+  60%, 85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes cosmic-rip-credits-roll {
+  0% { opacity: 0; transform: translateX(-50%) translateY(100%); }
+  5% { opacity: 1; }
+  85% { opacity: 1; }
+  95%, 100% { opacity: 0; transform: translateX(-50%) translateY(-100%); }
+}
+
+@keyframes cosmic-rip-flash {
+  0%, 40%, 60%, 100% { opacity: 0; }
+  46% { opacity: 0.9; }
+}
+
+@keyframes cosmic-rip-ship-flight {
+  0% {
+    transform: translateX(var(--ship-start-x)) translateY(var(--ship-y)) rotate(var(--ship-rotation));
+    opacity: 0;
+  }
+  5%, 95% { opacity: 0.85; }
+  100% {
+    transform: translateX(var(--ship-end-x)) translateY(var(--ship-y)) rotate(var(--ship-rotation));
+    opacity: 0;
+  }
+}
+
+@keyframes cosmic-rip-victory-sequence {
+  0%, 74%, 100% { opacity: 0; }
+  78%, 88% { opacity: 1; }
+  92% { opacity: 0; }
+}
+
+@keyframes cosmic-rip-the-end {
+  to { opacity: 1; transform: scale(1); }
 }
 
 .cosmic-rip-section h3,

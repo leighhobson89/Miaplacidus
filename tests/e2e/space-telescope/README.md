@@ -580,7 +580,7 @@ or controlled source-save comparison was made.
 The Statistics row describes the Starship destination scan and the encounter
 report shown on Colonise; it is separate from asteroid/star survey counters on
 this Space Telescope page. Its source/selector scope and focused test evidence
-are recorded in the [Statistics parity plan](../../../docs/plans/statistics-presentation-parity.md#interstellar-system-scanned-scope-comparison-10-october-2026)
+are recorded in the [Statistics parity plan](../../../docs/plans/statistics-presentation-parity.md#interstellar-system-scanned-scope-comparison-updated-12-october-2026)
 and [Starship README](../starship/README.md#p-55-system-scanned-statistics-source-comparison-10-october-2026).
 
 ## P-44 Space Mining header-help inventory (10 October 2026)
@@ -604,7 +604,7 @@ and base travel time remain absent because they do not match the remake's data
 or travel-duration rules. The six-locale narrow-content case now asserts Mining,
 Launch Pad, and Asteroids help placement, the exact copy, and the Complexity
 value; it was added but not run. See the
-[P-44 handoff](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026)
+[P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026)
 for the individual source-to-target dispositions.
 
 ## P-56 Space Mining page content visual matrix (10 October 2026)

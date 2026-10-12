@@ -1,6 +1,17 @@
 import type { EconomicGoodId } from "./ids";
 
-export const COSMIC_RIP_SECTOR_COUNT = 9;
+export const COSMIC_RIP_SECTOR_IDS = [
+  "MIAPLAC-7411",
+  "MIAPLAC-7412",
+  "MIAPLAC-7413",
+  "MIAPLAC-7422",
+  "MIAPLAC-7423",
+  "MIAPLAC-7424",
+  "MIAPLAC-7432",
+  "MIAPLAC-7433",
+  "MIAPLAC-7434",
+] as const;
+export const COSMIC_RIP_SECTOR_COUNT = COSMIC_RIP_SECTOR_IDS.length;
 export const COSMIC_RIP_SCANNER_REPAIR_GP = 10;
 export const COSMIC_RIP_SCAN_GP = 1;
 export const COSMIC_RIP_CLOSURE_GP = 1;
@@ -10,12 +21,12 @@ export const COSMIC_RIP_UPGRADES = {
   sensorBuoy: {
     cash: 500_000,
     goods: { titanium: 100_000, silicon: 600_000 },
-    telemetryPerSecond: 0.04,
+    telemetryPerSecond: 4,
   },
   ripResearchOrbiter: {
     cash: 1_000_000,
     goods: { helium: 1_000_000, sodium: 1_000_000, steel: 500_000 },
-    telemetryPerSecond: 0.07,
+    telemetryPerSecond: 7,
   },
 } as const satisfies Record<
   string,

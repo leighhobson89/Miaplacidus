@@ -9,6 +9,7 @@ import {
   COSMIC_RIP_SCANNER_REPAIR_GP,
   COSMIC_RIP_SCAN_GP,
   COSMIC_RIP_SECTOR_COUNT,
+  COSMIC_RIP_SECTOR_IDS,
   COSMIC_RIP_TECHNOLOGIES,
   COSMIC_RIP_UPGRADES,
 } from "../../../src/content/cosmicRip";
@@ -198,7 +199,7 @@ test("P-54 E-57 Cosmic Rip sector scan prices fit in all locales at phone widths
         const status = isFound ? copy.sectorFound : scanCost;
         await expect(button).toHaveAttribute(
           "aria-label",
-          `${copy.sector} ${index + 1}, ${status}`,
+          `${COSMIC_RIP_SECTOR_IDS[index]}, ${status}`,
         );
         await expect(button.locator("small")).toHaveText(status);
         if (isFound) await expect(button).toBeDisabled();

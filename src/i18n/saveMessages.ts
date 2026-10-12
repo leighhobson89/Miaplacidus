@@ -117,7 +117,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     confirmDelete: "Confirm delete",
     exportFirst: "I exported this save or do not need it",
     export: "Portable save code",
-    copy: "Copy code",
+    copy: "Export",
     clipboardCopied: "Data copied to clipboard!",
     clipboardCopyError:
       "Error copying data! If on Chrome, this could be expected.  Select and copy the text string manually!",
@@ -157,7 +157,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errNotFound: "No saved game data found.",
     errGeneric: "That action could not be completed. Please try again.",
     paste: "Paste",
-    autoSave: "Automatic saving",
+    autoSave: "Auto Save",
     autoSaveDisabledWarning: "AUTOSAVE IS OFF, REMEMBER TO BACK UP SAVES MANUALLY",
     saveFrequency: "Save interval",
     every5Minutes: "5 minutes",
@@ -209,7 +209,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     confirmDelete: "Confirmar eliminación",
     exportFirst: "He exportado esta partida o no la necesito",
     export: "Código de partida",
-    copy: "Copiar código",
+    copy: "Exportar",
     clipboardCopied: "¡Datos copiados al portapapeles!",
     clipboardCopyError:
       "¡Error al copiar los datos! En Chrome esto puede ser normal. ¡Selecciona y copia el texto manualmente!",
@@ -252,7 +252,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errNotFound: "No se encontraron datos de partida guardada.",
     errGeneric: "No se pudo completar la operación. Inténtalo de nuevo.",
     paste: "Pegar",
-    autoSave: "Guardado automático",
+    autoSave: "Guardado Automático",
     autoSaveDisabledWarning:
       "EL GUARDADO AUTOMÁTICO ESTÁ DESACTIVADO, RECUERDA HACER COPIAS MANUALES",
     saveFrequency: "Intervalo de guardado",
@@ -306,7 +306,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     confirmDelete: "Confirmar exclusão",
     exportFirst: "Já exportei este salvamento ou não preciso dele",
     export: "Código portátil",
-    copy: "Copiar código",
+    copy: "Exportar",
     clipboardCopied: "Dados copiados para a área de transferência!",
     clipboardCopyError:
       "Erro ao copiar os dados! No Chrome isto pode ser normal. Seleciona e copia o texto manualmente!",
@@ -350,7 +350,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errNotFound: "Não foram encontrados dados de jogo guardados.",
     errGeneric: "Não foi possível concluir a operação. Tente novamente.",
     paste: "Colar",
-    autoSave: "Salvamento automático",
+    autoSave: "Guardado Automático",
     autoSaveDisabledWarning:
       "O GUARDADO AUTOMÁTICO ESTÁ DESATIVADO, LEMBRE-SE DE FAZER CÓPIAS MANUAIS",
     saveFrequency: "Intervalo de salvamento",
@@ -404,7 +404,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     confirmDelete: "Löschen bestätigen",
     exportFirst: "Ich habe diesen Spielstand exportiert oder brauche ihn nicht",
     export: "Übertragbarer Spielstandcode",
-    copy: "Code kopieren",
+    copy: "Exportieren",
     clipboardCopied: "Daten in die Zwischenablage kopiert!",
     clipboardCopyError:
       "Fehler beim Kopieren der Daten! In Chrome kann das normal sein. Markiere und kopiere den Text manuell!",
@@ -504,7 +504,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     confirmDelete: "Conferma eliminazione",
     exportFirst: "Ho esportato questo salvataggio o non mi serve",
     export: "Codice portatile",
-    copy: "Copia codice",
+    copy: "Esporta",
     clipboardCopied: "Dati copiati negli appunti!",
     clipboardCopyError:
       "Errore nella copia dei dati! Su Chrome può essere normale. Seleziona e copia il testo manualmente!",
@@ -548,7 +548,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errNotFound: "Nessun dato di salvataggio trovato.",
     errGeneric: "Operazione non riuscita. Riprova.",
     paste: "Incolla",
-    autoSave: "Salvataggio automatico",
+    autoSave: "Salvataggio Automatico",
     autoSaveDisabledWarning: "IL SALVATAGGIO AUTOMATICO È DISATTIVO, RICORDA DI FARE COPIE MANUALI",
     saveFrequency: "Intervallo di salvataggio",
     every5Minutes: "5 minuti",
@@ -602,7 +602,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     confirmDelete: "Confirmer la suppression",
     exportFirst: "J'ai exporté cette sauvegarde ou je n'en ai pas besoin",
     export: "Code de sauvegarde",
-    copy: "Copier le code",
+    copy: "Exporter",
     clipboardCopied: "Données copiées dans le presse-papiers!",
     clipboardCopyError:
       "Erreur lors de la copie des données! Sur Chrome, cela peut être normal. Sélectionnez et copiez le texte manuellement!",
@@ -645,7 +645,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errNotFound: "Aucune donnée de sauvegarde trouvée.",
     errGeneric: "L'opération n'a pas pu aboutir. Réessayez.",
     paste: "Coller",
-    autoSave: "Enregistrement automatique",
+    autoSave: "Sauvegarde Automatique",
     autoSaveDisabledWarning:
       "LA SAUVEGARDE AUTOMATIQUE EST DÉSACTIVÉE, PENSEZ À SAUVEGARDER MANUELLEMENT",
     saveFrequency: "Fréquence d'enregistrement",

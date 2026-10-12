@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type CasinoCardSuit, type CasinoSpecialPrize } from "../content/galacticCasino";
 import { ECONOMIC_GOOD_IDS, type EconomicGoodId } from "../content/ids";
 import { availableWheelSpecialPrizes, casinoUnlocked } from "../engine/galacticCasino";
@@ -153,15 +153,29 @@ export function GalacticCasinoPane({ state, store }: Props) {
         goodId as (typeof state.run.economy.unlockedCompounds)[number],
       ),
   );
+  const paymentSelectionAvailable =
+    paymentId === "cash" || availableGoods.includes(paymentId);
+  const activePaymentId = paymentSelectionAvailable ? paymentId : "cash";
+  useEffect(() => {
+    if (!paymentSelectionAvailable) setPaymentId("cash");
+  }, [paymentSelectionAvailable]);
   const availableSpecials = availableWheelSpecialPrizes(state);
-  const selectedSpecialPrize =
-    specialPrize && availableSpecials.includes(specialPrize) ? specialPrize : null;
+  const specialPrizeSelectionAvailable =
+    specialPrize !== null && availableSpecials.includes(specialPrize);
+  const selectedSpecialPrize = specialPrizeSelectionAvailable ? specialPrize : null;
+  useEffect(() => {
+    if (specialPrize !== null && !specialPrizeSelectionAvailable) setSpecialPrize(null);
+  }, [specialPrize, specialPrizeSelectionAvailable]);
   const claimPrize = selectedSpecialPrize ?? availableSpecials[0] ?? "special_100cp";
   const amount = Number(buyAmount);
-  const purchasePlan = selectCasinoPointPurchase(state, paymentId, amount);
+  const purchasePlan = selectCasinoPointPurchase(state, activePaymentId, amount);
   const purchaseCost = purchasePlan.cost;
   const paymentAvailable = purchasePlan.available;
-  const purchaseCommand: CasinoCommand = { type: "casino.points.buy", goodId: paymentId, amount };
+  const purchaseCommand: CasinoCommand = {
+    type: "casino.points.buy",
+    goodId: activePaymentId,
+    amount,
+  };
   const purchaseCheck = purchasePlan;
   const stakeAmount = Number(stake);
   const donCommand: CasinoCommand = {
@@ -215,7 +229,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
         required: quantity(locale, purchaseCost),
         available: quantity(locale, paymentAvailable),
         payment:
-          paymentId === "cash" ? casinoText(locale, "cash") : economyGoodName(locale, paymentId),
+          activePaymentId === "cash"
+            ? casinoText(locale, "cash")
+            : economyGoodName(locale, activePaymentId),
       });
   const donReason = actionReason(donCheck, donEntryCost, undefined, casino.casinoPoints);
   const spinReason = actionReason(spinCheck, 1, undefined, casino.casinoPoints);
@@ -439,7 +455,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
               {casinoText(locale, "payment")}
               <select
                 aria-label={casinoText(locale, "payment")}
-                value={paymentId}
+                value={activePaymentId}
                 onChange={(event) => setPaymentId(event.currentTarget.value as PaymentId)}
               >
                 <option value="cash">{casinoText(locale, "cash")}</option>
@@ -463,10 +479,22 @@ export function GalacticCasinoPane({ state, store }: Props) {
             </label>
             <p>
               {casinoText(locale, "cost")}: {quantity(locale, purchaseCost)}{" "}
-              {paymentId === "cash"
+              {activePaymentId === "cash"
                 ? casinoText(locale, "cash")
-                : economyGoodName(locale, paymentId)}{" "}
+                : economyGoodName(locale, activePaymentId)}{" "}
               · {quantity(locale, paymentAvailable)} {casinoText(locale, "available")}
+            </p>
+            <p className="sr-only" id="casino-purchase-action-context">
+              {casinoText(locale, "buyTitle")} {casinoText(locale, "amount")}: {quantity(
+                locale,
+                Number.isSafeInteger(amount) && amount > 0 ? amount : 0,
+              )} {casinoText(locale, "wheelCurrencyCp")}. {casinoText(locale, "cost")}: {quantity(
+                locale,
+                purchaseCost,
+              )} {activePaymentId === "cash"
+                ? casinoText(locale, "cash")
+                : economyGoodName(locale, activePaymentId)}. {quantity(locale, paymentAvailable)}{" "}
+              {casinoText(locale, "available")}.
             </p>
             {!purchaseCheck.enabled && (
               <p className="control-reason" id="casino-buy-reason">
@@ -478,7 +506,11 @@ export function GalacticCasinoPane({ state, store }: Props) {
               className="secondary-button"
               data-testid="casino-buy-cp"
               disabled={!purchaseCheck.enabled}
-              aria-describedby={!purchaseCheck.enabled ? "casino-buy-reason" : undefined}
+              aria-describedby={
+                purchaseCheck.enabled
+                  ? "casino-purchase-action-context"
+                  : "casino-purchase-action-context casino-buy-reason"
+              }
               onClick={() =>
                 dispatch(purchaseCommand, () =>
                   casinoText(locale, "purchaseResult")
@@ -517,10 +549,10 @@ export function GalacticCasinoPane({ state, store }: Props) {
                 onChange={(event) => setStake(event.currentTarget.value)}
               />
             </label>
-            <p data-testid="casino-don-stake-preview">
+            <p id="casino-don-stake-preview" data-testid="casino-don-stake-preview">
               {casinoAmountPreview("currentStakePreview", donEntryCost)}
             </p>
-            <p data-testid="casino-don-win-preview">
+            <p id="casino-don-win-preview" data-testid="casino-don-win-preview">
               {casinoAmountPreview("doubledWinPreview", donEntryCost * 2)}
             </p>
             <p data-testid="casino-run-stats-doubleOrNothing">
@@ -539,10 +571,14 @@ export function GalacticCasinoPane({ state, store }: Props) {
               className="secondary-button"
               data-testid="casino-don-play"
               disabled={!donCheck.enabled}
-              aria-describedby={!donCheck.enabled ? "casino-don-reason" : undefined}
+              aria-describedby={
+                donCheck.enabled
+                  ? "casino-don-stake-preview casino-don-win-preview"
+                  : "casino-don-stake-preview casino-don-win-preview casino-don-reason"
+              }
               onClick={() => dispatch(donCommand)}
             >
-              {casinoText(locale, "play")}
+              {casinoText(locale, "doubleOrNothingSpin")}
             </button>
           </div>
         </article>
@@ -561,7 +597,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
                 testId="casino-wheel-source-help"
               />
             </div>
-            <p data-testid="casino-wheel-entry-cost">
+            <p id="casino-wheel-entry-cost" data-testid="casino-wheel-entry-cost">
               {casinoAmountPreview("entryCostPreview", wheelEntryCost)}
             </p>
             <p id="casino-wheel-help" data-testid="casino-wheel-help">
@@ -613,7 +649,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
               data-testid="casino-wheel-claim"
               disabled={!wheelClaimReady || !selectedSpecialPrize || !claimCheck.enabled}
               aria-describedby={
-                wheelClaimReady && !claimCheck.enabled ? "casino-wheel-claim-reason" : undefined
+                wheelClaimReady && !claimCheck.enabled
+                  ? "casino-wheel-claim-context casino-wheel-claim-reason"
+                  : "casino-wheel-claim-context"
               }
               onClick={() => {
                 if (
@@ -626,6 +664,11 @@ export function GalacticCasinoPane({ state, store }: Props) {
             >
               {casinoText(locale, "claim")}
             </button>
+            <p className="sr-only" id="casino-wheel-claim-context">
+              {casinoText(locale, "wheel")}. {wheelClaimReady
+                ? `${casinoText(locale, "choosePrize")}: ${selectedSpecialPrize ? specialLabel(selectedSpecialPrize) : casinoText(locale, "selectPrizePlaceholder")}`
+                : casinoText(locale, "wheelHelp")}
+            </p>
             {wheelClaimReady && !claimCheck.enabled && (
               <p className="live-feedback" id="casino-wheel-claim-reason">
                 {claimReason}
@@ -637,7 +680,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
               data-testid="casino-wheel-spin"
               disabled={wheelDisabled || wheelSpinning}
               aria-describedby={
-                wheelDisabled || wheelSpinning ? "casino-wheel-spin-reason" : undefined
+                wheelDisabled || wheelSpinning
+                  ? "casino-wheel-entry-cost casino-wheel-help casino-wheel-spin-reason"
+                  : "casino-wheel-entry-cost casino-wheel-help"
               }
               onClick={spinWheel}
             >
@@ -665,7 +710,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
                 testId="casino-higher-lower-source-help"
               />
             </div>
-            <p data-testid="casino-hilo-entry-cost">
+            <p id="casino-hilo-entry-cost" data-testid="casino-hilo-entry-cost">
               {casinoAmountPreview("entryCostPreview", higherLowerEntryCost)}
             </p>
             <p data-testid="casino-run-stats-higherLower">
@@ -673,7 +718,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
             </p>
             {higherLower ? (
               <>
-                <p>
+                <p id="casino-hilo-current-card">
                   {casinoText(locale, "currentCard")}:{" "}
                   {cardAccessibleName(
                     locale,
@@ -716,7 +761,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
                     </span>
                   ))}
                 </div>
-                <p>
+                <p id="casino-hilo-current-prize">
                   {casinoText(locale, "currentPrize")}:{" "}
                   {higherLower.prizeKey ? prizeLabel(higherLower.prizeKey) : "—"}
                 </p>
@@ -727,7 +772,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
                     className="secondary-button"
                     disabled={!guessHigherCheck.enabled}
                     aria-describedby={
-                      !guessHigherCheck.enabled ? "casino-hilo-guess-reason" : undefined
+                      guessHigherCheck.enabled
+                        ? "casino-hilo-current-card"
+                        : "casino-hilo-current-card casino-hilo-guess-reason"
                     }
                     onClick={() =>
                       dispatch({ type: "casino.higher-lower.guess", direction: "higher" })
@@ -740,7 +787,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
                     className="secondary-button"
                     disabled={!guessLowerCheck.enabled}
                     aria-describedby={
-                      !guessLowerCheck.enabled ? "casino-hilo-guess-reason" : undefined
+                      guessLowerCheck.enabled
+                        ? "casino-hilo-current-card"
+                        : "casino-hilo-current-card casino-hilo-guess-reason"
                     }
                     onClick={() =>
                       dispatch({ type: "casino.higher-lower.guess", direction: "lower" })
@@ -753,7 +802,9 @@ export function GalacticCasinoPane({ state, store }: Props) {
                     className="secondary-button"
                     disabled={!cashOutCheck.enabled}
                     aria-describedby={
-                      !cashOutCheck.enabled ? "casino-hilo-cashout-reason" : undefined
+                      cashOutCheck.enabled
+                        ? "casino-hilo-current-prize"
+                        : "casino-hilo-current-prize casino-hilo-cashout-reason"
                     }
                     onClick={() => dispatch({ type: "casino.higher-lower.cash-out" })}
                   >
@@ -783,7 +834,11 @@ export function GalacticCasinoPane({ state, store }: Props) {
                   className="secondary-button"
                   data-testid="casino-hilo-start"
                   disabled={!startCheck.enabled}
-                  aria-describedby={!startCheck.enabled ? "casino-hilo-start-reason" : undefined}
+                  aria-describedby={
+                    startCheck.enabled
+                      ? "casino-hilo-entry-cost"
+                      : "casino-hilo-entry-cost casino-hilo-start-reason"
+                  }
                   onClick={(event) => {
                     pendingHigherLowerFocus.current =
                       document.activeElement === event.currentTarget;
@@ -834,6 +889,14 @@ export function GalacticCasinoPane({ state, store }: Props) {
             <p>
               {casinoText(locale, "chance")}: 1/{VOID_SEER_MAX[voidTier] + 1}
             </p>
+            <p className="sr-only" id="casino-void-seer-action-context">
+              {casinoText(locale, "voidSeer")} {casinoText(locale, "tier")}: {casinoVoidSeerPrizeName(
+                locale,
+                voidTier,
+              )}. {casinoText(locale, "cost")}: {quantity(locale, voidCost)}{" "}
+              {casinoVoidSeerCurrency(locale)}. {casinoText(locale, "chance")}: 1/
+              {quantity(locale, VOID_SEER_MAX[voidTier] + 1)}.
+            </p>
             {!voidCheck.enabled && (
               <p className="live-feedback" id="casino-void-seer-reason">
                 {voidReason}
@@ -844,10 +907,14 @@ export function GalacticCasinoPane({ state, store }: Props) {
               className="secondary-button"
               data-testid="casino-void-seer-play"
               disabled={!voidCheck.enabled}
-              aria-describedby={!voidCheck.enabled ? "casino-void-seer-reason" : undefined}
+              aria-describedby={
+                voidCheck.enabled
+                  ? "casino-void-seer-action-context"
+                  : "casino-void-seer-action-context casino-void-seer-reason"
+              }
               onClick={() => dispatch({ type: "casino.void-seer.play", tier: voidTier })}
             >
-              {casinoText(locale, "reveal")} · {quantity(locale, voidCost)}{" "}
+              {casinoText(locale, "voidSeerSpin")} · {quantity(locale, voidCost)}{" "}
               {casinoVoidSeerCurrency(locale)}
             </button>
           </div>

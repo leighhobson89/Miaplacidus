@@ -216,7 +216,7 @@ The source catalogue contains 102 selected Starship/Fleet/Colonise heading,
 module, report, action, diplomacy, battle, settlement, and event keys in each
 of its six locale blocks. `starshipMessages.ts`, the scan token catalogue,
 `spaceNotificationMessages.ts`, and event-copy catalogues provide the remake
-targets; the [phase handoff crosswalk](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-starship-fleet-and-colonise-source-crosswalk-10-october-2026)
+targets; the [phase handoff crosswalk](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-starship-fleet-and-colonise-source-crosswalk-10-october-2026)
 records the key-family dispositions and unresolved source descriptions.
 
 The crosswalk found an untranslated battle-health detail: the three source
@@ -282,7 +282,7 @@ uses the selected destination's saved encounter for the This Run Yes/No value
 and Not Applicable for Lifetime. The existing orbiting-scan browser journey
 verifies one successful scan and rejection of a duplicate. Focused selector,
 display, and scan-transition unit cases passed 4/4 in the 10 October review.
-See the [Statistics parity record](../../../docs/plans/statistics-presentation-parity.md#interstellar-system-scanned-scope-comparison-10-october-2026).
+See the [Statistics parity record](../../../docs/plans/statistics-presentation-parity.md#interstellar-system-scanned-scope-comparison-updated-12-october-2026).
 
 ## P-55 Star Ship Built Statistics source comparison (10 October 2026)
 

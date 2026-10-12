@@ -383,7 +383,7 @@ node .\node_modules\playwright\cli.js test --pass-with-no-tests --project=chrome
 ## P-44 Save/Import source-key crosswalk (10 October 2026)
 
 The source-key crosswalk in
-[`phase-6-handoff-2026-10-07.md`](../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-saveimport-quota-and-conflict-message-crosswalk-10-october-2026)
+[`phase-6-handoff-2026-10-07.md`](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-saveimport-quota-and-conflict-message-crosswalk-10-october-2026)
 records the source-to-remake disposition for Save, Export, Import, quota, and
 conflict copy. Direct copy matches for clipboard success/error and the autosave
 off notice are checked against Cosmic Forge `localization.json` in all six
@@ -472,7 +472,7 @@ graveyard archive is absent from the local-only model; the remake instead
 requires its existing export-first confirmation.
 
 The eight source keys are dispositioned in
-[`phase-6-handoff-2026-10-07.md`](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-hard-reset-source-key-disposition-updated-10-october-2026): six map to the existing six-locale `delete`, `deletePrompt`, and `confirmDelete` messages in the active slot card under Settings → Saving and Loading. The modal cancel label is intentionally omitted because the inline confirmation has no Cancel button; the completion notice is replaced by returning to pioneer selection.
+[`phase-6-handoff-2026-10-07.md`](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-hard-reset-source-key-disposition-updated-10-october-2026): six map to the existing six-locale `delete`, `deletePrompt`, and `confirmDelete` messages in the active slot card under Settings → Saving and Loading. The modal cancel label is intentionally omitted because the inline confirmation has no Cancel button; the completion notice is replaced by returning to pioneer selection.
 
 The six-locale unit crosswalk checks source-key presence and nonempty remake
 targets for these dispositions. A focused rerun of the existing `@management`

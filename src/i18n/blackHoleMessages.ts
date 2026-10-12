@@ -25,6 +25,8 @@ export interface BlackHoleMessages {
   readonly status: string;
   readonly researchPoints: string;
   readonly upgradeNames: Readonly<Record<BlackHoleUpgradeId, string>>;
+  readonly upgradeMaxed: Readonly<{ duration: string; recharge: string }>;
+  readonly rechargeFinalUpgrade: string;
   readonly errors: Readonly<Record<BlackHoleFailure["code"], string>>;
 }
 
@@ -42,7 +44,7 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     researched: "Research complete. The Black Hole charges automatically.",
     researchAction: "Research Black Hole",
     researchHelp:
-      "Research the time warp as early as you can afford to, and keep upgrading recharge until charging becomes continuous.",
+      "Time warp speeds up production, research, and construction together. Research it as early as you can afford to, and keep upgrading recharge until charging becomes continuous.",
     power: "Power",
     duration: "Warp duration",
     recharge: "Recharge time",
@@ -59,6 +61,11 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
       duration: "Upgrade duration",
       recharge: "Upgrade recharge",
     },
+    upgradeMaxed: {
+      duration: "Always active",
+      recharge: "Maximum upgrade ({seconds} s)",
+    },
+    rechargeFinalUpgrade: "Always active",
     errors: {
       "black-hole-undiscovered": "The black hole has not been discovered.",
       "black-hole-already-researched": "Black Hole research is already complete.",
@@ -81,9 +88,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     undiscovered: "No se ha encontrado ninguna señal de agujero negro.",
     discoveryProgress: "Probabilidad de descubrimiento: {percent}%",
     researched: "Investigación completada. El agujero negro se carga automáticamente.",
-    researchAction: "Investigar el agujero negro",
+    researchAction: "Investigar el Agujero Negro",
     researchHelp:
-      "Investiga la distorsión temporal tan pronto como puedas permitírtela y sigue mejorando la recarga hasta que la carga sea continua.",
+      "La distorsión temporal acelera la producción, la investigación y la construcción a la vez. Investígala tan pronto como puedas permitírtela y sigue mejorando la recarga hasta que la carga sea continua.",
     power: "Potencia",
     duration: "Duración de la distorsión",
     recharge: "Tiempo de recarga",
@@ -100,6 +107,11 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
       duration: "Mejorar duración",
       recharge: "Mejorar recarga",
     },
+    upgradeMaxed: {
+      duration: "Siempre activa",
+      recharge: "Mejora máxima ({seconds} s)",
+    },
+    rechargeFinalUpgrade: "Siempre activo",
     errors: {
       "black-hole-undiscovered": "El agujero negro aún no se ha descubierto.",
       "black-hole-already-researched": "La investigación del agujero negro ya está completa.",
@@ -120,9 +132,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     undiscovered: "Nenhum sinal de buraco negro foi encontrado.",
     discoveryProgress: "Chance de descoberta: {percent}%",
     researched: "Pesquisa concluída. O buraco negro recarrega automaticamente.",
-    researchAction: "Pesquisar buraco negro",
+    researchAction: "Investigar o Buraco Negro",
     researchHelp:
-      "Pesquise a distorção temporal assim que puder pagá-la e continue a melhorar a recarga até que o carregamento se torne contínuo.",
+      "A distorção temporal acelera a produção, a pesquisa e a construção ao mesmo tempo. Pesquise-a assim que puder pagá-la e continue a melhorar a recarga até que o carregamento se torne contínuo.",
     power: "Potência",
     duration: "Duração da distorção",
     recharge: "Tempo de recarga",
@@ -139,6 +151,11 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
       duration: "Melhorar duração",
       recharge: "Melhorar recarga",
     },
+    upgradeMaxed: {
+      duration: "Sempre ativa",
+      recharge: "Melhoria máxima ({seconds} s)",
+    },
+    rechargeFinalUpgrade: "Sempre ativo",
     errors: {
       "black-hole-undiscovered": "O buraco negro ainda não foi descoberto.",
       "black-hole-already-researched": "A pesquisa do buraco negro já foi concluída.",
@@ -161,9 +178,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     undiscovered: "Es wurde kein Signal eines schwarzen Lochs gefunden.",
     discoveryProgress: "Entdeckungswahrscheinlichkeit: {percent}%",
     researched: "Forschung abgeschlossen. Das schwarze Loch lädt sich automatisch auf.",
-    researchAction: "Schwarzes Loch erforschen",
+    researchAction: "Schwarzes Loch Erforschen",
     researchHelp:
-      "Erforsche die Zeitverzerrung, sobald du sie dir leisten kannst, und verbessere die Aufladung weiter, bis sie kontinuierlich läuft.",
+      "Die Zeitverzerrung beschleunigt Produktion, Forschung und Bau gleichzeitig. Erforsche sie, sobald du sie dir leisten kannst, und verbessere die Aufladung weiter, bis sie kontinuierlich läuft.",
     power: "Leistung",
     duration: "Warpdauer",
     recharge: "Aufladezeit",
@@ -180,6 +197,11 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
       duration: "Dauer verbessern",
       recharge: "Aufladung verbessern",
     },
+    upgradeMaxed: {
+      duration: "Immer aktiv",
+      recharge: "Maximaler Ausbau ({seconds} s)",
+    },
+    rechargeFinalUpgrade: "Immer aktiv",
     errors: {
       "black-hole-undiscovered": "Das schwarze Loch wurde noch nicht entdeckt.",
       "black-hole-already-researched":
@@ -202,9 +224,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     undiscovered: "Non è stato trovato alcun segnale di buco nero.",
     discoveryProgress: "Probabilità di scoperta: {percent}%",
     researched: "Ricerca completata. Il buco nero si carica automaticamente.",
-    researchAction: "Ricerca il buco nero",
+    researchAction: "Ricerca il Buco Nero",
     researchHelp:
-      "Ricerca la distorsione temporale appena puoi permettertela e continua a migliorare la ricarica finché la carica non diventa continua.",
+      "La distorsione temporale accelera produzione, ricerca e costruzione allo stesso tempo. Ricercala appena puoi permettertela e continua a migliorare la ricarica finché la carica non diventa continua.",
     power: "Potenza",
     duration: "Durata della distorsione",
     recharge: "Tempo di ricarica",
@@ -221,6 +243,11 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
       duration: "Migliora durata",
       recharge: "Migliora ricarica",
     },
+    upgradeMaxed: {
+      duration: "Sempre attiva",
+      recharge: "Miglioramento massimo ({seconds} s)",
+    },
+    rechargeFinalUpgrade: "Sempre attivo",
     errors: {
       "black-hole-undiscovered": "Il buco nero non è ancora stato scoperto.",
       "black-hole-already-researched": "La ricerca del buco nero è già completa.",
@@ -243,9 +270,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     undiscovered: "Aucun signal de trou noir n'a été détecté.",
     discoveryProgress: "Probabilité de découverte : {percent} %",
     researched: "Recherche terminée. Le trou noir se recharge automatiquement.",
-    researchAction: "Étudier le trou noir",
+    researchAction: "Étudier le Trou Noir",
     researchHelp:
-      "Étudiez la distorsion temporelle dès que vous pouvez vous le permettre et continuez à améliorer la recharge jusqu'à ce que la charge devienne continue.",
+      "La distorsion temporelle accélère simultanément la production, la recherche et la construction. Étudiez-la dès que vous pouvez vous le permettre et continuez à améliorer la recharge jusqu'à ce que la charge devienne continue.",
     power: "Puissance",
     duration: "Durée de distorsion",
     recharge: "Temps de recharge",
@@ -262,6 +289,11 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
       duration: "Améliorer la durée",
       recharge: "Améliorer la recharge",
     },
+    upgradeMaxed: {
+      duration: "Toujours active",
+      recharge: "Amélioration maximale ({seconds} s)",
+    },
+    rechargeFinalUpgrade: "Toujours actif",
     errors: {
       "black-hole-undiscovered": "Le trou noir n'a pas encore été découvert.",
       "black-hole-already-researched": "La recherche du trou noir est déjà terminée.",

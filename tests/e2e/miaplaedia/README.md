@@ -96,7 +96,7 @@ source `<br/>` markers now render as line breaks instead of visible markup.
 The focused `@p44-get-started-copy` installed-Chrome case checks the localized
 title, single-article order, full visible body, name corrections, and all 18
 breaks in each locale. It passed **1/1 in 10.2 seconds**. See the [P-44
-crosswalk](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-get-started-article-key-crosswalk-9-october-2026)
+crosswalk](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-get-started-article-key-crosswalk-9-october-2026)
 for source IDs and disposition.
 
 ```powershell
@@ -118,7 +118,7 @@ checks the owner's Mia'Plac/Miaplacidus naming in each locale. The final case
 passed **1/1 in 10.3 seconds** after the shared line-break renderer update. The
 final source article's obsolete player/game
 signature is intentionally adapted; the other Story article copy follows the
-source. The [P-44 crosswalk](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-story-article-key-crosswalk-9-october-2026)
+source. The [P-44 crosswalk](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-story-article-key-crosswalk-9-october-2026)
 records all six source keys and their target IDs.
 
 ```powershell
@@ -137,7 +137,7 @@ Direct comparison found all 60 localized values match the typed `endGoal`
 catalogue exactly. The focused `@p44-end-goal-copy` installed-Chrome case
 checks the page heading and description, all five rendered headings and bodies,
 their source order, and line-break counts in all six locales. It passed
-**1/1 in 10.5 seconds**. The [P-44 crosswalk](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-concepts---end-goal-article-key-crosswalk-9-october-2026)
+**1/1 in 10.5 seconds**. The [P-44 crosswalk](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-concepts---end-goal-article-key-crosswalk-9-october-2026)
 records the ten source-key mappings.
 
 ```powershell
@@ -157,7 +157,7 @@ The focused `@p44-philosophies-copy` installed-Chrome case checks the localized
 page title and description, each rendered article heading and body in source
 order, paragraph-break rendering, and absence of the obsolete game/player names
 across all six locales. It passed **1/1 in 10.9 seconds**. See the [P-44
-crosswalk](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-philosophies-article-key-crosswalk-9-october-2026)
+crosswalk](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-philosophies-article-key-crosswalk-9-october-2026)
 for source IDs and disposition.
 
 ```powershell
@@ -178,7 +178,7 @@ focused `@p44-concepts-mid-copy` installed-Chrome case checks the localized
 page title and description, each rendered article heading and body in source
 order, paragraph-break rendering, and absence of the obsolete game/player names
 across all six locales. It passed **1/1 in 9.9 seconds**. See the [P-44
-crosswalk](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-concepts---mid-article-key-crosswalk-9-october-2026)
+crosswalk](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-concepts---mid-article-key-crosswalk-9-october-2026)
 for source IDs and disposition.
 
 ```powershell
@@ -201,7 +201,7 @@ localized title and description, every article heading and body in source
 order, and exact paragraph-break placement for all 16 articles in each locale.
 It passed **1/1 in 10.3 seconds** on port 4381.
 
-See the [P-44 crosswalk](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-concepts---late-article-key-crosswalk-9-october-2026)
+See the [P-44 crosswalk](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-miaplaedia-concepts---late-article-key-crosswalk-9-october-2026)
 for source keys and target mappings.
 
 ```powershell

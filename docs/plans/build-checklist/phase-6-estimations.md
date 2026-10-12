@@ -1,13 +1,15 @@
 # Phase 6 completion estimates
 
-Revised 11 October 2026 against the current checklist and implementation notes (11 open / 55 closed). Percentages estimate progress against each ticket's full acceptance scope; time ranges estimate focused one-agent work, including implementation and ticket-level review but excluding the final regression suite. The remaining estimates total about 1,665-2,410 minutes (27h 45m-40h 10m); parallel work may reduce elapsed time.
+Estimates last reviewed 11 October 2026. Checklist status reconciled 12 October: 12 open / 54 closed after P-28 was reopened for source-triggered ending review. Existing percentages, ticket time ranges, and the 1,665-2,410 minute aggregate for the eleven previously estimated tickets are unchanged; the P-28 follow-up is unestimated and excluded from that total.
 
-P-22 assumes access to a physical device for the soft-keyboard check; device wait time is excluded. P-20 still needs spoken assistive-technology verification. P-29 assumes round-boundary battle-cue behavior is acceptable; strict per-impact timing would add at least four hours and may need a more detailed battle event model. P-31 remains parked until other non-performance Phase 6 work is complete. P-56 estimates the presentation matrix only; its performance follow-up remains parked. P-10 includes the natural unlock progression that seeded journeys cannot establish.
+P-22 assumes access to a physical device for the soft-keyboard check; device wait time is excluded. P-20 still needs spoken assistive-technology verification. P-29 now uses ordered aggregate fleet-volley impact and confirmed-death events; reproducing exact source-visible target eligibility and intra-volley animation timing would add at least four hours and may need a richer battle model. P-31 remains parked until other non-performance Phase 6 work is complete. P-56 estimates the presentation matrix only; its performance follow-up remains parked. P-10 includes the natural unlock progression that seeded journeys cannot establish.
 
 ## Open items
 
 Each ticket keeps its existing completion and time estimates; the bullets below break the remaining work into sign-off tasks.
 
+- P-28 — Remaining visual assets — **reopened; unestimated**.
+  - Review the confirm-triggered ending animation, skip path, and reduced-motion end card across the P-28 theme and desktop/phone matrix; attach rendered screenshots and record any fixes.
 - P-22 — Startup and import accessibility — **85% complete** — **15-25 mins**.
   - On a physical Android device, open the new-game and save-import screens with the native keyboard and inspect the name field, preview, and primary action.
   - Repeat on a physical iOS device and check the same controls with its native keyboard.
@@ -16,13 +18,13 @@ Each ticket keeps its existing completion and time estimates; the bullets below 
   - Import a save while the keyboard is open and confirm the preview, success/error feedback, and next action remain reachable.
   - Fix only reproduced device-specific clipping, focus, scroll, or viewport-resize defects, then repeat the affected device journey and record device/browser/outcome.
 - P-29 — Sound and music coverage — **85% complete** — **45-60 mins**.
-  - Compare the remake's round-boundary laser cadence with Cosmic Forge's per-shot guard and record whether the documented round-level adaptation is accepted.
-  - If acceptance requires per-impact timing, extend battle events with ordered impact timestamps and route laser cues from those timestamps without changing combat outcomes.
-  - Exercise a battle with normal ticks and a catch-up tick; verify each qualifying round queues once and the terminal exchange is included.
-  - Verify queued laser cues respect the source minimum interval and all cues drain after synchronous catch-up finishes.
-  - Exercise casualties in normal and terminal rounds; verify one explosion cue per confirmed loss and the final batch drains after the result.
-  - Toggle mute and zero volume, move focus away, and dispose audio while queues are pending; confirm no stale cue plays afterward.
-  - Run the focused queue/cadence checks, fix missed, duplicated, early, or stranded cues, and record the chosen cadence and evidence.
+  - Compare ordered aggregate fleet-volley candidate attempts and confirmed-death cues with Cosmic Forge's per-visible-shot and per-death guards; record whether the remaining aggregate approximation is accepted.
+  - If acceptance requires exact per-impact timing, extend the battle model with source-visible target eligibility and callback timing, routing attempts from those events without changing combat outcomes.
+  - Exercise normal and catch-up battle ticks; verify one 20% laser roll per represented shooter candidate, cooldown-suppressed attempts are dropped, and no terminal shot is inferred.
+  - Verify laser attempts at the exact 80 ms boundary are suppressed, attempts after 80 ms are admitted, and no delayed cue plays after synchronous catch-up.
+  - Exercise casualties in normal and terminal rounds; verify each confirmed death makes an explosion attempt, the 140 ms boundary suppresses it, and no casualty cue is deferred after the result.
+  - With sound muted, at zero volume, unfocused, or audio locked, verify battle attempts still advance cooldown without playback; after restoring audio, verify source timing is preserved and no delayed cue plays. Dispose around battle events and confirm no callback remains.
+  - Run the focused battle cadence checks, fix missed or duplicated event-boundary attempts, and record the chosen approximation and evidence.
 - P-20 — Assistive notification coverage — **85% complete** — **45-75 mins**.
   - With a screen reader, trigger an unaffordable purchase and verify its localized reason is spoken once without moving focus.
   - With a screen reader, trigger a save conflict and verify the conflict and available resolution are announced while the controls remain usable.
@@ -50,7 +52,7 @@ Each ticket keeps its existing completion and time estimates; the bullets below 
   - Verify each counter changes only on its accepted source-equivalent event and resets or persists at the same run boundary.
   - Correct only confirmed value, label, unit, grouping, or scope mismatches; preserve rows already shown to match.
   - Add focused selector/render assertions for each correction, covering Current Run and All Time where applicable.
-  - Update the parity audit with source references, comparison states, corrections, and owner-gated rows still unresolved.
+  - Update the parity audit with source references, comparison states, and any corrections for the remaining row groups.
 - P-51 — Translation and layout fit review — **70% complete** — **150-240 mins**.
   - Review remaining menus and page families at 320, 390, 768, and 1280 CSS-pixel widths, including tables, tooltips, dialogs, and dynamic result cards.
   - Repeat representative pages with enlarged text and the longest translations across en/es/pt/de/it/fr and all nine themes.
@@ -118,7 +120,6 @@ Names only, for reference.
 - P-25 — Startup logo and artwork
 - P-26 — Core game illustrations and icons
 - P-27 — Space and endgame artwork
-- P-28 — Remaining visual assets
 - P-30 — Asset provenance manifest
 - P-32 — Release asset audit
 - P-33 — Nine-theme rebuild

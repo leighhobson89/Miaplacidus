@@ -1124,7 +1124,7 @@ and scopes. The focused deterministic journey verified trip, continued trip,
 recovery, retrip, portable save/load, and rebirth; a six-locale Statistics
 display assertion checks the run/lifetime values. The four focused unit cases
 passed **4/4**. No source mismatch or runtime change was found. See the
-[Statistics parity evidence](../../docs/plans/statistics-presentation-parity.md#p-55-energy-times-tripped-source-comparison-10-october-2026).
+[Statistics parity evidence](../../../docs/plans/statistics-presentation-parity.md#p-55-energy-times-tripped-source-comparison-10-october-2026).
 
 ## P-44 Auto-creation allocation help (10 October 2026)
 
@@ -1142,7 +1142,7 @@ including the description association and page-width bound. Installed Chrome
 passed **1/1 in 9.7 seconds** on isolated port 5381. Typecheck and the focused
 localization validator passed; the validator passed **4/4**, and formatting
 passed for the four changed code/test files. The source crosswalk and original
-gap are in the [P-44 handoff](../../../docs/plans/build-checklist/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+gap are in the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'

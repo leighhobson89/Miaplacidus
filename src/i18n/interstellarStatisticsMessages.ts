@@ -156,7 +156,7 @@ const trackingNotes: Record<LocaleId, string> = {
   pt: "A defesa total do inimigo superada não é registada: o valor histórico da fonte é a diferença de defesa de uma única batalha, não um total acumulado.",
   de: "Die überwundene Gesamtverteidigung des Gegners wird nicht erfasst: Der Gesamtwert der Vorlage ist eine Verteidigungsdifferenz aus einem einzelnen Kampf und kein kumulierter Wert.",
   it: "La difesa totale del nemico superata non viene registrata: il valore storico della fonte è la differenza di difesa di una singola battaglia, non un totale cumulativo.",
-  fr: "La défense totale de l'ennemi surmontée n'est pas suivie : la valeur cumulée de la source correspond à l'écart de défense d'un seul combat, et non à un total cumulé.",
+  fr: "La défense totale de l'ennemi surmontée n'est pas suivie : la valeur de la source correspond à l'écart de défense d'un seul combat, et non à un total cumulé.",
 };
 
 export function interstellarStatisticLabel(locale: LocaleId, id: InterstellarStatisticId): string {

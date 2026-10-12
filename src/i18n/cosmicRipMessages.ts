@@ -4,6 +4,7 @@ import type { CosmicRipFailure } from "../engine/cosmicRip";
 
 export interface CosmicRipMessages {
   readonly title: string;
+  readonly ripPaneTitle: string;
   readonly situationTitle: string;
   readonly scannerArrayTitle: string;
   readonly status: string;
@@ -19,15 +20,16 @@ export interface CosmicRipMessages {
   readonly telemetry: string;
   readonly rate: string;
   readonly restoreScanner: string;
+  readonly scannerRestoredTitle: string;
   readonly scannerRestored: string;
   readonly scannerRestoreFailedNotification: string;
   readonly scannerRestoredNotification: string;
   readonly sectorScanFoundNotification: string;
   readonly sectorScanEmptyNotification: string;
   readonly scanInstruction: string;
-  readonly sector: string;
   readonly sectorScanned: string;
   readonly sectorFound: string;
+  readonly ripFoundTitle: string;
   readonly ripFound: string;
   readonly ripMissing: string;
   readonly upgrades: string;
@@ -44,7 +46,9 @@ export interface CosmicRipMessages {
   readonly hidden: string;
   readonly requires: string;
   readonly closeRip: string;
+  readonly closedTitle: string;
   readonly closed: string;
+  readonly closedDialogEndLabel: string;
   readonly errors: Readonly<Record<CosmicRipFailure["code"], string>>;
 }
 
@@ -137,6 +141,7 @@ const ERRORS: Readonly<Record<LocaleId, Readonly<Record<CosmicRipFailure["code"]
     "cosmic-rip-scanner-restored": "The scanner array is already restored.",
     "cosmic-rip-scanner-required": "Restore the Near Space Scanner Array first.",
     "cosmic-rip-sector-invalid": "That sector is unavailable.",
+    "cosmic-rip-already-located": "The Cosmic Rip has already been located.",
     "cosmic-rip-sector-scanned": "That sector has already been scanned.",
     "cosmic-rip-insufficient-gp": "You need more Galactic Points.",
     "cosmic-rip-insufficient-cost": "You do not have enough resources for that.",
@@ -155,6 +160,7 @@ const ERRORS: Readonly<Record<LocaleId, Readonly<Record<CosmicRipFailure["code"]
     "cosmic-rip-scanner-restored": "El conjunto de escáneres ya está restaurado.",
     "cosmic-rip-scanner-required": "Restaura primero el conjunto de escáneres del espacio cercano.",
     "cosmic-rip-sector-invalid": "Ese sector no está disponible.",
+    "cosmic-rip-already-located": "La Fisura Cósmica ya está localizada.",
     "cosmic-rip-sector-scanned": "Ese sector ya se ha explorado.",
     "cosmic-rip-insufficient-gp": "Necesitas más puntos galácticos.",
     "cosmic-rip-insufficient-cost": "No tienes suficientes recursos.",
@@ -173,6 +179,7 @@ const ERRORS: Readonly<Record<LocaleId, Readonly<Record<CosmicRipFailure["code"]
     "cosmic-rip-scanner-restored": "O conjunto de scanners já foi restaurado.",
     "cosmic-rip-scanner-required": "Restaure primeiro o conjunto de scanners do espaço próximo.",
     "cosmic-rip-sector-invalid": "Esse setor não está disponível.",
+    "cosmic-rip-already-located": "A Fenda Cósmica já foi localizada.",
     "cosmic-rip-sector-scanned": "Esse setor já foi examinado.",
     "cosmic-rip-insufficient-gp": "Você precisa de mais Pontos Galácticos.",
     "cosmic-rip-insufficient-cost": "Você não tem recursos suficientes.",
@@ -191,6 +198,7 @@ const ERRORS: Readonly<Record<LocaleId, Readonly<Record<CosmicRipFailure["code"]
     "cosmic-rip-scanner-restored": "Das Scannerarray ist bereits repariert.",
     "cosmic-rip-scanner-required": "Repariere zuerst das Nahraum-Scannerarray.",
     "cosmic-rip-sector-invalid": "Dieser Sektor ist nicht verfügbar.",
+    "cosmic-rip-already-located": "Der Kosmische Riss wurde bereits geortet.",
     "cosmic-rip-sector-scanned": "Dieser Sektor wurde bereits gescannt.",
     "cosmic-rip-insufficient-gp": "Du brauchst mehr Galaktische Punkte.",
     "cosmic-rip-insufficient-cost": "Du hast nicht genug Ressourcen.",
@@ -209,6 +217,7 @@ const ERRORS: Readonly<Record<LocaleId, Readonly<Record<CosmicRipFailure["code"]
     "cosmic-rip-scanner-restored": "L'array di scanner è già stato ripristinato.",
     "cosmic-rip-scanner-required": "Ripristina prima l'array di scanner dello spazio vicino.",
     "cosmic-rip-sector-invalid": "Questo settore non è disponibile.",
+    "cosmic-rip-already-located": "Lo Strappo cosmico è già stato localizzato.",
     "cosmic-rip-sector-scanned": "Questo settore è già stato scansionato.",
     "cosmic-rip-insufficient-gp": "Servono più Punti Galattici.",
     "cosmic-rip-insufficient-cost": "Non hai risorse sufficienti.",
@@ -227,6 +236,7 @@ const ERRORS: Readonly<Record<LocaleId, Readonly<Record<CosmicRipFailure["code"]
     "cosmic-rip-scanner-restored": "Le réseau de scanners est déjà réparé.",
     "cosmic-rip-scanner-required": "Réparez d'abord le réseau de scanners de l'espace proche.",
     "cosmic-rip-sector-invalid": "Ce secteur n'est pas disponible.",
+    "cosmic-rip-already-located": "La Déchirure cosmique a déjà été localisée.",
     "cosmic-rip-sector-scanned": "Ce secteur a déjà été scanné.",
     "cosmic-rip-insufficient-gp": "Il vous faut plus de points galactiques.",
     "cosmic-rip-insufficient-cost": "Vous n'avez pas assez de ressources.",
@@ -344,12 +354,13 @@ export function cosmicRipStatusDescription(locale: LocaleId): string {
 const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
   en: {
     title: "Cosmic Rip",
+    ripPaneTitle: "Cosmic Rip",
     situationTitle: "Situation",
     scannerArrayTitle: "Near Space Scanner Array",
     status: "Endgame",
     stabilityLabel: "Cosmic Rip",
     stabilityPercentage: "{percentage}% Stabilised",
-    introduction: "The Miaplacidus transmission reveals a disturbance beyond known space.",
+    introduction: "I don't know how you got here, Mia'Plac, but we are going to settle this...",
     headerHelp: "Once located, you undertake studies and construction around the Cosmic Rip to stabilise it for manipulation and closure, securing the future of your people. This is where you carry out those studies; they are costly and take time.",
     situationHelp: "Cosmic Rip operations and progression.",
     scannerArrayHelp:
@@ -360,21 +371,24 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     gpShort: "GP",
     telemetry: "Rip telemetry",
     rate: "Telemetry rate",
-    restoreScanner: "Restore Near Space Scanner Array",
-    scannerRestored: "Near Space Scanner Array restored.",
+    restoreScanner: "RESTORE",
+    scannerRestoredTitle: "Near Space Scanner Array Restored!",
+    scannerRestored:
+      "We have restored the strange Near Space Scanner Array orbiting Miaplacidus inside the ruined force field. With Galactic Points (GP), we can bring it fully online and scan Miaplacidus' local space to locate the source of the AI invasion!",
     scannerRestoreFailedNotification: "Unable to restore Near Space Scanner Array.",
     scannerRestoredNotification: "Near Space Scanner Array restored.",
     sectorScanFoundNotification: "Scan complete! Cosmic Rip located in sector {sector}",
     sectorScanEmptyNotification: "Scan complete! Nothing significant found in sector {sector}",
     scanInstruction: "Scan each sector for 1 Galactic Point.",
-    sector: "Sector",
     sectorScanned: "Scanned",
     sectorFound: "Rip located",
-    ripFound: "The Cosmic Rip has been located. Build telemetry to research its five technologies.",
+    ripFoundTitle: "Cosmic Rip Located!",
+    ripFound:
+      "The Cosmic Rip opened by the scientist, through which the evil AI race travelled has been located. We will dispatch science teams to investigate at once!",
     ripMissing: "The signal is not in this sector.",
     upgrades: "Telemetry network",
     upgradeNames: { sensorBuoy: "Sensor Buoy", ripResearchOrbiter: "Rip Research Orbiter" },
-    purchase: "Purchase",
+    purchase: "DEPLOY",
     technologies: "Containment research",
     technologyNames: {
       stabilizerArray: "Stabilizer Array",
@@ -397,20 +411,22 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     technologyResearchedNotification: "{technology} Researched!",
     hidden: "Appears at {amount} telemetry",
     requires: "Requires {name}",
-    closeRip: "Close Cosmic Rip",
+    closeRip: "CLOSE COSMIC RIP",
+    closedTitle: "COSMIC RIP CLOSED!",
     closed:
       "Congratulations, Mia'Plac! The future of your people is secured forever. You have fulfilled your prophecy!",
+    closedDialogEndLabel: "END GAME MIA'PLAC",
     errors: ERRORS.en,
   },
   es: {
-    title: "Fisura cósmica",
+    title: "Ras Cósmico",
+    ripPaneTitle: "Desgarro Cósmico",
     situationTitle: "Situación",
-    scannerArrayTitle: "Conjunto de escáneres del espacio cercano",
+    scannerArrayTitle: "Matriz de Escáner del Espacio Cercano",
     status: "Final",
-    stabilityLabel: "Desgarro Cósmico",
+    stabilityLabel: "Ras Cósmico",
     stabilityPercentage: "{percentage}% Estabilizado",
-    introduction:
-      "La transmisión de Miaplacidus revela una anomalía más allá del espacio conocido.",
+    introduction: "No sé cómo llegaste aquí, Mia'Plac, pero vamos a resolver esto...",
     headerHelp: "Una vez localizado, emprendes estudios y construcciones alrededor del Desgarro Cósmico para estabilizarlo antes de manipularlo y cerrarlo, y así asegurar el futuro de tu pueblo. Aquí realizas esos estudios; son costosos y requieren tiempo.",
     situationHelp: "Operaciones y progresión del Desgarro Cósmico.",
     scannerArrayHelp:
@@ -421,8 +437,10 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     gpShort: "PG",
     telemetry: "Telemetría de la fisura",
     rate: "Ritmo de telemetría",
-    restoreScanner: "Restaurar el conjunto de escáneres",
-    scannerRestored: "Conjunto de escáneres del espacio cercano restaurado.",
+    restoreScanner: "RESTAURAR",
+    scannerRestoredTitle: "¡Matriz de Escáner de Espacio Cercano Restaurada!",
+    scannerRestored:
+      "Hemos restaurado la extraña Matriz de Escáner de Espacio Cercano orbitando Miaplacidus dentro del campo de fuerza en ruinas. ¡Con Puntos Galácticos (PG), podemos ponerla completamente en línea y escanear el espacio local de Miaplacidus para localizar la fuente de la invasión de IA!",
     scannerRestoreFailedNotification:
       "No se puede restaurar la Matriz de Escáner del Espacio Cercano.",
     scannerRestoredNotification: "Matriz de Escáner del Espacio Cercano restaurada.",
@@ -431,25 +449,25 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "¡Escaneo completo! No se ha encontrado nada relevante en el sector {sector}",
     scanInstruction: "Explora cada sector por 1 Punto Galáctico.",
-    sector: "Sector",
     sectorScanned: "Explorado",
     sectorFound: "Fisura localizada",
+    ripFoundTitle: "¡Desgarro Cósmico Localizado!",
     ripFound:
-      "La Fisura Cósmica está localizada. Genera telemetría para investigar sus cinco tecnologías.",
+      "¡El Desgarro Cósmico abierto por el científico, a través del cual viajó la raza malvada de IA ha sido localizado! ¡Despacharemos equipos de ciencia para investigar de inmediato!",
     ripMissing: "La señal no está en este sector.",
     upgrades: "Red de telemetría",
     upgradeNames: {
-      sensorBuoy: "Boya sensora",
-      ripResearchOrbiter: "Orbitador de investigación de la fisura",
+      sensorBuoy: "Boya Sensora",
+      ripResearchOrbiter: "Orbitador de Estudio del Ras",
     },
-    purchase: "Comprar",
+    purchase: "DESPLEGAR",
     technologies: "Investigación de contención",
     technologyNames: {
-      stabilizerArray: "Matriz estabilizadora",
-      quantumContainmentField: "Campo de contención cuántica",
-      dimensionalAnchorMatrix: "Matriz de anclaje dimensional",
-      singularityStabilizer: "Estabilizador de singularidad",
-      realityWeaveRegulator: "Regulador de tejido de realidad",
+      stabilizerArray: "Matriz Estabilizadora",
+      quantumContainmentField: "Campo de Contención Cuántica",
+      dimensionalAnchorMatrix: "Matriz de Anclaje Dimensional",
+      singularityStabilizer: "Estabilizador de Singularidad",
+      realityWeaveRegulator: "Regulador del Tejido de la Realidad",
     },
     technologyStatusMessages: {
       stabilizerArray: "Matriz Estabilizadora Construida",
@@ -465,19 +483,22 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     technologyResearchedNotification: "¡{technology} investigado!",
     hidden: "Aparece con {amount} de telemetría",
     requires: "Requiere {name}",
-    closeRip: "Cerrar la Fisura Cósmica",
+    closeRip: "CERRAR EL RAS CÓSMICO",
+    closedTitle: "¡DESGARRO CÓSMICO CERRADO!",
     closed:
       "¡Felicidades, Mia'Plac! El futuro de tu pueblo está asegurado para siempre. ¡Has cumplido tu profecía!",
+    closedDialogEndLabel: "TERMINAR LA PARTIDA, MIA'PLAC",
     errors: ERRORS.es,
   },
   pt: {
-    title: "Fenda cósmica",
+    title: "Rutura Cósmica",
+    ripPaneTitle: "Rutura Cósmica",
     situationTitle: "Situação",
-    scannerArrayTitle: "Conjunto de scanners do espaço próximo",
+    scannerArrayTitle: "Matriz de Scanners do Espaço Próximo",
     status: "Fim de jogo",
     stabilityLabel: "Rutura Cósmica",
     stabilityPercentage: "{percentage}% Estabilizado",
-    introduction: "A transmissão de Miaplacidus revela uma anomalia além do espaço conhecido.",
+    introduction: "Não sei como chegaste aqui, Mia'Plac, mas vamos resolver isto...",
     headerHelp: "Depois de localizada, iniciarás estudos e construções em torno da Fenda Cósmica para a estabilizar antes da manipulação e do encerramento, garantindo o futuro do teu povo. É aqui que conduzes esses estudos; são dispendiosos e levam tempo.",
     situationHelp: "Operações e progressão do Rasgo Cósmico.",
     scannerArrayHelp:
@@ -488,8 +509,10 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     gpShort: "PG",
     telemetry: "Telemetria da fenda",
     rate: "Taxa de telemetria",
-    restoreScanner: "Restaurar o conjunto de scanners",
-    scannerRestored: "Conjunto de scanners do espaço próximo restaurado.",
+    restoreScanner: "RESTAURAR",
+    scannerRestoredTitle: "MATRIZ DE SCANNER DO ESPAÇO PRÓXIMO RESTAURADA!",
+    scannerRestored:
+      "Restaurámos a estranha Matriz de Scanner do Espaço Próximo que orbita Miaplacidus dentro do campo de força em ruínas. Com Pontos Galácticos (PG), podemos colocá-la totalmente online e explorar o espaço local de Miaplacidus para localizar a fonte da invasão da IA!",
     scannerRestoreFailedNotification:
       "Não é possível restaurar a Matriz de Scanners do Espaço Próximo.",
     scannerRestoredNotification: "Matriz de Scanners do Espaço Próximo restaurada.",
@@ -497,25 +520,25 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Análise concluída! Não foi encontrado nada relevante no setor {sector}",
     scanInstruction: "Examine cada setor por 1 Ponto Galáctico.",
-    sector: "Setor",
     sectorScanned: "Examinado",
     sectorFound: "Fenda localizada",
+    ripFoundTitle: "RASGO CÓSMICO LOCALIZADO!",
     ripFound:
-      "A Fenda Cósmica foi localizada. Gere telemetria para pesquisar as cinco tecnologias.",
+      "O Rasgo Cósmico aberto pelo cientista, através do qual viajou a raça maléfica de IA, foi localizado! Enviaremos imediatamente equipas de ciência para investigar!",
     ripMissing: "O sinal não está neste setor.",
     upgrades: "Rede de telemetria",
     upgradeNames: {
-      sensorBuoy: "Boia de sensores",
-      ripResearchOrbiter: "Orbitador de pesquisa da fenda",
+      sensorBuoy: "Boia Sensorial",
+      ripResearchOrbiter: "Orbitador de Estudo da Rutura",
     },
-    purchase: "Comprar",
+    purchase: "DESPLEGAR",
     technologies: "Pesquisa de contenção",
     technologyNames: {
-      stabilizerArray: "Matriz estabilizadora",
-      quantumContainmentField: "Campo de contenção quântica",
-      dimensionalAnchorMatrix: "Matriz de ancoragem dimensional",
-      singularityStabilizer: "Estabilizador de singularidade",
-      realityWeaveRegulator: "Regulador de trama da realidade",
+      stabilizerArray: "Matriz Estabilizadora",
+      quantumContainmentField: "Campo de Contenção Quântica",
+      dimensionalAnchorMatrix: "Matriz de Ancoragem Dimensional",
+      singularityStabilizer: "Estabilizador de Singularidade",
+      realityWeaveRegulator: "Regulador do Tecido da Realidade",
     },
     technologyStatusMessages: {
       stabilizerArray: "Matriz Estabilizadora Construída",
@@ -531,19 +554,22 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     technologyResearchedNotification: "{technology} investigado!",
     hidden: "Surge com {amount} de telemetria",
     requires: "Requer {name}",
-    closeRip: "Fechar a Fenda Cósmica",
+    closeRip: "FECHAR A RUTURA CÓSMICA",
+    closedTitle: "RASGO CÓSMICO FECHADO!",
     closed: "Parabéns, Mia'Plac! O futuro do teu povo está assegurado para sempre. Cumpriste a tua profecia!",
+    closedDialogEndLabel: "TERMINAR A PARTIDA, MIA'PLAC",
     errors: ERRORS.pt,
   },
   de: {
     title: "Kosmischer Riss",
+    ripPaneTitle: "Kosmischer Riss",
     situationTitle: "Lage",
-    scannerArrayTitle: "Nahraum-Scannerarray",
+    scannerArrayTitle: "Nahbereichs-Scanner-Array",
     status: "Endspiel",
     stabilityLabel: "Kosmischer Riss",
     stabilityPercentage: "{percentage}% Stabilisiert",
     introduction:
-      "Die Übertragung von Miaplacidus enthüllt eine Störung jenseits des bekannten Raums.",
+      "Ich weiß nicht, wie du hierher gekommen bist, Mia'Plac, aber wir werden das klären...",
     headerHelp: "Nach der Ortung führst du Studien und Bauarbeiten am Kosmischen Riss durch, um ihn für Manipulation und Schließung zu stabilisieren und die Zukunft deines Volkes zu sichern. Hier kannst du diese kostspieligen und zeitaufwendigen Studien durchführen.",
     situationHelp: "Kosmische Riss-Operationen und Fortschritt.",
     scannerArrayHelp:
@@ -554,8 +580,10 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     gpShort: "GP",
     telemetry: "Riss-Telemetrie",
     rate: "Telemetrierate",
-    restoreScanner: "Nahraum-Scannerarray reparieren",
-    scannerRestored: "Nahraum-Scannerarray repariert.",
+    restoreScanner: "WIEDERHERSTELLEN",
+    scannerRestoredTitle: "Nahraum-Scanner-Array Wiederhergestellt!",
+    scannerRestored:
+      "Wir haben das seltsame Nahraum-Scanner-Array wiederhergestellt, das Miaplacidus im zerstörten Kraftfeld umkreist. Mit Galaktischen Punkten (GP) können wir es vollständig online bringen und Miaplacidus' lokalen Raum scannen, um die Quelle der KI-Invasion zu lokalisieren!",
     scannerRestoreFailedNotification:
       "Das Nahbereichs-Scanner-Array kann nicht wiederhergestellt werden.",
     scannerRestoredNotification: "Nahbereichs-Scanner-Array wiederhergestellt.",
@@ -563,22 +591,22 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Scan abgeschlossen! Nichts Bedeutendes in Sektor {sector} gefunden",
     scanInstruction: "Scanne jeden Sektor für 1 Galaktischen Punkt.",
-    sector: "Sektor",
     sectorScanned: "Gescannte",
     sectorFound: "Riss gefunden",
+    ripFoundTitle: "Kosmischer Riss Lokalisiert!",
     ripFound:
-      "Der Kosmische Riss wurde lokalisiert. Erzeuge Telemetrie für die Erforschung seiner fünf Technologien.",
+      "Der vom Wissenschaftler geöffnete Kosmische Riss, durch den das böse KI-Volk gereist ist, wurde lokalisiert. Wir werden sofort Wissenschaftsteams entsenden, um zu untersuchen!",
     ripMissing: "Das Signal ist nicht in diesem Sektor.",
     upgrades: "Telemetrienetz",
     upgradeNames: { sensorBuoy: "Sensorboje", ripResearchOrbiter: "Riss-Forschungsorbiter" },
-    purchase: "Kaufen",
+    purchase: "AUSSETZEN",
     technologies: "Eindämmungsforschung",
     technologyNames: {
-      stabilizerArray: "Stabilisatorarray",
+      stabilizerArray: "Stabilisator-Array",
       quantumContainmentField: "Quanten-Eindämmungsfeld",
-      dimensionalAnchorMatrix: "Dimensionsankermatrix",
+      dimensionalAnchorMatrix: "Dimensionsanker-Matrix",
       singularityStabilizer: "Singularitätsstabilisator",
-      realityWeaveRegulator: "Realitätsgeweberegler",
+      realityWeaveRegulator: "Realitätsgewebe-Regulator",
     },
     technologyStatusMessages: {
       stabilizerArray: "Stabilisierungsarray Gebaut",
@@ -594,19 +622,22 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     technologyResearchedNotification: "{technology} erforscht!",
     hidden: "Erscheint bei {amount} Telemetrie",
     requires: "Benötigt {name}",
-    closeRip: "Kosmischen Riss schließen",
+    closeRip: "KOSMISCHEN RISS SCHLIESSEN",
+    closedTitle: "KOSMISCHER RISS GESCHLOSSEN!",
     closed:
       "Herzlichen Glückwunsch, Mia'Plac! Die Zukunft deines Volkes ist für immer gesichert. Du hast deine Prophezeiung erfüllt!",
+    closedDialogEndLabel: "SPIEL BEENDEN, MIA'PLAC",
     errors: ERRORS.de,
   },
   it: {
-    title: "Strappo cosmico",
+    title: "Strappo Cosmico",
+    ripPaneTitle: "Strappo Cosmico",
     situationTitle: "Situazione",
-    scannerArrayTitle: "Array di scanner dello spazio vicino",
+    scannerArrayTitle: "Array Scanner Spazio Vicino",
     status: "Finale",
     stabilityLabel: "Strappo Cosmico",
     stabilityPercentage: "{percentage}% Stabilizzato",
-    introduction: "La trasmissione di Miaplacidus rivela un'anomalia oltre lo spazio conosciuto.",
+    introduction: "Non so come sei arrivato qui, Mia'Plac, ma risolveremo questa faccenda...",
     headerHelp: "Una volta localizzato, intraprendi studi e costruzioni intorno allo Squarcio Cosmico per stabilizzarlo in vista della manipolazione e della chiusura, assicurando il futuro del tuo popolo. Qui svolgi questi studi, che sono costosi e richiedono tempo.",
     situationHelp: "Operazioni e progresso dello Squarcio Cosmico.",
     scannerArrayHelp:
@@ -617,8 +648,10 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     gpShort: "PG",
     telemetry: "Telemetria dello strappo",
     rate: "Velocità telemetrica",
-    restoreScanner: "Ripristina l'array di scanner",
-    scannerRestored: "Array di scanner dello spazio vicino ripristinato.",
+    restoreScanner: "RIPRISTINA",
+    scannerRestoredTitle: "Matrice Scanner Spazio Vicino Ripristinata!",
+    scannerRestored:
+      "Abbiamo ripristinato la strana Matrice Scanner Spazio Vicino che orbita attorno a Miaplacidus all'interno del campo di forza in rovina. Con i Punti Galattici (PG), possiamo portarla completamente online e scansionare lo spazio locale di Miaplacidus per localizzare la fonte dell'invasione IA!",
     scannerRestoreFailedNotification: "Impossibile ripristinare l'Array Scanner Spazio Vicino.",
     scannerRestoredNotification: "Array Scanner Spazio Vicino ripristinato.",
     sectorScanFoundNotification:
@@ -626,25 +659,25 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Scansione completata! Nulla di rilevante trovato nel settore {sector}",
     scanInstruction: "Scansiona ogni settore per 1 Punto Galattico.",
-    sector: "Settore",
     sectorScanned: "Scansionato",
     sectorFound: "Strappo localizzato",
+    ripFoundTitle: "Squarcio Cosmico Localizzato!",
     ripFound:
-      "Lo Strappo cosmico è stato localizzato. Genera telemetria per studiare le sue cinque tecnologie.",
+      "Lo Squarcio Cosmico aperto dallo scienziato, attraverso il quale ha viaggiato la malvagia razza IA, è stato localizzato! Invieremo immediatamente squadre scientifiche per indagare!",
     ripMissing: "Il segnale non è in questo settore.",
     upgrades: "Rete telemetrica",
     upgradeNames: {
-      sensorBuoy: "Boa sensore",
-      ripResearchOrbiter: "Orbitale di ricerca dello strappo",
+      sensorBuoy: "Boa Sensore",
+      ripResearchOrbiter: "Orbiter di Ricerca sullo Strappo",
     },
-    purchase: "Acquista",
+    purchase: "SCHIERA",
     technologies: "Ricerca sul contenimento",
     technologyNames: {
-      stabilizerArray: "Matrice stabilizzatrice",
-      quantumContainmentField: "Campo di contenimento quantistico",
-      dimensionalAnchorMatrix: "Matrice di ancoraggio dimensionale",
-      singularityStabilizer: "Stabilizzatore di singolarità",
-      realityWeaveRegulator: "Regolatore del tessuto della realtà",
+      stabilizerArray: "Matrice Stabilizzatrice",
+      quantumContainmentField: "Campo di Contenimento Quantistico",
+      dimensionalAnchorMatrix: "Matrice di Ancoraggio Dimensionale",
+      singularityStabilizer: "Stabilizzatore di Singolarità",
+      realityWeaveRegulator: "Regolatore della Trama della Realtà",
     },
     technologyStatusMessages: {
       stabilizerArray: "Matrice Stabilizzatrice Costruita",
@@ -660,19 +693,23 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     technologyResearchedNotification: "{technology} ricercato!",
     hidden: "Appare con {amount} di telemetria",
     requires: "Richiede {name}",
-    closeRip: "Chiudi lo Strappo cosmico",
+    closeRip: "CHIUDI LO STRAPPO COSMICO",
+    closedTitle: "SQUARCIO COSMICO CHIUSO!",
     closed:
       "Congratulazioni, Mia'Plac! Il futuro del tuo popolo è assicurato per sempre. Hai adempiuto alla tua profezia!",
+    closedDialogEndLabel: "TERMINA LA PARTITA, MIA'PLAC",
     errors: ERRORS.it,
   },
   fr: {
-    title: "Déchirure cosmique",
+    title: "Déchirure Cosmique",
+    ripPaneTitle: "Déchirure Cosmique",
     situationTitle: "Situation",
-    scannerArrayTitle: "Réseau de scanners de l'espace proche",
+    scannerArrayTitle: "Réseau de Scanners du Secteur Proche",
     status: "Fin de partie",
     stabilityLabel: "Déchirure Cosmique",
     stabilityPercentage: "{percentage}% Stabilisée",
-    introduction: "La transmission de Miaplacidus révèle une anomalie au-delà de l'espace connu.",
+    introduction:
+      "Je ne sais pas comment tu es arrivé ici, Mia'Plac, mais nous allons régler ça...",
     headerHelp: "Une fois la Déchirure cosmique localisée, vous menez des études et des travaux pour la stabiliser avant manipulation et fermeture, afin de garantir le futur de votre peuple. Les études ont lieu ici; elles sont coûteuses et prennent du temps.",
     situationHelp: "Opérations et progression de la Déchirure Cosmique.",
     scannerArrayHelp:
@@ -683,8 +720,10 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     gpShort: "PG",
     telemetry: "Télémétrie de la déchirure",
     rate: "Débit de télémétrie",
-    restoreScanner: "Réparer le réseau de scanners",
-    scannerRestored: "Réseau de scanners de l'espace proche réparé.",
+    restoreScanner: "RESTAURER",
+    scannerRestoredTitle: "Matrice de Scanner de l'Espace Proche Restaurée!",
+    scannerRestored:
+      "Nous avons restauré l'étrange Matrice de Scanner de l'Espace Proche orbitant Miaplacidus à l'intérieur du champ de force en ruines. Avec des Points Galactiques (PG), nous pouvons la mettre complètement en ligne et scanner l'espace local de Miaplacidus pour localiser la source de l'invasion IA!",
     scannerRestoreFailedNotification:
       "Impossible de restaurer le Réseau de Scanners du Secteur Proche.",
     scannerRestoredNotification: "Réseau de Scanners du Secteur Proche restauré.",
@@ -693,25 +732,25 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Scan terminé! Rien de significatif trouvé dans le secteur {sector}",
     scanInstruction: "Scannez chaque secteur pour 1 point galactique.",
-    sector: "Secteur",
     sectorScanned: "Scanné",
     sectorFound: "Déchirure localisée",
+    ripFoundTitle: "Déchirure Cosmique Localisée!",
     ripFound:
-      "La Déchirure cosmique est localisée. Produisez de la télémétrie pour rechercher ses cinq technologies.",
+      "La Déchirure cosmique ouverte par le scientifique, à travers laquelle la race maléfique d'IA a voyagé, a été localisée. Nous enverrons immédiatement des équipes scientifiques pour enquêter!",
     ripMissing: "Le signal n'est pas dans ce secteur.",
     upgrades: "Réseau de télémétrie",
     upgradeNames: {
-      sensorBuoy: "Balise sensorielle",
-      ripResearchOrbiter: "Orbiteur de recherche de la déchirure",
+      sensorBuoy: "Bouée Capteur",
+      ripResearchOrbiter: "Orbiteur d'Étude de la Déchirure",
     },
-    purchase: "Acheter",
+    purchase: "DÉPLOYER",
     technologies: "Recherche de confinement",
     technologyNames: {
-      stabilizerArray: "Réseau stabilisateur",
-      quantumContainmentField: "Champ de confinement quantique",
-      dimensionalAnchorMatrix: "Matrice d'ancrage dimensionnel",
-      singularityStabilizer: "Stabilisateur de singularité",
-      realityWeaveRegulator: "Régulateur du tissu de la réalité",
+      stabilizerArray: "Réseau Stabilisateur",
+      quantumContainmentField: "Champ de Confinement Quantique",
+      dimensionalAnchorMatrix: "Matrice d'Ancrage Dimensionnel",
+      singularityStabilizer: "Stabilisateur de Singularité",
+      realityWeaveRegulator: "Régulateur de la Trame du Réel",
     },
     technologyStatusMessages: {
       stabilizerArray: "Réseau de Stabilisateurs Construit",
@@ -727,9 +766,11 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     technologyResearchedNotification: "{technology} recherché!",
     hidden: "Apparaît à {amount} de télémétrie",
     requires: "Nécessite {name}",
-    closeRip: "Fermer la Déchirure cosmique",
+    closeRip: "FERMER LA DÉCHIRURE COSMIQUE",
+    closedTitle: "DÉCHIRURE COSMIQUE FERMÉE!",
     closed:
       "Félicitations, Mia'Plac ! L'avenir de ton peuple est assuré pour toujours. Tu as accompli ta prophétie !",
+    closedDialogEndLabel: "TERMINER LA PARTIE, MIA'PLAC",
     errors: ERRORS.fr,
   },
 };

@@ -26,9 +26,18 @@ The owner selected **Use the documented remake behavior** for the three Statisti
 
 This resolves the owner-decision subtask under P-55, not its source-value audit. The controlled row comparisons and remaining checklist evidence stay open in the [Statistics parity plan](statistics-presentation-parity.md).
 
+## Phase 6 owner decisions (12 October 2026)
+
+- **Black Hole Instability expiry feedback:** add the source result modal and keep MIAPLACIDUS's existing stabilization toast. The modal remains independent of the notification preference; the toast remains preference-gated. See the [expiry dialog audit](../archive/audits/p44-random-event-expiry-dialog-audit-2026-10-12.md).
+- **Near-capacity Resource collection:** keep the remake's full-unit storage rule; a manual collection is rejected unless one full unit fits, preserving the storage invariant. See the [capacity-boundary audit](../archive/audits/p55-resource-collection-capacity-boundary-audit-2026-10-12.md).
+
 ## Working technical decisions
 
 - TypeScript, Vite and React for the browser UI; semantic HTML and responsive CSS. The simulation remains framework-independent and deterministic.
 - Vitest for pure rules and Playwright for browser functional areas, following the old project's area-based test and debug approach.
 - LZString 1.5.0 for compressed local slots and portable codes. The package is already pinned in the manifest and lockfile.
 - Keep future implementation choices in the feature plan that needs them. Amend this record only when the owner changes a product decision; then update the master checklist and affected contracts together.
+
+**Energy after rebirth (12 October 2026):** the owner directed MIAPLACIDUS to follow Cosmic Forge. Dyson Sphere stage 2's 1.25x plant-rate mutation is run-scoped: source rebirth restores initial plant rates and replays Optimized Power Grids, but does not replay the Dyson mutation. A new run therefore retains permanent Dyson technology while its plant-rate boost is inactive. The remake now stores this effect as run state and clears it on rebirth. See the [Dyson rebirth audit](../archive/audits/p55-dyson-production-rebirth-audit-2026-10-12.md).
+
+**Energy rebirth follow-up (12 October 2026):** the same source boundary also resets stage 1's doubled battery capacities and leaves the power grid off unless persistent Dyson stage 5 grants Infinite Power. MIAPLACIDUS now resets the run-scoped stage 1 capacity flag and only restores grid/Infinite Power for stage 5. Stage 4 is permanent technology but does not by itself reactivate Infinite Power in a new run. The v53-to-v54 migration derives the new run flag from stage 1 ownership to preserve the existing save's live behavior. See the [Energy rebirth audit](../archive/audits/p55-energy-rebirth-audit-2026-10-12.md).

@@ -16,6 +16,7 @@ import { precipitationForCurrentWeather } from "../engine/weather";
 import { formatNumber } from "./numberFormatting";
 import { economyGoodName } from "./economyDisplay";
 import { megastructureText } from "../i18n/megastructureMessages";
+import { localizedRocketUserName } from "../i18n/rocketMessages";
 import {
   spaceNotificationText,
   type SpaceNotificationMessageKey,
@@ -215,30 +216,25 @@ export function spaceEventNotice(
       });
     }
     case "space.rocket.launched": {
-      const rocket = space.rockets[event.rocketId]?.name ?? event.rocketId;
+      const rocket = localizedRocketUserName(
+        locale,
+        space.rockets[event.rocketId]?.name ?? event.rocketId,
+      );
       return formatNotice(locale, "rocketLaunched", "rocket", "info", { rocket });
     }
     case "space.rocket.fuel-ready": {
-      const rocket = space.rockets[event.rocketId]?.name ?? event.rocketId;
-      return formatNotice(locale, "rocketFuelReady", "rocket", "info", { rocket });
-    }
-    case "space.rocket.travel-started": {
-      const rocket = space.rockets[event.rocketId]?.name ?? event.rocketId;
-      return formatNotice(
+      const rocket = localizedRocketUserName(
         locale,
-        event.direction === "outbound" ? "rocketOutbound" : "rocketReturning",
-        "rocket",
-        "info",
-        {
-          rocket,
-          asteroid:
-            space.asteroids.find(({ id }) => id === event.asteroidId)?.name ?? event.asteroidId,
-        },
+        space.rockets[event.rocketId]?.name ?? event.rocketId,
       );
+      return formatNotice(locale, "rocketFuelReady", "rocket", "info", { rocket });
     }
     case "space.rocket.arrived":
     case "space.rocket.returned": {
-      const rocket = space.rockets[event.rocketId]?.name ?? event.rocketId;
+      const rocket = localizedRocketUserName(
+        locale,
+        space.rockets[event.rocketId]?.name ?? event.rocketId,
+      );
       const asteroid =
         space.asteroids.find(({ id }) => id === event.asteroidId)?.name ?? event.asteroidId;
       return formatNotice(
