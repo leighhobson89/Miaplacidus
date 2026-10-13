@@ -18,7 +18,7 @@ These decisions were supplied by the project owner on 2 October 2026 and govern 
 
 ## Phase sequencing and localization hold (13 October 2026)
 
-The owner directed that Phase 6 continue with implementation unrelated to localization or translation. Hold new localized copy, translation/catalogue changes, and localization audits until that non-localization work is implemented. The remaining P-44/P-45 localization work and locale-specific P-51 review are deferred to the new [Phase 7 — Localization audit and sweep](build-checklist/07-localization-audit-sweep.md) package. Preserve their current estimates, percentages, and open status until acceptance evidence is complete. The former Phase 7 Verification and browser release package is now [Phase 8](build-checklist/08-verification-release.md); the former Phase 8 Big Fix package is now [Phase 9](build-checklist/09-big-fix.md).
+The owner directed that Phase 6 continue with implementation unrelated to localization or translation. Hold new localized copy, translation/catalogue changes, and localization audits until that non-localization work is implemented. The remaining P-44/P-45 localization work, locale-specific P-51 review, and translated-text/locale-fit P-56 cases are deferred to the new [Phase 7 — Localization audit and sweep](build-checklist/07-localization-audit-sweep.md) package. Preserve their current estimates, percentages, and open status until acceptance evidence is complete. The former Phase 7 Verification and browser release package is now [Phase 8](build-checklist/08-verification-release.md); the former Phase 8 Big Fix package is now [Phase 9](build-checklist/09-big-fix.md).
 
 ## P-55 Statistics semantics decisions (12 October 2026)
 

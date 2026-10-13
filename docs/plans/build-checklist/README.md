@@ -10,7 +10,7 @@ The [single master checklist](../master-checklist.md) is the project control doc
 | 4 | [Space and interstellar](04-space-interstellar.md) | Telescopes, mining, stars, travel, battle and settlement |
 | 5 | [Meta progression and endgame](05-meta-endgame.md) | Rebirth, AP/GP, casino, philosophies, megastructures and Cosmic Rip |
 | 6 | [Presentation implementation (localization deferred)](06-presentation.md) | Non-localization source presentation, responsive behavior, art, audio and themes |
-| 7 | [Localization audit and sweep](07-localization-audit-sweep.md) | Complete deferred P-44/P-45 and locale-specific P-51 review across all six locales |
+| 7 | [Localization audit and sweep](07-localization-audit-sweep.md) | Complete deferred P-44/P-45, locale-specific P-51, and P-56/E-57 fit review across all six locales |
 | 8 | [Verification and release](08-verification-release.md) | Browser and responsive mobile quality, parity evidence, release and optional flagged demo |
 | 9 | [Big fix pass](09-big-fix.md) | Reproduce, prioritize and resolve the tracked production and research autobuyer reports |
 

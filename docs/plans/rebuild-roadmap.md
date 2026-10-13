@@ -37,7 +37,7 @@ The Vite/React/TypeScript stack and deterministic engine substrate are implement
 | 4 | [Space and interstellar](build-checklist/04-space-interstellar.md) | Mining, antimatter, map, starship, diplomacy, fleet, battle and settlement |
 | 5 | [Meta progression and endgame](build-checklist/05-meta-endgame.md) | Rebirth, market/casino, philosophies, black hole, megastructures and Cosmic Rip closure |
 | Cross-phase | [Presentation implementation (localization deferred)](build-checklist/06-presentation.md) | Non-localization layout, interaction, art, audio, themes and source-feedback implementation |
-| 7 | [Localization audit and sweep](build-checklist/07-localization-audit-sweep.md) | Complete the six-locale source-to-target and rendered-copy review |
+| 7 | [Localization audit and sweep](build-checklist/07-localization-audit-sweep.md) | Complete the six-locale source-to-target, rendered-copy, and deferred layout-fit review |
 | 8 | [Verification and release](build-checklist/08-verification-release.md) | Current parity evidence, safe browser artifact and optional separately flagged demo |
 | 9 | [Big fix pass](build-checklist/09-big-fix.md) | A later evidence-led run for the tracked resource and research autobuyer reports |
 

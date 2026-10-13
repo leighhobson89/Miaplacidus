@@ -677,12 +677,12 @@ function assignTargetsAndFire(
         }
       } else if (existingGoalId === null) {
         const newTarget = targetFor(unit, visible);
-        if (newTarget) unit.currentGoalId = newTarget.id;
-        else if (unit.nextHuntUpdateAt <= now) {
+        if (newTarget) {
+          unit.currentGoalId = newTarget.id;
+        } else {
           unit.currentGoalId = "hunt";
           unit.huntX = Math.floor(Math.random() * Math.max(1, scene.width - 20)) + 10;
           unit.huntY = Math.floor(Math.random() * Math.max(1, scene.height - 20)) + 10;
-          unit.nextHuntUpdateAt = now + 900 + Math.random() * 900;
         }
       } else {
         unit.currentGoalId = "hunt";

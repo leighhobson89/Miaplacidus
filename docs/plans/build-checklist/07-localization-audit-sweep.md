@@ -4,7 +4,7 @@
 
 **Outcome:** every player-facing message and locale-specific layout is checked against Cosmic Forge's source intent, mapped to its active MIAPLACIDUS catalogue and renderer, and reviewed in all six supported locales: `en`, `es`, `pt`, `de`, `it`, and `fr`.
 
-This phase resumes the held localization scope already tracked under **P-44**, **P-45**, and the locale-specific parts of **P-51** in the [Phase 6 checklist](06-presentation.md) and [Phase 6 estimates](phase-6-estimations.md). Existing completed source comparisons, locale checks, and dated audits remain valid evidence; do not repeat them without a concrete reason. Keep the P-ticket estimates and percentages unchanged unless the owner revises them.
+This phase resumes the held localization scope already tracked under **P-44**, **P-45**, and the locale-specific parts of **P-51** in the [Phase 6 checklist](06-presentation.md) and [Phase 6 estimates](phase-6-estimations.md). Existing completed source comparisons, locale checks, and dated audits remain valid evidence; do not repeat them without a concrete reason. Keep the P-ticket estimates and percentages unchanged unless the owner revises them. L-07 also covers the translated-text and locale-fit cases held out of P-56 and E-57; Phase 6 P-56 remains limited to non-locale theme/viewport presentation.
 
 ## Source and catalogue coverage
 
