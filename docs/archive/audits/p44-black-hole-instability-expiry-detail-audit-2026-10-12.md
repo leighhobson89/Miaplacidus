@@ -7,7 +7,7 @@
 
 ## Source behavior
 
-When the timed event ends, Cosmic Forge `../../../cosmicForge/cosmicForge/events.js:166–187` emits the stabilization notice and opens the `blackHoleInstabilityEnded` result modal. `../../../cosmicForge/cosmicForge/ui.js:15408–15429,15448–15500` resolves that modal. The six source `modalEventBlackHoleInstabilityEndedText` values explain that the singularity calms and returns to equilibrium, and that Black Hole strength and duration are restored to standard (`../../../cosmicForge/cosmicForge/localization.json:180,2801,5424,8047,10670,13293`).
+When the timed event ends, Cosmic Forge `../../../../cosmicForge/cosmicForge/events.js:166–187` emits the stabilization notice and opens the `blackHoleInstabilityEnded` result modal. `../../../../cosmicForge/cosmicForge/ui.js:15408–15429,15448–15500` resolves that modal. The six source `modalEventBlackHoleInstabilityEndedText` values explain that the singularity calms and returns to equilibrium, and that Black Hole strength and duration are restored to standard (`../../../../cosmicForge/cosmicForge/localization.json:180,2801,5424,8047,10670,13293`).
 
 ## Remake route
 

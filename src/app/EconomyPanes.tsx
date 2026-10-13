@@ -447,7 +447,7 @@ function ResourceCard({
                 aria-describedby={collectReason ? `resource-${id}-collect-reason` : undefined}
                 onClick={() => store.dispatch({ type: "resource.collect", goodId: id })}
               >
-                {t("collect")} {name(locale, id)}
+                {t("collect")}
               </button>
               {collectReason && (
                 <p className="control-reason" id={`resource-${id}-collect-reason`}>
@@ -580,7 +580,7 @@ function ResourceHeroCard({
           aria-describedby={collectReason ? `resource-${id}-collect-reason` : undefined}
           onClick={() => store.dispatch({ type: "resource.collect", goodId: id })}
         >
-          {t("collect")} {name(locale, id)}
+          {t("collect")}
         </button>
         {collectReason && (
           <p className="control-reason" id={`resource-${id}-collect-reason`}>
@@ -2210,7 +2210,7 @@ function TechnologyPrerequisiteTree({
                         })
                       : null;
                     const status = done
-                      ? t("researched")
+                      ? t("researchTechResearched")
                       : canResearch
                         ? t("ready")
                         : ([prerequisiteReason, researchPointsShortfall]
@@ -2237,7 +2237,7 @@ function TechnologyPrerequisiteTree({
                               ? "knowledge-sharing-tech"
                               : undefined
                           }
-                          aria-label={`${done ? t("researched") : t("researchTech")}: ${technologyLabel}`}
+                          aria-label={`${done ? t("researchTechResearched") : t("researchTech")}: ${technologyLabel}`}
                           aria-describedby={tooltipId}
                           aria-disabled={!canResearch}
                           title={tooltipText}
@@ -2264,7 +2264,7 @@ function TechnologyPrerequisiteTree({
                             </span>
                           </span>
                           <span className="technology-map-node-cost">
-                            {format(state, technology.price)} {t("points")}
+                            {format(state, technology.price)} {t("researchCostSuffix")}
                           </span>
                           <span className="technology-map-tooltip" id={tooltipId} role="tooltip">
                             <strong>{technologyLabel}</strong>
@@ -2444,7 +2444,10 @@ function ResearchPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
                           }
                           onClick={() => store.dispatch(singleCommand)}
                         >
-                          {t("buy")}
+                          {formatEconomyMessage(locale, "researchBuildingAction", {
+                            rate: String(def.ratePerSecond),
+                            resource: t("research"),
+                          })}
                         </button>
                         {isBulkPurchasingAvailable(state) && (
                           <button
@@ -2456,7 +2459,7 @@ function ResearchPanel({ activePane, state, store }: Omit<EconomyPanesProps, "ta
                             }
                             onClick={() => store.dispatch(bulkCommand)}
                           >
-                            {t("buyMax")}
+                              {t("buyMax")}
                           </button>
                         )}
                       </div>
@@ -2783,7 +2786,7 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                 <article className="economy-card" key={id} data-building-id={id}>
                   <header className="economy-entity-heading">
                     <EconomyStructureEmblem kind="power-plant" />
-                    <h3 id={plantNameId}>{techName(locale, id)}</h3>
+                    <h3 id={plantNameId}>{techName(locale, id)}:</h3>
                     <InfoTooltip
                       id={`energy-building-${id}-help`}
                       label={`${techName(locale, id)} — ${starshipText(locale, "scanMoreInfoLabel")}`}
@@ -2947,7 +2950,7 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                 <article className="economy-card" key={id} data-building-id={id}>
                   <header className="economy-entity-heading">
                     <EconomyStructureEmblem kind="battery" />
-                    <h3 id={batteryNameId}>{techName(locale, id)}</h3>
+                    <h3 id={batteryNameId}>{techName(locale, id)}:</h3>
                     <InfoTooltip
                       id={`energy-${id}-help`}
                       label={`${techName(locale, id)} — ${starshipText(locale, "scanMoreInfoLabel")}`}
@@ -2982,7 +2985,7 @@ function EnergyPanel({ activePane, state, store }: Omit<EconomyPanesProps, "tabI
                           aria-describedby={bulkDescription}
                           onClick={() => store.dispatch(bulkCommand)}
                         >
-                          {t("buyMax")}
+                          {t("energyBatteryBuyMax")}
                         </button>
                       )}
                     </div>

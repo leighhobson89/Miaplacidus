@@ -1,6 +1,6 @@
-# Phase 7 — verification and browser release
+# Phase 8 — verification and browser release
 
-**Outcome:** MIAPLACIDUS can be released as a dependable browser game on desktop and responsive mobile, with auditable gameplay coverage and safe local saves. This package expands [M-07](../master-checklist.md). The normal artifact is the full game; an optional demo requires an explicit flag. No Electron, cloud saving, original Cosmic Forge save import or analytics is planned.
+**Outcome:** MIAPLACIDUS can be released as a dependable browser game on desktop and responsive mobile, with auditable gameplay coverage and safe local saves. This package expands [M-08](../master-checklist.md). The normal artifact is the full game; an optional demo requires an explicit flag. No Electron, cloud saving, original Cosmic Forge save import or analytics is planned.
 
 ## Evidence and functional coverage
 

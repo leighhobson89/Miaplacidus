@@ -222,7 +222,7 @@ function StarDataTable({
                     </span>
                   </th>
                   <th scope="col">{starMapText(locale, "distance")}</th>
-                  <th scope="col">{starMapText(locale, "starType")}</th>
+                  <th scope="col">{starMapText(locale, "dataType")}</th>
                   <th scope="col">
                     <span className="star-data-header-label">
                       {starMapText(locale, "weather")}
@@ -247,7 +247,7 @@ function StarDataTable({
                       />
                     </span>
                   </th>
-                  <th scope="col">{starMapText(locale, "mapTarget")}</th>
+                  <th scope="col">{starMapText(locale, "mapColumn")}</th>
                   <th scope="col">{starshipText(locale, "setDestination")}</th>
                 </tr>
               </thead>

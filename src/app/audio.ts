@@ -237,8 +237,11 @@ export function audioCueForEvent(event: EngineEvent, state: GameState): AudioCue
 }
 
 interface BattleCueSelectors {
-  readonly laser: (candidateCount: number, onCue?: (cue: AudioCue) => void) => void;
-  readonly explosion: (deathCount: number, onCue?: (cue: AudioCue) => void) => void;
+  readonly laserCallback: (onCue?: (cue: AudioCue) => void) => void;
+  readonly explosionAttempt: (
+    onCue: ((cue: AudioCue) => void) | undefined,
+    sourceCrossingAtMs: number,
+  ) => void;
 }
 
 function createBattleCueSelectors(
@@ -249,52 +252,30 @@ function createBattleCueSelectors(
   let lastLaserAt = 0;
   let lastExplosionAt = 0;
   return {
-    laser(candidateCount, onCue) {
-      if (!Number.isSafeInteger(candidateCount) || candidateCount <= 0) return;
-      for (let index = 0; index < candidateCount; index += 1) {
-        // The source rolls for each eligible shooter-target candidate before
-        // the laser callback applies its shared strict cooldown.
-        if (random() > 0.2) continue;
-        const currentTime = now();
-        if (
-          !Number.isFinite(currentTime) ||
-          currentTime - lastLaserAt <= BATTLE_LASER_COOLDOWN_MS
-        ) {
-          continue;
-        }
-        lastLaserAt = currentTime;
-        const cue = random() < 0.5 ? "laserGun1" : "laserGun2";
-        onCue?.(cue);
+    laserCallback(onCue) {
+      const currentTime = now();
+      if (
+        !Number.isFinite(currentTime) ||
+        currentTime - lastLaserAt <= BATTLE_LASER_COOLDOWN_MS
+      ) {
+        return;
       }
+      lastLaserAt = currentTime;
+      const cue = random() < 0.5 ? "laserGun1" : "laserGun2";
+      onCue?.(cue);
     },
-    explosion(deathCount, onCue) {
-      if (!Number.isSafeInteger(deathCount) || deathCount <= 0) return;
-      for (let index = 0; index < deathCount; index += 1) {
-        const currentTime = now();
-        if (
-          !Number.isFinite(currentTime) ||
-          currentTime - lastExplosionAt <= BATTLE_EXPLOSION_COOLDOWN_MS
-        ) {
-          continue;
-        }
-        lastExplosionAt = currentTime;
-        const cue = random() < 0.5 ? "shipBattleExplode1" : "shipBattleExplode2";
-        onCue?.(cue);
+    explosionAttempt(onCue, sourceCrossingAtMs) {
+      if (
+        !Number.isFinite(sourceCrossingAtMs) ||
+        sourceCrossingAtMs - lastExplosionAt <= BATTLE_EXPLOSION_COOLDOWN_MS
+      ) {
+        return;
       }
+      lastExplosionAt = sourceCrossingAtMs;
+      const cue = random() < 0.5 ? "shipBattleExplode1" : "shipBattleExplode2";
+      onCue?.(cue);
     },
   };
-}
-
-function recordSuppressedBattleCueAttempts(
-  events: readonly EngineEvent[],
-  selectors: BattleCueSelectors,
-): void {
-  // Cosmic Forge advances its timestamps before the audio manager applies
-  // mute. Keep the same throttle state when this adapter suppresses playback.
-  for (const event of events) {
-    if (event.type === "space.battle.impact") selectors.laser(event.candidateCount);
-    else if (event.type === "space.battle.death") selectors.explosion(event.count);
-  }
 }
 
 function cuesForEvent(event: EngineEvent, state: GameState): readonly AudioCue[] {
@@ -404,7 +385,6 @@ function handleResult(
   result: EngineResult,
   boostSoundLoop: ReturnType<typeof createBoostSoundLoop>,
   isAudioFocused: () => boolean,
-  battleCueSelectors: BattleCueSelectors,
 ): void {
   if (!result.accepted) return;
   const isArrivalNoticeMarker = command.type === "space.starship.arrival-notice.mark-notified";
@@ -423,10 +403,7 @@ function handleResult(
     result.events,
     effectsEnabled && audioUnlocked,
   );
-  if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || effectsVolume <= 0) {
-    recordSuppressedBattleCueAttempts(result.events, battleCueSelectors);
-    return;
-  }
+  if (!effectsEnabled || !audioUnlocked || !isAudioFocused() || effectsVolume <= 0) return;
 
   const cues = new Set<AudioCue>();
   if (hasSourceButtonCue(command, result)) cues.add("clickButton");
@@ -439,12 +416,8 @@ function handleResult(
   }
   for (const event of result.events) {
     if (command.type === "clock.advance" && event.type === "resource.sold") continue;
-    if (event.type === "space.battle.impact") {
-      battleCueSelectors.laser(event.candidateCount, (cue) => playEffect(cue, effectsVolume));
-      continue;
-    }
     if (event.type === "space.battle.death") {
-      battleCueSelectors.explosion(event.count, (cue) => playEffect(cue, effectsVolume));
+      // Battle cues are emitted by the live per-unit presentation callbacks.
       continue;
     }
     if (
@@ -495,6 +468,8 @@ function handleResult(
 export interface AudioGameStore extends GameStore {
   subscribeEvents(listener: (events: readonly EngineEvent[]) => void): () => void;
   playUiCue(cue: "click" | "swipe"): void;
+  playBattleLaserCandidate(): void;
+  playBattleExplosionCandidate(sourceCrossingAtMs: number): void;
   dispose(): void;
 }
 
@@ -574,15 +549,30 @@ export function withGameAudio(
         state.settings.soundEffectsVolume ?? 0.5,
       );
     },
+    playBattleLaserCandidate() {
+      const state = store.getState();
+      const effectsEnabled =
+        state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
+      const effectsVolume = state.settings.soundEffectsVolume ?? 0.5;
+      const canPlay = effectsEnabled && audioUnlocked && isAudioFocused() && effectsVolume > 0;
+      battleCueSelectors.laserCallback(
+        canPlay ? (cue) => playEffect(cue, effectsVolume) : undefined,
+      );
+    },
+    playBattleExplosionCandidate(sourceCrossingAtMs) {
+      const state = store.getState();
+      const effectsEnabled =
+        state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
+      const effectsVolume = state.settings.soundEffectsVolume ?? 0.5;
+      const canPlay = effectsEnabled && audioUnlocked && isAudioFocused() && effectsVolume > 0;
+      battleCueSelectors.explosionAttempt(
+        canPlay ? (cue) => playEffect(cue, effectsVolume) : undefined,
+        sourceCrossingAtMs,
+      );
+    },
     dispatch(command) {
       const result = store.dispatch(command);
-      handleResult(
-        command,
-        result,
-        boostSoundLoop,
-        isAudioFocused,
-        battleCueSelectors,
-      );
+      handleResult(command, result, boostSoundLoop, isAudioFocused);
       if (result.accepted) publishEvents(result.events);
       return result;
     },
@@ -591,13 +581,7 @@ export function withGameAudio(
       commands.forEach((command, index) => {
         const result = results[index];
         if (result)
-          handleResult(
-            command,
-            result,
-            boostSoundLoop,
-            isAudioFocused,
-            battleCueSelectors,
-          );
+          handleResult(command, result, boostSoundLoop, isAudioFocused);
       });
       publishEvents(results.flatMap((result) => (result.accepted ? result.events : [])));
       return results;

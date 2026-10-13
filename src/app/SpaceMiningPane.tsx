@@ -154,14 +154,21 @@ function RocketAssemblyCard({
   rocketId,
   state,
   store,
+  isLaunchPadAssembly,
 }: {
   readonly rocketId: (typeof ROCKET_IDS)[number];
   readonly state: GameState;
   readonly store: GameStore;
+  readonly isLaunchPadAssembly: boolean;
 }) {
   const locale = state.settings.locale;
   const rocket = state.run.space.rockets[rocketId];
-  const rocketDisplayName = localizedRocketUserName(locale, rocket.name);
+  const defaultRocketName = `Rocket ${Number(rocketId.slice(-1))}`;
+  const hasCustomRocketName = rocket.name.trim() !== defaultRocketName;
+  const rocketDisplayName =
+    isLaunchPadAssembly && !hasCustomRocketName
+      ? `${rocketText(locale, "rocketMinerLabel", { index: Number(rocketId.slice(-1)) })}:`
+      : localizedRocketUserName(locale, rocket.name);
   const rocketHeadingId = `rocket-${rocketId}-heading`;
   const rocketNameLabelId = `rocket-${rocketId}-name-label`;
   const rocketRenameTextId = `rocket-${rocketId}-rename-label`;
@@ -808,9 +815,13 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                   data-testid="space-survey-countdown"
                   data-remaining-ms={surveyRemainingMs}
                 >
-                  {spaceText(locale, "surveyTimeRemaining", {
-                    time: formatDuration(locale, surveyRemainingMs, state.settings.notation),
-                  })}
+                  {space.activeSurvey === "stars"
+                    ? spaceText(locale, "surveyStudyingProgress", {
+                        seconds: Math.floor(surveyRemainingMs / 1_000),
+                      })
+                    : spaceText(locale, "surveyTimeRemaining", {
+                        time: formatDuration(locale, surveyRemainingMs, state.settings.notation),
+                      })}
                 </p>
                 <progress
                   className="space-survey-progress"
@@ -939,7 +950,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                     {spaceText(locale, space.autoTelescopeEnabled ? "autoEnabled" : "autoDisabled")}
                   </span>
                 </div>
-                <label htmlFor="auto-telescope-mode">{spaceText(locale, "autoMode")}</label>
+                <label htmlFor="auto-telescope-mode">{spaceText(locale, "autoRowLabel")}</label>
                 <select
                   id="auto-telescope-mode"
                   value={space.autoTelescopeMode}
@@ -1090,13 +1101,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                       <span>{spaceText(locale, RARITY_MESSAGES[asteroid.rarity])}</span>
                       {asteroid.depleted && <span>{spaceText(locale, "asteroidDepleted")}</span>}
                       {asteroid.reservedBy && (
-                        <span>
-                          {spaceText(locale, "asteroidReserved", {
-                            rocket: rocketText(locale, "rocketLabel", {
-                              index: Number(asteroid.reservedBy.slice(-1)),
-                            }),
-                          })}
-                        </span>
+                        <span>{spaceText(locale, "asteroidReserved")}</span>
                       )}
                       <span>
                         {spaceText(locale, "asteroidDistance")}: {number(state, asteroid.distance)}
@@ -1177,7 +1182,12 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                 const showCompletedRocket = activePane === rocketPaneId && rocketComplete;
                 return (
                   <div key={rocketId} hidden={!showAssemblyCard && !showCompletedRocket}>
-                    <RocketAssemblyCard rocketId={rocketId} state={state} store={store} />
+                    <RocketAssemblyCard
+                      rocketId={rocketId}
+                      state={state}
+                      store={store}
+                      isLaunchPadAssembly={showAssemblyCard}
+                    />
                   </div>
                 );
               })}

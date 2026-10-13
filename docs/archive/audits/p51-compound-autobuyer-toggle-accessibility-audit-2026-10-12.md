@@ -10,6 +10,6 @@ This is reproducible by static inspection when at least two autobuyer tiers are 
 
 The action now uses a localized Compound-and-tier name (`Autobuyer for {good}, tier {tier}` in English), retains `aria-pressed` for its active state, and references that tier's summary and localized help with `aria-describedby` (`src/app/EconomyPanes.tsx:1871-1889`). Assistive technology can identify the good and tier from the name, then hear its owned count and production rate plus the localized Compound autobuyer description. The visible Pause/Resume text states the next action. This applies to each Compound and tier through the shared renderer.
 
-Cosmic Forge builds each autobuyer as a separate source row, with the row's upgrade name and its adjacent toggle (`../../../cosmicForge/cosmicForge/drawTab4Content.js:165-201`); MIAPLACIDUS keeps the rows distinct and now also provides an explicit accessible description association for the toggle.
+Cosmic Forge builds each autobuyer as a separate source row, with the row's upgrade name and its adjacent toggle (`../../../../cosmicForge/cosmicForge/drawTab4Content.js:165-201`); MIAPLACIDUS keeps the rows distinct and now also provides an explicit accessible description association for the toggle.
 
 No tests, build, typecheck, formatter, or browser review was run. This is a static accessibility correction; P-51's broader locale, viewport, theme, and rendered review remains open.

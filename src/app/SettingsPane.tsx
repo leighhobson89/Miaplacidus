@@ -444,7 +444,7 @@ export const SettingsPane = memo(function SettingsPane({
                   disabled={!fullscreenSupported}
                   onClick={() => void toggleFullscreen()}
                 >
-                  {settingsText(locale, isFullscreen ? "fullscreenExit" : "fullscreenEnter")}
+                  {settingsText(locale, "fullscreenToggle")}
                 </button>
                 <small
                   id="settings-fullscreen-description"

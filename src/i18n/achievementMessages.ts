@@ -3,7 +3,7 @@ import type { LocaleId } from "../content/ids";
 const messages = {
   en: {
     title: "Achievements",
-    description: "Milestones and rewards across each civilization.",
+    description: "Here you can see your earned achievements, and their effects.",
     overview: "Here you can see your earned achievements, and their effects.",
     unlocked: "unlocked",
     reward: "Reward",
@@ -17,7 +17,7 @@ const messages = {
   },
   es: {
     title: "Logros",
-    description: "Hitos y recompensas de cada civilización.",
+    description: "Aquí puedes ver tus logros ganados, y sus efectos.",
     overview: "Aquí puedes ver tus logros ganados, y sus efectos.",
     unlocked: "desbloqueados",
     reward: "Recompensa",
@@ -31,7 +31,7 @@ const messages = {
   },
   pt: {
     title: "Conquistas",
-    description: "Marcos e recompensas de cada civilização.",
+    description: "Aqui podes ver as tuas conquistas obtidas e os seus efeitos.",
     overview: "Aqui podes ver as tuas conquistas obtidas e os seus efeitos.",
     unlocked: "desbloqueadas",
     reward: "Recompensa",
@@ -45,7 +45,7 @@ const messages = {
   },
   de: {
     title: "Errungenschaften",
-    description: "Meilensteine und Belohnungen jeder Zivilisation.",
+    description: "Hier kannst du deine verdienten Errungenschaften und ihre Effekte sehen.",
     overview: "Hier kannst du deine verdienten Errungenschaften und ihre Effekte sehen.",
     unlocked: "freigeschaltet",
     reward: "Belohnung",
@@ -59,7 +59,7 @@ const messages = {
   },
   it: {
     title: "Traguardi",
-    description: "Traguardi e ricompense di ogni civiltà.",
+    description: "Qui puoi vedere i tuoi traguardi guadagnati, e i loro effetti.",
     overview: "Qui puoi vedere i tuoi traguardi guadagnati, e i loro effetti.",
     unlocked: "sbloccati",
     reward: "Ricompensa",
@@ -73,7 +73,7 @@ const messages = {
   },
   fr: {
     title: "Succès",
-    description: "Étapes et récompenses de chaque civilisation.",
+    description: "Ici tu peux voir tes accomplissements gagnés, et leurs effets.",
     overview: "Ici tu peux voir tes accomplissements gagnés, et leurs effets.",
     unlocked: "débloqués",
     reward: "Récompense",

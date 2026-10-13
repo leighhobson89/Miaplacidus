@@ -115,8 +115,21 @@ const labels: Record<LocaleId, Record<EnergyStatisticId, string>> = {
   },
 };
 
+const rateUnits: Record<LocaleId, string> = {
+  en: "kJ / s",
+  es: "kJ / s",
+  pt: "kJ / s",
+  de: "kJ / s",
+  it: "kJ / s",
+  fr: "kJ / s",
+};
+
 export function energyStatisticLabel(locale: LocaleId, id: EnergyStatisticId): string {
   return labels[locale][id];
 }
 
-export const LOCALIZATION_VALIDATION_DATA = { labels } as const;
+export function energyStatisticRateUnit(locale: LocaleId): string {
+  return rateUnits[locale];
+}
+
+export const LOCALIZATION_VALIDATION_DATA = { labels, rateUnits } as const;

@@ -1,8 +1,14 @@
 # Phase 6 completion estimates
 
-Estimates last reviewed 11 October 2026. Checklist status reconciled 12 October: 12 open / 54 closed after P-28 was reopened for source-triggered ending review. Existing percentages, ticket time ranges, and the 1,665-2,410 minute aggregate for the eleven previously estimated tickets are unchanged; the P-28 follow-up is unestimated and excluded from that total.
+Estimates last reviewed 11 October 2026. Checklist status reconciled 13 October: 12 open / 54 closed after P-28 was reopened for source-triggered ending review; all 66 Phase 6 checkboxes were counted, including the anchored P-55 item. Existing percentages, ticket time ranges, and the 1,665-2,410 minute aggregate for the eleven previously estimated tickets are unchanged; the P-28 follow-up is unestimated and excluded from that total.
 
-P-22 assumes access to a physical device for the soft-keyboard check; device wait time is excluded. P-20 still needs spoken assistive-technology verification. P-29 now uses ordered aggregate fleet-volley impact and confirmed-death events; reproducing exact source-visible target eligibility and intra-volley animation timing would add at least four hours and may need a richer battle model. P-31 remains parked until other non-performance Phase 6 work is complete. P-56 estimates the presentation matrix only; its performance follow-up remains parked. P-10 includes the natural unlock progression that seeded journeys cannot establish.
+Owner direction (13 October 2026): P-44/P-45 localization work and locale-specific P-51 review are on hold for Phase 7, [Localization audit and sweep](07-localization-audit-sweep.md). Their open sub-tasks remain listed here with their existing estimates and percentages; do not work them until the non-localization Phase 6 implementation is complete.
+
+P-22 assumes access to a physical device for the soft-keyboard check; device wait time is excluded. P-20 still needs spoken assistive-technology verification. P-29 has a transient unit-level presentation that derives source-shaped visible-shot candidates and per-frame health crossings without changing combat damage or outcomes. After the owner's 13 October direction to match Cosmic Forge callbacks, explosion audio is attempted synchronously at each modeled zero-health crossing through the shared strict `>140 ms` cooldown; aggregate engine events continue to govern confirmed death visuals. The presentation model can diverge from pooled engine casualties, so a modeled crossing can sound without a corresponding confirmed loss, and a confirmed loss can lack a modeled cue. The inclusive `<= 0.2` shot threshold and roll-before-goal order match Cosmic Forge. Source/model correspondence and focused cadence evidence remain open; the earlier feasibility review found this would add at least four hours and may need a richer battle model. The existing percentage and ticket estimate are retained. P-31 remains parked until other non-performance Phase 6 work is complete. P-56 estimates the presentation matrix only; its performance follow-up remains parked. P-10 includes the natural unlock progression that seeded journeys cannot establish.
+
+P-55 follow-up on 13 October: numeric Energy rate values now use Cosmic Forge's `kJ / s` suffix in six locales, and the v52→v53 migration no longer restores Dyson's run-only plant-rate effect for saves with a prior rebirth. The relevant source/code comparisons are recorded in archived audits; matched values, migration fixtures, and rendered review remain open. No estimate, percentage, or ticket time range changed.
+
+P-29 implementation update on 13 October: the interim confirmed-only mapping that waited for aggregate engine receipts was superseded after the owner selected Cosmic Forge's source-timed behavior. Audio now attempts at modeled per-unit zero-health crossings without waiting for casualty confirmation. The callback timing and cooldown are source-shaped, but the renderer's presentation simulation can diverge from pooled engine casualties; source/model correspondence and catch-up cadence remain open. P-29 remains open, and its estimate remains unchanged.
 
 ## Open items
 
@@ -18,13 +24,12 @@ Each ticket keeps its existing completion and time estimates; the bullets below 
   - Import a save while the keyboard is open and confirm the preview, success/error feedback, and next action remain reachable.
   - Fix only reproduced device-specific clipping, focus, scroll, or viewport-resize defects, then repeat the affected device journey and record device/browser/outcome.
 - P-29 — Sound and music coverage — **85% complete** — **45-60 mins**.
-  - Compare ordered aggregate fleet-volley candidate attempts and confirmed-death cues with Cosmic Forge's per-visible-shot and per-death guards; record whether the remaining aggregate approximation is accepted.
-  - If acceptance requires exact per-impact timing, extend the battle model with source-visible target eligibility and callback timing, routing attempts from those events without changing combat outcomes.
-  - Exercise normal and catch-up battle ticks; verify one 20% laser roll per represented shooter candidate, cooldown-suppressed attempts are dropped, and no terminal shot is inferred.
+  - Finish the per-unit battle presentation callback model. Visible-shot eligibility now comes from transient unit positions, visibility, and current goals; the renderer tracks source-style per-frame health crossings but can map them to confirmed engine deaths only when counts match per round and fleet. Make source-timed callbacks authoritative for every confirmed death without changing combat damage or outcomes. Event-receipt fallback and speculative presentation damage are not acceptance evidence.
+  - Exercise normal and catch-up battle ticks; verify one 20% roll per source-visible enemy candidate, and only a candidate matching the shooter's current goal invokes the laser callback; cooldown-suppressed attempts are dropped and no terminal shot is inferred.
   - Verify laser attempts at the exact 80 ms boundary are suppressed, attempts after 80 ms are admitted, and no delayed cue plays after synchronous catch-up.
   - Exercise casualties in normal and terminal rounds; verify each confirmed death makes an explosion attempt, the 140 ms boundary suppresses it, and no casualty cue is deferred after the result.
   - With sound muted, at zero volume, unfocused, or audio locked, verify battle attempts still advance cooldown without playback; after restoring audio, verify source timing is preserved and no delayed cue plays. Dispose around battle events and confirm no callback remains.
-  - Run the focused battle cadence checks, fix missed or duplicated event-boundary attempts, and record the chosen approximation and evidence.
+  - Run the focused battle cadence checks, fix missed or duplicated event-boundary attempts, and record evidence for the source-timed behavior and any remaining model limits.
 - P-20 — Assistive notification coverage — **85% complete** — **45-75 mins**.
   - With a screen reader, trigger an unaffordable purchase and verify its localized reason is spoken once without moving focus.
   - With a screen reader, trigger a save conflict and verify the conflict and available resolution are announced while the controls remain usable.
@@ -34,7 +39,6 @@ Each ticket keeps its existing completion and time estimates; the bullets below 
 - P-36 — Onboarding tutorial flow — **85% complete** — **60-90 mins**.
   - Start one fresh save and complete every tutorial step through the final Miaplaedia step using the visible game controls.
   - At each step, verify its action, read-time gate, destination, unlock condition, and Continue availability against the intended sequence.
-  - Confirm the Background Audio step requires changing the audio control and that the Tech Tree prompts enforce their intended read times.
   - Save and reload during an active gated step; verify the same step resumes and completed actions are not replayed.
   - Exercise Skip and normal completion; verify the completion achievement is issued once and subsequent loads do not repeat it.
   - Load a pre-existing save and verify the tutorial is not introduced retroactively.

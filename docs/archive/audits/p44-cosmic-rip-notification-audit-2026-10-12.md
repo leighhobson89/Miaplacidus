@@ -4,7 +4,7 @@
 
 Compared the Cosmic Forge Cosmic Rip action/result feedback with the MIAPLACIDUS notification catalog and dispatch routes. This is a static source review; no browser interaction or automated checks were run.
 
-- Source actions and notices: `../../../cosmicForge/cosmicForge/drawTab8Content.js` (scanner restore and sector scan handlers), `../../../cosmicForge/cosmicForge/game.js` (technology research completion), and `../../../cosmicForge/cosmicForge/localization.json` (six locale catalogs).
+- Source actions and notices: `../../../../cosmicForge/cosmicForge/drawTab8Content.js` (scanner restore and sector scan handlers), `../../../../cosmicForge/cosmicForge/game.js` (technology research completion), and `../../../../cosmicForge/cosmicForge/localization.json` (six locale catalogs).
 - Remake routes: `src/app/CosmicRipPane.tsx`, `src/app/cosmicRipEventNotifications.ts`, and `src/app/App.tsx`.
 - Remake copy: `src/i18n/cosmicRipMessages.ts`.
 

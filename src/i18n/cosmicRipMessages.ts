@@ -7,6 +7,7 @@ export interface CosmicRipMessages {
   readonly ripPaneTitle: string;
   readonly situationTitle: string;
   readonly scannerArrayTitle: string;
+  readonly requiresRestoration: string;
   readonly status: string;
   readonly stabilityLabel: string;
   readonly stabilityPercentage: string;
@@ -27,10 +28,12 @@ export interface CosmicRipMessages {
   readonly sectorScanFoundNotification: string;
   readonly sectorScanEmptyNotification: string;
   readonly scanInstruction: string;
+  readonly sectorScanCost: string;
   readonly sectorScanned: string;
   readonly sectorFound: string;
   readonly ripFoundTitle: string;
   readonly ripFound: string;
+  readonly locatedInSector: string;
   readonly ripMissing: string;
   readonly upgrades: string;
   readonly upgradeNames: Readonly<Record<CosmicRipUpgradeId, string>>;
@@ -357,19 +360,21 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Cosmic Rip",
     situationTitle: "Situation",
     scannerArrayTitle: "Near Space Scanner Array",
+    requiresRestoration: "Requires Restoration",
     status: "Endgame",
-    stabilityLabel: "Cosmic Rip",
+    stabilityLabel: "Cosmic Rip:",
     stabilityPercentage: "{percentage}% Stabilised",
     introduction: "I don't know how you got here, Mia'Plac, but we are going to settle this...",
-    headerHelp: "Once located, you undertake studies and construction around the Cosmic Rip to stabilise it for manipulation and closure, securing the future of your people. This is where you carry out those studies; they are costly and take time.",
-    situationHelp: "Cosmic Rip operations and progression.",
+    headerHelp: "Once located, you undertake a set of studies, and constructions around the Cosmic Rip to Stabilise it ready for Manipulation and Closure, to secure the future for your people.  Here is where you do those studies, and they are costly, and take time.",
+    situationHelp:
+      "This is where you gain current insight in to the progress of Stabilising and Securing the Cosmic Rip.  Also when the time is right, this is where you will end the game!",
     scannerArrayHelp:
-      "Commission the Near Space Scanner Array, scan sectors to locate distortions, and pinpoint the Cosmic Rip.",
+      "Scan the local space sectors around Miaplacidus to try to locate the Cosmic Rip.  Each scan costs a Galactic Point and once located, you can build science vessels to collect Telemetry Data around the Cosmic Rip",
     technologyHelp:
       "Investigate and Research how to stabilise and secure the Cosmic Rip once located.",
     gp: "Galactic Points",
     gpShort: "GP",
-    telemetry: "Rip telemetry",
+    telemetry: "Telemetry Data",
     rate: "Telemetry rate",
     restoreScanner: "RESTORE",
     scannerRestoredTitle: "Near Space Scanner Array Restored!",
@@ -380,11 +385,13 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanFoundNotification: "Scan complete! Cosmic Rip located in sector {sector}",
     sectorScanEmptyNotification: "Scan complete! Nothing significant found in sector {sector}",
     scanInstruction: "Scan each sector for 1 Galactic Point.",
-    sectorScanned: "Scanned",
+    sectorScanCost: "Scan {cost} GP",
+    sectorScanned: "SCANNED!",
     sectorFound: "Rip located",
     ripFoundTitle: "Cosmic Rip Located!",
     ripFound:
       "The Cosmic Rip opened by the scientist, through which the evil AI race travelled has been located. We will dispatch science teams to investigate at once!",
+    locatedInSector: "Located in Sector {sector}",
     ripMissing: "The signal is not in this sector.",
     upgrades: "Telemetry network",
     upgradeNames: { sensorBuoy: "Sensor Buoy", ripResearchOrbiter: "Rip Research Orbiter" },
@@ -420,22 +427,24 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
   },
   es: {
     title: "Ras Cósmico",
-    ripPaneTitle: "Desgarro Cósmico",
+    ripPaneTitle: "Ras Cósmico",
     situationTitle: "Situación",
     scannerArrayTitle: "Matriz de Escáner del Espacio Cercano",
+    requiresRestoration: "Requiere Restauración",
     status: "Final",
-    stabilityLabel: "Ras Cósmico",
+    stabilityLabel: "Ras Cósmico:",
     stabilityPercentage: "{percentage}% Estabilizado",
     introduction: "No sé cómo llegaste aquí, Mia'Plac, pero vamos a resolver esto...",
-    headerHelp: "Una vez localizado, emprendes estudios y construcciones alrededor del Desgarro Cósmico para estabilizarlo antes de manipularlo y cerrarlo, y así asegurar el futuro de tu pueblo. Aquí realizas esos estudios; son costosos y requieren tiempo.",
-    situationHelp: "Operaciones y progresión del Desgarro Cósmico.",
+    headerHelp: "Una vez localizado, emprendes un conjunto de estudios y construcciones alrededor del Desgarro Cósmico para Estabilizarlo listo para Manipulación y Cierre, para asegurar el futuro de tu pueblo. Aquí es donde haces esos estudios, y son costosos, y toman tiempo.",
+    situationHelp:
+      "Aquí es donde obtienes una visión actual del progreso de Estabilizar y Asegurar el Desgarro Cósmico. También cuando llegue el momento, ¡aquí es donde terminarás el juego!",
     scannerArrayHelp:
-      "Encarga el Arreglo de Escáner de Espacio Cercano, escanea sectores para localizar distorsiones, y precisar el Desgarro Cósmico.",
+      "Escanea los sectores de espacio local alrededor de Miaplacidus para intentar localizar el Ras Cósmico. Cada escaneo cuesta un Punto Galáctico y una vez localizado, puedes construir naves científicas para recolectar Datos de Telemetría alrededor del Ras Cósmico",
     technologyHelp:
       "Investiga e investiga cómo estabilizar y asegurar el Desgarro Cósmico una vez localizado.",
     gp: "Puntos galácticos",
     gpShort: "PG",
-    telemetry: "Telemetría de la fisura",
+    telemetry: "Datos de Telemetría",
     rate: "Ritmo de telemetría",
     restoreScanner: "RESTAURAR",
     scannerRestoredTitle: "¡Matriz de Escáner de Espacio Cercano Restaurada!",
@@ -445,15 +454,17 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
       "No se puede restaurar la Matriz de Escáner del Espacio Cercano.",
     scannerRestoredNotification: "Matriz de Escáner del Espacio Cercano restaurada.",
     sectorScanFoundNotification:
-      "¡Escaneo completo! Desgarro Cósmico localizado en el sector {sector}",
+      "¡Escaneo completo! Ras Cósmico localizado en el sector {sector}",
     sectorScanEmptyNotification:
       "¡Escaneo completo! No se ha encontrado nada relevante en el sector {sector}",
     scanInstruction: "Explora cada sector por 1 Punto Galáctico.",
-    sectorScanned: "Explorado",
+    sectorScanCost: "Escanear {cost} GP",
+    sectorScanned: "¡ESCANEADO!",
     sectorFound: "Fisura localizada",
     ripFoundTitle: "¡Desgarro Cósmico Localizado!",
     ripFound:
       "¡El Desgarro Cósmico abierto por el científico, a través del cual viajó la raza malvada de IA ha sido localizado! ¡Despacharemos equipos de ciencia para investigar de inmediato!",
+    locatedInSector: "Localizado en el sector {sector}",
     ripMissing: "La señal no está en este sector.",
     upgrades: "Red de telemetría",
     upgradeNames: {
@@ -495,19 +506,21 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Rutura Cósmica",
     situationTitle: "Situação",
     scannerArrayTitle: "Matriz de Scanners do Espaço Próximo",
+    requiresRestoration: "Requer Restauração",
     status: "Fim de jogo",
-    stabilityLabel: "Rutura Cósmica",
+    stabilityLabel: "Rutura Cósmica:",
     stabilityPercentage: "{percentage}% Estabilizado",
     introduction: "Não sei como chegaste aqui, Mia'Plac, mas vamos resolver isto...",
-    headerHelp: "Depois de localizada, iniciarás estudos e construções em torno da Fenda Cósmica para a estabilizar antes da manipulação e do encerramento, garantindo o futuro do teu povo. É aqui que conduzes esses estudos; são dispendiosos e levam tempo.",
-    situationHelp: "Operações e progressão do Rasgo Cósmico.",
+    headerHelp: "Uma vez localizado, você inicia uma série de estudos e construções ao redor do Desgarro Cósmico para Estabilizá-lo, preparando-o para Manipulação e Fechamento, a fim de garantir o futuro do seu povo. É aqui que você realiza esses estudos, que são caros e levam tempo.",
+    situationHelp:
+      "É aqui que você obtém uma visão atual do progresso para Estabilizar e Assegurar o Desgarro Cósmico. E, quando chegar a hora, é aqui que você terminará o jogo!",
     scannerArrayHelp:
-      "Encomenda o Conjunto de Scanners do Espaço Próximo, explora setores para localizar distorções e determinar a localização do Rasgo Cósmico.",
+      "Escaneie os setores do espaço local ao redor de Miaplacidus para tentar localizar a Rutura Cósmica. Cada escaneamento custa um Ponto Galáctico e, uma vez localizada, você pode construir naves científicas para coletar Dados de Telemetria ao redor da Rutura Cósmica.",
     technologyHelp:
       "Investiga e descobre como estabilizar e assegurar o Rasgo Cósmico depois de o localizar.",
     gp: "Pontos Galácticos",
     gpShort: "PG",
-    telemetry: "Telemetria da fenda",
+    telemetry: "Dados de Telemetria",
     rate: "Taxa de telemetria",
     restoreScanner: "RESTAURAR",
     scannerRestoredTitle: "MATRIZ DE SCANNER DO ESPAÇO PRÓXIMO RESTAURADA!",
@@ -520,11 +533,13 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Análise concluída! Não foi encontrado nada relevante no setor {sector}",
     scanInstruction: "Examine cada setor por 1 Ponto Galáctico.",
-    sectorScanned: "Examinado",
+    sectorScanCost: "Analisar {cost} GP",
+    sectorScanned: "ANALISADO!",
     sectorFound: "Fenda localizada",
     ripFoundTitle: "RASGO CÓSMICO LOCALIZADO!",
     ripFound:
       "O Rasgo Cósmico aberto pelo cientista, através do qual viajou a raça maléfica de IA, foi localizado! Enviaremos imediatamente equipas de ciência para investigar!",
+    locatedInSector: "Localizado no setor {sector}",
     ripMissing: "O sinal não está neste setor.",
     upgrades: "Rede de telemetria",
     upgradeNames: {
@@ -563,22 +578,24 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
   de: {
     title: "Kosmischer Riss",
     ripPaneTitle: "Kosmischer Riss",
-    situationTitle: "Lage",
+    situationTitle: "Situation",
     scannerArrayTitle: "Nahbereichs-Scanner-Array",
+    requiresRestoration: "Wiederherstellung Erforderlich",
     status: "Endspiel",
-    stabilityLabel: "Kosmischer Riss",
+    stabilityLabel: "Kosmischer Riss:",
     stabilityPercentage: "{percentage}% Stabilisiert",
     introduction:
       "Ich weiß nicht, wie du hierher gekommen bist, Mia'Plac, aber wir werden das klären...",
-    headerHelp: "Nach der Ortung führst du Studien und Bauarbeiten am Kosmischen Riss durch, um ihn für Manipulation und Schließung zu stabilisieren und die Zukunft deines Volkes zu sichern. Hier kannst du diese kostspieligen und zeitaufwendigen Studien durchführen.",
-    situationHelp: "Kosmische Riss-Operationen und Fortschritt.",
+    headerHelp: "Einmal lokalisiert, unternimmst du eine Reihe von Studien und Konstruktionen um den Kosmischen Riss herum, um ihn zu Stabilisieren, bereit für Manipulation und Schließung, um die Zukunft deines Volkes zu sichern. Hier ist, wo du diese Studien durchführst, und sie sind kostspielig und brauchen Zeit.",
+    situationHelp:
+      "Hier erhältst du aktuelle Einblicke in den Fortschritt des Stabilisierens und Sicherns des Kosmischen Risses. Außerdem ist hier, wenn die Zeit reif ist, wo du das Spiel beenden wirst!",
     scannerArrayHelp:
-      "Beauftrage das Nahraum-Scanner-Array, scanne Sektoren, um Verzerrungen zu lokalisieren und den Kosmischen Riss zu präzisieren.",
+      "Scanne die lokalen Raumsektoren um Miaplacidus, um zu versuchen, den Kosmischen Riss zu lokalisieren. Jeder Scan kostet einen Galaktischen Punkt und sobald lokalisiert, kannst du Wissenschaftsschiffe bauen, um Telemetriedaten um den Kosmischen Riss zu sammeln",
     technologyHelp:
       "Untersuche und erforsche, wie der Kosmische Riss einmal lokalisiert stabilisiert und gesichert werden kann.",
     gp: "Galaktische Punkte",
     gpShort: "GP",
-    telemetry: "Riss-Telemetrie",
+    telemetry: "Telemetriedaten",
     rate: "Telemetrierate",
     restoreScanner: "WIEDERHERSTELLEN",
     scannerRestoredTitle: "Nahraum-Scanner-Array Wiederhergestellt!",
@@ -591,11 +608,13 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Scan abgeschlossen! Nichts Bedeutendes in Sektor {sector} gefunden",
     scanInstruction: "Scanne jeden Sektor für 1 Galaktischen Punkt.",
-    sectorScanned: "Gescannte",
+    sectorScanCost: "Scannen {cost} GP",
+    sectorScanned: "GESCANNT!",
     sectorFound: "Riss gefunden",
     ripFoundTitle: "Kosmischer Riss Lokalisiert!",
     ripFound:
       "Der vom Wissenschaftler geöffnete Kosmische Riss, durch den das böse KI-Volk gereist ist, wurde lokalisiert. Wir werden sofort Wissenschaftsteams entsenden, um zu untersuchen!",
+    locatedInSector: "Im Sektor {sector} lokalisiert",
     ripMissing: "Das Signal ist nicht in diesem Sektor.",
     upgrades: "Telemetrienetz",
     upgradeNames: { sensorBuoy: "Sensorboje", ripResearchOrbiter: "Riss-Forschungsorbiter" },
@@ -634,19 +653,21 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Strappo Cosmico",
     situationTitle: "Situazione",
     scannerArrayTitle: "Array Scanner Spazio Vicino",
+    requiresRestoration: "Richiede Ripristino",
     status: "Finale",
-    stabilityLabel: "Strappo Cosmico",
+    stabilityLabel: "Strappo Cosmico:",
     stabilityPercentage: "{percentage}% Stabilizzato",
     introduction: "Non so come sei arrivato qui, Mia'Plac, ma risolveremo questa faccenda...",
-    headerHelp: "Una volta localizzato, intraprendi studi e costruzioni intorno allo Squarcio Cosmico per stabilizzarlo in vista della manipolazione e della chiusura, assicurando il futuro del tuo popolo. Qui svolgi questi studi, che sono costosi e richiedono tempo.",
-    situationHelp: "Operazioni e progresso dello Squarcio Cosmico.",
+    headerHelp: "Una volta localizzato, intraprendi una serie di studi e costruzioni intorno allo Squarcio Cosmico per Stabilizzarlo pronto per Manipolazione e Chiusura, per assicurare il futuro del tuo popolo. Qui è dove fai quegli studi, e sono costosi, e richiedono tempo.",
+    situationHelp:
+      "Qui è dove ottieni informazioni attuali sul progresso dello Stabilizzare e Assicurare lo Squarcio Cosmico. Anche quando è il momento giusto, qui è dove finirai il gioco!",
     scannerArrayHelp:
-      "Commissiona l'Array di Scanner Spazio Vicino, scansiona settori per localizzare distorsioni, e precisare lo Squarcio Cosmico.",
+      "Scansiona i settori spaziali locali attorno a Miaplacidus per cercare di localizzare lo Squarcio Cosmico. Ogni scansione costa un Punto Galattico e una volta localizzato, puoi costruire navi scientifiche per raccogliere Dati di Telemetria intorno allo Squarcio Cosmico",
     technologyHelp:
       "Investiga e ricerca come stabilizzare e assicurare lo Squarcio Cosmico una volta localizzato.",
     gp: "Punti Galattici",
     gpShort: "PG",
-    telemetry: "Telemetria dello strappo",
+    telemetry: "Dati di Telemetria",
     rate: "Velocità telemetrica",
     restoreScanner: "RIPRISTINA",
     scannerRestoredTitle: "Matrice Scanner Spazio Vicino Ripristinata!",
@@ -659,11 +680,13 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Scansione completata! Nulla di rilevante trovato nel settore {sector}",
     scanInstruction: "Scansiona ogni settore per 1 Punto Galattico.",
-    sectorScanned: "Scansionato",
+    sectorScanCost: "Scansiona {cost} GP",
+    sectorScanned: "SCANSIONATO!",
     sectorFound: "Strappo localizzato",
     ripFoundTitle: "Squarcio Cosmico Localizzato!",
     ripFound:
       "Lo Squarcio Cosmico aperto dallo scienziato, attraverso il quale ha viaggiato la malvagia razza IA, è stato localizzato! Invieremo immediatamente squadre scientifiche per indagare!",
+    locatedInSector: "Localizzato nel settore {sector}",
     ripMissing: "Il segnale non è in questo settore.",
     upgrades: "Rete telemetrica",
     upgradeNames: {
@@ -705,20 +728,22 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Déchirure Cosmique",
     situationTitle: "Situation",
     scannerArrayTitle: "Réseau de Scanners du Secteur Proche",
+    requiresRestoration: "Restauration Requise",
     status: "Fin de partie",
-    stabilityLabel: "Déchirure Cosmique",
+    stabilityLabel: "Déchirure Cosmique:",
     stabilityPercentage: "{percentage}% Stabilisée",
     introduction:
       "Je ne sais pas comment tu es arrivé ici, Mia'Plac, mais nous allons régler ça...",
-    headerHelp: "Une fois la Déchirure cosmique localisée, vous menez des études et des travaux pour la stabiliser avant manipulation et fermeture, afin de garantir le futur de votre peuple. Les études ont lieu ici; elles sont coûteuses et prennent du temps.",
-    situationHelp: "Opérations et progression de la Déchirure Cosmique.",
+    headerHelp: "Une fois localisé, tu entreprends un ensemble d'études et de constructions autour du Déchirure Cosmique pour la Stabiliser prête pour Manipulation et Fermeture, pour sécuriser l'avenir de ton peuple. C'est ici que tu fais ces études, et elles sont coûteuses, et prennent du temps.",
+    situationHelp:
+      "C'est ici que tu obtiens des informations actuelles sur le progrès de Stabiliser et Sécuriser le Déchirure Cosmique. Aussi quand le moment est venu, c'est ici que tu finiras le jeu!",
     scannerArrayHelp:
-      "Commissionne le Réseau de Scanners de l'Espace Proche, scanne les secteurs pour localiser les distorsions, et préciser la Déchirure Cosmique.",
+      "Scanne les secteurs spatiaux locaux autour de Miaplacidus pour essayer de localiser la Déchirure Cosmique. Chaque scan coûte un Point Galactique et une fois localisée, tu peux construire des vaisseaux scientifiques pour collecter des Données de Télémétrie autour de la Déchirure Cosmique",
     technologyHelp:
       "Enquête et recherche comment stabiliser et sécuriser la Déchirure Cosmique une fois localisée.",
     gp: "Points galactiques",
     gpShort: "PG",
-    telemetry: "Télémétrie de la déchirure",
+    telemetry: "Données de Télémétrie",
     rate: "Débit de télémétrie",
     restoreScanner: "RESTAURER",
     scannerRestoredTitle: "Matrice de Scanner de l'Espace Proche Restaurée!",
@@ -732,11 +757,13 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     sectorScanEmptyNotification:
       "Scan terminé! Rien de significatif trouvé dans le secteur {sector}",
     scanInstruction: "Scannez chaque secteur pour 1 point galactique.",
-    sectorScanned: "Scanné",
+    sectorScanCost: "Scanner {cost} GP",
+    sectorScanned: "SCANNÉ!",
     sectorFound: "Déchirure localisée",
     ripFoundTitle: "Déchirure Cosmique Localisée!",
     ripFound:
       "La Déchirure cosmique ouverte par le scientifique, à travers laquelle la race maléfique d'IA a voyagé, a été localisée. Nous enverrons immédiatement des équipes scientifiques pour enquêter!",
+    locatedInSector: "Localisé dans le secteur {sector}",
     ripMissing: "Le signal n'est pas dans ce secteur.",
     upgrades: "Réseau de télémétrie",
     upgradeNames: {

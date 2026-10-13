@@ -119,6 +119,8 @@ type EconomyLabel =
   | "researchPointsShortfall"
   | "technologyPrerequisitesMissing"
   | "researchTech"
+  | "researchCostSuffix"
+  | "researchBuildingAction"
   | "zoom"
   | "zoomIn"
   | "zoomOut"
@@ -127,6 +129,7 @@ type EconomyLabel =
   | "prerequisites"
   | "ready"
   | "researched"
+  | "researchTechResearched"
   | "manual"
   | "trip"
   | "recovery"
@@ -135,6 +138,7 @@ type EconomyLabel =
   | "addMaxPowerPlantRate"
   | "addEnergyCapacity"
   | "buyMax"
+  | "energyBatteryBuyMax"
   | "disabled"
   | "initialHydrogen"
   | "increaseAllStorage"
@@ -203,7 +207,7 @@ const en: Record<EconomyLabel, string> = {
     "Concrete is a fundamental building material used in construction, offering strength and versatility.",
   titaniumOverviewHelp:
     "Titanium is a strong, lightweight, and corrosion-resistant metal, needed for advanced construction.",
-  collect: "Collect +1",
+  collect: "Gain 1",
   sell: "Sell",
   sellAll: "Sell all",
   allStock: "All Stock",
@@ -220,7 +224,7 @@ const en: Record<EconomyLabel, string> = {
   storage: "Storage",
   energyStorage: "Batteries",
   batteryStorageHelp:
-    "Any buildings beyond the first level require power to operate, you can store that energy here. Batteries store surplus generated energy and supply it when generators cannot meet demand.",
+    "Any buildings beyond the first level require power to operate, you can store that energy here.",
   energyPower: "Power",
   energyPowerHelp:
     "Here you can buy upgrades for generating power which is needed for more advanced buildings.",
@@ -295,6 +299,8 @@ const en: Record<EconomyLabel, string> = {
   deactivatePowerPlant: "Deactivate",
   research: "Research",
   points: "Research points",
+  researchCostSuffix: "Research",
+  researchBuildingAction: "Add {rate} {resource} /s",
   scienceBuildings: "Science buildings",
   scienceBuildingsHelp:
     "Here you can buy upgrades to generate research points for unlocking new technology.",
@@ -310,16 +316,17 @@ const en: Record<EconomyLabel, string> = {
   researchPointsShortfall:
     "Research Points shortfall: {current} available; {required} required ({shortfall} more needed).",
   technologyPrerequisitesMissing: "Research {technologies} first.",
-  researchTech: "Research technology",
+  researchTech: "Research",
   zoom: "Zoom",
   zoomIn: "Zoom in",
   zoomOut: "Zoom out",
   resetZoom: "Reset zoom",
   technologyTreePanHelp:
-    "Here you can unlock new technologies to improve your game, provided you have enough research points! Here you can see a visual representation of technologies and what they provide. You can zoom with the mouse wheel. Focus the tree and use the arrow keys or Page Up/Down to pan.",
+    "Here you can unlock new technologies to improve your game, provided you have enough research points! Here you can see a visual representation of technologies and what they provide. Use the zoom controls above to adjust the tree size. Focus the tree and use the arrow keys or Page Up/Down to pan.",
   prerequisites: "Prerequisites",
   ready: "Ready",
   researched: "Researched",
+  researchTechResearched: "RESEARCHED",
   manual: "Manual",
   trip: "Power trip",
   recovery: "Recovered",
@@ -328,6 +335,7 @@ const en: Record<EconomyLabel, string> = {
   addMaxPowerPlantRate: "Add (max) {rate} kJ /s",
   addEnergyCapacity: "Add {capacity} MJ",
   buyMax: "Buy max",
+  energyBatteryBuyMax: "Max",
   disabled: "Disabled",
   initialHydrogen: "Hydrogen starts unlocked",
   increaseAllStorage: "Increase affordable storage",
@@ -401,7 +409,7 @@ const es: Record<EconomyLabel, string> = {
     "El hormigón es un material de construcción fundamental usado en construcción, ofreciendo fuerza y versatilidad.",
   titaniumOverviewHelp:
     "El Titanio es un metal fuerte, ligero y resistente a la corrosión, necesario para construcción avanzada.",
-  collect: "Recolectar +1",
+  collect: "Ganar 1",
   sell: "Vender",
   sellAll: "Vender todo",
   allStock: "Todo el Stock",
@@ -419,7 +427,7 @@ const es: Record<EconomyLabel, string> = {
   storage: "Almacenamiento",
   energyStorage: "Baterías",
   batteryStorageHelp:
-    "Cualquier edificio más allá del primer nivel requiere energía para operar, puedes almacenar esa energía aquí. Las baterías almacenan el excedente de energía generado y lo suministran cuando los generadores no cubren la demanda.",
+    "Cualquier edificio más allá del primer nivel requiere energía para operar, puedes almacenar esa energía aquí.",
   energyPower: "Potencia",
   energyPowerHelp:
     "Aquí puedes comprar mejoras para generar energía que se necesita para edificios más avanzados.",
@@ -494,6 +502,8 @@ const es: Record<EconomyLabel, string> = {
   deactivatePowerPlant: "Desactivar",
   research: "Investigación",
   points: "Puntos de investigación",
+  researchCostSuffix: "de Investigación",
+  researchBuildingAction: "Añadir {rate} {resource} /s",
   scienceBuildings: "Edificios científicos",
   scienceBuildingsHelp:
     "Aquí puedes comprar mejoras para generar puntos de investigación para desbloquear nueva tecnología.",
@@ -509,16 +519,17 @@ const es: Record<EconomyLabel, string> = {
   technologyPrerequisitesMissing: "Investiga primero {technologies}.",
   researchPointsShortfall:
     "Faltan puntos de investigación: hay {current}; se necesitan {required} (faltan {shortfall}).",
-  researchTech: "Investigar tecnología",
+  researchTech: "Investigar",
   zoom: "Zoom",
   zoomIn: "Acercar",
   zoomOut: "Alejar",
   resetZoom: "Restablecer zoom",
   technologyTreePanHelp:
-    "Aquí puedes desbloquear nuevas tecnologías para mejorar tu juego, ¡siempre que tengas suficientes puntos de investigación! Aquí puedes ver una representación visual de las tecnologías y lo que proporcionan. Puedes hacer zoom con la rueda del ratón. Enfoca el árbol y usa las flechas o Re Pág/Av Pág para desplazarte.",
+    "Aquí puedes desbloquear nuevas tecnologías para mejorar tu juego, ¡siempre que tengas suficientes puntos de investigación! Aquí puedes ver una representación visual de las tecnologías y lo que proporcionan. Usa los controles de zoom de arriba para ajustar el tamaño del árbol. Enfoca el árbol y usa las flechas o Re Pág/Av Pág para desplazarte.",
   prerequisites: "Requisitos previos",
   ready: "Disponible",
   researched: "Investigada",
+  researchTechResearched: "INVESTIGADO",
   manual: "Manual",
   trip: "Corte eléctrico",
   recovery: "Restablecida",
@@ -527,6 +538,7 @@ const es: Record<EconomyLabel, string> = {
   addMaxPowerPlantRate: "Añadir (máx) {rate} kJ /s",
   addEnergyCapacity: "Añadir {capacity} MJ",
   buyMax: "Comprar máximo",
+  energyBatteryBuyMax: "Max",
   disabled: "Desactivado",
   initialHydrogen: "El hidrógeno empieza desbloqueado",
   increaseAllStorage: "Ampliar almacenamiento asequible",
@@ -598,7 +610,7 @@ const pt: Record<EconomyLabel, string> = {
     "O betão é um material de construção fundamental usado em construção, oferecendo força e versatilidade.",
   titaniumOverviewHelp:
     "O Titânio é um metal forte, leve e resistente à corrosão, necessário para construção avançada.",
-  collect: "Recolher +1",
+  collect: "Ganhar 1",
   sell: "Vender",
   sellAll: "Vender tudo",
   allStock: "Todo o Stock",
@@ -616,7 +628,7 @@ const pt: Record<EconomyLabel, string> = {
   storage: "Armazenamento",
   energyStorage: "Baterias",
   batteryStorageHelp:
-    "Qualquer edifício para além do primeiro nível requer energia para funcionar; podes armazenar essa energia aqui. As baterias armazenam o excedente de energia gerada e fornecem-na quando os geradores não conseguem satisfazer a procura.",
+    "Qualquer edifício para além do primeiro nível requer energia para funcionar; podes armazenar essa energia aqui.",
   energyPower: "Potência",
   energyPowerHelp:
     "Aqui podes comprar melhorias para gerar energia, necessária para edifícios mais avançados.",
@@ -691,6 +703,8 @@ const pt: Record<EconomyLabel, string> = {
   deactivatePowerPlant: "Desativar",
   research: "Investigação",
   points: "Pontos de pesquisa",
+  researchCostSuffix: "de Investigação",
+  researchBuildingAction: "Adicionar {rate} {resource} /s",
   scienceBuildings: "Edifícios científicos",
   scienceBuildingsHelp:
     "Aqui podes comprar melhorias para gerar pontos de investigação e desbloquear novas tecnologias.",
@@ -706,16 +720,17 @@ const pt: Record<EconomyLabel, string> = {
   technologyPrerequisitesMissing: "Pesquise {technologies} primeiro.",
   researchPointsShortfall:
     "Faltam pontos de pesquisa: disponíveis {current}; necessários {required} (faltam {shortfall}).",
-  researchTech: "Pesquisar tecnologia",
+  researchTech: "Investigar",
   zoom: "Zoom",
   zoomIn: "Aumentar zoom",
   zoomOut: "Diminuir zoom",
   resetZoom: "Redefinir zoom",
   technologyTreePanHelp:
-    "Aqui podes desbloquear novas tecnologias para melhorar o teu jogo, desde que tenhas pontos de investigação suficientes! Aqui podes ver uma representação visual das tecnologias e o que elas proporcionam. Podes fazer zoom com a roda do rato. Foca a árvore e usa as setas ou Page Up/Page Down para navegar.",
+    "Aqui podes desbloquear novas tecnologias para melhorar o teu jogo, desde que tenhas pontos de investigação suficientes! Aqui podes ver uma representação visual das tecnologias e o que elas proporcionam. Utiliza os controlos de zoom acima para ajustar o tamanho da árvore. Foca a árvore e usa as setas ou Page Up/Page Down para navegar.",
   prerequisites: "Pré-requisitos",
   ready: "Disponível",
   researched: "Pesquisada",
+  researchTechResearched: "INVESTIGADO",
   manual: "Manual",
   trip: "Corte de energia",
   recovery: "Restabelecida",
@@ -724,6 +739,7 @@ const pt: Record<EconomyLabel, string> = {
   addMaxPowerPlantRate: "Adicionar (máx.) {rate} kJ /s",
   addEnergyCapacity: "Adicionar {capacity} MJ",
   buyMax: "Comprar o máximo",
+  energyBatteryBuyMax: "Max",
   disabled: "Desativado",
   initialHydrogen: "O hidrogénio começa desbloqueado",
   increaseAllStorage: "Aumentar armazenamento acessível",
@@ -801,7 +817,7 @@ const de: Record<EconomyLabel, string> = {
     "Beton ist ein fundamentales Baumaterial, das im Bauwesen verwendet wird und Stärke sowie Vielseitigkeit bietet.",
   titaniumOverviewHelp:
     "Titan ist ein starkes, leichtes und korrosionsbeständiges Metall, benötigt für fortgeschrittenen Bau.",
-  collect: "+1 sammeln",
+  collect: "1 gewinnen",
   sell: "Verkaufen",
   sellAll: "Alles verkaufen",
   allStock: "Gesamter Bestand",
@@ -819,7 +835,7 @@ const de: Record<EconomyLabel, string> = {
   storage: "Lager",
   energyStorage: "Batterien",
   batteryStorageHelp:
-    "Jedes Gebäude jenseits der ersten Stufe benötigt Energie für den Betrieb; diese Energie kannst du hier speichern. Batterien speichern überschüssig erzeugte Energie und geben sie ab, wenn die Generatoren den Bedarf nicht decken können.",
+    "Jedes Gebäude jenseits der ersten Stufe benötigt Energie für den Betrieb; diese Energie kannst du hier speichern.",
   energyPower: "Leistung",
   energyPowerHelp:
     "Hier kannst du Upgrades zum Erzeugen von Energie kaufen, die für fortgeschrittenere Gebäude benötigt wird.",
@@ -894,6 +910,8 @@ const de: Record<EconomyLabel, string> = {
   deactivatePowerPlant: "Deaktivieren",
   research: "Forschung",
   points: "Forschungspunkte",
+  researchCostSuffix: "Forschung",
+  researchBuildingAction: "Hinzufügen {rate} {resource} /s",
   scienceBuildings: "Forschungsgebäude",
   scienceBuildingsHelp:
     "Hier kannst du Upgrades kaufen, um Forschungspunkte zum Freischalten neuer Technologien zu generieren.",
@@ -909,16 +927,17 @@ const de: Record<EconomyLabel, string> = {
   technologyPrerequisitesMissing: "Erforsche zuerst {technologies}.",
   researchPointsShortfall:
     "Forschungspunkte fehlen: {current} verfügbar; {required} benötigt ({shortfall} fehlen).",
-  researchTech: "Technologie erforschen",
+  researchTech: "Erforschen",
   zoom: "Zoom",
   zoomIn: "Vergrößern",
   zoomOut: "Verkleinern",
   resetZoom: "Zoom zurücksetzen",
   technologyTreePanHelp:
-    "Hier kannst du neue Technologien freischalten, um dein Spiel zu verbessern, vorausgesetzt du hast genug Forschungspunkte! Hier kannst du eine visuelle Darstellung der Technologien und ihrer Bereitstellungen sehen. Du kannst mit dem Mausrad zoomen. Fokussiere den Baum und verschiebe ihn mit Pfeiltasten oder Bild auf/ab.",
+    "Hier kannst du neue Technologien freischalten, um dein Spiel zu verbessern, vorausgesetzt du hast genug Forschungspunkte! Hier kannst du eine visuelle Darstellung der Technologien und ihrer Bereitstellungen sehen. Verwende die Zoomregler oben, um die Größe des Baums anzupassen. Fokussiere den Baum und verschiebe ihn mit Pfeiltasten oder Bild auf/ab.",
   prerequisites: "Voraussetzungen",
   ready: "Bereit",
   researched: "Erforscht",
+  researchTechResearched: "ERFORSCHT",
   manual: "Manuell",
   trip: "Stromausfall",
   recovery: "Wiederhergestellt",
@@ -927,6 +946,7 @@ const de: Record<EconomyLabel, string> = {
   addMaxPowerPlantRate: "(max) {rate} kJ /s Hinzufügen",
   addEnergyCapacity: "{capacity} MJ Hinzufügen",
   buyMax: "Maximum kaufen",
+  energyBatteryBuyMax: "Max",
   disabled: "Deaktiviert",
   initialHydrogen: "Wasserstoff ist anfangs freigeschaltet",
   increaseAllStorage: "Bezahlbare Lager erweitern",
@@ -1000,7 +1020,7 @@ const it: Record<EconomyLabel, string> = {
     "Il calcestruzzo è un materiale da costruzione fondamentale usato in costruzione, offrendo forza e versatilità.",
   titaniumOverviewHelp:
     "Il Titanio è un metallo forte, leggero e resistente alla corrosione, necessario per costruzione avanzata.",
-  collect: "Raccogli +1",
+  collect: "Guadagna 1",
   sell: "Vendi",
   sellAll: "Vendi tutto",
   allStock: "Tutto lo Stock",
@@ -1017,7 +1037,7 @@ const it: Record<EconomyLabel, string> = {
   storage: "Deposito",
   energyStorage: "Batterie",
   batteryStorageHelp:
-    "Qualsiasi edificio oltre il primo livello richiede energia per operare, puoi immagazzinare quell'energia qui. Le batterie immagazzinano l'energia generata in eccesso e la forniscono quando i generatori non riescono a soddisfare la domanda.",
+    "Qualsiasi edificio oltre il primo livello richiede energia per operare, puoi immagazzinare quell'energia qui.",
   energyPower: "Potenza",
   energyPowerHelp:
     "Qui puoi acquistare potenziamenti per generare energia necessaria per edifici più avanzati.",
@@ -1092,6 +1112,8 @@ const it: Record<EconomyLabel, string> = {
   deactivatePowerPlant: "Disattiva",
   research: "Ricerca",
   points: "Punti ricerca",
+  researchCostSuffix: "di Ricerca",
+  researchBuildingAction: "Aggiungi {rate} {resource} /s",
   scienceBuildings: "Edifici scientifici",
   scienceBuildingsHelp:
     "Qui puoi acquistare potenziamenti per generare punti ricerca per sbloccare nuove tecnologie.",
@@ -1107,16 +1129,17 @@ const it: Record<EconomyLabel, string> = {
   technologyPrerequisitesMissing: "Ricerca prima {technologies}.",
   researchPointsShortfall:
     "Punti ricerca mancanti: {current} disponibili; ne servono {required} (ne mancano {shortfall}).",
-  researchTech: "Ricerca tecnologia",
+  researchTech: "Ricerca",
   zoom: "Zoom",
   zoomIn: "Ingrandisci",
   zoomOut: "Riduci",
   resetZoom: "Reimposta zoom",
   technologyTreePanHelp:
-    "Qui puoi sbloccare nuove tecnologie per migliorare il tuo gioco, a condizione che tu abbia abbastanza punti ricerca! Qui puoi vedere una rappresentazione visiva delle tecnologie e di ciò che forniscono. Puoi fare zoom con la rotella del mouse. Dai il focus all'albero e usa le frecce o Pag Su/Pag Giù per spostarti.",
+    "Qui puoi sbloccare nuove tecnologie per migliorare il tuo gioco, a condizione che tu abbia abbastanza punti ricerca! Qui puoi vedere una rappresentazione visiva delle tecnologie e di ciò che forniscono. Usa i controlli dello zoom qui sopra per regolare le dimensioni dell'albero. Dai il focus all'albero e usa le frecce o Pag Su/Pag Giù per spostarti.",
   prerequisites: "Prerequisiti",
   ready: "Disponibile",
   researched: "Ricercata",
+  researchTechResearched: "RICERCATO",
   manual: "Manuale",
   trip: "Interruzione elettrica",
   recovery: "Ripristinata",
@@ -1125,6 +1148,7 @@ const it: Record<EconomyLabel, string> = {
   addMaxPowerPlantRate: "Aggiungi (max) {rate} kJ /s",
   addEnergyCapacity: "Aggiungi {capacity} MJ",
   buyMax: "Compra il massimo",
+  energyBatteryBuyMax: "Max",
   disabled: "Disattivato",
   initialHydrogen: "L'idrogeno è sbloccato all'inizio",
   increaseAllStorage: "Aumenta i depositi accessibili",
@@ -1201,7 +1225,7 @@ const fr: Record<EconomyLabel, string> = {
     "Le béton est un matériau de construction fondamental utilisé dans la construction, offrant force et polyvalence.",
   titaniumOverviewHelp:
     "Le Titane est un métal fort, léger et résistant à la corrosion, nécessaire pour la construction avancée.",
-  collect: "Collecter +1",
+  collect: "Gagner 1",
   sell: "Vendre",
   sellAll: "Tout vendre",
   allStock: "Tout le Stock",
@@ -1218,7 +1242,7 @@ const fr: Record<EconomyLabel, string> = {
   storage: "Stockage",
   energyStorage: "Batteries",
   batteryStorageHelp:
-    "Tout bâtiment au-delà du premier niveau nécessite de l'énergie pour fonctionner, tu peux stocker cette énergie ici. Les batteries stockent l’énergie produite en surplus et la fournissent lorsque les générateurs ne couvrent pas la demande.",
+    "Tout bâtiment au-delà du premier niveau nécessite de l'énergie pour fonctionner, tu peux stocker cette énergie ici.",
   energyPower: "Puissance",
   energyPowerHelp:
     "Ici tu peux acheter des améliorations pour générer de l'énergie nécessaire pour des bâtiments plus avancés.",
@@ -1293,6 +1317,8 @@ const fr: Record<EconomyLabel, string> = {
   deactivatePowerPlant: "Désactiver",
   research: "Recherche",
   points: "Points de recherche",
+  researchCostSuffix: "de Recherche",
+  researchBuildingAction: "Ajouter {rate} {resource} /s",
   scienceBuildings: "Bâtiments scientifiques",
   scienceBuildingsHelp:
     "Ici tu peux acheter des améliorations pour générer des points de recherche pour débloquer de nouvelles technologies.",
@@ -1308,16 +1334,17 @@ const fr: Record<EconomyLabel, string> = {
   technologyPrerequisitesMissing: "Recherchez d'abord {technologies}.",
   researchPointsShortfall:
     "Points de recherche manquants : {current} disponibles ; {required} nécessaires (il en manque {shortfall}).",
-  researchTech: "Rechercher la technologie",
+  researchTech: "Rechercher",
   zoom: "Zoom",
   zoomIn: "Zoom avant",
   zoomOut: "Zoom arrière",
   resetZoom: "Réinitialiser le zoom",
   technologyTreePanHelp:
-    "Ici tu peux débloquer de nouvelles technologies pour améliorer ton jeu, à condition que tu aies assez de points de recherche ! Ici tu peux voir une représentation visuelle des technologies et de ce qu'elles fournissent. Tu peux zoomer avec la molette de la souris. Donne le focus à l'arbre, puis utilise les flèches ou Page précédente/Page suivante pour le déplacer.",
+    "Ici tu peux débloquer de nouvelles technologies pour améliorer ton jeu, à condition que tu aies assez de points de recherche ! Ici tu peux voir une représentation visuelle des technologies et de ce qu'elles fournissent. Utilise les commandes de zoom ci-dessus pour ajuster la taille de l'arbre. Donne le focus à l'arbre, puis utilise les flèches ou Page précédente/Page suivante pour le déplacer.",
   prerequisites: "Prérequis",
   ready: "Disponible",
   researched: "Recherchée",
+  researchTechResearched: "RECHERCHÉ",
   manual: "Manuel",
   trip: "Coupure électrique",
   recovery: "Rétablie",
@@ -1326,6 +1353,7 @@ const fr: Record<EconomyLabel, string> = {
   addMaxPowerPlantRate: "Ajouter (max) {rate} kJ /s",
   addEnergyCapacity: "Ajouter {capacity} MJ",
   buyMax: "Acheter le maximum",
+  energyBatteryBuyMax: "Max",
   disabled: "Désactivé",
   initialHydrogen: "L'hydrogène est débloqué au départ",
   increaseAllStorage: "Augmenter le stockage abordable",

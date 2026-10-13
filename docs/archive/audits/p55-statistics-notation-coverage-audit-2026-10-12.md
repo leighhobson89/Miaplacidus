@@ -3,7 +3,7 @@
 **Date:** 12 October 2026  
 **Scope:** Compare Cosmic Forge's per-key Statistics notation classes with MIAPLACIDUS's selected notation formatter.
 
-Cosmic Forge adds its `.notation` class only for keys in `notationHeaders` (`../../../cosmicForge/cosmicForge/ui.js:5123-5150`). MIAPLACIDUS routes the following Statistics rows through its selected notation formatter in `src/app/SettingsStatisticsPane.tsx` even though the source displays those numeric values raw:
+Cosmic Forge adds its `.notation` class only for keys in `notationHeaders` (`../../../../cosmicForge/cosmicForge/ui.js:5123-5150`). MIAPLACIDUS routes the following Statistics rows through its selected notation formatter in `src/app/SettingsStatisticsPane.tsx` even though the source displays those numeric values raw:
 
 | Group | Source-raw rows formatted by selected remake notation |
 |---|---|

@@ -2,7 +2,7 @@
 
 ## Source route and controls
 
-Cosmic Forge declares Galactic as source tab 7 in `../../../cosmicForge/cosmicForge/index.html` and places the `galacticCasinoOption` row inside that tab's child menu (`index.html:705`). `ui.js:10995-10998` handles that option by selecting the `galactic casino` child and calling `updateContent('Galactic Casino', 'tab7', 'content')`. The active content branch is `drawTab7Content.js:385` onward.
+Cosmic Forge declares Galactic as source tab 7 in `../../../../cosmicForge/cosmicForge/index.html` and places the `galacticCasinoOption` row inside that tab's child menu (`index.html:705`). `ui.js:10995-10998` handles that option by selecting the `galactic casino` child and calling `updateContent('Galactic Casino', 'tab7', 'content')`. The active content branch is `drawTab7Content.js:385` onward.
 
 The source renderer builds separate rows for Purchase CP, Double or Nothing, Wheel of Fortune, Visiting VoidSeer and Higher or Lower (`drawTab7Content.js:391`, `441`, `490`, `886`, and `1652`). It uses localized row labels plus separate inputs/dropdowns and short action captions such as Buy, Spin, Claim and Play. The source purchase selector starts at `select` and includes cash plus the tradeable-material list; the wheel claim requires a special result and a selected prize. These source rows remain within Galactic; this review does not change navigation ownership or game rules.
 

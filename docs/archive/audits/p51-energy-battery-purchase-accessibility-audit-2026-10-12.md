@@ -14,6 +14,6 @@ The single-purchase button references the battery name, capacity, cost, and any 
 
 ## Localized action label follow-up (12 October 2026)
 
-The source single-purchase label says `Add {capacity} MJ`. The remake now states the matching effect directly on each active Batteries child purchase button in all six locales, using the remake's displayed kJ unit (`Add {capacity} kJ`, with localized wording elsewhere). The number is formatted for the active locale and uses the same capacity as the card. This corrects the visible action-copy gap without changing the child mapping, purchase behavior, or capacity calculation.
+The source single-purchase label says `Add {capacity} MJ`. An earlier accessibility implementation used the remake's displayed kJ unit in its action label; the later [P-44 capacity-button correction](p44-energy-battery-capacity-button-copy-audit-2026-10-12.md) changed it to the source MJ unit and the source floor conversion in all six locales. The adjacent capacity readout stays in kJ. The number is formatted for the active locale. Battery name, capacity, price, and failure reason remain associated with the purchase control, and Buy Max references its cost/capacity preview and any bulk failure reason. These changes do not alter the child mapping or purchase behavior.
 
 This was a static source/renderer comparison. No tests, builds, typechecks, formatting checks, or browser review were run. P-51 remains open for the remaining six-locale, price-row, tooltip, modal, layout, and rendered evidence.

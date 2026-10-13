@@ -16,7 +16,11 @@ import {
   themeName,
   type SettingsStatisticId,
 } from "../i18n/settingsMessages";
-import { energyStatisticLabel, type EnergyStatisticId } from "../i18n/energyStatisticsMessages";
+import {
+  energyStatisticLabel,
+  energyStatisticRateUnit,
+  type EnergyStatisticId,
+} from "../i18n/energyStatisticsMessages";
 import {
   cosmicRipTrackingNote,
   energyTrackingNote,
@@ -420,6 +424,7 @@ export function SettingsStatisticsPane({
     (power.capacity > 0 ? power.quantity > 0.00001 : energyPlan.generationPerSecond > 0);
   const powerStatusKey = powerIsOn ? "on" : power.tripped ? "trippedShort" : "off";
   const statisticsEnergyProductionPerSecond = selectStatisticsEnergyProduction(state);
+  const energyRateUnit = energyStatisticRateUnit(locale);
   const energyRows: readonly StatisticsDisplayRow[] = [
     energyCurrentRow(
       "powerCurrent",
@@ -435,16 +440,16 @@ export function SettingsStatisticsPane({
                   energyPlan.generationPerSecond - energyPlan.statisticsConsumptionPerSecond,
                 )
               : 0,
-          )} kJ/s`,
+          )} ${energyRateUnit}`,
     ),
     energyCurrentRow(
       "totalProduction",
-      `${statNumber(statisticsEnergyProductionPerSecond)} kJ/s`,
+      `${statNumber(statisticsEnergyProductionPerSecond)} ${energyRateUnit}`,
       "energy-power",
     ),
     energyCurrentRow(
       "totalConsumption",
-      `${statNumber(Math.floor(energyPlan.statisticsConsumptionPerSecond))} kJ/s`,
+      `${statNumber(Math.floor(energyPlan.statisticsConsumptionPerSecond))} ${energyRateUnit}`,
       "energy-power",
     ),
     energyCurrentRow(

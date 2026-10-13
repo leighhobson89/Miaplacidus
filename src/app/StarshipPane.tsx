@@ -30,11 +30,12 @@ import {
 import { checkPreconditions, type PreconditionResult } from "../engine/commands";
 import { selectEconomyAction, type EconomyActionSelection } from "../engine/selectors";
 import type { GameState } from "../engine/state";
-import type { GameStore } from "../engine/store";
 import { economyGoodName } from "./economyDisplay";
 import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
 import { InfoTooltip } from "./InfoTooltip";
+import type { AudioGameStore } from "./audio";
+import { SpaceBattlePresentation } from "./SpaceBattlePresentation";
 import { formatDuration } from "./timeFormatting";
 import { spaceText } from "../i18n/spaceMessages";
 import { starMapText, type StarMapMessageKey } from "../i18n/starMapMessages";
@@ -222,7 +223,7 @@ export function StarshipPane({
   view = "starship",
 }: {
   readonly state: GameState;
-  readonly store: GameStore;
+  readonly store: AudioGameStore;
   readonly view?: "starship" | "fleet-hangar" | "colonise";
 }) {
   const [feedback, setFeedbackState] = useState<StarshipFeedback | null>(null);
@@ -276,6 +277,11 @@ export function StarshipPane({
   const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
   const destinationSystemId = space.starship.destinationSystemId;
   const destination = catalogue.find((star) => star.id === destinationSystemId);
+  const destinationIsFactorySystem =
+    destinationSystemId !== null &&
+    state.permanent.megastructures.ancientManuscripts.some(
+      (record) => record.factorySystemId === destinationSystemId,
+    );
   const travelPlan = destinationSystemId ? starshipTravelPlan(state, destinationSystemId) : null;
   const starshipTimer = space.starship.timerId ? state.run.timers[space.starship.timerId] : null;
   const starshipRemainingMs = starshipTimer
@@ -498,7 +504,7 @@ export function StarshipPane({
   function renderTravelSummary() {
     return (
       <div className="starship-travel-summary" hidden={view !== "starship"}>
-        <h3>{starshipText(state.settings.locale, "destinationSelected")}</h3>
+        <h3>{starshipText(state.settings.locale, "travellingTo")}</h3>
         {destination && travelPlan ? (
           <>
             <p>
@@ -1243,6 +1249,11 @@ export function StarshipPane({
               </>
             )}
           </p>
+          {(encounter.warMode || encounter.battle.phase === "inProgress") &&
+            encounter.battle.phase !== "victory" &&
+            encounter.battle.phase !== "defeat" && (
+              <SpaceBattlePresentation state={state} store={store} encounter={encounter} />
+            )}
           {encounter.battle.phase !== "idle" && (
             <dl>
               <dt>{starshipText(state.settings.locale, "playerBattleHealth")}</dt>
@@ -1374,6 +1385,11 @@ export function StarshipPane({
         <p id="starship-launch-dialog-warning">
           {starshipText(state.settings.locale, "pointOfNoReturn")}
         </p>
+        {destinationIsFactorySystem && (
+          <p className="warning-orange-text">
+            {starshipText(state.settings.locale, "factorySystemWarning")}
+          </p>
+        )}
         {destination && travelPlan && (
           <p>
             {destination.name} · {number(state, travelPlan.antimatter)}{" "}

@@ -16,3 +16,5 @@ The separate MIAPLACIDUS field label remains `choosePrize` to label its explicit
 Source evidence: `../../../../cosmicForge/cosmicForge/drawTab7Content.js:524,576` and `dropdownSelectSpecialPrize` in `../../../../cosmicForge/cosmicForge/localization.json`. Target evidence: the select in `src/app/GalacticCasinoPane.tsx` and `selectPrizePlaceholder` in `src/i18n/casinoMessages.ts`.
 
 Static source/catalogue and renderer review only. No tests, builds, typechecks, formatting, or browser checks were run. P-44 remains open for broader catalogue and rendered-copy review.
+
+**Accessible-label follow-up (13 October 2026):** the target's `choosePrize` field label now uses the same six-locale values as the source `dropdownSelectSpecialPrize` prompt. `GalacticCasinoPane.tsx` keeps that label screen-reader-only while the empty native select option shows the prompt visibly, so the visible instruction is not duplicated. Casino selection, claim control, and wheel behavior are unchanged. Static code comparison only; no tests or browser renders were run.

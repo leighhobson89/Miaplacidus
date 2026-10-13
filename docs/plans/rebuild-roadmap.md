@@ -36,8 +36,9 @@ The Vite/React/TypeScript stack and deterministic engine substrate are implement
 | 3 | [Economy and research](build-checklist/03-economy.md) | Complete resource, power, research, technology and compound loop |
 | 4 | [Space and interstellar](build-checklist/04-space-interstellar.md) | Mining, antimatter, map, starship, diplomacy, fleet, battle and settlement |
 | 5 | [Meta progression and endgame](build-checklist/05-meta-endgame.md) | Rebirth, market/casino, philosophies, black hole, megastructures and Cosmic Rip closure |
-| Cross-phase | [Presentation and localization](build-checklist/06-presentation.md) | Nine source tabs in fixed order followed by Miaplaedia, names-only labels, new art/sound, responsive interaction, themes and six locales |
-| 7 | [Verification and release](build-checklist/07-verification-release.md) | Current parity evidence, safe browser artifact and optional separately flagged demo |
-| 8 | [Big fix pass](build-checklist/08-big-fix.md) | A later evidence-led run for the tracked resource and research autobuyer reports |
+| Cross-phase | [Presentation implementation (localization deferred)](build-checklist/06-presentation.md) | Non-localization layout, interaction, art, audio, themes and source-feedback implementation |
+| 7 | [Localization audit and sweep](build-checklist/07-localization-audit-sweep.md) | Complete the six-locale source-to-target and rendered-copy review |
+| 8 | [Verification and release](build-checklist/08-verification-release.md) | Current parity evidence, safe browser artifact and optional separately flagged demo |
+| 9 | [Big fix pass](build-checklist/09-big-fix.md) | A later evidence-led run for the tracked resource and research autobuyer reports |
 
 For each domain, create a small contract with source references, data/state ownership, invariant, UI behavior, failure modes, save/rebirth impact and tests. Build it as a playable vertical slice, run focused checks and record evidence in the [parity ledger](feature-parity-checklist.md). A green old-project test never counts as a new-project pass. Completed feature plans may be archived in `docs/archive/plans/` with their final decisions and evidence.

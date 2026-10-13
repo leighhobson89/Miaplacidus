@@ -471,6 +471,7 @@ details > summary {
   max-height: min(92vh, 60rem);
   gap: 1rem;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   padding: clamp(1rem, 3vw, 2rem);
   margin: 0;
   border: 1px solid rgb(146 171 199 / 32%);
@@ -492,6 +493,8 @@ details > summary {
 .confirmation-dialog {
   width: min(100% - 1.5rem, 38rem);
   max-height: min(92vh, 44rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   padding: clamp(1rem, 3vw, 2rem);
   border: 1px solid rgb(146 171 199 / 32%);
   border-radius: 1rem;
@@ -968,6 +971,28 @@ details > summary {
   }
   .save-start-panel {
     padding-top: 2rem;
+  }
+}
+
+@supports (height: 100dvh) {
+  body,
+  #root,
+  .application-shell,
+  .welcome-panel {
+    min-height: 100dvh;
+  }
+
+  .save-start-panel {
+    padding-top: clamp(1rem, 4dvh, 5rem);
+  }
+
+  .save-manager {
+    top: 50dvh;
+    max-height: min(92dvh, 60rem);
+  }
+
+  .confirmation-dialog {
+    max-height: min(92dvh, 44rem);
   }
 }
 
@@ -4479,6 +4504,15 @@ body:has(.game-frame[data-theme="space"]) {
 .starship-battle h3 {
   margin-block: 1.33em;
   font-size: 1em;
+}
+.starship-battle-canvas {
+  display: block;
+  width: 100%;
+  height: clamp(13rem, 30vw, 19rem);
+  margin-block: 0.75rem 1rem;
+  border: 1px solid var(--line, rgba(150, 180, 210, 0.3));
+  border-radius: 0.65rem;
+  background: #07101d;
 }
 .starship-diplomacy-actions {
   display: flex;

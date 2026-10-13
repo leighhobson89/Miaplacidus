@@ -249,12 +249,31 @@ export function ProgressionTutorial({
   const tutorial = state.permanent.progressionTutorial;
   const stepId = tutorial.stepId;
   const lastAutoAdvancedStep = useRef<ProgressionTutorialStepId | null>(null);
+  const lastAnnouncedStep = useRef<ProgressionTutorialStepId | null>(null);
+  const [stepAnnouncement, setStepAnnouncement] = useState("");
   const stepIndex = stepId ? PROGRESSION_TUTORIAL_STEP_IDS.indexOf(stepId) : -1;
   const milestoneSatisfied = stepId
     ? isProgressionTutorialMilestoneSatisfied(state, stepId)
     : false;
   const step = stepId ? STEP_DEFINITIONS[stepId] : null;
   const [readReadyStepId, setReadReadyStepId] = useState<ProgressionTutorialStepId | null>(null);
+
+  useEffect(() => {
+    if (tutorial.status !== "active" || !stepId || !step) {
+      lastAnnouncedStep.current = null;
+      setStepAnnouncement("");
+      return;
+    }
+    if (lastAnnouncedStep.current === stepId) return;
+
+    lastAnnouncedStep.current = stepId;
+    const progress = tutorialText(locale, "stepProgress")
+      .replace("{step}", String(stepIndex + 1))
+      .replace("{total}", String(PROGRESSION_TUTORIAL_STEP_IDS.length));
+    setStepAnnouncement(
+      `${progress}. ${tutorialText(locale, step.title)}. ${tutorialText(locale, step.body)}`,
+    );
+  }, [locale, step, stepId, stepIndex, tutorial.status]);
 
   const destinationIsOpen = (() => {
     if (!step) return false;
@@ -380,8 +399,10 @@ export function ProgressionTutorial({
     <aside
       className="progression-tutorial"
       aria-labelledby="progression-tutorial-title"
-      aria-live="polite"
     >
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {stepAnnouncement}
+      </div>
       <div className="progression-tutorial-copy">
         <p className="progression-tutorial-progress">{progress}</p>
         <h2 id="progression-tutorial-title">{stepText(step.title)}</h2>

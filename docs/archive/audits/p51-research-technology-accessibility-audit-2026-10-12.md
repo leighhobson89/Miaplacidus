@@ -2,7 +2,7 @@
 
 ## Cosmic Forge source UI
 
-The Technology option builds each research row with a localized technology heading, a Research action, and a row description containing its price in Research Points and localized prerequisite names (`../../../cosmicForge/cosmicForge/drawTab3Content.js:73-76,301-315`). For example, Fusion Theory has a 500-point appearance threshold, costs 750 Research Points, and lists Knowledge Sharing as its prerequisite (`../../../cosmicForge/cosmicForge/resourceDataObject.js:876-878`).
+The Technology option builds each research row with a localized technology heading, a Research action, and a row description containing its price in Research Points and localized prerequisite names (`../../../../cosmicForge/cosmicForge/drawTab3Content.js:73-76,301-315`). For example, Fusion Theory has a 500-point appearance threshold, costs 750 Research Points, and lists Knowledge Sharing as its prerequisite (`../../../../cosmicForge/cosmicForge/resourceDataObject.js:876-878`).
 
 ## MIAPLACIDUS target UI
 

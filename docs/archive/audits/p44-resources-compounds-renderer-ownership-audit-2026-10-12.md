@@ -6,19 +6,19 @@ Compared the source menu DOM, option click handlers, and page render branches wi
 
 ## Source menu and page destinations
 
-Cosmic Forge Resources (`../../../cosmicForge/cosmicForge/index.html:81-215`) has two menu groups in this visible order:
+Cosmic Forge Resources (`../../../../cosmicForge/cosmicForge/index.html:81-215`) has two menu groups in this visible order:
 
 - Gases: Hydrogen (`option1`), Helium (`option2`), Neon (`option4`), Oxygen (`option5`).
 - Solids: Carbon (`option3`), Silicon (`option7`), Sodium (`option6`), Iron (`option8`).
 
-The handlers select each named page and call the tab 1 content route (`../../../cosmicForge/cosmicForge/ui.js:10514-10620`). `drawTab1Content` has an independent heading branch for all eight pages (`../../../cosmicForge/cosmicForge/drawTab1Content.js:48, 323, 599, 882, 1158, 1434, 1685, 1961`).
+The handlers select each named page and call the tab 1 content route (`../../../../cosmicForge/cosmicForge/ui.js:10514-10620`). `drawTab1Content` has an independent heading branch for all eight pages (`../../../../cosmicForge/cosmicForge/drawTab1Content.js:48, 323, 599, 882, 1158, 1434, 1685, 1961`).
 
-Cosmic Forge Compounds (`../../../cosmicForge/cosmicForge/index.html:373-482`) also has two menu groups:
+Cosmic Forge Compounds (`../../../../cosmicForge/cosmicForge/index.html:373-482`) also has two menu groups:
 
 - Liquids: Diesel (`option1`), Water (`option5`).
 - Solids: Glass (`option2`), Concrete (`option4`), Steel (`option3`), Titanium (`option6`).
 
-The tab 4 handlers select those six named pages (`../../../cosmicForge/cosmicForge/ui.js:10710-10784`); `drawTab4Content` has a separate heading branch for each (`../../../cosmicForge/cosmicForge/drawTab4Content.js:24, 327, 618, 910, 1201, 1494`). Option IDs are stable route identifiers, not the visible row order.
+The tab 4 handlers select those six named pages (`../../../../cosmicForge/cosmicForge/ui.js:10710-10784`); `drawTab4Content` has a separate heading branch for each (`../../../../cosmicForge/cosmicForge/drawTab4Content.js:24, 327, 618, 910, 1201, 1494`). Option IDs are stable route identifiers, not the visible row order.
 
 ## Remake mapping and ownership
 

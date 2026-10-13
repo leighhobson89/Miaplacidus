@@ -36,7 +36,7 @@ MIAPLACIDUS's typed `economyMessages.ts` catalogs and current renderers.
 - The current mappings are correctly owned and localized; this audit found no
   source-proven copy or destination defect to change. No code was changed.
 
-Evidence paths: `../../../cosmicForge/cosmicForge/descriptions.js`,
-`../../../cosmicForge/cosmicForge/localization.json`,
-`../../../cosmicForge/cosmicForge/ui.js`, `src/i18n/economyMessages.ts`,
+Evidence paths: `../../../../cosmicForge/cosmicForge/descriptions.js`,
+`../../../../cosmicForge/cosmicForge/localization.json`,
+`../../../../cosmicForge/cosmicForge/ui.js`, `src/i18n/economyMessages.ts`,
 `src/app/App.tsx`, and `src/app/EconomyPanes.tsx`.

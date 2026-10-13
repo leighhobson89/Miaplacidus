@@ -11,6 +11,6 @@ Compared Cosmic Forge's Visual settings theme row with `SettingsPane.tsx` and `s
 | Italian | `Tema:` | `Tema:` |
 | French | `Thème:` | `Thème:` |
 
-Source UI evidence: `../../../cosmicForge/cosmicForge/drawTab9Content.js:128-149`; source locale keys in `../../../cosmicForge/cosmicForge/localization.json` include `tab9ThemeRowLabel`, `dropdownTheme*`, and `tab9ThemeRowDescription`. Target evidence: `src/app/SettingsPane.tsx` and `src/i18n/settingsMessages.ts` (`theme`, `themes`, and `themeRowDescription`).
+Source UI evidence: `../../../../cosmicForge/cosmicForge/drawTab9Content.js:128-149`; source locale keys in `../../../../cosmicForge/cosmicForge/localization.json` include `tab9ThemeRowLabel`, `dropdownTheme*`, and `tab9ThemeRowDescription`. Target evidence: `src/app/SettingsPane.tsx` and `src/i18n/settingsMessages.ts` (`theme`, `themes`, and `themeRowDescription`).
 
 The nine theme options, their order, theme behavior, and six Settings destinations are unchanged. No tests, builds, typechecks, or browser checks were run. P-44 remains open for broader catalogue and rendered-copy review.

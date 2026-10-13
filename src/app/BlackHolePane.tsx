@@ -333,8 +333,8 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
               : state.run.blackHoleChargeReady
                 ? copy.activate
                 : charging || state.run.blackHoleWarpActive
-                  ? copy.charging
-                  : copy.startCharge}
+                  ? copy.chargingAction
+                  : copy.chargeAction}
           </button>
           {activationReason && (
             <p className="control-reason" id="black-hole-activate-reason">

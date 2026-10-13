@@ -229,7 +229,7 @@ export function galacticPaneItems(
   if (state.run.space.systemEncounters.length > 0) {
     items.push({
       id: "galactic-rebirth",
-      label: metaText(locale, "rebirthAction"),
+      label: metaText(locale, "rebirthTabLabel"),
       sourceOptionId: "option1",
     });
   }
@@ -443,7 +443,7 @@ export function interstellarPaneItems(
   if (scannedDestinationEncounter) {
     items.push({
       id: "interstellar-colonise",
-      label: starshipText(locale, "colonise"),
+      label: starshipText(locale, "coloniseTabLabel"),
       sourceOptionId: "option5",
       panelId: starshipPanelId,
     });

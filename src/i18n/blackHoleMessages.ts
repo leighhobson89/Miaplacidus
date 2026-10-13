@@ -18,8 +18,10 @@ export interface BlackHoleMessages {
   readonly recharge: string;
   readonly activate: string;
   readonly startCharge: string;
+  readonly chargeAction: string;
   readonly ready: string;
   readonly charging: string;
+  readonly chargingAction: string;
   readonly warping: string;
   readonly alwaysOn: string;
   readonly status: string;
@@ -44,22 +46,24 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     researched: "Research complete. The Black Hole charges automatically.",
     researchAction: "Research Black Hole",
     researchHelp:
-      "Time warp speeds up production, research, and construction together. Research it as early as you can afford to, and keep upgrading recharge until charging becomes continuous.",
+      "Time warp speeds up every rate in the game at once - production, research and construction alike. Research it as early as you can afford to, and keep upgrading the recharge until charging becomes continuous.",
     power: "Power",
     duration: "Warp duration",
     recharge: "Recharge time",
-    activate: "Activate time warp",
+    activate: "ACTIVATE",
     startCharge: "Start charging",
+    chargeAction: "Charge",
     ready: "Charge ready",
-    charging: "Charging",
+    charging: "Charging...",
+    chargingAction: "Charging...",
     warping: "Time warp active",
     alwaysOn: "Time warp is always active.",
     status: "Status",
     researchPoints: "research points",
     upgradeNames: {
-      power: "Upgrade power",
-      duration: "Upgrade duration",
-      recharge: "Upgrade recharge",
+      power: "Power",
+      duration: "Duration",
+      recharge: "Recharge",
     },
     upgradeMaxed: {
       duration: "Always active",
@@ -77,7 +81,7 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     },
   },
   es: {
-    title: "Agujero negro",
+    title: "Agujero Negro",
     discoveredNotification:
       "¡Has descubierto un Agujero Negro! Interactúa con él en la pestaña Galáctica.",
     chargedNotification: "¡El Agujero Negro está cargado y listo para activarse!",
@@ -90,22 +94,24 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     researched: "Investigación completada. El agujero negro se carga automáticamente.",
     researchAction: "Investigar el Agujero Negro",
     researchHelp:
-      "La distorsión temporal acelera la producción, la investigación y la construcción a la vez. Investígala tan pronto como puedas permitírtela y sigue mejorando la recarga hasta que la carga sea continua.",
+      "La distorsión temporal acelera todas las tasas del juego a la vez: producción, investigación y construcción por igual. Invéstigala lo antes que puedas permitirte y sigue mejorando la recarga hasta que la carga sea continua.",
     power: "Potencia",
     duration: "Duración de la distorsión",
     recharge: "Tiempo de recarga",
-    activate: "Activar distorsión temporal",
+    activate: "ACTIVAR",
     startCharge: "Iniciar carga",
+    chargeAction: "Cargar",
     ready: "Carga lista",
-    charging: "Cargando",
+    charging: "Cargando...",
+    chargingAction: "Cargando...",
     warping: "Distorsión temporal activa",
     alwaysOn: "La distorsión temporal está siempre activa.",
     status: "Estado",
     researchPoints: "puntos de investigación",
     upgradeNames: {
-      power: "Mejorar potencia",
-      duration: "Mejorar duración",
-      recharge: "Mejorar recarga",
+      power: "Potencia",
+      duration: "Duración",
+      recharge: "Recarga",
     },
     upgradeMaxed: {
       duration: "Siempre activa",
@@ -123,7 +129,7 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     },
   },
   pt: {
-    title: "Buraco negro",
+    title: "Buraco Negro",
     discoveredNotification: "Descobriste um Buraco Negro! Interage com ele no separador Galáctico.",
     chargedNotification: "O Buraco Negro está carregado e pronto para ser ativado!",
     headerHelp:
@@ -134,22 +140,24 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     researched: "Pesquisa concluída. O buraco negro recarrega automaticamente.",
     researchAction: "Investigar o Buraco Negro",
     researchHelp:
-      "A distorção temporal acelera a produção, a pesquisa e a construção ao mesmo tempo. Pesquise-a assim que puder pagá-la e continue a melhorar a recarga até que o carregamento se torne contínuo.",
+      "A distorção temporal acelera todas as taxas do jogo ao mesmo tempo: produção, investigação e construção. Pesquisa-a assim que a puderes pagar e continua a melhorar a recarga até o carregamento se tornar contínuo.",
     power: "Potência",
     duration: "Duração da distorção",
     recharge: "Tempo de recarga",
-    activate: "Ativar distorção temporal",
+    activate: "ATIVAR",
     startCharge: "Iniciar recarga",
+    chargeAction: "Carregar",
     ready: "Carga pronta",
-    charging: "Recarregando",
+    charging: "A carregar...",
+    chargingAction: "A carregar...",
     warping: "Distorção temporal ativa",
     alwaysOn: "A distorção temporal está sempre ativa.",
     status: "Estado",
     researchPoints: "pontos de pesquisa",
     upgradeNames: {
-      power: "Melhorar potência",
-      duration: "Melhorar duração",
-      recharge: "Melhorar recarga",
+      power: "Potência",
+      duration: "Duração",
+      recharge: "Recarga",
     },
     upgradeMaxed: {
       duration: "Sempre ativa",
@@ -180,22 +188,24 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     researched: "Forschung abgeschlossen. Das schwarze Loch lädt sich automatisch auf.",
     researchAction: "Schwarzes Loch Erforschen",
     researchHelp:
-      "Die Zeitverzerrung beschleunigt Produktion, Forschung und Bau gleichzeitig. Erforsche sie, sobald du sie dir leisten kannst, und verbessere die Aufladung weiter, bis sie kontinuierlich läuft.",
+      "Die Zeitverzerrung beschleunigt alle Raten im Spiel auf einmal - Produktion, Forschung und Bau gleichermaßen. Erforsche sie so früh, wie du sie dir leisten kannst, und baue die Aufladung weiter aus, bis das Aufladen durchgehend läuft.",
     power: "Leistung",
     duration: "Warpdauer",
     recharge: "Aufladezeit",
-    activate: "Zeitverzerrung aktivieren",
+    activate: "AKTIVIEREN",
     startCharge: "Aufladung starten",
+    chargeAction: "Laden",
     ready: "Aufladung bereit",
-    charging: "Lädt auf",
+    charging: "Lädt...",
+    chargingAction: "Lädt...",
     warping: "Zeitverzerrung aktiv",
     alwaysOn: "Die Zeitverzerrung ist immer aktiv.",
     status: "Status",
     researchPoints: "Forschungspunkte",
     upgradeNames: {
-      power: "Leistung verbessern",
-      duration: "Dauer verbessern",
-      recharge: "Aufladung verbessern",
+      power: "Leistung",
+      duration: "Dauer",
+      recharge: "Aufladen",
     },
     upgradeMaxed: {
       duration: "Immer aktiv",
@@ -214,7 +224,7 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     },
   },
   it: {
-    title: "Buco nero",
+    title: "Buco Nero",
     discoveredNotification:
       "Hai scoperto un Buco Nero: interagisci con esso nella scheda Galattica!",
     chargedNotification: "Il Buco Nero è carico e pronto per essere attivato!",
@@ -226,22 +236,24 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     researched: "Ricerca completata. Il buco nero si carica automaticamente.",
     researchAction: "Ricerca il Buco Nero",
     researchHelp:
-      "La distorsione temporale accelera produzione, ricerca e costruzione allo stesso tempo. Ricercala appena puoi permettertela e continua a migliorare la ricarica finché la carica non diventa continua.",
+      "La distorsione temporale accelera tutti i tassi del gioco allo stesso tempo: produzione, ricerca e costruzione. Ricercala appena puoi permettertela e continua a potenziare la ricarica finché la carica non diventa continua.",
     power: "Potenza",
     duration: "Durata della distorsione",
     recharge: "Tempo di ricarica",
-    activate: "Attiva la distorsione temporale",
+    activate: "ATTIVA",
     startCharge: "Avvia la ricarica",
+    chargeAction: "Carica",
     ready: "Carica pronta",
-    charging: "In carica",
+    charging: "In carica...",
+    chargingAction: "In carica...",
     warping: "Distorsione temporale attiva",
     alwaysOn: "La distorsione temporale è sempre attiva.",
     status: "Stato",
     researchPoints: "punti ricerca",
     upgradeNames: {
-      power: "Migliora potenza",
-      duration: "Migliora durata",
-      recharge: "Migliora ricarica",
+      power: "Potenza",
+      duration: "Durata",
+      recharge: "Ricarica",
     },
     upgradeMaxed: {
       duration: "Sempre attiva",
@@ -259,7 +271,7 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     },
   },
   fr: {
-    title: "Trou noir",
+    title: "Trou Noir",
     discoveredNotification:
       "Vous avez découvert un Trou Noir - interagissez avec lui dans l'onglet Galactique!",
     chargedNotification: "Le Trou Noir est chargé et prêt à être activé!",
@@ -272,22 +284,24 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     researched: "Recherche terminée. Le trou noir se recharge automatiquement.",
     researchAction: "Étudier le Trou Noir",
     researchHelp:
-      "La distorsion temporelle accélère simultanément la production, la recherche et la construction. Étudiez-la dès que vous pouvez vous le permettre et continuez à améliorer la recharge jusqu'à ce que la charge devienne continue.",
+      "La distorsion temporelle accélère tous les taux du jeu à la fois : production, recherche et construction. Recherche-la dès que tu peux te le permettre, et continue d'améliorer la recharge jusqu'à ce que le chargement devienne continu.",
     power: "Puissance",
     duration: "Durée de distorsion",
     recharge: "Temps de recharge",
-    activate: "Activer la distorsion temporelle",
+    activate: "ACTIVER",
     startCharge: "Démarrer la charge",
+    chargeAction: "Charger",
     ready: "Charge prête",
-    charging: "En charge",
+    charging: "Chargement...",
+    chargingAction: "Chargement...",
     warping: "Distorsion temporelle active",
     alwaysOn: "La distorsion temporelle est toujours active.",
     status: "État",
     researchPoints: "points de recherche",
     upgradeNames: {
-      power: "Améliorer la puissance",
-      duration: "Améliorer la durée",
-      recharge: "Améliorer la recharge",
+      power: "Puissance",
+      duration: "Durée",
+      recharge: "Recharge",
     },
     upgradeMaxed: {
       duration: "Toujours active",

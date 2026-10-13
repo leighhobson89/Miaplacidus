@@ -62,6 +62,7 @@ export type SaveMessageKey =
   | "errQuota"
   | "errStorage"
   | "errImport"
+  | "errInvalidSaveString"
   | "errNotFound"
   | "errGeneric"
   | "paste"
@@ -116,15 +117,15 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Deleting removes this pioneer from this device. Export it first if you may need it later.",
     confirmDelete: "Confirm delete",
     exportFirst: "I exported this save or do not need it",
-    export: "Portable save code",
+    export: "Export Save:",
     copy: "Export",
     clipboardCopied: "Data copied to clipboard!",
     clipboardCopyError:
       "Error copying data! If on Chrome, this could be expected.  Select and copy the text string manually!",
     clipboardReadError: "Could not read the clipboard. Paste the save code into the field instead.",
-    download: "Download .txt",
-    import: "Import a save",
-    importText: "Paste a MIAPLACIDUS save code",
+    download: "Manual Save",
+    import: "Import Save:",
+    importText: "Please paste your Save Data here...",
     preview: "Preview import",
     previewName: "Pioneer",
     previewVersion: "Save version",
@@ -154,6 +155,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Browser storage is full. The previous save remains available; export or remove a save to make room.",
     errStorage: "Browser storage is unavailable. This run is temporary; export it before leaving.",
     errImport: "The save could not be imported. Check that its data is valid and try again.",
+    errInvalidSaveString: "Invalid game data string. Please check and try again.",
     errNotFound: "No saved game data found.",
     errGeneric: "That action could not be completed. Please try again.",
     paste: "Paste",
@@ -208,15 +210,15 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Al eliminarla, esta partida desaparecerá del dispositivo. Expórtala si podrías necesitarla.",
     confirmDelete: "Confirmar eliminación",
     exportFirst: "He exportado esta partida o no la necesito",
-    export: "Código de partida",
+    export: "Exportar Partida:",
     copy: "Exportar",
     clipboardCopied: "¡Datos copiados al portapapeles!",
     clipboardCopyError:
       "¡Error al copiar los datos! En Chrome esto puede ser normal. ¡Selecciona y copia el texto manualmente!",
     clipboardReadError: "No se pudo leer el portapapeles. Pega el código de guardado en el campo.",
-    download: "Descargar .txt",
-    import: "Importar partida",
-    importText: "Pega un código de MIAPLACIDUS",
+    download: "Guardado Manual",
+    import: "Importar Partida:",
+    importText: "Pega aquí tus datos de guardado...",
     preview: "Vista previa",
     previewName: "Pionero",
     previewVersion: "Versión de partida",
@@ -249,6 +251,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "El almacenamiento no está disponible. Esta sesión es temporal; expórtala antes de salir.",
     errImport:
       "No se pudo importar la partida. Comprueba que los datos sean válidos e inténtalo de nuevo.",
+    errInvalidSaveString:
+      "Cadena de datos de partida no válida. Compruébala e inténtalo de nuevo.",
     errNotFound: "No se encontraron datos de partida guardada.",
     errGeneric: "No se pudo completar la operación. Inténtalo de nuevo.",
     paste: "Pegar",
@@ -305,16 +309,16 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Excluir remove este pioneiro do dispositivo. Exporte antes se precisar dele depois.",
     confirmDelete: "Confirmar exclusão",
     exportFirst: "Já exportei este salvamento ou não preciso dele",
-    export: "Código portátil",
+    export: "Exportar Partida:",
     copy: "Exportar",
     clipboardCopied: "Dados copiados para a área de transferência!",
     clipboardCopyError:
       "Erro ao copiar os dados! No Chrome isto pode ser normal. Seleciona e copia o texto manualmente!",
     clipboardReadError:
       "Não foi possível ler a área de transferência. Cola o código de gravação no campo.",
-    download: "Baixar .txt",
-    import: "Importar salvamento",
-    importText: "Cole um código MIAPLACIDUS",
+    download: "Guardar Manualmente",
+    import: "Importar Partida:",
+    importText: "Cole aqui os seus dados de jogo guardados...",
     preview: "Pré-visualizar",
     previewName: "Pioneiro",
     previewVersion: "Versão do salvamento",
@@ -347,6 +351,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "O armazenamento não está disponível. Esta sessão é temporária; exporte antes de sair.",
     errImport:
       "Não foi possível importar o salvamento. Verifique se os dados estão corretos e tente novamente.",
+    errInvalidSaveString:
+      "Cadeia de dados de jogo inválida. Verifica-a e tenta novamente.",
     errNotFound: "Não foram encontrados dados de jogo guardados.",
     errGeneric: "Não foi possível concluir a operação. Tente novamente.",
     paste: "Colar",
@@ -403,16 +409,16 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Beim Löschen wird dieser Pionier vom Gerät entfernt. Exportiere ihn vorher, falls du ihn später brauchst.",
     confirmDelete: "Löschen bestätigen",
     exportFirst: "Ich habe diesen Spielstand exportiert oder brauche ihn nicht",
-    export: "Übertragbarer Spielstandcode",
+    export: "Spielstand Exportieren:",
     copy: "Exportieren",
     clipboardCopied: "Daten in die Zwischenablage kopiert!",
     clipboardCopyError:
       "Fehler beim Kopieren der Daten! In Chrome kann das normal sein. Markiere und kopiere den Text manuell!",
     clipboardReadError:
       "Die Zwischenablage konnte nicht gelesen werden. Füge den Spielstandcode in das Feld ein.",
-    download: ".txt herunterladen",
-    import: "Spielstand importieren",
-    importText: "MIAPLACIDUS-Code einfügen",
+    download: "Manuell Speichern",
+    import: "Spielstand Importieren:",
+    importText: "Füge hier deine Speicherdaten ein...",
     preview: "Importvorschau",
     previewName: "Pionier",
     previewVersion: "Spielstandversion",
@@ -446,6 +452,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Browserspeicher ist nicht verfügbar. Dieser Lauf ist temporär; exportiere ihn vor dem Verlassen.",
     errImport:
       "Der Spielstand konnte nicht importiert werden. Prüfe die Daten und versuche es erneut.",
+    errInvalidSaveString:
+      "Ungültige Spieldaten-Zeichenfolge. Bitte überprüfe sie und versuche es erneut.",
     errNotFound: "Keine gespeicherten Spieldaten gefunden.",
     errGeneric: "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
     paste: "Einfügen",
@@ -503,16 +511,16 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "L'eliminazione rimuove il pioniere dal dispositivo. Esportalo prima se potrebbe servirti.",
     confirmDelete: "Conferma eliminazione",
     exportFirst: "Ho esportato questo salvataggio o non mi serve",
-    export: "Codice portatile",
+    export: "Esporta Salvataggio:",
     copy: "Esporta",
     clipboardCopied: "Dati copiati negli appunti!",
     clipboardCopyError:
       "Errore nella copia dei dati! Su Chrome può essere normale. Seleziona e copia il testo manualmente!",
     clipboardReadError:
       "Impossibile leggere gli appunti. Incolla il codice di salvataggio nel campo.",
-    download: "Scarica .txt",
-    import: "Importa salvataggio",
-    importText: "Incolla un codice MIAPLACIDUS",
+    download: "Salvataggio Manuale",
+    import: "Importa Salvataggio:",
+    importText: "Incolla qui i tuoi dati di salvataggio...",
     preview: "Anteprima importazione",
     previewName: "Pioniere",
     previewVersion: "Versione salvataggio",
@@ -545,6 +553,8 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "Lo spazio del browser non è disponibile. Questa sessione è temporanea; esportala prima di uscire.",
     errImport:
       "Impossibile importare il salvataggio. Verifica che i dati siano corretti e riprova.",
+    errInvalidSaveString:
+      "Stringa di dati di gioco non valida. Controllala e riprova.",
     errNotFound: "Nessun dato di salvataggio trovato.",
     errGeneric: "Operazione non riuscita. Riprova.",
     paste: "Incolla",
@@ -601,16 +611,16 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
       "La suppression retire ce pionnier de l'appareil. Exportez-le avant si vous pouvez en avoir besoin.",
     confirmDelete: "Confirmer la suppression",
     exportFirst: "J'ai exporté cette sauvegarde ou je n'en ai pas besoin",
-    export: "Code de sauvegarde",
+    export: "Exporter la Sauvegarde:",
     copy: "Exporter",
     clipboardCopied: "Données copiées dans le presse-papiers!",
     clipboardCopyError:
       "Erreur lors de la copie des données! Sur Chrome, cela peut être normal. Sélectionnez et copiez le texte manuellement!",
     clipboardReadError:
       "Impossible de lire le presse-papiers. Collez le code de sauvegarde dans le champ.",
-    download: "Télécharger .txt",
-    import: "Importer une sauvegarde",
-    importText: "Collez un code MIAPLACIDUS",
+    download: "Sauvegarde Manuelle",
+    import: "Importer la Sauvegarde:",
+    importText: "Collez ici vos données de sauvegarde...",
     preview: "Aperçu de l'importation",
     previewName: "Pionnier",
     previewVersion: "Version de sauvegarde",
@@ -642,6 +652,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     errStorage:
       "Le stockage du navigateur est indisponible. Cette partie est temporaire ; exportez-la avant de quitter.",
     errImport: "La sauvegarde n'a pas pu être importée. Vérifiez les données et réessayez.",
+    errInvalidSaveString: "Chaîne de données de jeu invalide. Vérifiez-la et réessayez.",
     errNotFound: "Aucune donnée de sauvegarde trouvée.",
     errGeneric: "L'opération n'a pas pu aboutir. Réessayez.",
     paste: "Coller",

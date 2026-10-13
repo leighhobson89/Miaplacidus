@@ -130,6 +130,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
   const copy = cosmicRipText(locale);
   const objectiveCopy = cosmicRipObjectiveText(locale);
   const oneGpCost = `${number(state, 1)} ${copy.gpShort}`;
+  const sectorScanCost = copy.sectorScanCost.replace("{cost}", number(state, 1));
   const progress = state.permanent.cosmicRip;
   const foundSectorId =
     progress.ripLocationSectorIndex === null
@@ -142,7 +143,9 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
     ? latestResearchedTechnology.id === "realityWeaveRegulator"
       ? copy.fullyStabilised
       : copy.technologyStatusMessages[latestResearchedTechnology.id]
-    : copy.ripFound;
+    : foundSectorId
+      ? copy.locatedInSector.replace("{sector}", foundSectorId)
+      : copy.ripFound;
   const nextObjectiveId = !progress.ripFound
     ? "scan"
     : (COSMIC_RIP_TECHNOLOGIES.find(
@@ -265,7 +268,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                 ? progress.scannedSectorIndexes.length > 0
                   ? copy.ripMissing
                   : copy.scanInstruction
-                : copy.scannerArrayTitle}
+                : copy.requiresRestoration}
           </p>
         )}
         {!progress.closed && progress.scannerRestored && (
@@ -362,7 +365,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                     const sectorId = COSMIC_RIP_SECTOR_IDS[sectorIndex];
                     const accessibleStatus = scanned
                       ? `, ${copy.sectorScanned}`
-                      : `, ${oneGpCost}`;
+                      : `, ${sectorScanCost}`;
                     return (
                       <div className="cosmic-rip-sector-control" key={sectorIndex}>
                         <button
@@ -375,7 +378,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                           data-testid={`cosmic-rip-sector-${sectorIndex}`}
                         >
                           <span>{sectorId}</span>
-                          <small>{scanned ? copy.sectorScanned : oneGpCost}</small>
+                          <small>{scanned ? copy.sectorScanned : sectorScanCost}</small>
                         </button>
                         {check.reason && (
                           <p className="control-reason" id={reasonId}>
@@ -473,7 +476,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
                 <strong>{copy.stabilityLabel}</strong>
                 <InfoTooltip
                   id="cosmic-rip-stability-help"
-                  label={`${copy.stabilityLabel}: ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  label={`${copy.stabilityLabel} ${starshipText(locale, "scanMoreInfoLabel")}`}
                   content={cosmicRipStatusDescription(locale)}
                   testId="cosmic-rip-stability-help"
                 />

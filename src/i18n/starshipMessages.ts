@@ -12,6 +12,7 @@ const en = {
   starshipHeaderHelp:
     "Here you can build and manage your Star Ship to travel to and scan studied Stars.",
   colonise: "Colonise",
+  coloniseTabLabel: "Colonise",
   coloniseHeaderHelp:
     "Engage in Diplomacy and War to establish your new colony at {system} - Fleet Power: {fleetPower}",
   coloniseDescription:
@@ -35,15 +36,17 @@ const en = {
   fleetHangar: "Fleet Hangar",
   stellarScanner: "Stellar Scanner",
   setDestination: "Set as destination",
-  destinationSelected: "Selected destination",
+  travellingTo: "Travelling To:",
   clearDestination: "Clear destination",
   flightTime: "Estimated flight time: {seconds} seconds",
   fuelCost: "Antimatter required",
-  launch: "Launch starship",
+  launch: "Travel",
   confirmLaunch: "Confirm launch",
   cancelLaunch: "Cancel",
   pointOfNoReturn:
-    "Once launched, the starship cannot be recovered in this run. Check the destination and fuel cost before confirming.",
+    "Once your Starship is launched, you cannot retrieve it this run. Review the Star Data section and make sure you really want this destination before confirming.",
+  factorySystemWarning:
+    "WARNING: MegaStructure Systems are Extremely difficult to conquer! Only go if you have high Production to rebuild broken Fleets multiple times!",
   travelling: "Travelling to {name}",
   journeyTimeRemaining: "Journey time remaining: {time}",
   journeyProgress: "Starship journey progress",
@@ -184,6 +187,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       starshipHeaderHelp:
         "Aquí puedes construir y gestionar tu Nave Estelar para viajar a y escanear estrellas estudiadas.",
       colonise: "Colonizar",
+      coloniseTabLabel: "Colonizar",
       coloniseHeaderHelp:
         "Participa en Diplomacia y Guerra para establecer tu nueva colonia en {system} - Fuerza de Flota: {fleetPower}",
       coloniseDescription:
@@ -208,15 +212,17 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetHangar: "Hangar de Flota",
       stellarScanner: "Escáner Estelar",
       setDestination: "Establecer como destino",
-      destinationSelected: "Destino seleccionado",
+      travellingTo: "Viajando A:",
       clearDestination: "Borrar destino",
       flightTime: "Tiempo de viaje estimado: {seconds} segundos",
       fuelCost: "Antimateria necesaria",
-      launch: "Lanzar nave estelar",
+      launch: "Viajar",
       confirmLaunch: "Confirmar lanzamiento",
       cancelLaunch: "Cancelar",
       pointOfNoReturn:
-        "Una vez lanzada, la nave estelar no se puede recuperar en esta partida. Comprueba el destino y el coste de combustible antes de confirmar.",
+        "Una vez lanzada, no podrás recuperar tu Nave Estelar durante esta partida. Revisa la sección de Datos Estelares y asegúrate de que realmente quieres este destino antes de confirmar.",
+      factorySystemWarning:
+        "AVISO: ¡los sistemas con megaestructuras son extremadamente difíciles de conquistar! Ve solo si tienes una producción alta para reconstruir flotas destruidas varias veces.",
       travelling: "Viajando a {name}",
       journeyTimeRemaining: "Tiempo de viaje restante: {time}",
       journeyProgress: "Progreso del viaje estelar",
@@ -357,6 +363,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       starshipHeaderHelp:
         "Aqui podes construir e gerir a tua Nave Estelar para viajar e escanear estrelas estudadas.",
       colonise: "Colonizar",
+      coloniseTabLabel: "Colonizar",
       coloniseHeaderHelp:
         "Participa em Diplomacia e Guerra para estabelecer a tua nova colónia em {system} - Força da Frota: {fleetPower}",
       coloniseDescription:
@@ -381,15 +388,17 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetHangar: "Hangar da Frota",
       stellarScanner: "Scanner Estelar",
       setDestination: "Definir como destino",
-      destinationSelected: "Destino selecionado",
+      travellingTo: "A Viajar Para:",
       clearDestination: "Limpar destino",
       flightTime: "Tempo de viagem estimado: {seconds} segundos",
       fuelCost: "Antimatéria necessária",
-      launch: "Lançar nave estelar",
+      launch: "Viajar",
       confirmLaunch: "Confirmar lançamento",
       cancelLaunch: "Cancelar",
       pointOfNoReturn:
-        "Depois de lançada, a nave estelar não pode ser recuperada nesta partida. Confirme o destino e o custo de combustível.",
+        "Depois de lançada, não poderás recuperar a tua Nave Estelar nesta partida. Revê a secção de Dados Estelares e certifica-te de que queres mesmo este destino antes de confirmares.",
+      factorySystemWarning:
+        "AVISO: os sistemas com megaconstruções são extremamente difíceis de conquistar! Avança apenas se tiveres uma produção elevada para reconstruir as frotas destruídas várias vezes.",
       travelling: "A viajar para {name}",
       journeyTimeRemaining: "Tempo de viagem restante: {time}",
       journeyProgress: "Progresso da viagem estelar",
@@ -529,6 +538,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       starshipHeaderHelp:
         "Hier kannst du dein Sternenschiff bauen und verwalten, um zu untersuchten Sternen zu reisen und sie zu scannen.",
       colonise: "Kolonisieren",
+      coloniseTabLabel: "Kolonisieren",
       coloniseHeaderHelp:
         "Engagiere dich in Diplomatie und Krieg, um deine neue Kolonie zu errichten bei {system} - Flottenstärke: {fleetPower}",
       coloniseDescription:
@@ -553,15 +563,17 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetHangar: "Flottenhangar",
       stellarScanner: "Stellarscanner",
       setDestination: "Als Ziel festlegen",
-      destinationSelected: "Ausgewähltes Ziel",
+      travellingTo: "Unterwegs Nach:",
       clearDestination: "Ziel entfernen",
       flightTime: "Geschätzte Flugzeit: {seconds} Sekunden",
       fuelCost: "Benötigte Antimaterie",
-      launch: "Raumschiff starten",
+      launch: "Reisen",
       confirmLaunch: "Start bestätigen",
       cancelLaunch: "Abbrechen",
       pointOfNoReturn:
-        "Nach dem Start kann das Raumschiff in diesem Durchlauf nicht zurückgeholt werden. Prüfe Ziel und Treibstoffkosten.",
+        "Nach dem Start kannst du dein Sternenschiff in diesem Durchlauf nicht zurückholen. Prüfe den Sternendaten-Abschnitt und stelle sicher, dass du dieses Ziel wirklich auswählen möchtest, bevor du bestätigst.",
+      factorySystemWarning:
+        "WARNUNG: Megastruktur-Systeme sind extrem schwer zu erobern! Fliege nur hin, wenn deine Produktion hoch genug ist, um zerstörte Flotten mehrfach wieder aufzubauen!",
       travelling: "Unterwegs nach {name}",
       journeyTimeRemaining: "Verbleibende Reisezeit: {time}",
       journeyProgress: "Raumschiff-Reisefortschritt",
@@ -678,7 +690,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
         "Ein Flottenschiff wird benötigt; es darf keine aktive oder beendete Schlacht geben.",
       settlementUnavailable:
         "Besiege die feindliche Flotte, gewinne die Schlacht oder erreiche ein System ohne bewusste Verteidiger, bevor du das System besiedelst.",
-      fleetScout: "Aufklärer",
+      fleetScout: "Späher",
       fleetMarauder: "Marodeur",
       fleetLandStalker: "Landpirscher",
       fleetNavalStrafer: "Marine-Tiefflieger",
@@ -707,6 +719,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       starshipHeaderHelp:
         "Qui puoi costruire e gestire la tua Nave Stellare per viaggiare verso e scansionare le stelle studiate.",
       colonise: "Colonizza",
+      coloniseTabLabel: "Colonizzare",
       coloniseHeaderHelp:
         "Impegnati in Diplomazia e Guerra per stabilire la tua nuova colonia a {system} - Forza della Flotta: {fleetPower}",
       coloniseDescription:
@@ -731,15 +744,17 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetHangar: "Hangar della Flotta",
       stellarScanner: "Scanner Stellare",
       setDestination: "Imposta come destinazione",
-      destinationSelected: "Destinazione selezionata",
+      travellingTo: "In Viaggio Verso:",
       clearDestination: "Rimuovi destinazione",
       flightTime: "Tempo di viaggio stimato: {seconds} secondi",
       fuelCost: "Antimateria necessaria",
-      launch: "Lancia l'astronave",
+      launch: "Viaggia",
       confirmLaunch: "Conferma il lancio",
       cancelLaunch: "Annulla",
       pointOfNoReturn:
-        "Dopo il lancio, l'astronave non può essere recuperata in questa partita. Controlla destinazione e costo del carburante.",
+        "Dopo il lancio, non potrai recuperare la tua Nave Stellare in questa partita. Rivedi la sezione Dati Stellari e assicurati di voler davvero scegliere questa destinazione prima di confermare.",
+      factorySystemWarning:
+        "ATTENZIONE: i sistemi con megastrutture sono estremamente difficili da conquistare! Vai solo se hai una produzione alta per ricostruire più volte le flotte distrutte!",
       travelling: "In viaggio verso {name}",
       journeyTimeRemaining: "Tempo di viaggio rimanente: {time}",
       journeyProgress: "Progresso del viaggio stellare",
@@ -880,6 +895,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       starshipHeaderHelp:
         "Ici tu peux construire et gérer ton Vaisseau Stellaire pour voyager vers et scanner les étoiles étudiées.",
       colonise: "Coloniser",
+      coloniseTabLabel: "Coloniser",
       coloniseHeaderHelp:
         "Engage-toi en Diplomatie et Guerre pour établir ta nouvelle colonie à {system} - Force de Flotte: {fleetPower}",
       coloniseDescription:
@@ -904,15 +920,17 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       fleetHangar: "Hangar de la Flotte",
       stellarScanner: "Scanner Stellaire",
       setDestination: "Définir comme destination",
-      destinationSelected: "Destination sélectionnée",
+      travellingTo: "En Route Vers:",
       clearDestination: "Effacer la destination",
       flightTime: "Durée de vol estimée : {seconds} secondes",
       fuelCost: "Antimatière requise",
-      launch: "Lancer le vaisseau stellaire",
+      launch: "Voyager",
       confirmLaunch: "Confirmer le lancement",
       cancelLaunch: "Annuler",
       pointOfNoReturn:
-        "Après le lancement, le vaisseau ne peut pas être récupéré pendant cette partie. Vérifiez la destination et le coût en carburant.",
+        "Une fois lancé, tu ne pourras pas récupérer ton Vaisseau Stellaire pendant cette partie. Consulte la section Données Stellaires et assure-toi de vraiment vouloir cette destination avant de confirmer.",
+      factorySystemWarning:
+        "ATTENTION: les systèmes à mégastructure sont extrêmement difficiles à conquérir! N'y allez que si votre production permet de reconstruire plusieurs fois vos flottes détruites!",
       travelling: "En route vers {name}",
       journeyTimeRemaining: "Temps de voyage restant : {time}",
       journeyProgress: "Progression du voyage spatial",

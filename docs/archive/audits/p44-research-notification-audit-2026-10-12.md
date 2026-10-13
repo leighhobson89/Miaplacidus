@@ -2,7 +2,7 @@
 
 ## Scope
 
-Compared Cosmic Forge's Research technology, philosophy action-result, and philosophy-selection notification callsites and locale values with the current MIAPLACIDUS notification catalogues and renderer routes. The source is read-only at `../../../cosmicForge/cosmicForge/`.
+Compared Cosmic Forge's Research technology, philosophy action-result, and philosophy-selection notification callsites and locale values with the current MIAPLACIDUS notification catalogues and renderer routes. The source is read-only at `../../../../cosmicForge/cosmicForge/`.
 
 ## Research technology completion
 

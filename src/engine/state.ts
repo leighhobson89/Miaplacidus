@@ -4181,7 +4181,8 @@ export function upgradeGameStateV52(value: unknown): GameState | null {
     ? reconstructedTelemetryEarned
     : Number.MAX_VALUE;
   // v52 did not record when a permanent Dyson purchase affected plant rates.
-  // Preserve the legacy running value on migration; a new rebirth starts false.
+  // On the first run, researched stage 2 must have been purchased this run.
+  // After a rebirth, Cosmic Forge keeps the tech but does not replay its rate mutation.
   const dysonStageTwoId = MEGASTRUCTURE_TRACKS.dysonSphere[1];
   const candidate = {
     ...legacy,
@@ -4189,7 +4190,9 @@ export function upgradeGameStateV52(value: unknown): GameState | null {
     run: {
       ...runState,
       dysonPlantRateBoostActiveThisRun:
-        Array.isArray(researchedTechnologyIds) && researchedTechnologyIds.includes(dysonStageTwoId),
+        permanentState["rebirthCount"] === 0 &&
+        Array.isArray(researchedTechnologyIds) &&
+        researchedTechnologyIds.includes(dysonStageTwoId),
     },
     permanent: {
       ...permanentState,

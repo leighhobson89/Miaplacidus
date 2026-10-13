@@ -13,6 +13,7 @@ interface MetaCopy {
   readonly rebirthOverview: string;
   readonly rebirthMegastructureWarning: string;
   readonly rebirthAction: string;
+  readonly rebirthTabLabel: string;
   readonly confirm: string;
   readonly cancel: string;
   readonly locked: string;
@@ -66,7 +67,8 @@ const PACKS: Record<
       "MEGASTRUCTURE STARS: It's Mandatory to Disconnect the MegaStructure before Rebirth!",
     rebirthBody:
       "Run resources, buildings, research and ships reset. AP, GP, ascendency perks, philosophy, settings and lifetime statistics remain. Your new system will be the one you just settled.",
-    rebirthAction: "Rebirth",
+    rebirthAction: "REBIRTH",
+    rebirthTabLabel: "Rebirth",
     confirm: "Confirm rebirth",
     cancel: "Keep current run",
     locked: "Locked",
@@ -117,7 +119,7 @@ const PACKS: Record<
   },
   es: {
     title: "Ascendencia",
-    perksTitle: "Ventajas de Ascendencia",
+    perksTitle: "Beneficios de Ascendencia",
     perksOverview: "¡Aquí puedes gastar AP por mejoras permanentes para acelerar tus runs!",
     ap: "Puntos de Ascendencia",
     gp: "Puntos galácticos",
@@ -128,7 +130,8 @@ const PACKS: Record<
       "ESTRELLAS MEGAESTRUCTURA: ¡Es obligatorio desconectar la MegaEstructura antes del Renacimiento!",
     rebirthBody:
       "Se reinician los recursos, edificios, investigaciones y naves de esta partida. Se conservan los PA, PG, ventajas, filosofía, ajustes y estadísticas de por vida. Tu nuevo sistema será el que acabas de colonizar.",
-    rebirthAction: "Renacer",
+    rebirthAction: "RENACER",
+    rebirthTabLabel: "Renacimiento",
     confirm: "Confirmar renacimiento",
     cancel: "Continuar partida",
     locked: "Bloqueado",
@@ -179,7 +182,7 @@ const PACKS: Record<
   },
   pt: {
     title: "Ascendência",
-    perksTitle: "Vantagens de Ascendência",
+    perksTitle: "Benefícios de Ascendência",
     perksOverview: "Aqui podes gastar AP em melhorias permanentes para acelerar as tuas runs!",
     ap: "Pontos de Ascendência",
     gp: "Pontos galácticos",
@@ -190,7 +193,8 @@ const PACKS: Record<
       "ESTRELAS MEGAESTRUTURA: É obrigatório desligar a MegaEstrutura antes do Renascimento!",
     rebirthBody:
       "Os recursos, edifícios, pesquisas e naves desta jornada serão reiniciados. PA, PG, vantagens, filosofia, definições e estatísticas vitalícias permanecem. O novo sistema será aquele que acabou de colonizar.",
-    rebirthAction: "Renascença",
+    rebirthAction: "RENASCER",
+    rebirthTabLabel: "Renascimento",
     confirm: "Confirmar renascimento",
     cancel: "Manter jornada atual",
     locked: "Bloqueado",
@@ -241,7 +245,7 @@ const PACKS: Record<
   },
   de: {
     title: "Aszendenz",
-    perksTitle: "Aufstiegsperks",
+    perksTitle: "Aufstiegsboni",
     perksOverview:
       "Hier kannst du AP für permanente Buffs ausgeben, um deine Runs zu beschleunigen!",
     ap: "Aszendenzpunkte",
@@ -254,7 +258,8 @@ const PACKS: Record<
       "MEGASTRUKTUR-STERNE: Es ist zwingend erforderlich, die MegaStruktur vor der Wiedergeburt zu trennen!",
     rebirthBody:
       "Ressourcen, Gebäude, Forschung und Schiffe dieses Durchlaufs werden zurückgesetzt. AP, RP, Vorteile, Philosophie, Einstellungen und Lebenszeitstatistiken bleiben erhalten. Dein neues System ist das gerade besiedelte.",
-    rebirthAction: "Wiedergeburt",
+    rebirthAction: "WIEDERGEBURT",
+    rebirthTabLabel: "Wiedergeburt",
     confirm: "Wiedergeburt bestätigen",
     cancel: "Durchlauf fortsetzen",
     locked: "Gesperrt",
@@ -305,7 +310,7 @@ const PACKS: Record<
   },
   it: {
     title: "Ascendenza",
-    perksTitle: "Perk di ascendenza",
+    perksTitle: "Vantaggi di Ascendenza",
     perksOverview: "Qui puoi spendere AP per potenziamenti permanenti per velocizzare le tue run!",
     ap: "Punti Ascendenza",
     gp: "Punti galattici",
@@ -316,7 +321,8 @@ const PACKS: Record<
       "STELLE MEGASTRUTTURA: È obbligatorio disconnettere la MegaStruttura prima della Rinascita!",
     rebirthBody:
       "Le risorse, gli edifici, le ricerche e le navi di questa partita verranno azzerati. PA, PG, vantaggi, filosofia, impostazioni e statistiche complessive restano. Il nuovo sistema sarà quello appena colonizzato.",
-    rebirthAction: "Rinascita",
+    rebirthAction: "RINASCI",
+    rebirthTabLabel: "Rinascita",
     confirm: "Conferma rinascita",
     cancel: "Continua la partita",
     locked: "Bloccato",
@@ -367,7 +373,7 @@ const PACKS: Record<
   },
   fr: {
     title: "Ascendance",
-    perksTitle: "Avantages d'ascendance",
+    perksTitle: "Avantages d'Ascendance",
     perksOverview: "Ici tu peux dépenser des AP pour des buffs permanents pour accélérer tes runs!",
     ap: "Points d’ascendance",
     gp: "Points galactiques",
@@ -378,7 +384,8 @@ const PACKS: Record<
       "ÉTOILES MÉGASTRUCTURE: Il est obligatoire de déconnecter la MégaStructure avant la Renaissance!",
     rebirthBody:
       "Les ressources, bâtiments, recherches et vaisseaux de cette partie seront réinitialisés. Les PA, PG, avantages, philosophie, paramètres et statistiques cumulées sont conservés. Votre nouveau système sera celui que vous venez de coloniser.",
-    rebirthAction: "Renaissance",
+    rebirthAction: "RENAÎTRE",
+    rebirthTabLabel: "Renaissance",
     confirm: "Confirmer la renaissance",
     cancel: "Garder la partie",
     locked: "Verrouillé",
@@ -574,8 +581,13 @@ export function rebirthLockText(locale: LocaleId, reason: RebirthLockReason | un
 export type MarketMessageKey =
   | "heading"
   | "description"
+  | "tradeRow"
+  | "confirmRowLabel"
+  | "summaryOutgoing"
+  | "summaryIncoming"
   | "outgoing"
   | "incoming"
+  | "tradeFor"
   | "quantity"
   | "preview"
   | "commission"
@@ -587,8 +599,12 @@ export type MarketMessageKey =
   | "history"
   | "noHistory"
   | "apPrice"
+  | "cashGain"
   | "sellAp"
   | "sellApAction"
+  | "sellAp1"
+  | "sellAp5"
+  | "sellAp10"
   | "liquidation"
   | "liquidationHelpLabel"
   | "liquidationHelp"
@@ -614,9 +630,14 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
   en: {
     heading: "Galactic Market",
     description: "Here you can make various trades in the Galactic Market.",
+    tradeRow: "Trade:",
+    confirmRowLabel: "Confirm:",
+    summaryOutgoing: "Trade",
+    summaryIncoming: "for",
     outgoing: "You give",
     incoming: "You receive",
-    quantity: "Quantity to trade",
+    tradeFor: "For:",
+    quantity: "Quantity:",
     preview: "Trade preview",
     commission: "Commission",
     adjustedValue: "Adjusted unit value",
@@ -628,8 +649,12 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     history: "Recent trades",
     noHistory: "No trades yet.",
     apPrice: "Cash per AP",
-    sellAp: "AP to sell",
+    cashGain: "Cash Gain:",
+    sellAp: "Sell AP:",
     sellApAction: "SELL",
+    sellAp1: "Sell 1 AP",
+    sellAp5: "Sell 5 AP",
+    sellAp10: "Sell 10 AP",
     liquidation: "Liquidate run assets for AP",
     liquidationHelpLabel: "Liquidation calculation help",
     liquidationHelp:
@@ -656,11 +681,16 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
       "Liquidation is worth {value}; at least {minimum} is needed for 1 AP at the current price.",
   },
   es: {
-    heading: "Mercado galáctico",
+    heading: "Mercado Galáctico",
     description: "Aquí puedes hacer varios intercambios en el Mercado Galáctico.",
+    tradeRow: "Intercambio:",
+    confirmRowLabel: "Confirmar:",
+    summaryOutgoing: "Intercambiar",
+    summaryIncoming: "por",
     outgoing: "Entregas",
     incoming: "Recibes",
-    quantity: "Cantidad a intercambiar",
+    tradeFor: "Por:",
+    quantity: "Cantidad:",
     preview: "Resumen del intercambio",
     commission: "Comisión",
     adjustedValue: "Valor unitario ajustado",
@@ -672,8 +702,12 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     history: "Intercambios recientes",
     noHistory: "Aún no hay intercambios.",
     apPrice: "Dinero por PA",
-    sellAp: "PA para vender",
+    cashGain: "Dinero Ganado:",
+    sellAp: "Vender PA:",
     sellApAction: "VENDER",
+    sellAp1: "Vender 1 PA",
+    sellAp5: "Vender 5 PA",
+    sellAp10: "Vender 10 PA",
     liquidation: "Liquidar activos de la partida por PA",
     liquidationHelpLabel: "Ayuda sobre el cálculo de la liquidación",
     liquidationHelp:
@@ -701,11 +735,16 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
       "La liquidación vale {value}; se necesitan al menos {minimum} para obtener 1 PA al precio actual.",
   },
   pt: {
-    heading: "Mercado galáctico",
+    heading: "Mercado Galáctico",
     description: "Aqui podes fazer várias trocas no Mercado Galáctico.",
+    tradeRow: "Troca:",
+    confirmRowLabel: "Confirmar:",
+    summaryOutgoing: "Trocar",
+    summaryIncoming: "por",
     outgoing: "Entregas",
     incoming: "Recebes",
-    quantity: "Quantidade a trocar",
+    tradeFor: "Por:",
+    quantity: "Quantidade:",
     preview: "Resumo da troca",
     commission: "Comissão",
     adjustedValue: "Valor unitário ajustado",
@@ -717,8 +756,12 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     history: "Trocas recentes",
     noHistory: "Ainda não há trocas.",
     apPrice: "Dinheiro por PA",
-    sellAp: "PA a vender",
+    cashGain: "Dinheiro Ganho:",
+    sellAp: "Vender PA:",
     sellApAction: "VENDER",
+    sellAp1: "Vender 1 PA",
+    sellAp5: "Vender 5 PA",
+    sellAp10: "Vender 10 PA",
     liquidation: "Liquidar ativos da jornada por PA",
     liquidationHelpLabel: "Ajuda sobre o cálculo da liquidação",
     liquidationHelp:
@@ -747,9 +790,14 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
   de: {
     heading: "Galaktischer Markt",
     description: "Hier kannst du verschiedene Handelsgeschäfte im Galaktischen Markt tätigen.",
+    tradeRow: "Handel:",
+    confirmRowLabel: "Bestätigen:",
+    summaryOutgoing: "Tausche",
+    summaryIncoming: "gegen",
     outgoing: "Du gibst",
     incoming: "Du erhältst",
-    quantity: "Handelsmenge",
+    tradeFor: "Für:",
+    quantity: "Menge:",
     preview: "Handelsübersicht",
     commission: "Provision",
     adjustedValue: "Angepasster Stückwert",
@@ -761,8 +809,12 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     history: "Letzte Handelsgeschäfte",
     noHistory: "Noch keine Handelsgeschäfte.",
     apPrice: "Geld pro AP",
-    sellAp: "Zu verkaufende AP",
+    cashGain: "Bargeldgewinn:",
+    sellAp: "AP Verkaufen:",
     sellApAction: "VERKAUFEN",
+    sellAp1: "1 AP Verkaufen",
+    sellAp5: "5 AP Verkaufen",
+    sellAp10: "10 AP Verkaufen",
     liquidation: "Run-Vermögen für AP liquidieren",
     liquidationHelpLabel: "Hilfe zur Berechnung der Liquidation",
     liquidationHelp:
@@ -791,11 +843,16 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
       "Die Liquidation ist {value} wert; für 1 AP werden zum aktuellen Kurs mindestens {minimum} benötigt.",
   },
   it: {
-    heading: "Mercato galattico",
+    heading: "Mercato Galattico",
     description: "Qui puoi fare varie operazioni di trading nel Mercato Galattico.",
+    tradeRow: "Scambio:",
+    confirmRowLabel: "Conferma:",
+    summaryOutgoing: "Scambia",
+    summaryIncoming: "per",
     outgoing: "Cedi",
     incoming: "Ricevi",
-    quantity: "Quantità da scambiare",
+    tradeFor: "Per:",
+    quantity: "Quantità:",
     preview: "Riepilogo dello scambio",
     commission: "Commissione",
     adjustedValue: "Valore unitario corretto",
@@ -807,8 +864,12 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     history: "Scambi recenti",
     noHistory: "Nessuno scambio ancora.",
     apPrice: "Denaro per PA",
-    sellAp: "PA da vendere",
+    cashGain: "Denaro Guadagnato:",
+    sellAp: "Vendi PA:",
     sellApAction: "VENDI",
+    sellAp1: "Vendi 1 PA",
+    sellAp5: "Vendi 5 PA",
+    sellAp10: "Vendi 10 PA",
     liquidation: "Liquida gli asset della partita per PA",
     liquidationHelpLabel: "Aiuto sul calcolo della liquidazione",
     liquidationHelp:
@@ -836,11 +897,16 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
       "La liquidazione vale {value}; per 1 PA servono almeno {minimum} al prezzo attuale.",
   },
   fr: {
-    heading: "Marché galactique",
+    heading: "Marché Galactique",
     description: "Ici tu peux faire divers échanges sur le Marché Galactique.",
+    tradeRow: "Échange:",
+    confirmRowLabel: "Confirmer:",
+    summaryOutgoing: "Échanger",
+    summaryIncoming: "contre",
     outgoing: "Vous cédez",
     incoming: "Vous recevez",
-    quantity: "Quantité à échanger",
+    tradeFor: "Contre:",
+    quantity: "Quantité:",
     preview: "Aperçu de l'échange",
     commission: "Commission",
     adjustedValue: "Valeur unitaire ajustée",
@@ -852,8 +918,12 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     history: "Échanges récents",
     noHistory: "Aucun échange pour le moment.",
     apPrice: "Argent par PA",
-    sellAp: "PA à vendre",
+    cashGain: "Gain en Argent:",
+    sellAp: "Vendre des PA:",
     sellApAction: "VENDRE",
+    sellAp1: "Vendre 1 PA",
+    sellAp5: "Vendre 5 PA",
+    sellAp10: "Vendre 10 PA",
     liquidation: "Liquider les actifs de la partie contre des PA",
     liquidationHelpLabel: "Aide au calcul de la liquidation",
     liquidationHelp:

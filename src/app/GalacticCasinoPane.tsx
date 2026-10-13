@@ -621,7 +621,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
             </p>
             {wheelClaimReady ? <output>{casinoText(locale, "specialReady")}</output> : null}
             <label>
-              {casinoText(locale, "choosePrize")}
+              <span className="sr-only">{casinoText(locale, "choosePrize")}</span>
               <select
                 aria-label={casinoText(locale, "choosePrize")}
                 aria-describedby="casino-wheel-help"
@@ -762,7 +762,7 @@ export function GalacticCasinoPane({ state, store }: Props) {
                   ))}
                 </div>
                 <p id="casino-hilo-current-prize">
-                  {casinoText(locale, "currentPrize")}:{" "}
+                  {casinoText(locale, "currentPrize")}{" "}
                   {higherLower.prizeKey ? prizeLabel(higherLower.prizeKey) : "—"}
                 </p>
                 <div className="casino-button-row">

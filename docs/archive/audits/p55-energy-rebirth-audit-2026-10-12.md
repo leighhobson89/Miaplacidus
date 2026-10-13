@@ -4,11 +4,11 @@
 
 ## Source behavior
 
-Cosmic Forge captures the original resource state as `resourceDataRebirthCopy` (`../../../cosmicForge/cosmicForge/resourceDataObject.js:3816`). Its rebirth reset clones that snapshot back into the resource data (`../../../cosmicForge/cosmicForge/resourceDataObject.js:3887-3891`), restoring battery and energy-storage capacities, plant counts, and plant rates to their initial values.
+Cosmic Forge captures the original resource state as `resourceDataRebirthCopy` (`../../../../cosmicForge/cosmicForge/resourceDataObject.js:3816`). Its rebirth reset clones that snapshot back into the resource data (`../../../../cosmicForge/cosmicForge/resourceDataObject.js:3887-3891`), restoring battery and energy-storage capacities, plant counts, and plant rates to their initial values.
 
-The rebirth path replays permanent Optimized Power Grids (`../../../cosmicForge/cosmicForge/game.js:15627-15636`). It does not replay Dyson Sphere stages 1 or 2. Those bonuses are applied at purchase time in `applyMegaStructureBonuses` (`../../../cosmicForge/cosmicForge/game.js:16040-16068`): stage 1 doubles the three battery capacities and energy-storage capacity; stage 2 multiplies each plant's maximum, purchased, and current rate by 1.25. Consequently, both effects reset with the source resource snapshot.
+The rebirth path replays permanent Optimized Power Grids (`../../../../cosmicForge/cosmicForge/game.js:15627-15636`). It does not replay Dyson Sphere stages 1 or 2. Those bonuses are applied at purchase time in `applyMegaStructureBonuses` (`../../../../cosmicForge/cosmicForge/game.js:16040-16068`): stage 1 doubles the three battery capacities and energy-storage capacity; stage 2 multiplies each plant's maximum, purchased, and current rate by 1.25. Consequently, both effects reset with the source resource snapshot.
 
-The source clears Infinite Power unless Dyson stage 5 is present (`../../../cosmicForge/cosmicForge/constantsAndGlobalVars.js:1384-1390`), then initializes the grid switch from the resulting Infinite Power state (`../../../cosmicForge/cosmicForge/constantsAndGlobalVars.js:1629-1630`). Stage 4's run-scoped power effect therefore does not reactivate after rebirth; stage 5 does.
+The source clears Infinite Power unless Dyson stage 5 is present (`../../../../cosmicForge/cosmicForge/constantsAndGlobalVars.js:1384-1390`), then initializes the grid switch from the resulting Infinite Power state (`../../../../cosmicForge/cosmicForge/constantsAndGlobalVars.js:1629-1630`). Stage 4's run-scoped power effect therefore does not reactivate after rebirth; stage 5 does.
 
 ## MIAPLACIDUS implementation
 
@@ -19,3 +19,11 @@ Save schema v54 adds the battery-capacity run flag. Existing v53 saves migrate t
 ## Evidence boundary
 
 Source review covered `resourceDataObject.js`, `game.js`, and `constantsAndGlobalVars.js`; target review covered `src/engine/megastructures.ts`, `src/engine/state.ts`, `src/persistence/schema.ts`, `src/persistence/migrations.ts`, and `src/persistence/codec.ts`. No tests, builds, typechecks, formatter, or browser checks were run. Matched source/remake save values, active-run battery capacity and plant output, and post-rebirth grid behavior still need later runtime evidence.
+
+## Owner reaffirmation and path recheck (13 October 2026)
+
+The owner reaffirmed that Energy rebirth behavior should follow Cosmic Forge. A direct path recheck confirms the source clones the initial plant/resource snapshot, replays Optimized Power Grids, and does not replay Dyson stage 2's 1.25× rate mutation (`resourceDataObject.js:3887-3890`, `game.js:15627-15639`, `3925-3946`, `16059-16067`). MIAPLACIDUS clears `dysonPlantRateBoostActiveThisRun` during `restoreMegastructureProgressOnRebirth` (`src/engine/megastructures.ts:216-224`); plant production and the Statistics Total Production selector both read that run-scoped flag (`src/engine/economySimulation.ts:163-195`, `src/engine/selectors.ts:252-265`). No additional code correction was needed. This remains a static code-path comparison; matched runtime values and rendered rebirth review are still open.
+
+## Legacy-save migration correction (13 October 2026)
+
+The v52→v53 migration now enables the Dyson plant-rate run flag only when `rebirthCount === 0` and stage 2 is researched. Existing saves after a rebirth keep the permanent technology without restoring the run-only rate effect. This supersedes the earlier migration note above that preserved the legacy rate boost through the current run. See the [migration audit](p55-dyson-v52-migration-audit-2026-10-13.md). No tests or runtime checks were run.

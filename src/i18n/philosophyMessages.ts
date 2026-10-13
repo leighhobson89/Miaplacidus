@@ -15,6 +15,7 @@ interface PhilosophyCopy {
   readonly choiceTitle: string;
   readonly choicePrompt: string;
   readonly ability: string;
+  readonly abilityAction: string;
   readonly repeatables: string;
   readonly buy: string;
   readonly owned: string;
@@ -55,6 +56,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     choiceTitle: "Choose your civilization's philosophy",
     choicePrompt: "This choice is permanent for this save. Review each path before choosing.",
     ability: "Path ability",
+    abilityAction: "UNLOCK",
     repeatables: "Repeatable research",
     buy: "Research",
     owned: "Active this run",
@@ -62,7 +64,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     nextCost: "Next cost",
     active: "Active",
     unavailable: "Not enough research points.",
-    researchShort: "research",
+    researchShort: "Research",
     paths: {
       constructor: {
         name: "Constructor",
@@ -80,8 +82,8 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     },
     abilities: {
       spaceStorageTankResearch: {
-        name: "Storage Tank Research",
-        effect: "Storage purchases grow capacity ×5 instead of ×2 this run.",
+        name: "Space Storage Tank Research:",
+        effect: "ABILITY: Unlock Storage Research and base storage increases are not x2 but x5 every time.",
       },
       fleetHolograms: {
         name: "Fleet Holograms",
@@ -94,8 +96,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
       },
       rapidExpansion: {
         name: "Rapid Expansion",
-        effect:
-          "A conquest can settle up to three nearby systems. Peaceful settlements do not trigger it.",
+        effect: "Conquering a system gives you a chance to conquer up to three additional systems.",
       },
     },
     upgrades: {
@@ -171,6 +172,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     choicePrompt:
       "Esta elección será permanente en esta partida guardada. Revisa cada senda antes de elegir.",
     ability: "Habilidad de la senda",
+    abilityAction: "DESBLOQUEAR",
     repeatables: "Investigación repetible",
     buy: "Investigar",
     owned: "Activa esta partida",
@@ -178,7 +180,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     nextCost: "Coste siguiente",
     active: "Activa",
     unavailable: "No tienes suficientes puntos de investigación.",
-    researchShort: "investigación",
+    researchShort: "de Investigación",
     paths: {
       constructor: {
         name: "Constructora",
@@ -199,9 +201,9 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     },
     abilities: {
       spaceStorageTankResearch: {
-        name: "Investigación de tanques de almacenamiento",
+        name: "Investigación de Tanques de Almacenamiento Espacial:",
         effect:
-          "Las mejoras de almacenamiento multiplican la capacidad ×5 en vez de ×2 durante esta partida.",
+          "HABILIDAD: Desbloquea Investigación de Almacenamiento y los aumentos de almacenamiento base no son x2 sino x5 cada vez.",
       },
       fleetHolograms: {
         name: "Hologramas de flota",
@@ -214,8 +216,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
       },
       rapidExpansion: {
         name: "Expansión rápida",
-        effect:
-          "Una conquista puede asentar hasta tres sistemas cercanos. Los asentamientos pacíficos no lo activan.",
+        effect: "Al conquistar un sistema, tienes la posibilidad de conquistar hasta tres sistemas adicionales.",
       },
     },
     upgrades: {
@@ -306,6 +307,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     choicePrompt:
       "Esta escolha é permanente nesta gravação. Analisa cada caminho antes de escolher.",
     ability: "Habilidade do caminho",
+    abilityAction: "DESBLOQUEAR",
     repeatables: "Investigação repetível",
     buy: "Investigar",
     owned: "Ativa nesta partida",
@@ -313,7 +315,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     nextCost: "Próximo custo",
     active: "Ativa",
     unavailable: "Não tens pontos de investigação suficientes.",
-    researchShort: "investigação",
+    researchShort: "de Investigação",
     paths: {
       constructor: {
         name: "Construtora",
@@ -334,8 +336,8 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     },
     abilities: {
       spaceStorageTankResearch: {
-        name: "Investigação de tanques de armazenamento",
-        effect: "As compras de armazenamento aumentam a capacidade ×5 em vez de ×2 nesta partida.",
+        name: "Investigação de Tanques de Armazenamento Espacial:",
+        effect: "HABILIDADE: Desbloqueie Pesquisa de Armazenamento e os aumentos de armazenamento base não serão x2, mas x5 a cada vez.",
       },
       fleetHolograms: {
         name: "Hologramas de frota",
@@ -348,8 +350,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
       },
       rapidExpansion: {
         name: "Expansão rápida",
-        effect:
-          "Uma conquista pode colonizar até três sistemas próximos. Colonizações pacíficas não ativam o efeito.",
+        effect: "Ao conquistares um sistema, tens a possibilidade de conquistar até três sistemas adicionais.",
       },
     },
     upgrades: {
@@ -434,6 +435,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     choicePrompt:
       "Diese Wahl bleibt für diesen Spielstand dauerhaft. Sieh dir jeden Pfad vor der Wahl an.",
     ability: "Pfadfähigkeit",
+    abilityAction: "FREISCHALTEN",
     repeatables: "Wiederholbare Forschung",
     buy: "Erforschen",
     owned: "In diesem Durchlauf aktiv",
@@ -462,8 +464,8 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     },
     abilities: {
       spaceStorageTankResearch: {
-        name: "Forschung zu Speichertanks",
-        effect: "Speicherkäufe erhöhen den Platz in diesem Durchlauf um ×5 statt ×2.",
+        name: "Forschung an Weltraumtanks:",
+        effect: "FÄHIGKEIT: Schalte Lagermöglichkeiten-Forschung frei und Basislagererhöhungen sind nicht x2 sondern x5 jedes Mal.",
       },
       fleetHolograms: {
         name: "Flottenhologramme",
@@ -476,8 +478,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
       },
       rapidExpansion: {
         name: "Rasche Expansion",
-        effect:
-          "Eine Eroberung kann bis zu drei nahe Systeme besiedeln. Friedliche Besiedlungen lösen sie nicht aus.",
+        effect: "Wenn du ein System eroberst, besteht die Chance, bis zu drei weitere Systeme zu erobern.",
       },
     },
     upgrades: {
@@ -556,6 +557,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     choicePrompt:
       "La scelta è permanente per questo salvataggio. Esamina ogni percorso prima di decidere.",
     ability: "Abilità del percorso",
+    abilityAction: "SBLOCCA",
     repeatables: "Ricerca ripetibile",
     buy: "Ricerca",
     owned: "Attiva in questa partita",
@@ -563,7 +565,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     nextCost: "Costo successivo",
     active: "Attiva",
     unavailable: "Punti ricerca insufficienti.",
-    researchShort: "ricerca",
+    researchShort: "di Ricerca",
     paths: {
       constructor: {
         name: "Costruttrice",
@@ -584,9 +586,9 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     },
     abilities: {
       spaceStorageTankResearch: {
-        name: "Ricerca sui serbatoi di stoccaggio",
+        name: "Ricerca sui Serbatoi Spaziali:",
         effect:
-          "Gli acquisti di stoccaggio aumentano la capacità ×5 invece di ×2 in questa partita.",
+          "ABILITÀ: Sblocca Ricerca di Archiviazione e gli aumenti di archiviazione base non sono x2 ma x5 ogni volta.",
       },
       fleetHolograms: {
         name: "Ologrammi della flotta",
@@ -599,8 +601,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
       },
       rapidExpansion: {
         name: "Espansione rapida",
-        effect:
-          "Una conquista può insediare fino a tre sistemi vicini. Gli insediamenti pacifici non la attivano.",
+        effect: "Quando conquisti un sistema, hai la possibilità di conquistarne fino a tre aggiuntivi.",
       },
     },
     upgrades: {
@@ -691,6 +692,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     choicePrompt:
       "Ce choix est permanent pour cette sauvegarde. Examinez chaque voie avant de choisir.",
     ability: "Capacité de la voie",
+    abilityAction: "DÉBLOQUER",
     repeatables: "Recherche répétable",
     buy: "Rechercher",
     owned: "Active pendant cette partie",
@@ -698,7 +700,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     nextCost: "Coût suivant",
     active: "Active",
     unavailable: "Points de recherche insuffisants.",
-    researchShort: "recherche",
+    researchShort: "de Recherche",
     paths: {
       constructor: {
         name: "Constructrice",
@@ -719,9 +721,9 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
     },
     abilities: {
       spaceStorageTankResearch: {
-        name: "Recherche sur les réservoirs de stockage",
+        name: "Recherche sur les Réservoirs Spatiaux:",
         effect:
-          "Les achats de stockage multiplient la capacité par ×5 au lieu de ×2 pendant cette partie.",
+          "CAPACITÉ: Débloque la Recherche de Stockage et les augmentations de stockage de base ne sont pas x2 mais x5 à chaque fois.",
       },
       fleetHolograms: {
         name: "Hologrammes de flotte",
@@ -734,8 +736,7 @@ const COPY: Record<LocaleId, PhilosophyCopy> = {
       },
       rapidExpansion: {
         name: "Expansion rapide",
-        effect:
-          "Une conquête peut établir jusqu'à trois systèmes voisins. Un établissement pacifique ne la déclenche pas.",
+        effect: "Lorsque vous conquérez un système, vous avez une chance d'en conquérir jusqu'à trois autres.",
       },
     },
     upgrades: {

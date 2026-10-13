@@ -827,6 +827,15 @@ routes are documented in the [Space Telescope README](../space-telescope/README.
 Resource/Compound visible routes are documented in the
 [Economy README](../economy/README.md).
 
+**Current implementation update (13 October 2026):** the preceding 10 October
+battle-event description is historical. The aggregate `space.battle.impact`
+event and its audio-adapter route have been removed. The visible Colonise battle
+renderer now derives laser candidates from transient unit positions, visibility,
+and current goals, then calls the audio adapter directly. Engine death events
+still carry confirmed fleet-loss counts; the renderer maps those losses to unit
+proxies, so per-death callback timing remains open. This code has not been
+tested or browser-reviewed; see the [battle area notes](../battle/README.md).
+
 **Resource and Compound action crosswalk:** Cosmic Forge's
 `drawTab1Content.js` routes ordinary collect and autobuyer buttons through
 `createButton`; `ui.js:4641-4647` plays `clickButton` for those buttons and

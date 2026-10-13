@@ -6,7 +6,7 @@ Compared the rendered Space Mining child menu and each source page renderer in C
 
 ## Source menu and routing
 
-The source `tab6ContainerGroup` menu in `../../../cosmicForge/cosmicForge/index.html:565-659` renders these child rows in this order: Mining (`option8`), Space Telescope (`option6`), Asteroids (`option7`), Launch Pad (`option1`), and Rockets 1–4 (`option2`–`option5`). Some source rows start with the `invisible` class and become available at their progression gates. The option click handlers in `../../../cosmicForge/cosmicForge/ui.js:10843-10928` select the corresponding source heading and call `updateContent`, which dispatches Space Mining to `drawTab6Content` (`ui.js:3561-3569`).
+The source `tab6ContainerGroup` menu in `../../../../cosmicForge/cosmicForge/index.html:565-659` renders these child rows in this order: Mining (`option8`), Space Telescope (`option6`), Asteroids (`option7`), Launch Pad (`option1`), and Rockets 1–4 (`option2`–`option5`). Some source rows start with the `invisible` class and become available at their progression gates. The option click handlers in `../../../../cosmicForge/cosmicForge/ui.js:10843-10928` select the corresponding source heading and call `updateContent`, which dispatches Space Mining to `drawTab6Content` (`ui.js:3561-3569`).
 
 The target preserves the same rendered order and source IDs in `src/app/presentationNavigation.ts:454-513`: Mining is added when antimatter is unlocked; Telescope is present; Asteroids is added after asteroid discovery; Launch Pad is added after Rocket Composites; and each Rocket child is added only after its part requirement is complete. `src/app/App.tsx:2894-2915` provides the Space Mining child navigation and passes its selected child ID to `SpaceMiningPane`.
 

@@ -11,6 +11,6 @@ The Research AutoBuyer control label now uses the source wording in all six loca
 | Italian | `Auto Acquirente di Ricerca:` | `Auto Acquirente di Ricerca` |
 | French | `Auto-Acheteur de Recherche:` | `Auto-Acheteur de Recherche` |
 
-Source evidence: `../../../cosmicForge/cosmicForge/drawTab3Content.js` (`tab3ResearchAutoBuyerRowLabel`) and `../../../cosmicForge/cosmicForge/localization.json` (locale entries at lines 2072, 4695, 7318, 9941, 12564, and 15187). Target evidence: `src/app/EconomyPanes.tsx` and `src/i18n/economyMessages.ts` (`researchAutobuyer`).
+Source evidence: `../../../../cosmicForge/cosmicForge/drawTab3Content.js` (`tab3ResearchAutoBuyerRowLabel`) and `../../../../cosmicForge/cosmicForge/localization.json` (locale entries at lines 2072, 4695, 7318, 9941, 12564, and 15187). Target evidence: `src/app/EconomyPanes.tsx` and `src/i18n/economyMessages.ts` (`researchAutobuyer`).
 
 Only visible label copy changed; checkbox behavior and its separate explanatory help are unchanged. No tests, builds, typechecks, or browser checks were run. P-44 remains open for the broader catalogue and rendered-copy review.

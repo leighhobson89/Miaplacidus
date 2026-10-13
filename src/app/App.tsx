@@ -1083,6 +1083,11 @@ function GameSession({
     [snapshot.locale],
   );
   const saveFailureText = saveFailure ? saveErrorText(snapshot.locale, saveFailure) : "";
+  const saveConflictAnnouncement = saveWritesPaused
+    ? `${saveFailureText.replace(/[.!?]\s*$/, "")}. ${[saveLabel("reload"), saveLabel("export")]
+        .map((label) => label.replace(/[:;]\s*$/, ""))
+        .join("; ")}.`
+    : "";
 
   const persistCurrent = useCallback(
     (automatic = false) => {
@@ -2136,7 +2141,7 @@ function GameSession({
         aria-live="polite"
         aria-atomic="true"
       >
-        {saveWritesPaused ? saveFailureText : ""}
+        {saveConflictAnnouncement}
       </div>
       {saveWritesPaused && (
         <div className="save-conflict-banner">

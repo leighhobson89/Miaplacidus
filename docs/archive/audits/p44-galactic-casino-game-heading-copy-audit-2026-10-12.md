@@ -8,6 +8,6 @@ The three Casino game headings now match Cosmic Forge's source row-label copy in
 | `tab7WheelOfFortuneRowLabel` | `wheel` | Wheel Of Fortune: | Rueda de la Fortuna: | Roda da Fortuna: | Glücksrad: | Ruota della Fortuna: | Roue de la Fortune: |
 | `tab7HigherOrLowerRowLabel` | `higherLower` | Higher Or Lower: | Mayor o Menor: | Maior ou Menor: | Höher oder Tiefer: | Più Alta o Più Bassa: | Plus ou Moins: |
 
-Source UI evidence: `../../../cosmicForge/cosmicForge/drawTab7Content.js:468,597,1655`; source values are in `../../../cosmicForge/cosmicForge/localization.json` under the three listed keys. Target evidence: `src/app/GalacticCasinoPane.tsx` renders the labels as the three game headings and `src/i18n/casinoMessages.ts` defines them; `casinoGameName` strips the colon for history display.
+Source UI evidence: `../../../../cosmicForge/cosmicForge/drawTab7Content.js:468,597,1655`; source values are in `../../../../cosmicForge/cosmicForge/localization.json` under the three listed keys. Target evidence: `src/app/GalacticCasinoPane.tsx` renders the labels as the three game headings and `src/i18n/casinoMessages.ts` defines them; `casinoGameName` strips the colon for history display.
 
 The Casino remains its own Galactic child after Market. No navigation or gameplay behavior changed. No tests, builds, typechecks, or browser checks were run. P-44 remains open for broader catalogue and rendered-copy review.

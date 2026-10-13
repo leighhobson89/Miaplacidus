@@ -185,7 +185,7 @@ export function PhilosophyPane({ state, store }: PhilosophyPaneProps) {
           aria-describedby={abilityUnavailable ? abilityReasonId : undefined}
           onClick={() => store.dispatch(abilityCommand)}
         >
-          {state.run.philosophyAbilityActive ? copy.active : copy.buy}
+          {state.run.philosophyAbilityActive ? copy.active : copy.abilityAction}
         </button>
         {abilityUnavailable && (
           <p className="control-reason" id={abilityReasonId}>

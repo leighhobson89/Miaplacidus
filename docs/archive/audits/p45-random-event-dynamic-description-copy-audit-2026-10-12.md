@@ -5,7 +5,7 @@
 
 ## Source and target paths
 
-Cosmic Forge builds the Events panel in `../../../cosmicForge/cosmicForge/drawTab9Content.js:985-1060`. `../../../cosmicForge/cosmicForge/ui.js:775-845` reconstructs instant history descriptions from each event's saved `context`; `ui.js:850-918` renders active timed effects and completed history. Event-specific details are assembled in `../../../cosmicForge/cosmicForge/events.js:209-269` for instant events and `events.js:856-890` for timed effects; active snapshots call that timed description builder at `events.js:1078-1096`.
+Cosmic Forge builds the Events panel in `../../../../cosmicForge/cosmicForge/drawTab9Content.js:985-1060`. `../../../../cosmicForge/cosmicForge/ui.js:775-845` reconstructs instant history descriptions from each event's saved `context`; `ui.js:850-918` renders active timed effects and completed history. Event-specific details are assembled in `../../../../cosmicForge/cosmicForge/events.js:209-269` for instant events and `events.js:856-890` for timed effects; active snapshots call that timed description builder at `events.js:1078-1096`.
 
 MIAPLACIDUS renders active descriptions and completed descriptions separately in `src/app/MetaJournalPane.tsx:168-246`. The active rows call `randomEventActiveEffectDescription()` and history rows call `randomEventHistoryDescription()` from `src/app/randomEventDescription.ts:11-151`. Their localized templates live in `src/i18n/randomEventDescriptionMessages.ts`.
 

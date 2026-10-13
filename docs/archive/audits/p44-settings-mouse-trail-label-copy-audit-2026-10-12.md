@@ -11,6 +11,6 @@ The Settings > Visual pointer-trail checkbox now uses Cosmic Forge's localized m
 | Italian | `Scia del Mouse:` | `Scia del Mouse` |
 | French | `Traînée de Souris:` | `Traînée de Souris` |
 
-Source UI evidence: `../../../cosmicForge/cosmicForge/drawTab9Content.js:297-302`; source locale values are `localization.json` entries for `tab9MouseTrailRowLabel` at lines 1728, 4351, 6974, 9597, 12220, and 14843. Target evidence: `src/app/SettingsPane.tsx` and `src/i18n/settingsMessages.ts` (`pointerTrail`).
+Source UI evidence: `../../../../cosmicForge/cosmicForge/drawTab9Content.js:297-302`; source locale values are `localization.json` entries for `tab9MouseTrailRowLabel` at lines 1728, 4351, 6974, 9597, 12220, and 14843. Target evidence: `src/app/SettingsPane.tsx` and `src/i18n/settingsMessages.ts` (`pointerTrail`).
 
 No tests, builds, typechecks, or browser checks were run. P-44 remains open for broader catalogue and rendered-copy review.

@@ -13,6 +13,6 @@ The source values are defined by `tabHeaderResources`, `tabHeaderCompounds`, `ta
 
 All other source tab labels match the source wording across `en`, `es`, `pt`, `de`, `it`, and `fr`. Settings remains a readable localized name in MIAPLACIDUS because the owner-directed navigation contract requires names-only labels; Cosmic Forge uses a menu icon for that source tab. No tab ID, visibility gate, or page ownership changed.
 
-Source evidence: `../../../cosmicForge/cosmicForge/index.html:68-74` for the top-level tab elements, `../../../cosmicForge/cosmicForge/ui.js:10146-10165` for the label-to-localization mapping, `../../../cosmicForge/cosmicForge/ui.js:10370-10430` for runtime ordering, and `../../../cosmicForge/cosmicForge/localization.json` for the nine source localization keys. Target evidence: `src/app/App.tsx:197-207` and `src/i18n/messages.ts`.
+Source evidence: `../../../../cosmicForge/cosmicForge/index.html:68-74` for the top-level tab elements, `../../../../cosmicForge/cosmicForge/ui.js:10146-10165` for the label-to-localization mapping, `../../../../cosmicForge/cosmicForge/ui.js:10370-10430` for runtime ordering, and `../../../../cosmicForge/cosmicForge/localization.json` for the nine source localization keys. Target evidence: `src/app/App.tsx:197-207` and `src/i18n/messages.ts`.
 
 No tests, builds, typechecks, or browser checks were run. P-44 remains open for broader rendered-copy review.

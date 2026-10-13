@@ -113,7 +113,17 @@ export function SaveManager(props: SaveManagerProps) {
       setNewImportName(conflict ? imported.pioneerName + " 2" : imported.pioneerName);
       setReplaceConfirmed(false);
     } catch (errorValue) {
-      showError(errorValue);
+      if (
+        errorValue instanceof SaveError &&
+        (errorValue.code === "empty" ||
+          errorValue.code === "unknown-format" ||
+          errorValue.code === "invalid-code" ||
+          errorValue.code === "invalid-json")
+      ) {
+        setError(t("errInvalidSaveString"));
+      } else {
+        showError(errorValue);
+      }
       setPreview(null);
     }
   }

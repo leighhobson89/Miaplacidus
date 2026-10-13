@@ -209,9 +209,9 @@ export function GalacticMarketPane({ state, store }: Props) {
             ) : (
               <>
                 <label>
-                  {marketText(locale, "outgoing")}
+                  {marketText(locale, "tradeRow")}
                   <select
-                    aria-label={marketText(locale, "outgoing")}
+                    aria-label={marketText(locale, "tradeRow")}
                     value={outgoingGoodId}
                     disabled={disabled}
                     onChange={(event) => {
@@ -228,9 +228,9 @@ export function GalacticMarketPane({ state, store }: Props) {
                   </select>
                 </label>
                 <label>
-                  {marketText(locale, "incoming")}
+                  {marketText(locale, "tradeFor")}
                   <select
-                    aria-label={marketText(locale, "incoming")}
+                    aria-label={marketText(locale, "tradeFor")}
                     value={incomingGoodId}
                     disabled={disabled}
                     onChange={(event) =>
@@ -259,13 +259,14 @@ export function GalacticMarketPane({ state, store }: Props) {
                     onChange={(event) => setQuantityText(event.currentTarget.value)}
                   />
                 </label>
+                <p>{marketText(locale, "confirmRowLabel")}</p>
                 <p>
-                  {marketText(locale, "outgoing")}:{" "}
+                  {marketText(locale, "summaryOutgoing")}{" "}
                   {whole(state, Number.isSafeInteger(quantity) ? quantity : 0)}{" "}
                   {outgoingGoodId ? economyGoodName(locale, outgoingGoodId) : ""}
                 </p>
                 <p>
-                  {marketText(locale, "incoming")}: {whole(state, quote?.incomingQuantity ?? 0)}{" "}
+                  {marketText(locale, "summaryIncoming")} {whole(state, quote?.incomingQuantity ?? 0)}{" "}
                   {incomingGoodId ? economyGoodName(locale, incomingGoodId) : ""}
                 </p>
                 <p>
@@ -314,14 +315,21 @@ export function GalacticMarketPane({ state, store }: Props) {
                   setApSellQuantity(Number(event.currentTarget.value) as 1 | 5 | 10)
                 }
               >
-                {[1, 5, 10].map((amount) => (
-                  <option key={amount} value={amount}>
-                    {amount} AP
-                  </option>
-                ))}
+                {[1, 5, 10].map((amount) => {
+                  const label =
+                    amount === 1 ? "sellAp1" : amount === 5 ? "sellAp5" : "sellAp10";
+                  return (
+                    <option key={amount} value={amount}>
+                      {marketText(locale, label)}
+                    </option>
+                  );
+                })}
               </select>
             </label>
-            <p>{currency(state, apSellQuantity * market.apSellPrice)}</p>
+            <p>
+              {marketText(locale, "cashGain")} {" "}
+              {currency(state, apSellQuantity * market.apSellPrice)}
+            </p>
             <button
               type="button"
               className="secondary-button"

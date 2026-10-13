@@ -15,6 +15,6 @@ Compared Cosmic Forge's Interstellar child UI with the current navigation catalo
 
 The visible labels now use the source's localized wording across `en`, `es`, `pt`, `de`, `it`, and `fr`. These are presentation changes only; commands, costs, progression, and navigation are unchanged.
 
-Source UI evidence: `../../../cosmicForge/cosmicForge/index.html:492-545` and `../../../cosmicForge/cosmicForge/drawTab5Content.js:904,971,1340-1366,1429-1466`. Source locale keys are in `../../../cosmicForge/cosmicForge/localization.json` (English block around lines 1594-1934 and corresponding five locale blocks). Target ownership evidence: `src/app/presentationNavigation.ts`, `src/app/App.tsx`, and `src/app/StarshipPane.tsx`; target copy is in `src/i18n/starshipMessages.ts`.
+Source UI evidence: `../../../../cosmicForge/cosmicForge/index.html:492-545` and `../../../../cosmicForge/cosmicForge/drawTab5Content.js:904,971,1340-1366,1429-1466`. Source locale keys are in `../../../../cosmicForge/cosmicForge/localization.json` (English block around lines 1594-1934 and corresponding five locale blocks). Target ownership evidence: `src/app/presentationNavigation.ts`, `src/app/App.tsx`, and `src/app/StarshipPane.tsx`; target copy is in `src/i18n/starshipMessages.ts`.
 
 No tests, builds, typechecks, formatters, or browser checks were run. P-44 remains open for broader catalogue and rendered-copy review.

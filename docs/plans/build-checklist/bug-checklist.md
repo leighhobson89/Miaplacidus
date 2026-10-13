@@ -1,6 +1,6 @@
 # Bug run checklist
 
-Use this list during the later Phase 08 pass. The current reports are observations from the project owner, not reproduced defects; establish a minimal reproduction and a confirmed cause before choosing a fix.
+Use this list during the later Phase 09 pass. The current reports are observations from the project owner, not reproduced defects; establish a minimal reproduction and a confirmed cause before choosing a fix.
 
 ## Intake and reproduction
 

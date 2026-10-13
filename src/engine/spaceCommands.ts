@@ -242,34 +242,13 @@ export type SpaceEvent =
       readonly enemyShipLosses: Readonly<Record<EnemyFleetId, number>>;
     }
   | {
-      readonly type: "space.battle.impact";
-      readonly systemId: SystemId;
-      readonly round: number;
-      readonly attackerSide: "player";
-      readonly attackerFleetId: PlayerFleetId;
-      readonly targetSide: "enemy";
-      readonly targetFleetId: EnemyFleetId;
-      /** Active shooter count represented by this aggregate fleet volley. */
-      readonly candidateCount: number;
-    }
-  | {
-      readonly type: "space.battle.impact";
-      readonly systemId: SystemId;
-      readonly round: number;
-      readonly attackerSide: "enemy";
-      readonly attackerFleetId: EnemyFleetId;
-      readonly targetSide: "player";
-      readonly targetFleetId: PlayerFleetId;
-      /** Active shooter count represented by this aggregate fleet volley. */
-      readonly candidateCount: number;
-    }
-  | {
       readonly type: "space.battle.death";
       readonly systemId: SystemId;
       readonly round: number;
       readonly side: "player";
       readonly fleetId: PlayerFleetId;
-      readonly count: number;
+      /** Confirmed final losses for this fleet; one sound attempt per loss. */
+      readonly confirmedDeathCount: number;
     }
   | {
       readonly type: "space.battle.death";
@@ -277,7 +256,8 @@ export type SpaceEvent =
       readonly round: number;
       readonly side: "enemy";
       readonly fleetId: EnemyFleetId;
-      readonly count: number;
+      /** Confirmed final losses for this fleet; one sound attempt per loss. */
+      readonly confirmedDeathCount: number;
     }
   | { readonly type: "space.battle.round"; readonly systemId: SystemId; readonly round: number }
   | {
