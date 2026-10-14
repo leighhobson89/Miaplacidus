@@ -1,4 +1,4 @@
-import { expect, test } from "../_harness/fixtures";
+import { dismissTutorialOfferIfPresent, expect, test } from "../_harness/fixtures";
 import { saveNowFromSettings } from "../_harness/save-controls";
 import { setGameLocale } from "../_harness/settings-controls";
 import { formatNumber } from "../../../src/app/numberFormatting";
@@ -24,11 +24,12 @@ test("live locale changes preserve Philosophy ability and repeatable prices @loc
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await dismissTutorialOfferIfPresent(page);
 
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  await page.getByRole("button", { name: "Study Stars", exact: true }).click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({

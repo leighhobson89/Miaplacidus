@@ -24,13 +24,18 @@ test("keyboard users can start Star Study from the adjacent survey control @p05-
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: spaceText("en", "telescopeBuild") }).click();
+  await page
+    .getByRole("button", { name: spaceText("en", "telescopeBuild"), exact: true })
+    .click();
 
   const scan = page.locator("#space-scan-asteroids");
+  const scanHelp = page.getByTestId("space-telescope-scan-help-trigger");
   const study = page.locator("#telescope-study-stars");
   await expect(scan).toBeEnabled();
   await scan.focus();
   await expect(scan).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(scanHelp).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(study).toBeFocused();
   expect(await study.evaluate((button) => button.matches(":focus-visible"))).toBe(true);

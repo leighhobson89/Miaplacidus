@@ -101,7 +101,7 @@ test("Research and Energy mechanics actions meet 44px and keyboard/touch reachab
     );
     if (width === 320) {
       const before = (await getState(page)).run.upgrades.scienceKit;
-      const buy = scienceKit.getByRole("button", { name: "Buy", exact: true });
+      const buy = scienceKit.locator(".economy-building-actions button").first();
       if (await buy.isEnabled()) {
         await buy.tap();
         await expect
@@ -176,7 +176,7 @@ test("Research and Energy mechanics actions meet 44px and keyboard/touch reachab
     if (width === 320) {
       const battery = energyPanel.locator('[data-building-id="battery1"]');
       const beforeCapacity = (await getState(page)).run.economy.power.capacity;
-      const buy = battery.getByRole("button", { name: "Buy", exact: true });
+      const buy = battery.locator(".economy-building-actions button").first();
       await expect(buy).toBeEnabled();
       await buy.tap();
       await expect
@@ -205,7 +205,7 @@ test("Research and Energy mechanics actions meet 44px and keyboard/touch reachab
 
     const plant = energyPanel.locator('[data-building-id="powerPlant1"]');
     if (!(await plant.locator(".economy-toggle input").count())) {
-      const buyPlant = plant.getByRole("button", { name: "Buy", exact: true });
+      const buyPlant = plant.locator(".economy-building-actions button").first();
       if (await buyPlant.isEnabled()) await buyPlant.tap();
     }
     const plantToggle = plant.locator(".economy-toggle input");

@@ -193,6 +193,20 @@ export type RapidExpansionOutcome =
   | { readonly type: "no-eligible-systems" }
   | { readonly type: "capture-failed" };
 
+/** Select the fleet-tail slot used to represent a confirmed pooled-health loss. */
+export function battleDeathUnitIndex(countBeforeDamage: number, deathOrdinal: number): number {
+  return countBeforeDamage - deathOrdinal - 1;
+}
+
+/** Count surviving units using the shared pooled-health casualty boundary. */
+export function battleFleetCountAtHealth(
+  healthPool: number,
+  unitHealth: number,
+  maximum: number,
+): number {
+  return Math.min(maximum, Math.ceil(Math.max(0, healthPool) / Math.max(1, unitHealth)));
+}
+
 export type SpaceEvent =
   | { readonly type: "space.telescope.built" }
   | { readonly type: "space.asteroid.selected"; readonly asteroidId: string | null }
@@ -247,6 +261,8 @@ export type SpaceEvent =
       readonly round: number;
       readonly side: "player";
       readonly fleetId: PlayerFleetId;
+      /** Stable fleet-local slot assigned by the authoritative casualty resolver. */
+      readonly unitIndex: number;
       /** Confirmed final losses for this fleet; one sound attempt per loss. */
       readonly confirmedDeathCount: number;
     }
@@ -256,6 +272,8 @@ export type SpaceEvent =
       readonly round: number;
       readonly side: "enemy";
       readonly fleetId: EnemyFleetId;
+      /** Stable fleet-local slot assigned by the authoritative casualty resolver. */
+      readonly unitIndex: number;
       /** Confirmed final losses for this fleet; one sound attempt per loss. */
       readonly confirmedDeathCount: number;
     }

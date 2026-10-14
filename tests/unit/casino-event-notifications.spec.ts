@@ -10,7 +10,11 @@ import {
 } from "../../src/app/casinoEventNotifications";
 import { economyGoodName } from "../../src/app/economyDisplay";
 import { formatNumber } from "../../src/app/numberFormatting";
-import { casinoText } from "../../src/i18n/casinoMessages";
+import {
+  casinoHistoryText,
+  casinoText,
+  casinoWheelNotificationText,
+} from "../../src/i18n/casinoMessages";
 
 const donWin: EngineEvent = {
   type: "casino.game.played",
@@ -91,68 +95,37 @@ const SOURCE_DOUBLE_OR_NOTHING_COPY = {
 const SOURCE_WHEEL_SPECIAL_CONTEXT_COPY = {
   en: {
     research: "Special Prize Claimed! 100,000 Research Points",
-    fallbackCp: "Special Prize Claimed! 20CP",
     doubleHydrogen: "Special Prize Claimed! Hydrogen doubled",
-    starship: "Special Prize Claimed! Starship warped instantly to Sirius",
-    rocket: "Special Prize Claimed! Rocket 1 Prospector warped to Asteroid SPI-0002B",
-    rocketBase: "Special Prize Claimed! Rocket 1 Prospector warped to Base",
     pending: "Claim your prize before spinning again.",
     insufficient: "Not enough CP to spin the wheel.",
   },
   es: {
     research: "\u00a1Premio especial reclamado! 100.000 puntos de investigaci\u00f3n",
-    fallbackCp: "\u00a1Premio especial reclamado! 20CP",
     doubleHydrogen: "\u00a1Premio especial reclamado! Hydrogen duplicado",
-    starship:
-      "\u00a1Premio especial reclamado! Nave estelar teletransportada instant\u00e1neamente a Sirius",
-    rocket:
-      "\u00a1Premio especial reclamado! Rocket 1 Prospector teletransportado a Asteroid SPI-0002B",
-    rocketBase: "\u00a1Premio especial reclamado! Rocket 1 Prospector teletransportado a Base",
     pending: "Reclama tu premio antes de girar de nuevo.",
     insufficient: "No hay suficientes CP para girar la rueda.",
   },
   pt: {
     research: "Pr\u00e9mio especial reclamado! 100.000 pontos de investiga\u00e7\u00e3o",
-    fallbackCp: "Pr\u00e9mio especial reclamado! 20CP",
     doubleHydrogen: "Pr\u00e9mio especial reclamado! Hydrogen duplicado",
-    starship:
-      "Pr\u00e9mio especial reclamado! Nave estelar teletransportada instantaneamente para Sirius",
-    rocket:
-      "Pr\u00e9mio especial reclamado! Rocket 1 Prospector teletransportado para Asteroid SPI-0002B",
-    rocketBase: "Pr\u00e9mio especial reclamado! Rocket 1 Prospector teletransportado para Base",
     pending: "Reclame o seu pr\u00e9mio antes de girar novamente.",
     insufficient: "N\u00e3o h\u00e1 CP suficientes para girar a roda.",
   },
   de: {
     research: "Sonderpreis beansprucht! 100.000 Forschungspunkte",
-    fallbackCp: "Sonderpreis beansprucht! 20CP",
     doubleHydrogen: "Sonderpreis beansprucht! Hydrogen verdoppelt",
-    starship: "Sonderpreis beansprucht! Sternenschiff sofort zu teleportiert Sirius",
-    rocket: "Sonderpreis beansprucht! Rocket 1 Prospector teleportiert zu Asteroid SPI-0002B",
-    rocketBase: "Sonderpreis beansprucht! Rocket 1 Prospector teleportiert zu Base",
     pending: "Beanspruche deinen Preis, bevor du erneut drehst.",
     insufficient: "Nicht genug CP, um das Rad zu drehen.",
   },
   it: {
     research: "Premio speciale reclamato! 100.000 punti ricerca",
-    fallbackCp: "Premio speciale reclamato! 20CP",
     doubleHydrogen: "Premio speciale reclamato! Hydrogen raddoppiato",
-    starship: "Premio speciale reclamato! Astronave curvata istantaneamente verso Sirius",
-    rocket: "Premio speciale reclamato! Rocket 1 Prospector curvato verso Asteroid SPI-0002B",
-    rocketBase: "Premio speciale reclamato! Rocket 1 Prospector curvato verso Base",
     pending: "Reclama il tuo premio prima di girare di nuovo.",
     insufficient: "Non abbastanza CP per girare la ruota.",
   },
   fr: {
     research: "Prix sp\u00e9cial r\u00e9clam\u00e9! 100 000 points de recherche",
-    fallbackCp: "Prix sp\u00e9cial r\u00e9clam\u00e9! 20CP",
     doubleHydrogen: "Prix sp\u00e9cial r\u00e9clam\u00e9! Hydrogen doubl\u00e9",
-    starship:
-      "Prix sp\u00e9cial r\u00e9clam\u00e9! Vaisseau stellaire t\u00e9l\u00e9port\u00e9 instantan\u00e9ment vers Sirius",
-    rocket:
-      "Prix sp\u00e9cial r\u00e9clam\u00e9! Rocket 1 Prospector t\u00e9l\u00e9port\u00e9 vers Asteroid SPI-0002B",
-    rocketBase:
-      "Prix sp\u00e9cial r\u00e9clam\u00e9! Rocket 1 Prospector t\u00e9l\u00e9port\u00e9 vers Base",
     pending: "R\u00e9clamez votre prix avant de tourner \u00e0 nouveau.",
     insufficient: "Pas assez de PC pour tourner la roue.",
   },
@@ -409,7 +382,9 @@ describe("Casino event notifications", () => {
       expect(
         casinoEventNotice(locale, claim("special_double_hydrogen", { type: "cp", amount: 20 }))
           ?.message,
-      ).toBe(SOURCE_WHEEL_SPECIAL_CONTEXT_COPY[locale].fallbackCp);
+      ).toBe(
+        `${casinoText(locale, "wheelClaimDoublePrefix")}20${casinoText(locale, "wheelCurrencyCp")}`,
+      );
       expect(
         casinoEventNotice(
           locale,
@@ -420,13 +395,26 @@ describe("Casino event notifications", () => {
             newQuantity: 4,
           }),
         )?.message,
-      ).toBe(SOURCE_WHEEL_SPECIAL_CONTEXT_COPY[locale].doubleHydrogen);
+      ).toBe(
+        SOURCE_WHEEL_SPECIAL_CONTEXT_COPY[locale].doubleHydrogen.replace(
+          "Hydrogen",
+          economyGoodName(locale, "hydrogen"),
+        ),
+      );
       expect(
         casinoEventNotice(
           locale,
           claim("special_starship_warp", { type: "starship-warp", destinationSystemId: "Sirius" }),
-        )?.message,
-      ).toBe(SOURCE_WHEEL_SPECIAL_CONTEXT_COPY[locale].starship);
+        ),
+      ).toMatchObject({
+        message: casinoWheelNotificationText(locale, "claimStarshipWarp").replace(
+          "{star}",
+          "Sirius",
+        ),
+        classification: "galacticCasino",
+        type: "info",
+        durationMs: 3500,
+      });
       expect(
         casinoEventNotice(
           locale,
@@ -436,8 +424,18 @@ describe("Casino event notifications", () => {
             rocketName: "Prospector",
             destination: { type: "asteroid", name: "SPI-0002B" },
           }),
-        )?.message,
-      ).toBe(SOURCE_WHEEL_SPECIAL_CONTEXT_COPY[locale].rocket);
+        ),
+      ).toMatchObject({
+        message: casinoWheelNotificationText(locale, "claimRocketWarp")
+          .replace("{rocket}", "Rocket 1 Prospector")
+          .replace(
+            "{destination}",
+            `${casinoHistoryText(locale, "asteroidDestinationPrefix")}SPI-0002B`,
+          ),
+        classification: "galacticCasino",
+        type: "info",
+        durationMs: 3500,
+      });
       expect(
         casinoEventNotice(
           locale,
@@ -447,8 +445,15 @@ describe("Casino event notifications", () => {
             rocketName: "Prospector",
             destination: { type: "base" },
           }),
-        )?.message,
-      ).toBe(SOURCE_WHEEL_SPECIAL_CONTEXT_COPY[locale].rocketBase);
+        ),
+      ).toMatchObject({
+        message: casinoWheelNotificationText(locale, "claimRocketWarp")
+          .replace("{rocket}", "Rocket 1 Prospector")
+          .replace("{destination}", casinoHistoryText(locale, "baseDestination")),
+        classification: "galacticCasino",
+        type: "info",
+        durationMs: 3500,
+      });
       expect(casinoWheelAttemptFailureNotice(locale, "casino-wheel-prize-pending")).toEqual({
         message: SOURCE_WHEEL_SPECIAL_CONTEXT_COPY[locale].pending,
         classification: "galacticCasino",

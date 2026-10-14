@@ -59,7 +59,7 @@ test("P-56 Achievements cards and longest descriptions fit across locales, theme
           { nextLocale: locale, nextTheme: themeId },
         );
         await expect(page.locator("html")).toHaveAttribute("lang", locale);
-        await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+        await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
         await expect(pane.locator('[data-achievement-id="tryAllThemes"]')).toHaveClass(/is-earned/);
         await expect(cards).toHaveCount(ACHIEVEMENT_IDS.length);
 
@@ -94,7 +94,7 @@ test("P-56 Achievements cards and longest descriptions fit across locales, theme
           const paneElement = document.querySelector<HTMLElement>(
             "[data-testid='achievements-pane']",
           );
-          const frame = document.querySelector<HTMLElement>(".game-frame");
+          const frame = document.querySelector<HTMLElement>(".game-frame:not(.notification-portal)");
           const grid = document.querySelector<HTMLElement>(".achievement-grid");
           const tooltipElement = document.querySelector<HTMLElement>(
             `#achievement-description-${id}`,

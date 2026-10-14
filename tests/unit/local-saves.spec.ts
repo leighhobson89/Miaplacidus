@@ -1144,53 +1144,21 @@ describe("local save formats and identity", () => {
     const lateState = {
       ...midState,
       permanent: {
+        ...base.permanent,
         rebirthCount: 8,
-        navigationVisitedIds: base.permanent.navigationVisitedIds,
         ascendencyPoints: 120,
         gloryPoints: 35,
-        galacticMarket: base.permanent.galacticMarket,
-        galacticCasino: base.permanent.galacticCasino,
-        blackHole: base.permanent.blackHole,
-        megastructures: base.permanent.megastructures,
-        cosmicRip: base.permanent.cosmicRip,
-        achievements: base.permanent.achievements,
-        oTypePowerPlantAssignments: base.permanent.oTypePowerPlantAssignments,
-        acquiredPerks: Array.from({ length: 500 }, (_, index) => "perk-" + index),
-        philosophyId: null,
-        philosophyRepeatableRanks: base.permanent.philosophyRepeatableRanks,
-        settledSystemIds: base.permanent.settledSystemIds,
+        acquiredPerks: Array.from({ length: 500 }, () => "efficientStorage"),
       },
       statistics: {
+        ...base.statistics,
         lifetimeCashEarned: 9_000_000,
         lifetimeGoodsProduced: 25_000_000,
-        lifetimeResearchPointsEarned: 0,
-        lifetimeScienceKitsBuilt: 0,
-        lifetimeScienceClubsBuilt: 0,
-        lifetimeScienceLabsBuilt: 0,
-        lifetimeEnergyTrips: 0,
-        lifetimeBasicPowerPlantsBuilt: 0,
-        lifetimeAdvancedPowerPlantsBuilt: 0,
-        lifetimeSolarPowerPlantsBuilt: 0,
-        lifetimeSodiumIonBatteriesBuilt: 0,
-        lifetimeBattery2Built: 0,
-        lifetimeBattery3Built: 0,
         lifetimeAntimatterMined: 100,
-        lifetimeGalacticPointsSpent: 0,
         lifetimeCosmicRipTelemetryDataEarned: 0,
-        lifetimeAscendencyPointsGained: 0,
-        lifetimeAsteroidsDiscovered: 0,
-        lifetimeLegendaryAsteroidsDiscovered: 0,
-        lifetimeAsteroidsMined: 0,
-        lifetimeRocketsBuilt: 0,
-        lifetimeRocketsLaunched: 0,
-        lifetimeStarshipsLaunched: 0,
-        lifetimeStarshipDistanceTravelled: 0,
-        lifetimeNewsTickerPrizeClaims: 0,
-        lifetimeGoodsProducedByGood: base.statistics.lifetimeGoodsProducedByGood,
         lifetimeActiveMs: 1_800_000,
         acceptedCommands: 900_000,
         completedTimers: 42_000,
-        lifetimeRandomEventCounts: base.statistics.lifetimeRandomEventCounts,
       },
     };
     const profiles = [
@@ -1755,7 +1723,7 @@ describe("lifetime statistics save migration", () => {
     expect(isSaveEnvelope(migrated)).toBe(true);
   });
 
-  it("migrates v40 manuscript clue history from retained ticker entries and preserves counters", () => {
+  it("migrates v40 manuscript clues and scales retained Cosmic Rip telemetry to source units", () => {
     const current = envelope("Manuscript Clue Migration");
     const firstManuscript = systemIdForStar(93, 1);
     const firstFactory = systemIdForStar(93, 11);
@@ -1868,7 +1836,7 @@ describe("lifetime statistics save migration", () => {
       lifetimeScienceClubsBuilt: 5,
       lifetimeScienceLabsBuilt: 6,
       lifetimeGalacticPointsSpent: 15,
-      lifetimeCosmicRipTelemetryDataEarned: 33,
+      lifetimeCosmicRipTelemetryDataEarned: 3_300,
     });
     expect(isSaveEnvelope(migrated)).toBe(true);
   });
@@ -2277,7 +2245,10 @@ describe("lifetime statistics save migration", () => {
         lifetimeBattery2Built: 0,
         lifetimeBattery3Built: 0,
       });
-      expect(migrated.state.permanent).toEqual(current.state.permanent);
+      expect(migrated.state.permanent).toEqual({
+        ...current.state.permanent,
+        progressionTutorial: { status: "dismissed", stepId: null },
+      });
       expect(migrated.state.settings).toEqual(current.state.settings);
       expect(isSaveEnvelope(migrated)).toBe(true);
     }

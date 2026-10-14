@@ -218,10 +218,10 @@ export function audioCueForEvent(event: EngineEvent, state: GameState): AudioCue
       return null;
     case "space.battle.round":
     case "space.battle.finished":
-      // Battle cues are handled at their ordered impact/death event boundaries.
+      // These engine summaries do not create battle audio callbacks.
       return null;
     case "space.battle.casualties":
-      // This event is a summary; individual audio attempts have separate events.
+      // Aggregate losses do not create explosion cues without a rendered death callback.
       return null;
     case "black-hole.warp-activated":
       return "blackHoleActivated";
@@ -237,7 +237,10 @@ export function audioCueForEvent(event: EngineEvent, state: GameState): AudioCue
 }
 
 interface BattleCueSelectors {
-  readonly laserCallback: (onCue?: (cue: AudioCue) => void) => void;
+  readonly laserCallback: (
+    onCue?: (cue: AudioCue) => void,
+    callbackAtMs?: number,
+  ) => void;
   readonly explosionAttempt: (
     onCue: ((cue: AudioCue) => void) | undefined,
     sourceCrossingAtMs: number,
@@ -252,8 +255,8 @@ function createBattleCueSelectors(
   let lastLaserAt = 0;
   let lastExplosionAt = 0;
   return {
-    laserCallback(onCue) {
-      const currentTime = now();
+    laserCallback(onCue, callbackAtMs) {
+      const currentTime = callbackAtMs ?? now();
       if (
         !Number.isFinite(currentTime) ||
         currentTime - lastLaserAt <= BATTLE_LASER_COOLDOWN_MS
@@ -417,7 +420,7 @@ function handleResult(
   for (const event of result.events) {
     if (command.type === "clock.advance" && event.type === "resource.sold") continue;
     if (event.type === "space.battle.death") {
-      // Battle cues are emitted by the live per-unit presentation callbacks.
+      // Explosion audio is attempted at the renderer's transient unit crossing.
       continue;
     }
     if (
@@ -438,6 +441,7 @@ function handleResult(
   if (
     cues.size === 0 &&
     command.type !== "clock.advance" &&
+    command.type !== "timer.complete" &&
     command.type !== "navigation.attention.initialize" &&
     command.type !== "navigation.attention.discover" &&
     command.type !== "navigation.attention.clear" &&
@@ -468,7 +472,7 @@ function handleResult(
 export interface AudioGameStore extends GameStore {
   subscribeEvents(listener: (events: readonly EngineEvent[]) => void): () => void;
   playUiCue(cue: "click" | "swipe"): void;
-  playBattleLaserCandidate(): void;
+  playBattleLaserCandidate(sourceCallbackAtMs?: number): void;
   playBattleExplosionCandidate(sourceCrossingAtMs: number): void;
   dispose(): void;
 }
@@ -481,6 +485,11 @@ export function withGameAudio(
     playback.now ?? (() => globalThis.performance?.now() ?? Date.now()),
     playback.random ?? Math.random,
   );
+  const sourceTimeInAudioClock = (sourceAtMs: number): number => {
+    const sourceNowMs = globalThis.performance?.now() ?? Date.now();
+    const audioNowMs = playback.now?.() ?? sourceNowMs;
+    return audioNowMs - (sourceNowMs - sourceAtMs);
+  };
   const boostSoundLoop = createBoostSoundLoop(() => store.getState());
   let windowFocused =
     typeof document === "undefined" ||
@@ -549,7 +558,7 @@ export function withGameAudio(
         state.settings.soundEffectsVolume ?? 0.5,
       );
     },
-    playBattleLaserCandidate() {
+    playBattleLaserCandidate(sourceCallbackAtMs) {
       const state = store.getState();
       const effectsEnabled =
         state.settings.soundEffectsEnabled ?? state.settings.soundEnabled;
@@ -557,6 +566,9 @@ export function withGameAudio(
       const canPlay = effectsEnabled && audioUnlocked && isAudioFocused() && effectsVolume > 0;
       battleCueSelectors.laserCallback(
         canPlay ? (cue) => playEffect(cue, effectsVolume) : undefined,
+        sourceCallbackAtMs === undefined
+          ? undefined
+          : sourceTimeInAudioClock(sourceCallbackAtMs),
       );
     },
     playBattleExplosionCandidate(sourceCrossingAtMs) {
@@ -567,7 +579,7 @@ export function withGameAudio(
       const canPlay = effectsEnabled && audioUnlocked && isAudioFocused() && effectsVolume > 0;
       battleCueSelectors.explosionAttempt(
         canPlay ? (cue) => playEffect(cue, effectsVolume) : undefined,
-        sourceCrossingAtMs,
+        sourceTimeInAudioClock(sourceCrossingAtMs),
       );
     },
     dispatch(command) {
@@ -580,8 +592,9 @@ export function withGameAudio(
       const results = store.dispatchBatch(commands);
       commands.forEach((command, index) => {
         const result = results[index];
-        if (result)
+        if (result) {
           handleResult(command, result, boostSoundLoop, isAudioFocused);
+        }
       });
       publishEvents(results.flatMap((result) => (result.accepted ? result.events : [])));
       return results;

@@ -4,7 +4,7 @@ import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import type { SaveEnvelopeV1 } from "../../../src/persistence/schema";
 import { settingsLabel } from "../../../src/i18n/settingsMessages";
 import { expect, test } from "../_harness/fixtures";
-import { openSaveManager } from "../_harness/save-controls";
+import { openSaveManager, saveNowFromSettings } from "../_harness/save-controls";
 
 const { decompressFromUTF16 } = createRequire(import.meta.url)(
   "lz-string",
@@ -45,6 +45,7 @@ test("Save Manager saved-at dates follow the selected locale without changing th
   await page.goto("/?testSeed=9050&testLocale=en");
   await page.getByLabel("Pioneer name").fill("Locale Date Sample");
   await page.getByTestId("start-game").click();
+  await saveNowFromSettings(page);
   await page.reload();
   await page.getByLabel("Pioneer name").fill("Locale Date Observer");
   await expect(page.getByTestId("start-game")).toHaveText("START NEW GAME");

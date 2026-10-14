@@ -193,7 +193,7 @@ test("Starship travel quote, confirmation modal, and Fleet purchase rows fit at 
         hangar.getByRole("heading", { name: starshipText(locale, "envoyTitle") }),
       ).toBeVisible();
       await expect(
-        hangar.getByRole("button", { name: starshipText(locale, "buildEnvoy"), exact: true }),
+        hangar.getByTestId("starship-envoy-build"),
       ).toBeVisible();
       await expect(hangar.locator(".space-cost-list").first().locator("li")).toHaveText(
         expectedCostLines(state, FLEET_ENVOY_COST, 2),
@@ -248,7 +248,9 @@ test("Colonise scan report and status rows fit at 390/320px in all locales @e57-
       await page.setViewportSize(viewport);
       await page.locator("#tab-interstellar").click();
       const coloniseTab = page.locator("#tab-interstellar-colonise");
-      await expect.poll(() => visibleTabLabel(coloniseTab)).toBe(starshipText(locale, "colonise"));
+      await expect
+        .poll(() => visibleTabLabel(coloniseTab))
+        .toBe(starshipText(locale, "coloniseTabLabel"));
       await coloniseTab.click();
       const pane = page.getByTestId("starship-pane");
       const report = pane.getByTestId("starship-colonise-scan-report");
@@ -256,12 +258,22 @@ test("Colonise scan report and status rows fit at 390/320px in all locales @e57-
       await expect(
         report.getByRole("heading", { name: starshipText(locale, "scanReport") }),
       ).toBeVisible();
-      await expect(report.locator("dt")).toHaveText(
-        reportKeys.map((key) => starshipText(locale, key)),
+      const reportLabels = await report.locator("dt").evaluateAll((labels) =>
+        labels.map((label) => {
+          const clone = label.cloneNode(true) as HTMLElement;
+          clone.querySelectorAll("button").forEach((button) => button.remove());
+          return clone.textContent?.trim().replace(/\s+/g, " ") ?? "";
+        }),
       );
+      expect(reportLabels).toEqual([
+        starMapText(locale, "sortName"),
+        starMapText(locale, "ascendency"),
+        starMapText(locale, "weather"),
+        ...reportKeys.map((key) => starshipText(locale, key)),
+      ]);
       const readings = report.locator("dd");
-      await expect(readings).toHaveCount(reportKeys.length);
-      for (const [index, key] of reportKeys.entries()) {
+      await expect(readings).toHaveCount(reportKeys.length + 3);
+      for (let index = 3; index < reportKeys.length + 3; index += 1) {
         await expect(readings.nth(index)).not.toBeEmpty();
       }
       const state = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -269,16 +281,16 @@ test("Colonise scan report and status rows fit at 390/320px in all locales @e57-
         (item) => item.systemId === state.run.space.starship.destinationSystemId,
       );
       expect(encounter).toBeDefined();
-      await expect(readings.nth(1)).toHaveText(
+      await expect(readings.nth(4)).toHaveText(
         starshipScanTokenText(locale, "civilization", encounter!.civilizationLevel),
       );
-      await expect(readings.nth(2)).toHaveText(
+      await expect(readings.nth(5)).toHaveText(
         formatNumber(locale, encounter!.populationEstimate, 2, state.settings.notation),
       );
-      await expect(readings.nth(3)).toHaveText(
+      await expect(readings.nth(6)).toHaveText(
         starshipScanTokenText(locale, "threat", encounter!.threatLevel),
       );
-      await expect(readings.nth(4)).toHaveText(
+      await expect(readings.nth(7)).toHaveText(
         formatNumber(locale, encounter!.defenseRating, 2, state.settings.notation),
       );
       const diplomacy = pane.getByTestId("starship-diplomacy");

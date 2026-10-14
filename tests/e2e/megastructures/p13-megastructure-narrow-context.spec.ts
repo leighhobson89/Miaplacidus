@@ -137,6 +137,11 @@ test("Megastructure stage cost, RP balance, action, and progress fit at narrow w
   expect(after.permanent.megastructures.researchedTechnologyIds).toContain(nextTechnologyId);
   expect(after.run.researchPoints).toBe(researchPointsBefore - nextStagePrice);
   expect(after.run.cash).toBe(cashBefore);
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await expect(resultDialog).toContainText("DISCONNECTING THE GALACTIC MEMORY ARCHIVE");
+  await resultDialog.getByRole("button", { name: copy.confirmLabel, exact: true }).click();
+  await expect(resultDialog).toHaveCount(0);
   await expect(archive).toContainText(
     megastructureStageProgress("en", 3, stages.length, (value) =>
       formatNumber("en", value, 0, after.settings.notation),
@@ -169,6 +174,7 @@ test("Megastructure stage cost, RP balance, action, and progress fit at narrow w
         ),
       ),
   );
+  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 5_000 });
 
   for (const viewport of NARROW_VIEWPORTS) {
     await page.setViewportSize(viewport);

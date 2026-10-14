@@ -408,7 +408,7 @@ test("keeps all 25 localized rows contained across six locales and nine themes @
     await freshGame.locator("#tab-settings").click();
     await freshGame.locator("#tab-settings-visual").click();
     await freshGame.getByTestId("theme-selector").selectOption(theme);
-    await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+    await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
     await freshGame.locator("#tab-hydrogen").click();
 
     for (const locale of LOCALE_IDS) {

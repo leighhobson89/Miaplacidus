@@ -38,7 +38,7 @@ test("P-41 formats Starship module cash costs in every notation @p41-starship-cu
   for (const notation of ["condensed", "standard", "scientific"] as const) {
     await setNumberNotation(page, notation);
     await page.getByRole("tab", { name: "Interstellar" }).click();
-    await page.getByRole("tab", { name: "Starship" }).click();
+    await page.locator("#tab-interstellar-starship").click();
 
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.settings.notation).toBe(notation);
@@ -81,7 +81,7 @@ test("P-41 formats the Fleet Envoy cash cost in every notation @p41-starship-cur
   for (const notation of ["condensed", "standard", "scientific"] as const) {
     await setNumberNotation(page, notation);
     await page.getByRole("tab", { name: "Interstellar" }).click();
-    await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+    await page.locator("#tab-interstellar-fleet-hangar").click();
 
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.settings.notation).toBe(notation);

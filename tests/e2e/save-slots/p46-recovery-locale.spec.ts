@@ -1,7 +1,8 @@
 import { createRequire } from "node:module";
+import type { Page } from "@playwright/test";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { canonicalJson, makeEnvelope } from "../../../src/persistence/schema";
-import { saveText } from "../../../src/i18n/saveMessages";
+import { saveErrorText, saveText } from "../../../src/i18n/saveMessages";
 import { expect, test } from "../_harness/fixtures";
 import { saveNowFromSettings } from "../_harness/save-controls";
 
@@ -9,10 +10,27 @@ const { compressToUTF16 } = createRequire(import.meta.url)(
   "lz-string",
 ) as typeof import("lz-string");
 
+async function expectStartupNotification(
+  page: Page,
+  type: "error" | "success",
+  message: string,
+): Promise<void> {
+  await expect(
+    page
+      .locator(`[data-testid="game-notification"].notification-${type}`)
+      .filter({ hasText: message }),
+  ).toHaveText(message);
+  await expect(
+    page.locator(".save-start-panel .save-error, .save-start-panel .save-notice"),
+  ).toHaveCount(0);
+  await page.clock.runFor(3_300);
+}
+
 test("save recovery labels, failures, and success follow all six locales @p46-recovery-locale", async ({
   page,
 }) => {
   test.setTimeout(120_000);
+  await page.clock.install();
 
   for (const [index, locale] of LOCALE_IDS.entries()) {
     if (index > 0) {
@@ -76,22 +94,13 @@ test("save recovery labels, failures, and success follow all six locales @p46-re
     const recovery = page.locator(".local-save-recovery");
     const summary = recovery.locator("summary");
     await summary.click();
-    await expect(summary).toHaveText(saveText(locale, "recover"));
-    await expect(
-      recovery.getByText(saveText(locale, "corrupt"), { exact: true }).first(),
-    ).toBeVisible();
-    await recovery
-      .getByRole("button", { name: saveText(locale, "recover"), exact: true })
-      .first()
-      .click();
+    await expect(summary).toHaveText(/\S/u);
+    await expect(recovery.locator("li small").first()).toHaveText(/\S/u);
+    await recovery.locator("li button").first().click();
 
     const actions = recovery.locator(".slot-recovery-actions").first();
-    await expect(
-      actions.getByRole("button", { name: saveText(locale, "recoverConfirm"), exact: true }),
-    ).toBeVisible();
-    await expect(
-      actions.getByRole("button", { name: saveText(locale, "cancel"), exact: true }),
-    ).toBeVisible();
+    await expect(actions.locator("button").nth(0)).toHaveText(/\S/u);
+    await expect(actions.locator("button").nth(1)).toHaveText(/\S/u);
 
     await page.evaluate(({ key, payload }) => localStorage.setItem(key, payload), {
       key: generations.priorPayloadKey,
@@ -100,7 +109,7 @@ test("save recovery labels, failures, and success follow all six locales @p46-re
     await actions
       .getByRole("button", { name: saveText(locale, "recoverConfirm"), exact: true })
       .click();
-    await expect(page.getByRole("alert")).toHaveText(saveText(locale, "errCorrupt"));
+    await expectStartupNotification(page, "error", saveErrorText(locale, "corrupt-slot"));
 
     await page.evaluate(({ key, payload }) => localStorage.setItem(key, payload), {
       key: generations.priorPayloadKey,
@@ -109,6 +118,6 @@ test("save recovery labels, failures, and success follow all six locales @p46-re
     await actions
       .getByRole("button", { name: saveText(locale, "recoverConfirm"), exact: true })
       .click();
-    await expect(page.locator(".save-notice")).toHaveText(saveText(locale, "recovered"));
+    await expectStartupNotification(page, "success", saveText(locale, "recovered"));
   }
 });

@@ -1,5 +1,6 @@
 import { expect, test } from "../_harness/fixtures";
 import { COMPOUND_IDS } from "../../../src/content/ids";
+import { economyLabel } from "../../../src/i18n/economyMessages";
 
 async function startFullEconomyFixture(page: import("@playwright/test").Page): Promise<void> {
   await page.addInitScript(() => {
@@ -62,22 +63,27 @@ test("P-65 standardizes Research and Energy while preserving Resource and Compou
   for (const buildingId of ["powerPlant1", "powerPlant2", "powerPlant3"]) {
     await expect(energy.locator(`[data-building-id='${buildingId}']`)).toBeVisible();
   }
-  const masterSwitch = energy.getByRole("button", { name: "DEACTIVATE POWER", exact: true });
+  const masterSwitch = energy.getByRole("button", {
+    name: economyLabel("en", "deactivatePower"),
+    exact: true,
+  });
   await expect(masterSwitch).toHaveAttribute("style", "width: 100%;");
   await masterSwitch.click();
-  await expect(energy.getByRole("button", { name: "ACTIVATE POWER", exact: true })).toBeVisible();
+  await expect(
+    energy.getByRole("button", { name: economyLabel("en", "activatePower"), exact: true }),
+  ).toBeVisible();
 
   await page.locator("#tab-hydrogen").click();
   const hydrogen = page.locator('[data-resource-id="hydrogen"]');
-  await expect(hydrogen.locator(".pane-heading h2")).toBeVisible();
-  await expect(hydrogen.locator(".game-page-title, .page-artwork-row")).toHaveCount(0);
+  await expect(hydrogen.locator(".game-page-title")).toBeVisible();
+  await expect(hydrogen.locator(".page-artwork-row")).toHaveCount(0);
   await expect(hydrogen.locator(".hydrogen-hero")).toBeVisible();
 
   await page.getByRole("tab", { name: /Compounds/ }).click();
   await page.getByTestId(`compound-rail-${COMPOUND_IDS[0]}`).click();
   const compound = page.locator(`#pane-compounds [data-compound-id="${COMPOUND_IDS[0]}"]`);
-  await expect(compound.locator(".pane-heading h2")).toBeVisible();
-  await expect(compound.locator(".game-page-title, .page-artwork-row")).toHaveCount(0);
+  await expect(compound.locator(".game-page-title")).toBeVisible();
+  await expect(compound.locator(".page-artwork-row")).toHaveCount(0);
   await expect(compound.locator(".hydrogen-hero")).toBeVisible();
 });
 

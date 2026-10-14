@@ -4,6 +4,7 @@ import { startMetaFixture } from "../_harness/meta-fixture";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { RANDOM_EVENT_IDS } from "../../../src/content/metaSignals";
 import { THEME_IDS } from "../../../src/content/themes";
+import { economyLabel } from "../../../src/i18n/economyMessages";
 import {
   journalLabel,
   metaSignalText,
@@ -21,8 +22,9 @@ function pageLabels(locale: (typeof LOCALE_IDS)[number]): string[] {
   return [
     settingsSectionName(locale, "events"),
     metaSignalText(locale, "title"),
-    metaSignalText(locale, "description"),
-    metaSignalText(locale, "events"),
+    economyLabel(locale, "eventsOverviewHelp"),
+    metaSignalText(locale, "news"),
+    metaSignalText(locale, "activeTitle"),
     metaSignalText(locale, "history"),
     journalLabel(locale, "eventProbabilities"),
     ...RANDOM_EVENT_IDS.map((id) => randomEventName(locale, id)),
@@ -62,6 +64,10 @@ test("P-56 Events journal and probabilities fit across locales, themes, and widt
       eventId: "scienceTheft",
     }),
   );
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
   await page.addStyleTag({
     content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
   });
@@ -87,7 +93,7 @@ test("P-56 Events journal and probabilities fit across locales, themes, and widt
           { locale, themeId },
         );
         await expect(page.locator("html"), `${locale} language`).toHaveAttribute("lang", locale);
-        await expect(page.locator(".game-frame"), `${themeId} theme`).toHaveAttribute(
+        await expect(page.locator(".game-frame:not(.notification-portal)"), `${themeId} theme`).toHaveAttribute(
           "data-theme",
           themeId,
         );
@@ -96,11 +102,11 @@ test("P-56 Events journal and probabilities fit across locales, themes, and widt
         await settings.locator("#tab-settings-events").click();
         await expect(panel, `${locale}/${themeId} Events page`).toBeVisible();
         await expect(panel.locator(".pane-heading h2")).toHaveText(metaSignalText(locale, "title"));
-        await expect(panel.locator(".pane-heading .pane-intro")).toHaveText(
-          metaSignalText(locale, "description"),
+        await expect(page.getByTestId("settings-events-overview-help")).toContainText(
+          economyLabel(locale, "eventsOverviewHelp"),
         );
         await expect(
-          journal.getByRole("heading", { name: metaSignalText(locale, "events") }),
+          journal.getByRole("heading", { name: metaSignalText(locale, "activeTitle") }),
         ).toBeVisible();
         await expect(
           journal.getByRole("heading", { name: metaSignalText(locale, "history") }),

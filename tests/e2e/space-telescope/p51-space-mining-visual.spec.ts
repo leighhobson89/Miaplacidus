@@ -59,7 +59,7 @@ test("P-51 Space Telescope quote and location tooltip fit French narrow layouts 
           patch: { locale: "fr", themeId },
         });
       }, theme);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
       await expect(page.locator("html")).toHaveAttribute("lang", "fr");
       await expect(pane).toBeVisible();
       await expect(pane.getByRole("heading", { level: 2 })).toHaveText(
@@ -94,7 +94,9 @@ test("P-51 Space Telescope quote and location tooltip fit French narrow layouts 
           pane: bounds('[data-testid="space-mining-pane"]'),
           title: bounds(".space-mining-panel .game-page-title"),
           cost: bounds(".space-mining-panel .space-cost-list"),
-          action: bounds(".space-mining-panel .space-card > button"),
+          action: bounds(
+            ".space-mining-panel .space-card:not([hidden]) .space-action-help-group > button.primary-button",
+          ),
           tooltip: bounds("#location-status-tooltip"),
           viewportWidth: document.documentElement.clientWidth,
         };

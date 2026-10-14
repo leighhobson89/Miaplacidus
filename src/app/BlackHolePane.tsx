@@ -15,7 +15,10 @@ import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { blackHoleText } from "../i18n/blackHoleMessages";
 import { starshipText } from "../i18n/starshipMessages";
-import { blackHoleWarpAnnouncement } from "./blackHoleAnnouncements";
+import {
+  blackHoleChargeAnnouncement,
+  blackHoleWarpAnnouncement,
+} from "./blackHoleAnnouncements";
 import { formatNumber } from "./numberFormatting";
 import { CelestialIllustration } from "./CelestialIllustration";
 import { InfoTooltip } from "./InfoTooltip";
@@ -31,8 +34,10 @@ function number(state: GameState, value: number, digits = 0): string {
 
 export function BlackHolePane({ state, store }: BlackHolePaneProps) {
   const [feedback, setFeedback] = useState("");
+  const [chargeAnnouncement, setChargeAnnouncement] = useState("");
   const [warpAnnouncement, setWarpAnnouncement] = useState("");
   const previousLocale = useRef(state.settings.locale);
+  const previousChargeReady = useRef(state.run.blackHoleChargeReady);
   const locale = state.settings.locale;
   const copy = blackHoleText(locale);
   const hole = state.permanent.blackHole;
@@ -131,10 +136,23 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
   const activationReason = disabledReason(activationSelection);
 
   useEffect(() => {
+    if (previousLocale.current !== locale) {
+      setChargeAnnouncement("");
+      previousChargeReady.current = state.run.blackHoleChargeReady;
+    } else {
+      setChargeAnnouncement(
+        blackHoleChargeAnnouncement(
+          previousChargeReady.current,
+          state.run.blackHoleChargeReady,
+          copy.ready,
+        ),
+      );
+      previousChargeReady.current = state.run.blackHoleChargeReady;
+    }
     if (!state.run.blackHoleWarpActive || previousLocale.current !== locale)
       setWarpAnnouncement("");
     previousLocale.current = locale;
-  }, [locale, previousLocale, state.run.blackHoleWarpActive]);
+  }, [copy.ready, locale, state.run.blackHoleChargeReady, state.run.blackHoleWarpActive]);
 
   return (
     <section className="black-hole-pane" aria-labelledby="black-hole-title">
@@ -194,6 +212,9 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
             <p
               className="control-reason"
               id="black-hole-research-reason"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
             >
               {researchReason}
             </p>
@@ -345,6 +366,14 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
       )}
       <output className="live-feedback" aria-live="polite" data-testid="black-hole-feedback">
         {feedback}
+      </output>
+      <output
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="black-hole-charge-announcement"
+      >
+        {chargeAnnouncement}
       </output>
       <output
         className="sr-only"

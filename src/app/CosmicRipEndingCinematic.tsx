@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
+import "./CosmicRipEndingCinematic.css";
 import { createPortal } from "react-dom";
 import type { LocaleId } from "../content/ids";
 import { cosmicRipEndingCinematicText } from "../i18n/cosmicRipEndingCinematicMessages";

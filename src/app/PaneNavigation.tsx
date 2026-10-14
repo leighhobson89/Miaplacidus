@@ -49,6 +49,7 @@ export function PaneNavigation({
   attentionIds,
   attentionLabel,
   attentionLabelsById,
+  navigationDisabled = false,
   onSelect,
 }: {
   readonly items: readonly PaneNavigationItem[];
@@ -58,6 +59,7 @@ export function PaneNavigation({
   readonly attentionIds?: ReadonlySet<string>;
   readonly attentionLabel?: string;
   readonly attentionLabelsById?: ReadonlyMap<string, string>;
+  readonly navigationDisabled?: boolean;
   readonly onSelect: (id: string) => void;
 }) {
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<ReadonlySet<string>>(() =>
@@ -82,6 +84,10 @@ export function PaneNavigation({
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     if (!(event.target instanceof HTMLElement) || !event.target.matches('[role="tab"]')) return;
+    if (navigationDisabled) {
+      event.preventDefault();
+      return;
+    }
     const visibleTabs = Array.from(
       event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
     ).filter((tab) => !tab.closest<HTMLElement>("[hidden]"));
@@ -165,6 +171,8 @@ export function PaneNavigation({
                         data-source-option-ids={item.sourceOptionIds?.join(",")}
                         type="button"
                         role="tab"
+                        disabled={navigationDisabled}
+                        aria-disabled={navigationDisabled || undefined}
                         aria-selected={selected}
                         aria-controls={item.panelId ?? `panel-${item.id}`}
                         aria-label={
@@ -173,7 +181,9 @@ export function PaneNavigation({
                             : undefined
                         }
                         tabIndex={selected || (!selectedInSection && index === 0) ? 0 : -1}
-                        onClick={() => onSelect(item.id)}
+                        onClick={() => {
+                          if (!navigationDisabled) onSelect(item.id);
+                        }}
                       >
                         {item.label}
                         {badgeLabel && (

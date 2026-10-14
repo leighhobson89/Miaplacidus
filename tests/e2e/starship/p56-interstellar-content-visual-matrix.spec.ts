@@ -1,4 +1,10 @@
-import { expect, test, type Page, type TestInfo } from "../_harness/fixtures";
+import {
+  dismissTutorialOfferIfPresent,
+  expect,
+  test,
+  type Page,
+  type TestInfo,
+} from "../_harness/fixtures";
 import { GALAXY_SEED_DEFAULT, LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { THEME_IDS, type ThemeId } from "../../../src/content/themes";
 import { createStarCatalogue, distanceBetweenStars } from "../../../src/content/starCatalogue";
@@ -33,6 +39,7 @@ async function startFixture(page: Page, fixture: Fixture, pioneer: string): Prom
   await expect
     .poll(() => page.evaluate(() => typeof window.miaplacidusTest?.getState === "function"))
     .toBe(true);
+  await dismissTutorialOfferIfPresent(page);
   await page.addStyleTag({
     content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
   });
@@ -48,7 +55,7 @@ async function setPresentation(page: Page, locale: LocaleId, theme: ThemeId): Pr
     { nextLocale: locale, nextTheme: theme },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 async function openInterstellarPage(page: Page, pageId: "starship" | "colonise"): Promise<void> {
@@ -296,8 +303,8 @@ async function assertColoniseReport(page: Page, locale: LocaleId): Promise<void>
   const report = page.getByTestId("starship-colonise-scan-report");
   await expect(report).toBeVisible();
   await expect(report.getByRole("heading")).toHaveText(starshipText(locale, "scanReport"));
-  await expect(report.locator("dl dt")).toHaveCount(12);
-  await expect(report.locator("dl dd")).toHaveCount(12);
+  await expect(report.locator("dl dt")).toHaveCount(15);
+  await expect(report.locator("dl dd")).toHaveCount(15);
   const readings = await report.locator("dl dd").allTextContents();
   expect(readings.every((reading) => reading.trim().length > 0)).toBe(true);
   await expect(page.getByTestId("starship-diplomacy")).toBeVisible();

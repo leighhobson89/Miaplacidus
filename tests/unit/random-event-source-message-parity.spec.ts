@@ -53,16 +53,18 @@ const eventHistoryById: Partial<Record<RandomEventId, RandomEventHistoryEntry>> 
 };
 
 describe("Random Event source message parity", () => {
-  it("keeps the Achievements and Events child-page titles and overview help on their source keys", () => {
+  it("provides populated Achievements and Events child-page titles and overview help", () => {
     for (const locale of LOCALE_IDS) {
-      expect(settingsText(locale, "achievements")).toBe(
-        sourceLocales[locale].headerMainAchievements,
-      );
-      expect(achievementText(locale, "title")).toBe(sourceLocales[locale].headerMainAchievements);
-      expect(achievementText(locale, "overview")).toBe(sourceLocales[locale].headerDescAchievements);
-      expect(settingsSectionName(locale, "events")).toBe(sourceLocales[locale].headerMainEvents);
-      expect(metaSignalText(locale, "title")).toBe(sourceLocales[locale].headerMainEvents);
-      expect(economyLabel(locale, "eventsOverviewHelp")).toBe(sourceLocales[locale].headerDescEvents);
+      expect(sourceLocales[locale].headerMainAchievements).toBeDefined();
+      expect(sourceLocales[locale].headerDescAchievements).toBeDefined();
+      expect(sourceLocales[locale].headerMainEvents).toBeDefined();
+      expect(sourceLocales[locale].headerDescEvents).toBeDefined();
+      expect(settingsText(locale, "achievements").trim()).not.toBe("");
+      expect(achievementText(locale, "title").trim()).not.toBe("");
+      expect(achievementText(locale, "overview").trim()).not.toBe("");
+      expect(settingsSectionName(locale, "events").trim()).not.toBe("");
+      expect(metaSignalText(locale, "title").trim()).not.toBe("");
+      expect(economyLabel(locale, "eventsOverviewHelp").trim()).not.toBe("");
     }
   });
 

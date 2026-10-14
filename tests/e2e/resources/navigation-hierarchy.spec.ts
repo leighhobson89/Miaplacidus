@@ -9,6 +9,13 @@ test("keeps Gases and Solids grouped in the source order @ui-navigation @resourc
   page,
 }, testInfo) => {
   await startMetaFixture(page, "meta-megastructure-route");
+  const tutorial = page.locator(".progression-tutorial");
+  if (await tutorial.isVisible()) {
+    const dismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+    await expect(dismissButton).toBeVisible();
+    await dismissButton.click();
+  }
+  await expect(tutorial).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
 
@@ -67,11 +74,11 @@ test("keeps Gases and Solids grouped in the source order @ui-navigation @resourc
   await page.reload();
   await expect(page.getByTestId("start-game")).toHaveText("RESUME GAME Ascendency Pioneer");
   await page.getByTestId("start-game").click();
-  await expect(page.getByTestId("resource-group-toggle-gases")).toHaveAttribute(
+  await expect(rail.getByTestId("resource-group-toggle-gases")).toHaveAttribute(
     "aria-expanded",
     "false",
   );
-  await expect(page.getByTestId("resource-group-toggle-solids")).toHaveAttribute(
+  await expect(rail.getByTestId("resource-group-toggle-solids")).toHaveAttribute(
     "aria-expanded",
     "false",
   );

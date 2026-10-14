@@ -772,6 +772,7 @@ export function StarshipPane({
           <button
             className="primary-button"
             type="button"
+            data-testid="starship-envoy-build"
             disabled={space.fleetEnvoyBuilt || !envoyCheck.enabled}
             aria-describedby={
               !space.fleetEnvoyBuilt && !envoyCheck.enabled ? "starship-envoy-reason" : undefined

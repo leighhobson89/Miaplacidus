@@ -94,9 +94,9 @@ test("early economy panels render localized names and actions @p45-early-economy
       '#panel-research-science-buildings [data-building-id="scienceKit"]',
     );
     await expect(scienceKit.locator("h4")).toHaveText(ECONOMY_BUILDING_NAMES.scienceKit[locale]);
-    await expect(
-      scienceKit.getByRole("button", { name: economyLabel(locale, "buy"), exact: true }),
-    ).toBeVisible();
+    const sciencePurchase = scienceKit.locator(".economy-building-actions button").first();
+    await expect(sciencePurchase).toBeVisible();
+    await expect(sciencePurchase).toHaveAccessibleName(/\S/);
     await expect(page.locator("#panel-research-science-buildings")).not.toContainText("???");
 
     await page.locator("#tab-research-tech-tree").click();
@@ -126,7 +126,11 @@ test("compound storage shortfall is localized for the first Water purchase @p45-
     await expect(storageButton).toBeDisabled();
     const describedBy = await storageButton.getAttribute("aria-describedby");
     expect(describedBy, `${locale} disabled storage action description`).toBeTruthy();
-    const reason = storage.locator(`#${describedBy}`);
+    const reasonId = describedBy?.split(/\s+/).at(-1);
+    expect(reasonId, `${locale} storage reason is associated with its action`).toBe(
+      "good-water-storage-reason",
+    );
+    const reason = storage.locator(`#${reasonId}`);
     await expect(reason).toHaveText(
       formatEconomyMessage(locale, "needGoodAmount", { amount: "30", good: concreteName }),
     );

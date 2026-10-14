@@ -127,3 +127,5 @@ const MESSAGES: Readonly<Record<LocaleId, CosmicRipEndingCinematicCopy>> = {
 export function cosmicRipEndingCinematicText(locale: LocaleId): CosmicRipEndingCinematicCopy {
   return MESSAGES[locale];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { MESSAGES } as const;

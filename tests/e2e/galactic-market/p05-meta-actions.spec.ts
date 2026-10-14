@@ -136,7 +136,7 @@ test("Meta progression mechanics actions meet 44px target bounds at 320px and 39
     measuredTargets += await measureTargets(pane, `${width}px Black Hole`, failures);
 
     if (width === 320) {
-      const research = page.getByTestId("black-hole-research").getByRole("button");
+      const research = page.getByTestId("black-hole-research").locator(".primary-button");
       await research.focus();
       await page.keyboard.press("Enter");
       await expect
@@ -173,7 +173,7 @@ test("Meta progression mechanics actions meet 44px target bounds at 320px and 39
     await expect(rebirthPane).toBeVisible();
     measuredTargets += await measureTargets(rebirthPane, `${width}px Rebirth`, failures);
 
-    const rebirth = rebirthPane.getByRole("button", { name: "Rebirth", exact: true });
+    const rebirth = rebirthPane.getByRole("button", { name: "REBIRTH", exact: true });
     if (width === 320) {
       await rebirth.focus();
       await page.keyboard.press("Enter");

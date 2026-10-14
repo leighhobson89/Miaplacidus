@@ -2,18 +2,32 @@
 
 Cosmic Forge creates one notification container per classification in `index.html` / `ui.js`. The first four classifications in arrival order have visible rows (`MAX_STACKS` in `constantsAndGlobalVars.js`); additional classifications keep their messages queued until a visible category empties, then are promoted in order. Ordinary categories show one message at a time. `storage`, `debug`, and `achievement` allow multiple messages within their category, up to four visible cards per category (`MAX_NOTIFICATION_COLUMNS`). `fuse` is an ordinary serialized category.
 
-MIAPLACIDUS keeps its notification region in flow beneath the News Ticker so notices do not cover game choices. `NotificationScheduler` caps concurrently visible classifications at four and promotes waiting categories by arrival order. It preserves the source category rules: ordinary notices queue one at a time, while `storage`, `debug`, and `achievement` can show together up to four cards per category; overflow stays queued and fills slots as visible cards dismiss. The `fuse` classification remains an ordinary category. Only visible notices start their dismissal timers; queued notices start their timer when promoted.
+Owner-directed presentation (14 October 2026): MIAPLACIDUS renders notifications through a portal directly under `document.body`, outside the game frame, in a fixed overlay at the viewport's bottom-right corner. At most two cards are visible side by side; later notices wait in FIFO order and start their lifetime when promoted. Each card stays fully visible for three seconds, fades over 300ms, then leaves the stack. The portal and stack use the maximum CSS z-index, do not contribute to page layout, and leave focus in the active control. Native modal dialogs remain in the browser top layer.
+
+This renderer rule supersedes earlier dated notes below that describe a longer visible lifetime. Handler-level `durationMs` values remain routing metadata; every visible card uses the shared three-second lifetime.
+
+Cosmic Forge keeps notification queues by classification, but the remake intentionally uses a global two-card cap per the owner's presentation decision. The notification setting suppresses delivery and clears queued/visible cards. Reduced-motion mode removes the fade animation while keeping the same automatic dismissal timing.
 
 ## Focused checks
 
 ```powershell
 npm.cmd run test:unit:focused -- tests/unit/notificationScheduler.spec.ts
+npm.cmd run test:e2e:focused -- tests/e2e/notifications/floating-notifications.spec.ts --workers=1
+npm.cmd run test:e2e:focused -- tests/e2e/notifications/autosave-off-notifications.spec.ts --workers=1
 npm.cmd run test:unit:focused -- tests/unit/space-event-notifications.spec.ts tests/unit/audio-event-dispatch.spec.ts
 npm.cmd run test:e2e:focused -- tests/e2e/economy/economy.spec.ts -g "first fusion discovery reports stored yield" --workers=1
 npm.cmd run test:e2e:focused -- tests/e2e/notifications/space-event-notifications.spec.ts tests/e2e/starship/starship.spec.ts tests/e2e/battle/battle.spec.ts -g "announces hazardous weather|cancels the point-of-no-return|wins a hostile battle|retains the starship and surviving enemy" --workers=1
 ```
 
-The scheduler unit cases cover the four-category cap, FIFO category promotion, ordinary same-category serialization, and the four-card cap/refill for multi-card classifications. Space event unit coverage checks localized starship/rocket/weather/battle notices in all six locales, event routing through dispatch, batch, and timer advancement, weather-entry de-duplication, and silent progress/ordinary-weather events. A focused system Chrome attempt of the hazardous-weather notification case reported 1 passed, then Playwright hung during shutdown and was interrupted (runner exit 1). A `--reporter=line` retry hung before reporting a result and was also interrupted; this does not establish a clean run. The focused milestone-route spec and its system Chrome result are recorded below. The existing fusion browser journey covers the rendered `fuse` notification class. Cosmic Forge source references are `ui.js` (`showNotification`, `processNotificationQueue`, classification queues, row promotion) and `constantsAndGlobalVars.js` (`MAX_STACKS`, `MAX_NOTIFICATION_COLUMNS`, category sets); source is read-only.
+The scheduler unit cases cover the global two-card cap, FIFO promotion across classifications, manual dismissal, and queue clearing. The floating-notification browser case checks fixed bottom-right placement, side-by-side geometry, stacking order, no document-height change, three-second fade delay, and promotion/dismissal of a queued notice. Space event unit coverage checks localized starship/rocket/weather/battle notices in all six locales, event routing through dispatch, batch, and timer advancement, weather-entry de-duplication, and silent progress/ordinary-weather events. Cosmic Forge source references are `ui.js` (`showNotification`, `processNotificationQueue`, classification queues, row promotion) and `constantsAndGlobalVars.js` (`MAX_STACKS`, `MAX_NOTIFICATION_COLUMNS`, category sets); source is read-only.
+
+**Floating-notification acceptance (14 October 2026):** the focused Chromium run of `floating-notifications.spec.ts` and `autosave-off-notifications.spec.ts` passed 2/2 with a clean exit. It confirms the viewport-fixed bottom-right stack, two side-by-side notices, no page-height change, high stacking order, a three-second visible period followed by a 300ms fade, FIFO promotion, and the autosave warning's three-second lifetime.
+
+The focused scheduler unit run passed 4/4 and TypeScript checking passed. The browser command was:
+
+```powershell
+$env:MIAPLACIDUS_TEST_PORT='4185'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/notifications/floating-notifications.spec.ts tests/e2e/notifications/autosave-off-notifications.spec.ts --project=chromium --workers=1 --retries=0 --trace=off --reporter=list
+```
 
 **Multi-card cap parity (9 October 2026):** Cosmic Forge sets `MAX_NOTIFICATION_COLUMNS` to four and queues further `storage`, `debug`, or `achievement` notices until a visible card expires. The remake scheduler now applies the same four-card cap and refills each open slot from that category's queue. The focused `notificationScheduler.spec.ts` run passed 5/5, including both live overflow and a capped category promoted from the category queue.
 

@@ -119,15 +119,24 @@ test("Star Map route cost and Star Data rows, weather tooltip, and table control
       const expectedHeaders = [
         starMapText(locale, "sortName"),
         starMapText(locale, "distance"),
-        starMapText(locale, "starType"),
+        starMapText(locale, "dataType"),
         starMapText(locale, "weather"),
         starMapText(locale, "precipitation"),
         starMapText(locale, "fuel"),
         starMapText(locale, "ascendency"),
-        starMapText(locale, "mapTarget"),
+        starMapText(locale, "mapColumn"),
         starshipText(locale, "setDestination"),
       ];
-      await expect(table.locator("thead th")).toHaveText(expectedHeaders);
+      const actualHeaders = await table.locator("thead th").evaluateAll((headers) =>
+        headers.map((header) => {
+          const copy = header.cloneNode(true) as HTMLElement;
+          copy
+            .querySelectorAll(".scan-info-tooltip-anchor, button")
+            .forEach((control) => control.remove());
+          return copy.textContent?.replace(/\s+/g, " ").trim() ?? "";
+        }),
+      );
+      expect(actualHeaders).toEqual(expectedHeaders);
       await expect(data.getByLabel(starMapText(locale, "filterName"))).toBeVisible();
       await expect(data.getByLabel(starMapText(locale, "filterType"))).toBeVisible();
       await expect(data.getByLabel(starMapText(locale, "sortDescending"))).toBeVisible();

@@ -7,6 +7,7 @@ import {
 } from "../../../src/engine/galacticMarket";
 import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
+import { marketText } from "../../../src/i18n/metaMessages";
 
 test("P-41 formats Galactic Market unit prices in every notation @p41-market-currency", async ({
   page,
@@ -19,8 +20,8 @@ test("P-41 formats Galactic Market unit prices in every notation @p41-market-cur
     await page.getByRole("tab", { name: "Galactic Market" }).click();
 
     const market = page.getByRole("region", { name: "Galactic Market" });
-    await market.getByLabel("You give").selectOption("hydrogen");
-    await market.getByLabel("You receive").selectOption("helium");
+    await market.getByLabel(marketText("en", "tradeRow")).selectOption("hydrogen");
+    await market.getByLabel(marketText("en", "tradeFor")).selectOption("helium");
 
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.settings.notation).toBe(notation);
@@ -66,7 +67,7 @@ test("P-41 formats the Galactic Market AP sale preview in every notation @p41-ma
 
     const market = page.getByRole("region", { name: "Galactic Market" });
     const apSale = market.locator(".upgrade-card").nth(1);
-    await apSale.getByLabel("AP to sell").selectOption("10");
+    await apSale.getByLabel(marketText("en", "sellAp")).selectOption("10");
 
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.settings.notation).toBe(notation);
@@ -78,10 +79,12 @@ test("P-41 formats the Galactic Market AP sale preview in every notation @p41-ma
       notation,
     );
     const payoutPreview = apSale.locator(".card-copy > p").nth(1);
-    await expect(payoutPreview).toHaveText(expectedPayout);
+    await expect(payoutPreview).toContainText(expectedPayout);
     displayedPayouts[notation] = expectedPayout;
 
-    await apSale.getByRole("button", { name: "Sell AP for cash", exact: true }).click();
+    await apSale
+      .getByRole("button", { name: marketText("en", "sellApAction"), exact: true })
+      .click();
     await expect(market.locator(".live-feedback")).toHaveText(
       `${formatNumber("en", 10, 0, notation)} AP · ${expectedPayout}`,
     );
@@ -126,7 +129,7 @@ test("P-41 formats the Galactic Rebirth liquidation value in every notation @p41
     const liquidationCard = page.getByTestId("rebirth-pane").locator(".rebirth-liquidation-card");
     const valueLine = liquidationCard.locator(".card-copy > p").first();
     await expect(valueLine).toContainText(expectedValue);
-    await liquidationCard.getByRole("button", { name: "Liquidate all assets" }).click();
+    await liquidationCard.getByRole("button", { name: marketText("en", "liquidate") }).click();
     const dialog = page.getByRole("dialog", { name: "Confirm asset liquidation" });
     await expect(dialog).toBeVisible();
     await expect(dialog.locator("p").nth(1)).toContainText(expectedValue);

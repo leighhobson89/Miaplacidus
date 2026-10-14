@@ -29,7 +29,7 @@ async function setPresentation(page: Page, locale: LocaleId, theme: ThemeId): Pr
     { locale, theme },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 async function capture(page: Page, testInfo: TestInfo, name: string): Promise<void> {

@@ -5,7 +5,10 @@ import { LOCALE_IDS } from "../../src/content/ids";
 import { SettingsStatisticsPane } from "../../src/app/SettingsStatisticsPane";
 import { createEconomyTickPlan } from "../../src/engine/economySimulation";
 import { createInitialGameState, type GameState } from "../../src/engine/state";
-import { energyStatisticLabel } from "../../src/i18n/energyStatisticsMessages";
+import {
+  energyStatisticLabel,
+  energyStatisticRateUnit,
+} from "../../src/i18n/energyStatisticsMessages";
 import { settingsStatisticLabel } from "../../src/i18n/settingsMessages";
 
 const energyStatisticIds = [
@@ -103,7 +106,7 @@ describe("Energy Statistics display", () => {
 
     expect(createEconomyTickPlan(state).generationPerSecond).toBe(0);
     expect(statisticCard(markup, "totalProduction")).toContain(
-      `<strong>${sourceNameplateRate} kJ/s</strong>`,
+      `<strong>${sourceNameplateRate} ${energyStatisticRateUnit("en")}</strong>`,
     );
   });
 

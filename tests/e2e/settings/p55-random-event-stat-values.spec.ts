@@ -41,6 +41,13 @@ test("P-55 Statistics displays each Random Event current-run and lifetime value 
   expect(expected.run.researchBreakthrough).toBe(2);
   expect(expected.lifetime.researchBreakthrough).toBe(2);
 
+  const resultDialog = freshGame.getByTestId("random-event-result-dialog");
+  for (let eventIndex = 0; eventIndex < 2; eventIndex += 1) {
+    await expect(resultDialog).toBeVisible();
+    await resultDialog.getByRole("button", { name: "OK", exact: true }).click();
+  }
+  await expect(resultDialog).toHaveCount(0);
+
   await freshGame.locator("#tab-settings").click();
   await freshGame.locator("#tab-settings-statistics").click();
   const statistics = freshGame.getByTestId("settings-statistics");

@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { starMapText } from "../../../src/i18n/starMapMessages";
+import { stabilizeStarMapVisual } from "./visual-stability";
 
 async function startStarDataVisualFixture(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -16,6 +17,7 @@ async function startStarDataVisualFixture(page: Page): Promise<void> {
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await stabilizeStarMapVisual(page);
   await page.locator("#tab-interstellar").click();
   await page.evaluate(() =>
     window.miaplacidusTest!.dispatch({
@@ -24,7 +26,7 @@ async function startStarDataVisualFixture(page: Page): Promise<void> {
     }),
   );
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", "frosty");
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", "frosty");
 }
 
 test("P-65 French Star Data title and artwork fit the 320px Frosty layout @p65-visual-review", async ({

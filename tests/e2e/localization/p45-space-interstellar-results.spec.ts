@@ -1,5 +1,4 @@
 import { expect, test, type Page } from "../_harness/fixtures";
-import { formatNumber } from "../../../src/app/numberFormatting";
 import { createStarCatalogue } from "../../../src/content/starCatalogue";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { STAR_STUDY_TIMER_ID, VOID_PILLAGE_TIMER_ID } from "../../../src/content/space";
@@ -25,6 +24,25 @@ async function startFixture(
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
 }
 
+async function clearQueuedNotifications(page: Page): Promise<void> {
+  const notificationStack = page.getByTestId("notification-stack");
+  for (const notificationsEnabled of [false, true]) {
+    const accepted = await page.evaluate(
+      (enabled) =>
+        window.miaplacidusTest!.dispatch({
+          type: "settings.update",
+          patch: { notificationsEnabled: enabled },
+        }),
+      notificationsEnabled,
+    );
+    expect(accepted).toBe(true);
+    await expect
+      .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+      .toBe(notificationsEnabled);
+    await expect(notificationStack).toBeEmpty();
+  }
+}
+
 async function completeTimer(page: Page, timerId: string): Promise<GameState> {
   const remainingMs = await page.evaluate((id) => {
     const state = window.miaplacidusTest!.getState();
@@ -45,6 +63,12 @@ test("Space Star Study and Void Pillage completion copy is rendered in all local
   test.setTimeout(180_000);
   for (const locale of LOCALE_IDS) {
     await startFixture(page, "space-telescope", locale);
+    const tutorial = page.locator(".progression-tutorial");
+    if (await tutorial.isVisible()) {
+      await tutorial.locator("button").last().click();
+      await expect(tutorial).toHaveCount(0);
+    }
+    await clearQueuedNotifications(page);
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-telescope").click();
     await page
@@ -52,21 +76,22 @@ test("Space Star Study and Void Pillage completion copy is rendered in all local
       .click();
     await page.getByRole("button", { name: spaceText(locale, "studyStars"), exact: true }).click();
 
-    const studied = await completeTimer(page, STAR_STUDY_TIMER_ID);
-    const feedback = page.getByTestId("space-feedback");
-    await expect(feedback).toHaveText(
-      spaceText(locale, "feedbackStudyComplete", {
-        range: formatNumber(locale, studied.run.space.starStudyRange, 0, studied.settings.notation),
-      }),
-    );
+    await completeTimer(page, STAR_STUDY_TIMER_ID);
     await expect(
       page
         .getByTestId("notification-stack")
         .getByTestId("game-notification")
         .filter({ hasText: spaceNotificationText(locale, "starStudyComplete") }),
     ).toHaveText(spaceNotificationText(locale, "starStudyComplete"));
+    await expect(page.getByTestId("space-feedback")).toHaveText("");
 
     await startFixture(page, "space-voidborn-pillage", locale);
+    const pillageTutorial = page.locator(".progression-tutorial");
+    if (await pillageTutorial.isVisible()) {
+      await pillageTutorial.locator("button").last().click();
+      await expect(pillageTutorial).toHaveCount(0);
+    }
+    await clearQueuedNotifications(page);
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-telescope").click();
     await page.getByRole("button", { name: spaceText(locale, "pillageVoid"), exact: true }).click();
@@ -77,6 +102,7 @@ test("Space Star Study and Void Pillage completion copy is rendered in all local
         .getByTestId("game-notification")
         .filter({ hasText: spaceNotificationText(locale, "voidPillageComplete") }),
     ).toContainText(spaceNotificationText(locale, "voidPillageComplete"));
+    await expect(page.getByTestId("space-feedback")).toHaveText("");
   }
 });
 
@@ -86,6 +112,7 @@ test("Interstellar scan completion notification and Colonise result are localize
   test.setTimeout(120_000);
   for (const locale of LOCALE_IDS) {
     await startFixture(page, "space-starship-scanning", locale);
+    await clearQueuedNotifications(page);
     await page.locator("#tab-interstellar").click();
     await page.locator("#tab-interstellar-starship").click();
     const starship = page.getByTestId("starship-pane");

@@ -76,9 +76,9 @@ test("Starship launch and arrival each play one source-matched cue @starship @au
   await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
   await map.getByTestId("star-selection").getByRole("button", { name: "Set as destination" }).click();
 
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Launch starship" }).click();
+  await pane.getByRole("button", { name: "Travel" }).click();
   const warning = page.getByRole("dialog", { name: "Warning: point of no return" });
   await expect(warning).toBeVisible();
   await page.evaluate(() => {

@@ -159,6 +159,7 @@ test("Telescope search cost, balances, timer, progress, and status fit at 320px 
   const costList = telescope.getByRole("list", { name: spaceText("en", "telescopeCost") });
   const telescopeButton = telescope.getByRole("button", {
     name: spaceText("en", "telescopeBuild"),
+    exact: true,
   });
   await expect(page.getByTestId("cash-balance")).toHaveText(cashValue(stateBeforeBuild));
   await expect(costList).toBeVisible();
@@ -191,7 +192,10 @@ test("Telescope search cost, balances, timer, progress, and status fit at 320px 
   await expect(telescope.getByTestId("space-survey-status")).toHaveText(
     spaceText("en", "surveyIdle"),
   );
-  const scanButton = telescope.getByRole("button", { name: spaceText("en", "scanAsteroids") });
+  const scanButton = telescope.getByRole("button", {
+    name: spaceText("en", "scanAsteroids"),
+    exact: true,
+  });
   await expect(scanButton).toBeEnabled();
   await scanButton.click();
   await expect

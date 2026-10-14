@@ -1,0 +1,4 @@
+export const VOID_SEER_REEL_DURATIONS_MS = [4200, 5100] as const;
+export const VOID_SEER_REEL_MIN_LOOPS = 4;
+export const VOID_SEER_REEL_FRAME_MS = 50;
+export const VOID_SEER_RESULT_DELAY_MS = VOID_SEER_REEL_DURATIONS_MS[1];

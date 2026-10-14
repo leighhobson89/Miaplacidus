@@ -9,3 +9,11 @@ The remake retains the source's actionable milestone order: collect 50 Hydrogen,
 Cosmic Forge advances timed spotlights automatically after their timer (`onboarding.js:254-294,1192-1200`). MIAPLACIDUS retains an explicit Continue action after each minimum-read gate (`src/app/ProgressionTutorial.tsx:357-373`), so the player controls when to leave a timed instruction. This is an intentional tutorial-pacing adaptation: the read timer prevents early advancement, and the confirmation avoids moving to a new prompt without an action. A live journey still needs to verify the enabled/disabled timing and spoken screen-reader output. No code changed and no tests or checks were run.
 
 One source-copy mismatch was confirmed: Cosmic Forge's `onboardingStepClickIncreaseStorage` says to click the storage upgrade when storage is full, while the remake advised players in all six locales to buy it as soon as they could afford it. Updated this instruction to restore the source's full-storage timing while keeping the remake's price-preview detail. The normal storage purchase remains available under its existing affordability rule; only the tutorial text changed. No tests, checks, or browser sessions were run, as requested.
+
+## Source-action count crosscheck — 13 October 2026
+
+A follow-up static comparison counted the source's 48 spotlight, condition, and timed entries against the 28 persisted target step IDs in `src/content/tutorial.ts`, their route/action definitions in `src/app/ProgressionTutorial.tsx`, and gates in `src/engine/tutorialProgression.ts`. The remake groups source navigation clicks with the associated page-read prompts; no source action was missing from the owner-directed walkthrough. This confirms source-action coverage only. It does not verify live timing, save/resume, keyboard operation, Skip/completion, or spoken assistive-technology output. No code or tests changed.
+
+## Owner review closeout — 13 October 2026
+
+The owner manually checked and passed the remaining P-36 flow, timing, save/resume, keyboard, Skip/completion, and spoken assistive-technology review items. P-36 is closed in Phase 6 on that owner acceptance. This is manual owner evidence; no automated test or browser run is claimed by this closeout.

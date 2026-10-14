@@ -13,7 +13,7 @@ The F-01–F-10 source extraction is complete in the [foundation source contract
 
 This is a **static code and documentation audit**, not a claim that every branch was executed or that every old test still passes. No full Cosmic Forge suite was run. Counts below describe this snapshot and will change as the source changes. Old docs were used as leads and cross-checked against current source where possible. For example, [the older GDD](../../../cosmicForge/cosmicForge/docs/GDD.md) calls tab 8 Menu/Settings, but current [index.html](../../../cosmicForge/cosmicForge/index.html) has tab 8 Cosmic Rip and tab 9 Settings.
 
-One focused read-only check was run: `node validateLocalization.cjs` in the Cosmic Forge app exited 0 and reported 2,621 keys in each of the six languages, three sanctioned empty values, and no missing or unreachable keys. This does not verify translation quality or in-browser layout.
+One focused read-only check was run: `node validateLocalization.cjs` in the Cosmic Forge app exited 0 and reported 2,621 keys in each of the six languages, three sanctioned empty values, and no missing or unreachable keys. This source-side result does not establish MIAPLACIDUS value coverage, selected-locale route availability, or rendered layout; those are tracked in Phase 7.
 
 ## Scale at the snapshot
 

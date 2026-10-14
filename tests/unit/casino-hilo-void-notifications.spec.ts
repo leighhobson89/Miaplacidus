@@ -115,7 +115,6 @@ const SOURCE_COPY: Record<
 };
 
 const LOCALES = Object.keys(SOURCE_COPY) as LocaleId[];
-const sourcePrizeName = "20CP";
 const SOURCE_HILO_COPY: Record<LocaleId, readonly string[]> = {
   en: [
     "+{amount} CP",
@@ -450,7 +449,10 @@ describe("Higher or Lower and Void Seer source-style notifications", () => {
             award: { type: "cp", amount: 20 },
           }),
         ),
-        SOURCE_COPY[locale].hiloFullDeck.replace("{prize}", sourcePrizeName),
+        SOURCE_COPY[locale].hiloFullDeck.replace(
+          "{prize}",
+          SOURCE_HILO_COPY[locale][0]!.replace("{amount}", "20"),
+        ),
         "info",
         2500,
       );
@@ -523,7 +525,9 @@ describe("Higher or Lower and Void Seer source-style notifications", () => {
       } as EngineEvent;
       expectNotice(
         casinoEventNotice(locale, eventWithCount),
-        SOURCE_COPY[locale].hiloCashOut.replace("{count}", "4").replace("{prize}", sourcePrizeName),
+        SOURCE_COPY[locale].hiloCashOut
+          .replace("{count}", "4")
+          .replace("{prize}", SOURCE_HILO_COPY[locale][0]!.replace("{amount}", "20")),
         "info",
         2500,
       );

@@ -8,6 +8,7 @@ import { starshipTravelPlan } from "../../../src/engine/spaceMechanics";
 import { playerFleetBuildCost } from "../../../src/engine/fleetMechanics";
 import { starshipModulePartCost } from "../../../src/engine/spaceRules";
 import type { GameState } from "../../../src/engine/state";
+import { starMapText } from "../../../src/i18n/starMapMessages";
 import { spaceText } from "../../../src/i18n/spaceMessages";
 import {
   LOCALIZATION_VALIDATION_DATA as STARSHIP_LOCALIZATION,
@@ -116,6 +117,27 @@ async function startStarshipFixture(
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
 }
 
+async function clearQueuedNotifications(page: import("@playwright/test").Page): Promise<void> {
+  const notificationStack = page.getByTestId("notification-stack");
+  for (const notificationsEnabled of [false, true]) {
+    const accepted = await page.evaluate(
+      (enabled) =>
+        window.miaplacidusTest!.dispatch({
+          type: "settings.update",
+          patch: { notificationsEnabled: enabled },
+        }),
+      notificationsEnabled,
+    );
+    expect(accepted).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
+      )
+      .toBe(notificationsEnabled);
+    await expect(notificationStack).toBeEmpty();
+  }
+}
+
 async function prepareStarshipTowardSirius(
   page: import("@playwright/test").Page,
   buildScanner = false,
@@ -132,11 +154,11 @@ async function prepareStarshipTowardSirius(
     () => window.miaplacidusTest!.getState().run.space.starship.destinationSystemId,
   ))!;
 
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
   const pane = page.getByTestId("starship-pane");
   if (buildScanner) {
     const scanner = pane.getByTestId("starship-module-stellarScanner");
-    const buildPart = scanner.getByRole("button", { name: "Build one part" });
+    const buildPart = scanner.getByRole("button", { name: "Build Module" });
     for (let part = 0; part < 8; part += 1) await buildPart.click();
     await expect(scanner).toHaveCount(0);
   }
@@ -148,9 +170,9 @@ async function launchPreparedStarship(
   destinationId: string,
 ): Promise<{ destinationId: string; durationMs: number }> {
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
   const pane = page.getByTestId("starship-pane");
-  const launchButton = pane.getByRole("button", { name: "Launch starship" });
+  const launchButton = pane.getByRole("button", { name: "Travel" });
   await launchButton.click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
@@ -196,8 +218,9 @@ test("builds required modules at discounted costs while the scanner stays option
   page,
 }) => {
   await startStarshipFixture(page);
+  await clearQueuedNotifications(page);
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
 
   const pane = page.getByTestId("starship-pane");
   await expect(pane.locator("[data-testid^='starship-module-']")).toHaveCount(5);
@@ -211,7 +234,7 @@ test("builds required modules at discounted costs while the scanner stays option
   await expect(structural).toContainText(`$${formatNumber("en", 2_707.5, 2)}`);
 
   const before = await page.evaluate(() => window.miaplacidusTest!.getState());
-  await structural.getByRole("button", { name: "Build one part" }).click();
+  await structural.getByRole("button", { name: "Build Module" }).click();
   const afterFirstPart = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(afterFirstPart.run.cash).toBeCloseTo(before.run.cash - 2_707.5, 6);
   expect(afterFirstPart.run.goods.steel.quantity).toBeCloseTo(
@@ -240,7 +263,7 @@ test("builds required modules at discounted costs while the scanner stays option
         ? afterFirstPart.run.space.starshipModules.structural.builtParts
         : 0;
     for (let index = builtParts; index < partCount; index += 1) {
-      await card.getByRole("button", { name: "Build one part" }).click();
+      await card.getByRole("button", { name: "Build Module" }).click();
     }
     await expect(card).toHaveCount(0);
   }
@@ -253,7 +276,7 @@ test("builds required modules at discounted costs while the scanner stays option
   await expect(readyNotice).toHaveClass(/notification-info/);
   const scanner = pane.getByTestId("starship-module-stellarScanner");
   await expect(scanner).toBeVisible();
-  await expect(scanner.getByRole("button", { name: "Build one part" })).toBeEnabled();
+  await expect(scanner.getByRole("button", { name: "Build Module" })).toBeEnabled();
   const travelSummary = pane.locator(".starship-travel-summary");
   await expect(travelSummary).toBeVisible();
   const summaryPrecedesIllustration = await travelSummary.evaluate((summary) => {
@@ -265,7 +288,7 @@ test("builds required modules at discounted costs while the scanner stays option
   });
   expect(summaryPrecedesIllustration).toBe(true);
   for (let part = 0; part < 8; part += 1) {
-    await scanner.getByRole("button", { name: "Build one part" }).click();
+    await scanner.getByRole("button", { name: "Build Module" }).click();
   }
   await expect(scanner).toHaveCount(0);
   await expect(pane.locator(".starship-module-grid")).toHaveCount(0);
@@ -275,6 +298,7 @@ test("cancels the point-of-no-return prompt and arrives through the saved voyage
   page,
 }) => {
   await startStarshipFixture(page, "space-starship-ready");
+  await clearQueuedNotifications(page);
   await page.getByRole("tab", { name: "Interstellar" }).click();
 
   const map = page.getByTestId("star-map-pane");
@@ -286,8 +310,8 @@ test("cancels the point-of-no-return prompt and arrives through the saved voyage
     .click();
 
   const starship = page.getByTestId("starship-pane");
-  await page.getByRole("tab", { name: "Starship" }).click();
-  const launchButton = starship.getByRole("button", { name: "Launch starship" });
+  await page.locator("#tab-interstellar-starship").click();
+  const launchButton = starship.getByRole("button", { name: "Travel" });
   await expect(launchButton).toBeEnabled();
   const before = await page.evaluate(() => window.miaplacidusTest!.getState());
   await launchButton.click();
@@ -295,7 +319,7 @@ test("cancels the point-of-no-return prompt and arrives through the saved voyage
   const warning = page.getByRole("dialog", { name: "Warning: point of no return" });
   await expect(warning).toBeVisible();
   expect(await warning.evaluate((element) => element.matches(":modal"))).toBe(true);
-  await expect(warning).toContainText("cannot be recovered in this run");
+  await expect(warning).toContainText(starshipText("en", "pointOfNoReturn"));
   await warning.getByRole("button", { name: "Cancel" }).click();
   await expect(warning).toBeHidden();
   await expect(launchButton).toBeFocused();
@@ -361,7 +385,7 @@ test("blocks the irreversible Starship launch one antimatter short @starship-fue
     .getByTestId("star-selection")
     .getByRole("button", { name: "Set as destination" })
     .click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
   await saveNowFromSettings(page);
 
   const savedState = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -386,13 +410,13 @@ test("blocks the irreversible Starship launch one antimatter short @starship-fue
   try {
     await shortfallPage.getByRole("tab", { name: "Interstellar" }).click();
     await expectSelectedRouteReadiness(shortfallPage, "red-disabled-text");
-    await shortfallPage.getByRole("tab", { name: "Starship" }).click();
+    await shortfallPage.locator("#tab-interstellar-starship").click();
     const starship = shortfallPage.getByTestId("starship-pane");
     const travelSummary = starship.locator(".starship-travel-summary");
     await expect(travelSummary.locator(".space-cost-list")).toContainText(
       `${starshipText("en", "fuelCost")}: ${formattedFuel}`,
     );
-    const launchButton = travelSummary.getByRole("button", { name: "Launch starship" });
+    const launchButton = travelSummary.getByRole("button", { name: "Travel" });
     await expect(launchButton).toBeDisabled();
     await expect(launchButton).toHaveAttribute("aria-describedby", "starship-launch-reason");
     await expect(travelSummary.locator("#starship-launch-reason")).toHaveText(
@@ -411,13 +435,13 @@ test("blocks the irreversible Starship launch one antimatter short @starship-fue
   try {
     await exactStockPage.getByRole("tab", { name: "Interstellar" }).click();
     await expectSelectedRouteReadiness(exactStockPage, "green-ready-text");
-    await exactStockPage.getByRole("tab", { name: "Starship" }).click();
+    await exactStockPage.locator("#tab-interstellar-starship").click();
     const starship = exactStockPage.getByTestId("starship-pane");
     const travelSummary = starship.locator(".starship-travel-summary");
     await expect(travelSummary.locator(".space-cost-list")).toContainText(
       `${starshipText("en", "fuelCost")}: ${formattedFuel}`,
     );
-    const launchButton = travelSummary.getByRole("button", { name: "Launch starship" });
+    const launchButton = travelSummary.getByRole("button", { name: "Travel" });
     await expect(launchButton).toBeEnabled();
     await expect(launchButton).not.toHaveAttribute("aria-describedby", "starship-launch-reason");
     const beforeCancel = await exactStockPage.evaluate(() => window.miaplacidusTest!.getState());
@@ -451,9 +475,9 @@ test("shows the starship's live journey countdown on its page @starship-live-cou
     .getByRole("button", { name: "Set as destination" })
     .click();
 
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
   const starship = page.getByTestId("starship-pane");
-  await starship.getByRole("button", { name: "Launch starship" }).click();
+  await starship.getByRole("button", { name: "Travel" }).click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
     .getByRole("button", { name: "Confirm launch" })
@@ -506,7 +530,7 @@ test("localizes Starship journey progress name and values in every locale @stars
     .click();
   await page.locator("#tab-interstellar-starship").click();
   const starship = page.getByTestId("starship-pane");
-  await starship.getByRole("button", { name: "Launch starship" }).click();
+  await starship.getByRole("button", { name: "Travel" }).click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
     .getByRole("button", { name: "Confirm launch" })
@@ -591,41 +615,52 @@ test("localizes Colonise scan report labels and numeric readings in every locale
     await expect(
       report.getByRole("heading", { name: starshipText(locale, "scanReport") }),
     ).toBeVisible();
-    const labels = report.locator("dt");
-    await expect(labels).toHaveText(labelKeys.map((key) => starshipText(locale, key)));
+    const labels = await report.locator("dt").evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const clone = node.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll("button").forEach((button) => button.remove());
+        return clone.textContent?.trim().replace(/\s+/g, " ") ?? "";
+      }),
+    );
+    expect(labels).toEqual([
+      starMapText(locale, "sortName"),
+      starMapText(locale, "ascendency"),
+      starMapText(locale, "weather"),
+      ...labelKeys.map((key) => starshipText(locale, key)),
+    ]);
     await expect(report.getByTestId("starship-system-scan-results")).toHaveText(
       starshipText(locale, encounter!.lifeDetected ? "lifeDetected" : "noLifeDetected"),
     );
     const readings = report.locator("dd");
-    await expect(readings).toHaveCount(labelKeys.length);
+    await expect(readings).toHaveCount(labelKeys.length + 3);
     for (const reading of await readings.allTextContents()) {
       expect(reading.trim().length).toBeGreaterThan(0);
     }
-    await expect(readings.nth(0)).toHaveText(encounter!.raceName);
-    await expect(readings.nth(2)).toHaveText(
+    await expect(readings.nth(3)).toHaveText(encounter!.raceName);
+    await expect(readings.nth(5)).toHaveText(
       formatNumber(locale, encounter!.populationEstimate, 2, scanState.settings.notation),
     );
-    await expect(readings.nth(4)).toHaveText(
+    await expect(readings.nth(7)).toHaveText(
       formatNumber(locale, encounter!.defenseRating, 2, scanState.settings.notation),
     );
-    await expect(readings.nth(1)).toHaveText(
+    await expect(readings.nth(4)).toHaveText(
       starshipScanTokenText(locale, "civilization", encounter!.civilizationLevel),
     );
-    await expect(readings.nth(3)).toHaveText(
+    await expect(readings.nth(6)).toHaveText(
       starshipScanTokenText(locale, "threat", encounter!.threatLevel),
     );
-    await expect(readings.nth(5)).toHaveText(
+    await expect(readings.nth(8)).toHaveText(
       starshipScanTokenText(locale, "attitude", encounter!.attitude),
     );
-    await expect(readings.nth(7)).toHaveText(
+    await expect(readings.nth(10)).toHaveText(
       formatNumber(locale, encounter!.patience, 2, scanState.settings.notation),
     );
-    await expect(readings.nth(10)).toHaveText(
+    await expect(readings.nth(13)).toHaveText(
       encounter!.lifeformTraits
         .map((trait) => starshipScanTokenText(locale, "trait", trait))
         .join(", "),
     );
-    await expect(readings.nth(11)).toHaveText(
+    await expect(readings.nth(14)).toHaveText(
       encounter!.anomalies
         .map((anomaly) => starshipScanTokenText(locale, "anomaly", anomaly))
         .join(", ") || "—",
@@ -706,14 +741,13 @@ test("scans an orbiting destination once and persists stable hostility data @sta
   page,
 }) => {
   await startStarshipFixture(page, "space-starship-scanning");
+  await clearQueuedNotifications(page);
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
 
   const pane = page.getByTestId("starship-pane");
   const scanButton = pane.getByTestId("starship-scan-system-button");
-  const scanAnnouncement = pane.getByTestId("starship-scan-announcement");
   await expect(scanButton).toBeEnabled();
-  await expect(scanAnnouncement).toBeEmpty();
   const before = await page.evaluate(() => window.miaplacidusTest!.getState());
   await scanButton.click();
   const scannedSystemName = createStarCatalogue().find(
@@ -726,10 +760,7 @@ test("scans an orbiting destination once and persists stable hostility data @sta
   await expect(scanNotice).toHaveClass(/notification-info/);
   await expect(pane.getByTestId("starship-scan-complete")).toBeVisible();
   await expect(pane.getByTestId("starship-system-scan-results")).toBeHidden();
-  await expect(scanAnnouncement).toHaveAttribute("aria-live", "polite");
-  await expect(scanAnnouncement).toHaveAttribute("aria-atomic", "true");
-  await expect(scanAnnouncement).toHaveText("System scan complete");
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
   const scanReport = pane.getByTestId("starship-colonise-scan-report");
   await expect(scanReport).toBeVisible();
   await expect(scanReport.getByTestId("starship-system-scan-results")).toContainText(
@@ -762,7 +793,7 @@ test("allows a scan without a Stellar Scanner and marks its readings unknown @st
 }) => {
   await startStarshipFixture(page, "space-starship-scanning-blind");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
 
   const pane = page.getByTestId("starship-pane");
   const stateBefore = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -774,12 +805,19 @@ test("allows a scan without a Stellar Scanner and marks its readings unknown @st
     "No Stellar Scanner is installed",
   );
 
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
   const report = pane.getByTestId("starship-colonise-scan-report");
   await expect(report.getByTestId("starship-scan-report-limited-notice")).toBeVisible();
   await expect(report.getByTestId("starship-system-scan-results")).toHaveText("???");
   await expect(report.getByTestId("starship-system-scan-results")).toHaveClass(/red-disabled-text/);
-  await expect(report.locator("dd")).toHaveText(Array(12).fill("???"));
+  const readings = report.locator("dd");
+  await expect(readings).toHaveCount(15);
+  for (let index = 0; index < 3; index += 1) {
+    await expect(readings.nth(index)).not.toHaveText("???");
+  }
+  for (let index = 3; index < 15; index += 1) {
+    await expect(readings.nth(index)).toHaveText("???");
+  }
 
   const scanned = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(scanned.run.space.systemEncounters).toHaveLength(1);
@@ -788,14 +826,14 @@ test("allows a scan without a Stellar Scanner and marks its readings unknown @st
 test("builds an Envoy and records message and harmony effects @starship", async ({ page }) => {
   await startStarshipFixture(page, "space-diplomacy");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+  await page.locator("#tab-interstellar-fleet-hangar").click();
 
   const pane = page.getByTestId("starship-pane");
   const hangar = pane.getByTestId("starship-fleet-hangar");
   const diplomacy = pane.getByTestId("starship-diplomacy");
   const initial = await page.evaluate(() => window.miaplacidusTest!.getState());
-  await page.getByRole("tab", { name: "Colonise" }).click();
-  const messageButton = diplomacy.getByRole("button", { name: "Send a message" });
+  await page.locator("#tab-interstellar-colonise").click();
+  const messageButton = diplomacy.getByTestId("starship-diplomacy-message-button");
   await expect(messageButton).toBeDisabled();
   await expect(messageButton).toHaveAttribute(
     "aria-describedby",
@@ -804,8 +842,8 @@ test("builds an Envoy and records message and harmony effects @starship", async 
   await expect(diplomacy.locator("#starship-diplomacy-message-reason")).toContainText(
     "Scan a sentient civilization and build an Envoy",
   );
-  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
-  await hangar.getByRole("button", { name: "Build Envoy" }).click();
+  await page.locator("#tab-interstellar-fleet-hangar").click();
+  await hangar.getByTestId("starship-envoy-build").click();
 
   const built = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(built.run.space.fleetEnvoyBuilt).toBe(true);
@@ -816,7 +854,7 @@ test("builds an Envoy and records message and harmony effects @starship", async 
 
   await pane
     .getByTestId("starship-fleet-scout")
-    .getByRole("button", { name: "Build one ship" })
+    .getByRole("button", { name: starshipText("en", "buildFleetShip"), exact: true })
     .click();
   const scoutBuilt = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(scoutBuilt.run.space.playerFleets.scout).toBe(1);
@@ -825,14 +863,14 @@ test("builds an Envoy and records message and harmony effects @starship", async 
   expect(scoutBuilt.run.goods.silicon.quantity).toBe(built.run.goods.silicon.quantity - 1_000);
   expect(scoutBuilt.run.goods.titanium.quantity).toBe(built.run.goods.titanium.quantity - 300);
 
-  await page.getByRole("tab", { name: "Colonise" }).click();
-  await diplomacy.getByRole("button", { name: "Send a message" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
+  await diplomacy.getByTestId("starship-diplomacy-message-button").click();
   await expect(pane.getByTestId("starship-diplomacy-message")).toBeVisible();
   const messaged = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(messaged.run.space.systemEncounters[0]?.lastDiplomacyMessage).toMatch(/^message/);
   expect(messaged.run.space.systemEncounters[0]?.patience).toBe(4);
 
-  await diplomacy.getByRole("button", { name: "Seek harmony" }).click();
+  await diplomacy.getByTestId("starship-diplomacy-harmony-button").click();
   const harmonized = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(harmonized.run.space.systemEncounters[0]?.lastDiplomacyMessage).toMatch(/^harmony/);
   expect(harmonized.run.space.systemEncounters[0]?.patience).toBeLessThanOrEqual(2);
@@ -868,9 +906,9 @@ test("shows the Envoy shortfall one unit below cost and enables it at exact stoc
   expect(underfunded.run.goods.titanium.quantity).toBe(120);
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+  await page.locator("#tab-interstellar-fleet-hangar").click();
   const hangar = page.getByTestId("starship-fleet-hangar");
-  const envoyButton = hangar.getByRole("button", { name: "Build Envoy" });
+  const envoyButton = hangar.getByTestId("starship-envoy-build");
   await expect(envoyButton).toBeDisabled();
   await expect(envoyButton).toHaveAttribute("aria-describedby", "starship-envoy-reason");
   await expect(hangar.locator("#starship-envoy-reason")).toHaveText(
@@ -885,7 +923,7 @@ test("shows the Envoy shortfall one unit below cost and enables it at exact stoc
   expect(exactlyAffordable.run.goods.titanium.quantity).toBe(120);
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+  await page.locator("#tab-interstellar-fleet-hangar").click();
   await expect(envoyButton).toBeEnabled();
   await envoyButton.click();
 
@@ -924,9 +962,9 @@ test("shows the module-part shortfall and enables construction once stock covers
   expect(shaped.run.goods.silicon.quantity).toBe(shortStock);
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
   const structural = page.getByTestId("starship-module-structural");
-  const buildButton = structural.getByRole("button", { name: "Build one part" });
+  const buildButton = structural.getByRole("button", { name: "Build Module" });
   const costLines = structural.locator(".space-cost-list");
   await expect(costLines).toContainText(`${formatNumber("en", shortfall.amount)} Silicon`);
   await expect(buildButton).toBeDisabled();
@@ -985,7 +1023,7 @@ test("shows the fleet-unit shortfall and enables purchase at exact stock @p06-st
   expect(shaped.run.goods.hydrogen.quantity).toBeCloseTo(shortfall.amount - 1, 6);
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+  await page.locator("#tab-interstellar-fleet-hangar").click();
   const hangar = page.getByTestId("starship-fleet-hangar");
   const scout = hangar.getByTestId("starship-fleet-scout");
   const buildButton = scout.getByTestId("starship-fleet-build-scout");
@@ -1078,10 +1116,10 @@ test("Fleet Hangar build controls support keyboard focus and activation @fleet-c
 }) => {
   await startStarshipFixture(page, "space-diplomacy");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Fleet Hangar" }).click();
+  await page.locator("#tab-interstellar-fleet-hangar").click();
 
   const hangar = page.getByTestId("starship-fleet-hangar");
-  const envoyButton = hangar.getByRole("button", { name: "Build Envoy" });
+  const envoyButton = hangar.getByTestId("starship-envoy-build");
   const scoutButton = hangar.getByTestId("starship-fleet-build-scout");
   const before = await page.evaluate(() => window.miaplacidusTest!.getState());
 
@@ -1113,7 +1151,7 @@ test.describe("Fleet Hangar touch controls", () => {
     await startStarshipFixture(page, "space-diplomacy");
     await expect.poll(() => page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
     await page.getByRole("tab", { name: "Interstellar" }).tap();
-    await page.getByRole("tab", { name: "Fleet Hangar" }).tap();
+    await page.locator("#tab-interstellar-fleet-hangar").tap();
 
     const hangar = page.getByTestId("starship-fleet-hangar");
     const scoutButton = hangar.getByTestId("starship-fleet-build-scout");

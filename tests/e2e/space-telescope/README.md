@@ -1,4 +1,6 @@
-# Space telescope, asteroids and rockets
+# Space Telescope and combined Space Mining journeys
+
+Rocket-only browser specs and their snapshots live in [Rockets](../rockets/README.md). Asteroid, Mining, and Launch Pad specs live in [Space Mining](../space-mining/README.md). This folder keeps Telescope-specific specs and journeys that combine Telescope with other space pages.
 
 ## Rule matrix
 
@@ -95,7 +97,7 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; n
 ```
 
 **P-20 timer completion announcement follow-up (9 October 2026):** Star Study
-completion feedback remains a persistent native `output`/`status` with
+completion feedback was then a persistent native `output`/`status` with
 `aria-live="polite"` and explicit `aria-atomic="true"`. Void Pillage now uses
 the source-matched localized special/info notification containing its actual
 gains. Its `output`/`status` is atomic inside the always-mounted global polite
@@ -111,6 +113,10 @@ port 4712:
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4712'; node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/space-telescope/space-telescope.spec.ts -g 'exposes live Star Study and Void Pillage progress'
 ```
+
+The 11 October P-20 source audit below supersedes that earlier pane-local
+Star Study completion output; current completion announcements use the global
+notification region.
 
 P-64 progressbar accessibility follow-up (8 October 2026): asteroid scanning, Star Study, Void Pillage, Rocket fueling, and outbound Rocket travel each expose the expected localized accessible progressbar name in all six locales (`en`, `es`, `pt`, `de`, `it`, `fr`). The Star Study and Void Pillage browser path additionally asserts each native `<progress>` value is within its maximum of 100 and increases after advancing the test clock by one second. The focused installed-Chrome run passed 4/4:
 
@@ -169,7 +175,7 @@ Durable snapshots are in
 - `phase6-mining-terminal-desktop.png`
 - `phase6-mining-light-mobile.png`
 
-P-07 timer completion presentation follow-up (9 October 2026): Star Study and Void Pillage now advance through their full timer in the browser journey. Each completion removes its progressbar and shows the localized completion feedback; the Star Study check also verifies the range increased. The weather journey expires natural weather windows until the deterministic system produces a different condition, then checks that the launch-pad weather label reflects it and the next countdown is active. The focused installed-Chrome run passed all three affected timer journeys (3/3):
+P-07 timer completion presentation follow-up (9 October 2026): Star Study and Void Pillage advanced through their full timers in the browser journey. At that time, each completion removed its progressbar and asserted localized pane feedback; the Star Study check also verified the range increased. The later P-20 source audit superseded those pane-local completion assertions in favor of the global notices described below. The weather journey expires natural weather windows until the deterministic system produces a different condition, then checks that the launch-pad weather label reflects it and the next countdown is active. The focused installed-Chrome run passed all three affected timer journeys (3/3):
 
 ```powershell
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
@@ -301,7 +307,7 @@ progress change. The current page identifies the rocket and outbound task but
 does not render the specific asteroid name while the rocket is in flight.
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4484'; node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/p13-space-mining-rocket-travel.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4484'; node .\node_modules\playwright\cli.js test tests/e2e/rockets/p13-space-mining-rocket-travel.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **E-57 Space Mining narrow-locale review (10 October 2026):** the focused Chrome review checks the Space Telescope's discounted multi-good quote and localized material shortfall, all four Rocket assembly part quotes and the one-material disabled reason, and active progress/countdown on Rockets 1–4. Each surface is checked at 390px and 320px in `en`, `es`, `pt`, `de`, `it`, and `fr`; visible quotes, actions, status text, and progress remain inside the viewport with no page-level horizontal overflow. The Telescope and Rocket checks passed 2/2 as part of the six-case E-57 run (6/6 in 1.8 minutes, port 4679). No page-component or shared-CSS correction was needed.
@@ -311,7 +317,7 @@ Visual checkpoint: [e57-space-telescope-cost-fr-320.png](e57-space-telescope-cos
 Focused command: `$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4679'; node .\node_modules\playwright\cli.js test --pass-with-no-tests tests/e2e/space-telescope/e57-space-mining-narrow-locale-context.spec.ts tests/e2e/star-map/e57-star-map-data-narrow-locale-context.spec.ts tests/e2e/starship/e57-interstellar-narrow-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line`
 
 **E-57 Launch Pad construction context (10 October 2026):**
-`e57-launch-pad-cost-locale-context.spec.ts` checks the exact localized cash
+[`e57-launch-pad-cost-locale-context.spec.ts`](../space-mining/e57-launch-pad-cost-locale-context.spec.ts) checks the exact localized cash
 and three-material construction quote, the build action, and the Telescope
 state at 390px and 320px in all six locales. It checks the cost list, each
 price row, action, pane, and document bounds. The French 320px capture was
@@ -325,7 +331,7 @@ Launch Pad construction quote's narrow-width gap; the test uses the existing
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4817'
-node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-launch-pad-4817 tests/e2e/space-telescope/e57-launch-pad-cost-locale-context.spec.ts
+node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-launch-pad-4817 tests/e2e/space-mining/e57-launch-pad-cost-locale-context.spec.ts
 ```
 
 The six-locale narrow content coverage for the unlocked Asteroids list and
@@ -333,7 +339,7 @@ Mining summary is recorded below; the preceding page-identity matrix only
 covered their titles, artwork, and bounds.
 
 **E-57 Asteroids and Mining content (10 October 2026):** the separate
-`e57-space-mining-content-locale-context.spec.ts` uses a test-only
+[`e57-space-mining-content-locale-context.spec.ts`](../space-mining/e57-space-mining-content-locale-context.spec.ts) uses a test-only
 `space-asteroid-mining` fixture with all four asteroid rarities, Rocket 1–3
 reservations, one depleted asteroid, and one actively mining Rocket. Across
 390px and 320px in all six locales, it checks every visible rarity, reservation
@@ -343,7 +349,7 @@ run and lifetime totals against the live engine state; and checks the localized
 boost action is available and stays in bounds. One keyboard hold/release also
 confirms the boost state changes and resets. The focused installed-Chrome run
 passed **1/1 in 10.7 seconds** on isolated port 4825. French 320px captures were
-reviewed: [Asteroids](e57-asteroids-fr-320.png) and [Mining](e57-mining-fr-320.png)
+reviewed: [Asteroids](../space-mining/e57-asteroids-fr-320.png) and [Mining](../space-mining/e57-mining-fr-320.png)
 both fit the visible rows and actions without document-level horizontal
 overflow. No app presentation change was needed.
 
@@ -351,12 +357,12 @@ overflow. No app presentation change was needed.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4825'
-node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/e57-space-mining-content-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-space-mining-4825
+node .\node_modules\playwright\cli.js test tests/e2e/space-mining/e57-space-mining-content-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-space-mining-4825
 ```
 
 ## P-54 E-57 fuel-pump quote at narrow widths (10 October 2026)
 
-`e57-fuel-pump-locale-context.spec.ts` checks Rocket 1's localized pump-cost
+[`e57-fuel-pump-locale-context.spec.ts`](../rockets/e57-fuel-pump-locale-context.spec.ts) checks Rocket 1's localized pump-cost
 label, formatted cash quote, enabled purchase action, and card/action/document
 bounds at 320px and 390px in all six locales. French captures at both widths
 were visually reviewed; the long translated heading and purchase label wrap
@@ -371,7 +377,7 @@ quote and action fit.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4828'
-node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/e57-fuel-pump-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-phone-costs-4828
+node .\node_modules\playwright\cli.js test tests/e2e/rockets/e57-fuel-pump-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-phone-costs-4828
 ```
 
 **P-29 Telescope and Rocket audio routes (10 October 2026):** Cosmic Forge's
@@ -436,7 +442,7 @@ isolated port 4835; the focused selector unit passed **1/1**. Typecheck and
 Oxfmt checks passed. No production change was needed.
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4835'; node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/p06-launch-pad-affordance.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p06-launch-pad-affordance-4835
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4835'; node .\node_modules\playwright\cli.js test tests/e2e/space-mining/p06-launch-pad-affordance.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p06-launch-pad-affordance-4835
 ```
 
 ## P-29 Antimatter boost audio parity (10 October 2026)
@@ -450,7 +456,7 @@ and material-shortfall reasons; Rocket 1-4 part costs, material reasons,
 outbound progress names/countdowns; Launch Pad and fuel-pump prices; and
 Asteroid/Mining route labels and live readouts at 320px/390px. The new
 `tests/e2e/localization/p45-space-interstellar-results.spec.ts` adds rendered
-completion copy for Star Study feedback/notification and Void Pillage notices
+completion notices for Star Study and Void Pillage
 in all six locales. No untranslated Space result copy was found. These cases
 passed as part of the combined P-45 installed-Chrome run, **4/4 in 1.1
 minutes** on port 5072; no game code change was needed.
@@ -687,6 +693,32 @@ The source review removed duplicate pane-local live outputs for asteroid search,
 Star Study, and rocket arrival/return, which the app already routes to its
 persistent global notification region. The Star Study notice now includes the
 updated range in all six locales. The former local `space-feedback` completion
-assertions are stale and must be reconciled during the deferred regression
-pass; no tests or checks were run for this source change. Spoken screen-reader
-verification remains open.
+assertions have been reconciled: the Space Mining pane now clears its prior
+action feedback when a survey ends, while the global localized notice remains
+the sole completion announcement. The P-45 locale case and the timer progress
+case assert that no local completion output remains. At the 11 October handoff,
+no tests had been run for this addendum; the focused Chrome reruns are recorded
+below. Spoken screen-reader verification remains open.
+
+## 14 October 2026 focused regression recovery
+
+The saved telescope failure selection initially ran **27 cases: 13 passed and
+14 failed**. After fixing the reachable source-behavior assertions and the
+duplicate pane-local success copy, the six assigned repair cases each passed
+in focused no-update reruns: E-57 narrow Rocket journey, P-05 Star Study
+keyboard order, P-45 fuel-pump copy, P-20 telescope build/scan announcement,
+P-20 Void Pillage notice, and the Rocket fuel-pump journey. The adjacent P-65
+child-navigation title-spacing case also passed **1/1**. These functional
+results were collected across focused reruns, not one combined run. Root's
+separate P-45 Star Study/Void Pillage locale cases passed **1/1 each**.
+
+The seven reviewed screenshot cases refreshed **15 PNG baselines** across
+desktop and phone widths. Every refreshed capture was visually reviewed. The
+Tech Tree desktop and phone baselines now reflect the stable measured graph
+viewport; only its blank lower viewport area changed. The final no-update
+Chrome confirmation passed **7/7 in 36.2 seconds** on port 4224, with output in
+`%TEMP%\miaplacidus-space-telescope-no-update-after-refresh-20261014`.
+
+The full regression suite was not rerun in this telescope recovery. Firefox,
+WebKit, and spoken screen-reader verification also remain unrun; the latter
+was already an open P-20 follow-up.

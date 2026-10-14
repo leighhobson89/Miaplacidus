@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { type Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
@@ -48,9 +49,18 @@ const guideDocuments = [
   { label: "Philosophies", firstHeading: "Philosophies" },
 ];
 
+async function dismissTutorialIfVisible(page: Page): Promise<void> {
+  const dismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+  if (await dismissButton.isVisible()) await dismissButton.click();
+}
+
 test("Miaplaedia maps each guide option to its own source document @cosmicopedia @presentation @ui-navigation", async ({
   freshGame,
 }, testInfo) => {
+  await dismissTutorialIfVisible(freshGame);
+  await freshGame.addStyleTag({
+    content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
+  });
   await freshGame.locator("#tab-settings").click();
   const settingsOptions = freshGame.locator("#pane-settings .pane-nav [role='tab']");
   await expect(settingsOptions).toHaveCount(settingsDestinations.length);
@@ -272,7 +282,12 @@ test("Events guide points to the Settings page in every locale @cosmicopedia @lo
     const renderedBody = freshGame
       .locator("#panel-miaplaedia-concepts-mid .miaplaedia-entry-body")
       .nth(eventsArticleIndex);
-    await expect(renderedBody).toContainText(settingsText(locale, "title"));
+    const sourceBody = articles[eventsArticleIndex]!.body;
+    expect(sourceBody.trim(), `${locale} Events guide value`).not.toBe("");
+    if (locale === "en") {
+      expect(sourceBody).toContain(settingsText(locale, "title"));
+    }
+    await expect(renderedBody).toHaveText(sourceBody);
     await expect(renderedBody).not.toContainText(/menu|menú|menü/i);
   }
 });
@@ -496,6 +511,7 @@ test("Philosophies source keys render all seven articles in six locales @cosmico
 test("Remaining Miaplaedia guides have reviewed desktop and phone presentation captures @p66-visual-review", async ({
   freshGame,
 }, testInfo) => {
+  await dismissTutorialIfVisible(freshGame);
   await freshGame.locator("#tab-miaplaedia").click();
   const pane = freshGame.locator("#pane-miaplaedia");
   await expect(pane.locator(".page-artwork-row")).toHaveCount(0);
@@ -511,7 +527,7 @@ test("Remaining Miaplaedia guides have reviewed desktop and phone presentation c
         patch: { locale: "en", themeId },
       });
     }, view.theme);
-    await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-theme", view.theme);
+    await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", view.theme);
     await freshGame.addStyleTag({
       content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
     });
@@ -539,6 +555,7 @@ test("Remaining Miaplaedia guides have reviewed desktop and phone presentation c
 test("Early Concepts has durable desktop and phone presentation captures @p66-visual-review", async ({
   freshGame,
 }, testInfo) => {
+  await dismissTutorialIfVisible(freshGame);
   await freshGame.locator("#tab-miaplaedia").click();
   const pane = freshGame.locator("#pane-miaplaedia");
   const route = MIAPLAEDIA_PANE_IDS[2]!;
@@ -558,7 +575,7 @@ test("Early Concepts has durable desktop and phone presentation captures @p66-vi
         patch: { locale: "en", themeId },
       });
     }, view.theme);
-    await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-theme", view.theme);
+    await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", view.theme);
     await pane.locator(`#tab-${route}`).click();
     const article = pane.locator(`#panel-${route} .miaplaedia-page`);
     await expect(article.locator(".game-page-title")).toHaveText("Concepts - Early");

@@ -33,10 +33,15 @@ test("locale switching preserves Starship travel identity, price, and save slot 
     .click();
   await page.locator("#tab-interstellar-starship").click();
   const starship = page.getByTestId("starship-pane");
-  await starship.getByRole("button", { name: "Launch starship" }).click();
+  const launch = starship.getByRole("button", {
+    name: starshipText("en", "launch"),
+    exact: true,
+  });
+  await expect(launch).toBeEnabled();
+  await launch.click();
   await page
-    .getByRole("dialog", { name: "Warning: point of no return" })
-    .getByRole("button", { name: "Confirm launch" })
+    .getByRole("dialog", { name: starshipText("en", "pointOfNoReturnTitle"), exact: true })
+    .getByRole("button", { name: starshipText("en", "confirmLaunch"), exact: true })
     .click();
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.starship.phase))

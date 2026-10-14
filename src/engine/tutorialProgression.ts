@@ -43,6 +43,7 @@ export function isProgressionTutorialMilestoneSatisfied(
     case "exploreTechTree":
     case "inspectScienceClub":
     case "visitVisualSettings":
+    case "openThemeDropdown":
     case "visitAudioSettings":
     case "readAudioSettings":
     case "visitMiaplaediaGetStarted":

@@ -30,6 +30,16 @@ import type { GameState } from "./state";
 import type { SpaceEvent } from "./spaceCommands";
 import { galacticTabUnlocked } from "./galacticProgression";
 
+export interface VoidSeerOutcome {
+  readonly playId: number;
+  readonly tier: 1 | 2 | 3;
+  readonly first: number;
+  readonly second: number;
+  readonly won: boolean;
+  readonly detail: string;
+  readonly clueTemplateIndex?: number;
+}
+
 export type CasinoCommand =
   | {
       readonly type: "casino.points.buy";
@@ -42,7 +52,8 @@ export type CasinoCommand =
   | { readonly type: "casino.higher-lower.start" }
   | { readonly type: "casino.higher-lower.guess"; readonly direction: "higher" | "lower" }
   | { readonly type: "casino.higher-lower.cash-out" }
-  | { readonly type: "casino.void-seer.play"; readonly tier: 1 | 2 | 3 };
+  | { readonly type: "casino.void-seer.play"; readonly tier: 1 | 2 | 3 }
+  | { readonly type: "casino.void-seer.resolve"; readonly outcome: VoidSeerOutcome };
 
 export type CasinoFailure = {
   readonly code:
@@ -58,7 +69,8 @@ export type CasinoFailure = {
     | "casino-round-missing"
     | "casino-cash-out-too-early"
     | "casino-invalid-guess"
-    | "casino-invalid-tier";
+    | "casino-invalid-tier"
+    | "casino-invalid-void-seer-result";
   readonly messageKey: `casino.reason.${string}`;
 };
 
@@ -155,7 +167,12 @@ export type CasinoEvent =
       readonly outcome?: HigherLowerOutcome;
     }
   | {
+      readonly type: "casino.void-seer.started";
+      readonly outcome: VoidSeerOutcome;
+    }
+  | {
       readonly type: "casino.void-seer.result";
+      readonly playId: number;
       readonly tier: 1 | 2 | 3;
       readonly first: number;
       readonly second: number;
@@ -169,6 +186,45 @@ const SUITS: readonly CasinoCardSuit[] = ["clubs", "diamonds", "hearts", "spades
 const VOID_SEER_CP_COST: Readonly<Record<1 | 2 | 3, number>> = { 1: 7, 2: 10, 3: 15 };
 const VOID_SEER_MAX: Readonly<Record<1 | 2 | 3, number>> = { 1: 6, 2: 8, 3: 12 };
 type CasinoCompletionEvent = TimerEvent | SpaceEvent;
+
+function validVoidSeerOutcome(value: unknown): value is VoidSeerOutcome {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const outcome = value as Partial<VoidSeerOutcome>;
+  const expected = ["playId", "tier", "first", "second", "won", "detail"];
+  if (outcome.clueTemplateIndex !== undefined) expected.push("clueTemplateIndex");
+  if (
+    Object.keys(value).sort().join("|") !== [...expected].sort().join("|") ||
+    !Number.isSafeInteger(outcome.playId) ||
+    outcome.playId! < 1 ||
+    (outcome.tier !== 1 && outcome.tier !== 2 && outcome.tier !== 3) ||
+    !Number.isSafeInteger(outcome.first) ||
+    outcome.first! < 0 ||
+    outcome.first! > VOID_SEER_MAX[outcome.tier] ||
+    !Number.isSafeInteger(outcome.second) ||
+    outcome.second! < 0 ||
+    outcome.second! > VOID_SEER_MAX[outcome.tier] ||
+    typeof outcome.won !== "boolean" ||
+    outcome.won !== (outcome.first === outcome.second) ||
+    typeof outcome.detail !== "string" ||
+    outcome.detail.length > 160 ||
+    (outcome.clueTemplateIndex !== undefined &&
+      (!Number.isSafeInteger(outcome.clueTemplateIndex) || outcome.clueTemplateIndex! < 0))
+  )
+    return false;
+
+  if (!outcome.won) return outcome.detail === "loss";
+  if (outcome.tier === 3) return /^antimatter:[1-9]\d*$/.test(outcome.detail);
+  if (outcome.tier === 1) {
+    return (
+      (outcome.detail === "o-type-clue" || outcome.detail.startsWith("o-type-clue:")) &&
+      (outcome.clueTemplateIndex === undefined || outcome.clueTemplateIndex <= 2)
+    );
+  }
+  return (
+    (outcome.detail === "manuscript-clue" || outcome.detail.startsWith("manuscript-clue:")) &&
+    (outcome.clueTemplateIndex === undefined || outcome.clueTemplateIndex <= 9)
+  );
+}
 
 export function isCasinoCommand(value: { readonly type: string }): value is CasinoCommand {
   return value.type.startsWith("casino.");
@@ -296,6 +352,11 @@ export function checkCasinoCommand(state: GameState, command: CasinoCommand): Ca
         : casino.casinoPoints < VOID_SEER_CP_COST[command.tier]
           ? fail("casino-insufficient-cp")
           : null;
+    case "casino.void-seer.resolve":
+      return validVoidSeerOutcome(command.outcome) &&
+        command.outcome.playId <= state.statistics.acceptedCommands
+        ? null
+        : fail("casino-invalid-void-seer-result");
   }
 }
 
@@ -1166,6 +1227,48 @@ export function applyCasinoCommand(
       otherEvents: prize.completedEvents,
     };
   }
+  if (command.type === "casino.void-seer.resolve") {
+    const { outcome } = command;
+    let next = state;
+    if (outcome.won) {
+      next = markGameWon(next, "voidSeer");
+      next = updateStats(next, "voidSeerWon", 1);
+      if (outcome.tier === 3) {
+        const amount = Number(outcome.detail.slice("antimatter:".length));
+        next = {
+          ...next,
+          run: {
+            ...next.run,
+            space: { ...next.run.space, antimatter: next.run.space.antimatter + amount },
+          },
+        };
+      }
+    }
+    next = recordHistory(next, {
+      gameId: "voidSeer",
+      result: outcome.detail,
+      cpSpent: VOID_SEER_CP_COST[outcome.tier],
+      cpAwarded: 0,
+    });
+    return {
+      state: next,
+      events: [
+        {
+          type: "casino.void-seer.result",
+          playId: outcome.playId,
+          tier: outcome.tier,
+          first: outcome.first,
+          second: outcome.second,
+          won: outcome.won,
+          detail: outcome.detail,
+          ...(outcome.clueTemplateIndex === undefined
+            ? {}
+            : { clueTemplateIndex: outcome.clueTemplateIndex }),
+        },
+      ],
+    };
+  }
+
   const cost = VOID_SEER_CP_COST[command.tier];
   let next = updateWallet(state, -cost);
   next = addPlayedStats(next, "voidSeer", cost);
@@ -1176,19 +1279,10 @@ export function applyCasinoCommand(
   let detail = "loss";
   let clueTemplateIndex: number | undefined;
   if (won) {
-    next = markGameWon(next, "voidSeer");
-    next = updateStats(next, "voidSeerWon", 1);
     if (command.tier === 3) {
       const draw = drawUnit(next);
       next = draw.state;
       const amount = Math.max(1, Math.floor(next.run.space.antimatter * (0.1 + draw.value * 0.2)));
-      next = {
-        ...next,
-        run: {
-          ...next.run,
-          space: { ...next.run.space, antimatter: next.run.space.antimatter + amount },
-        },
-      };
       detail = `antimatter:${amount}`;
     } else if (command.tier === 1) {
       const eligible = next.run.space.systemProfiles
@@ -1225,21 +1319,17 @@ export function applyCasinoCommand(
       } else detail = "manuscript-clue";
     }
   }
-  next = recordHistory(next, { gameId: "voidSeer", result: detail, cpSpent: cost, cpAwarded: 0 });
-  return {
-    state: next,
-    events: [
-      {
-        type: "casino.void-seer.result",
-        tier: command.tier,
-        first: firstDraw.value,
-        second: secondDraw.value,
-        won,
-        detail,
-        ...(clueTemplateIndex === undefined ? {} : { clueTemplateIndex }),
-      },
-    ],
+
+  const outcome: VoidSeerOutcome = {
+    playId: state.statistics.acceptedCommands + 1,
+    tier: command.tier,
+    first: firstDraw.value,
+    second: secondDraw.value,
+    won,
+    detail,
+    ...(clueTemplateIndex === undefined ? {} : { clueTemplateIndex }),
   };
+  return { state: next, events: [{ type: "casino.void-seer.started", outcome }] };
 }
 
 function isStarshipOccupyingSystem(state: GameState, systemId: string): boolean {

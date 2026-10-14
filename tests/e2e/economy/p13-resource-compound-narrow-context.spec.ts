@@ -21,9 +21,43 @@ async function startFullEconomyFixture(page: Page): Promise<void> {
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await stabilizeCapture(page);
   await page.addStyleTag({
     content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
   });
+}
+
+async function stabilizeCapture(page: Page): Promise<void> {
+  const tutorialStatus = await page.evaluate(
+    () => window.miaplacidusTest!.getState().permanent.progressionTutorial.status,
+  );
+  if (tutorialStatus === "available") {
+    const dismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+    await expect(dismissButton).toBeVisible();
+    await dismissButton.click();
+  }
+  await expect(page.locator(".progression-tutorial")).toHaveCount(0);
+
+  const notifications = page.getByTestId("notification-stack").getByTestId("game-notification");
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(false);
+  await expect(notifications).toHaveCount(0);
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: true },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);
 }
 
 async function readState(page: Page) {
@@ -84,7 +118,7 @@ test("P-13 Hydrogen and Diesel balances, prices, and actions fit at 320px @p13-e
   await expect(salePreview).toContainText("$");
   await expect(fuse).toBeVisible();
   await expect(fuse.getByLabel("Output Hydrogen")).toBeVisible();
-  await expect(fuse.getByLabel("Fusion Amount Hydrogen")).toBeVisible();
+  await expect(fuse.getByLabel("Fuse Amount Hydrogen")).toBeVisible();
   await expect(fuseAction).toBeEnabled();
 
   for (const [element, name] of [
@@ -126,7 +160,7 @@ test("P-13 Hydrogen and Diesel balances, prices, and actions fit at 320px @p13-e
   );
 
   await fuse.getByLabel("Output Hydrogen").selectOption("helium");
-  await fuse.getByLabel("Fusion Amount Hydrogen").fill("100");
+  await fuse.getByLabel("Fuse Amount Hydrogen").fill("100");
   await fuseAction.click();
   const hydrogenAfterFusion = await readState(page);
   expect(hydrogenAfterFusion.run.goods.hydrogen.quantity).toBe(beforeCollect + 1 - 100);

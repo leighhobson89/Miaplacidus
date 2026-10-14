@@ -64,9 +64,7 @@ test("P-54 E-57 Black Hole status, upgrade costs, and progress fit in all locale
     }),
   );
   await page.setViewportSize(VIEWPORTS[0]);
-  await research
-    .getByRole("button", { name: new RegExp(blackHoleText("en").researchAction) })
-    .click();
+  await research.locator(".space-action-help-group > .primary-button").click();
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(15_000));
   const active = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(active.permanent.blackHole.researched).toBe(true);
@@ -101,8 +99,15 @@ test("P-54 E-57 Black Hole status, upgrade costs, and progress fit in all locale
         pane.getByRole("progressbar", { name: copy.charging, exact: true }),
       ).toBeVisible();
       for (const [upgradeId, price] of upgradePrices) {
-        const expectedPrice = `${copy.upgradeNames[upgradeId]} · ${formatNumber(locale, price, 0, active.settings.notation)} RP`;
-        await expect(pane.getByRole("button", { name: expectedPrice, exact: true })).toBeVisible();
+        const upgradeIndex = ["power", "duration", "recharge"].indexOf(upgradeId);
+        const upgradeButton = pane
+          .locator(".black-hole-upgrade")
+          .nth(upgradeIndex)
+          .getByRole("button");
+        await expect(upgradeButton).toBeVisible();
+        await expect(upgradeButton).toContainText(
+          `${formatNumber(locale, price, 0, active.settings.notation)} ${copy.researchPoints}`,
+        );
       }
 
       const bounds = await page.evaluate(() => {

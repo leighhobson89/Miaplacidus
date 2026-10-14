@@ -4,6 +4,7 @@ import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { THEME_IDS, type ThemeId } from "../../../src/content/themes";
 import { economyLabel } from "../../../src/i18n/economyMessages";
 import { philosophyText } from "../../../src/i18n/philosophyMessages";
+import { spaceText } from "../../../src/i18n/spaceMessages";
 
 const VIEWPORTS = [
   { width: 1280, height: 900 },
@@ -17,7 +18,7 @@ const RESEARCH_ROUTES = [
     tabId: "tab-research-science-buildings",
     panelId: "panel-research-science-buildings",
     labelKey: "research",
-    titleSelector: ".economy-section-heading > .game-page-title",
+    titleSelector: ".economy-section-heading > .economy-page-title-row > .game-page-title",
     artworkSelector: ":scope > .page-artwork-row",
     emblemSelector: "[data-emblem-kind='laboratory']",
     sourceOptionId: "option1",
@@ -27,7 +28,7 @@ const RESEARCH_ROUTES = [
     tabId: "tab-research-tech-tree",
     panelId: "panel-research-tech-tree",
     labelKey: "technologyTree",
-    titleSelector: ".economy-section-heading > .game-page-title",
+    titleSelector: ".economy-section-heading > .economy-page-title-row > .game-page-title",
     artworkSelector: ":scope > .page-artwork-row",
     emblemSelector: "[data-emblem-kind='technology']",
     sourceOptionId: "option3",
@@ -70,8 +71,12 @@ async function startExpansionistResearchFixture(page: Page): Promise<void> {
     .toBe(true);
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope", exact: true }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page
+    .getByRole("button", { name: spaceText("en", "telescopeBuild"), exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: spaceText("en", "studyStars"), exact: true })
+    .click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({
@@ -96,7 +101,7 @@ async function setPresentation(page: Page, locale: LocaleId, theme: ThemeId): Pr
     { nextLocale: locale, nextTheme: theme },
   );
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 async function visibleTabLabel(page: Page, tabId: string): Promise<string> {

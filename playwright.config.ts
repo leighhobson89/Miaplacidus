@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
 
 const area = process.env.MIAPLACIDUS_TEST_AREA;
 const browserChannel = process.env.MIAPLACIDUS_BROWSER_CHANNEL;
@@ -8,6 +9,8 @@ if (!Number.isInteger(testPort) || testPort < 1 || testPort > 65_535) {
   throw new Error("MIAPLACIDUS_TEST_PORT must be an integer from 1 to 65535");
 }
 const testBaseUrl = `http://127.0.0.1:${testPort}`;
+const testOutputDir = process.env.MIAPLACIDUS_TEST_OUTPUT_DIR ?? "test-results";
+const reportDir = process.env.MIAPLACIDUS_TEST_REPORT_DIR ?? "playwright-report";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -19,11 +22,12 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   timeout: 30_000,
   expect: { timeout: 5_000 },
+  outputDir: path.resolve(testOutputDir),
   grep: area ? new RegExp(`@${area}`) : undefined,
   reporter: [
     ["list"],
-    ["html", { outputFolder: "playwright-report", open: "never" }],
-    ["json", { outputFile: "test-results/e2e-results.json" }],
+    ["html", { outputFolder: path.resolve(reportDir, "html"), open: "never" }],
+    ["json", { outputFile: path.resolve(reportDir, "e2e-results.json") }],
   ],
   use: {
     baseURL: testBaseUrl,

@@ -7,7 +7,7 @@ import {
   selectCasinoPointPurchase,
   selectEconomyAction,
 } from "../engine/selectors";
-import type { CasinoCommand } from "../engine/galacticCasino";
+import type { CasinoCommand, VoidSeerOutcome } from "../engine/galacticCasino";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import {
@@ -31,16 +31,24 @@ import { useGameNotifications } from "./NotificationStack";
 import { casinoWheelAttemptFailureNotice, starNameFromIdentity } from "./casinoEventNotifications";
 import { CelestialIllustration } from "./CelestialIllustration";
 import { PageArtworkRow } from "./PageArtworkRow";
+import {
+  VOID_SEER_REEL_DURATIONS_MS,
+  VOID_SEER_REEL_FRAME_MS,
+  VOID_SEER_REEL_MIN_LOOPS,
+} from "./galacticCasinoTiming";
 
 interface Props {
   readonly state: GameState;
   readonly store: GameStore;
+  readonly pendingVoidSeerPresentation?: {
+    readonly outcome: VoidSeerOutcome;
+    readonly startedAt: number;
+  } | null;
 }
 
 type PaymentId = EconomicGoodId | "cash";
 
 const VOID_SEER_MAX = { 1: 6, 2: 8, 3: 12 } as const;
-
 const CARD_SUIT_SYMBOLS: Readonly<Record<CasinoCardSuit, string>> = {
   clubs: "♣",
   diamonds: "♦",
@@ -90,9 +98,12 @@ function cardAccessibleName(
     .replace("{suit}", suitName);
 }
 
-export function GalacticCasinoPane({ state, store }: Props) {
+export function GalacticCasinoPane({ state, store, pendingVoidSeerPresentation = null }: Props) {
   const notify = useGameNotifications();
   const locale = state.settings.locale;
+  const [isNarrowViewport, setIsNarrowViewport] = useState(
+    () => window.matchMedia("(max-width: 600px)").matches,
+  );
   const formatQuantity = (value: number, maximumFractionDigits = 0): string =>
     formatNumber(locale, value, maximumFractionDigits, state.settings.notation);
   const quantity = (numberLocale: GameState["settings"]["locale"], value: number): string =>
@@ -103,6 +114,16 @@ export function GalacticCasinoPane({ state, store }: Props) {
   const [stake, setStake] = useState("1");
   const [specialPrize, setSpecialPrize] = useState<CasinoSpecialPrize | null>(null);
   const [voidTier, setVoidTier] = useState<1 | 2 | 3>(1);
+  const [voidRolls, setVoidRolls] = useState({ first: 0, second: 0 });
+  const [voidSeerAnimation, setVoidSeerAnimation] = useState<{
+    readonly outcome: VoidSeerOutcome;
+    readonly startedAt: number;
+  } | null>(null);
+  const [voidSeerAnnouncement, setVoidSeerAnnouncement] = useState<{
+    readonly first: number;
+    readonly second: number;
+  } | null>(null);
+  const [voidSeerSpinning, setVoidSeerSpinning] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [wheelRotation, setWheelRotation] = useState(0);
   const [wheelSpinning, setWheelSpinning] = useState(false);
@@ -114,6 +135,13 @@ export function GalacticCasinoPane({ state, store }: Props) {
   const helpTooltipOffset = useRef(0);
   const pendingHigherLowerFocus = useRef(false);
   const higherGuessButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 600px)");
+    const updateViewport = () => setIsNarrowViewport(mediaQuery.matches);
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
   const fitHelpTooltip = () => {
     window.requestAnimationFrame(() => {
       const tooltip = helpTooltipRef.current;
@@ -166,6 +194,64 @@ export function GalacticCasinoPane({ state, store }: Props) {
   useEffect(() => {
     if (specialPrize !== null && !specialPrizeSelectionAvailable) setSpecialPrize(null);
   }, [specialPrize, specialPrizeSelectionAvailable]);
+  useEffect(() => {
+    if (!pendingVoidSeerPresentation) return;
+    setVoidSeerSpinning(true);
+    setVoidRolls({ first: 0, second: 0 });
+    setVoidSeerAnnouncement(null);
+    setVoidSeerAnimation(pendingVoidSeerPresentation);
+  }, [pendingVoidSeerPresentation?.outcome.playId, pendingVoidSeerPresentation?.startedAt]);
+  useEffect(() => {
+    if (!voidSeerAnimation) return;
+
+    const startedAt = voidSeerAnimation.startedAt;
+    const { outcome } = voidSeerAnimation;
+    const valuesPerReel = VOID_SEER_MAX[outcome.tier] + 1;
+    const getReelValue = (elapsedMs: number, durationMs: number, finalValue: number) => {
+      if (elapsedMs >= durationMs) return finalValue;
+      const steps = valuesPerReel * VOID_SEER_REEL_MIN_LOOPS;
+      const step = Math.floor((elapsedMs / durationMs) * steps);
+      return step % valuesPerReel;
+    };
+    const updateReels = () => {
+      const elapsedMs = performance.now() - startedAt;
+      const next = {
+        first: getReelValue(
+          elapsedMs,
+          VOID_SEER_REEL_DURATIONS_MS[0],
+          outcome.first,
+        ),
+        second: getReelValue(
+          elapsedMs,
+          VOID_SEER_REEL_DURATIONS_MS[1],
+          outcome.second,
+        ),
+      };
+      setVoidRolls((previous) =>
+        previous.first === next.first && previous.second === next.second ? previous : next,
+      );
+    };
+
+    updateReels();
+    const intervalId = window.setInterval(updateReels, VOID_SEER_REEL_FRAME_MS);
+    const firstStopId = window.setTimeout(() => {
+      setVoidRolls((previous) => ({ ...previous, first: outcome.first }));
+    }, Math.max(0, VOID_SEER_REEL_DURATIONS_MS[0] - (performance.now() - startedAt)));
+    const secondStopId = window.setTimeout(() => {
+      setVoidRolls({ first: outcome.first, second: outcome.second });
+      setVoidSeerAnnouncement({
+        first: outcome.first,
+        second: outcome.second,
+      });
+      setVoidSeerSpinning(false);
+      setVoidSeerAnimation(null);
+    }, Math.max(0, VOID_SEER_REEL_DURATIONS_MS[1] - (performance.now() - startedAt)));
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(firstStopId);
+      window.clearTimeout(secondStopId);
+    };
+  }, [voidSeerAnimation]);
   const claimPrize = selectedSpecialPrize ?? availableSpecials[0] ?? "special_100cp";
   const amount = Number(buyAmount);
   const purchasePlan = selectCasinoPointPurchase(state, activePaymentId, amount);
@@ -281,6 +367,23 @@ export function GalacticCasinoPane({ state, store }: Props) {
     setWheelSpinning(true);
     setWheelRotation(wheelRotation + 6 * 360 + delta);
     setFeedback("");
+  }
+
+  function spinVoidSeer(): void {
+    if (voidSeerSpinning || pendingVoidSeerPresentation) return;
+    const result = store.dispatch(voidCommand);
+    if (!result.accepted) {
+      setFeedback(casinoFailureText(locale, result.failure?.code ?? ""));
+      return;
+    }
+    const event = result.events.find((entry) => entry.type === "casino.void-seer.started");
+    if (event?.type === "casino.void-seer.started") {
+      setVoidRolls({ first: 0, second: 0 });
+      setVoidSeerAnnouncement(null);
+      setVoidSeerSpinning(true);
+      setVoidSeerAnimation({ outcome: event.outcome, startedAt: performance.now() });
+      setFeedback("");
+    }
   }
 
   const higherLower = casino.higherLower;
@@ -439,7 +542,10 @@ export function GalacticCasinoPane({ state, store }: Props) {
       </PageArtworkRow>
       {!casinoUnlocked(state) ? <p>{casinoText(locale, "locked")}</p> : null}
 
-      <div className="action-grid casino-grid">
+      <div
+        className="action-grid casino-grid"
+        style={isNarrowViewport ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}
+      >
         <article className="upgrade-card">
           <div className="card-copy">
             <div className="casino-title-with-help">
@@ -871,7 +977,14 @@ export function GalacticCasinoPane({ state, store }: Props) {
               <select
                 aria-label={casinoText(locale, "tier")}
                 value={voidTier}
-                onChange={(event) => setVoidTier(Number(event.currentTarget.value) as 1 | 2 | 3)}
+                disabled={voidSeerSpinning || pendingVoidSeerPresentation !== null}
+                onChange={(event) => {
+                  setVoidTier(Number(event.currentTarget.value) as 1 | 2 | 3);
+                  setVoidSeerAnimation(null);
+                  setVoidSeerAnnouncement(null);
+                  setVoidSeerSpinning(false);
+                  setVoidRolls({ first: 0, second: 0 });
+                }}
               >
                 {([1, 2, 3] as const).map((tier) => (
                   <option key={tier} value={tier}>
@@ -889,6 +1002,38 @@ export function GalacticCasinoPane({ state, store }: Props) {
             <p>
               {casinoText(locale, "chance")}: 1/{VOID_SEER_MAX[voidTier] + 1}
             </p>
+            <div
+              role="group"
+              aria-label={casinoText(locale, "voidSeer")}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+            >
+              <span
+                className="green-ready-text"
+                aria-hidden="true"
+                style={{ display: "block", fontSize: "3em" }}
+              >
+                {quantity(locale, voidRolls.first)}
+              </span>
+              <span
+                className="green-ready-text"
+                aria-hidden="true"
+                style={{ display: "block", fontSize: "3em" }}
+              >
+                {quantity(locale, voidRolls.second)}
+              </span>
+            </div>
+            {voidSeerAnnouncement ? (
+              <output className="sr-only" aria-live="polite" aria-atomic="true">
+                {casinoText(locale, "voidSeerFirstNumber").replace(
+                  "{number}",
+                  quantity(locale, voidSeerAnnouncement.first),
+                )}{" "}
+                {casinoText(locale, "voidSeerSecondNumber").replace(
+                  "{number}",
+                  quantity(locale, voidSeerAnnouncement.second),
+                )}
+              </output>
+            ) : null}
             <p className="sr-only" id="casino-void-seer-action-context">
               {casinoText(locale, "voidSeer")} {casinoText(locale, "tier")}: {casinoVoidSeerPrizeName(
                 locale,
@@ -906,13 +1051,17 @@ export function GalacticCasinoPane({ state, store }: Props) {
               type="button"
               className="secondary-button"
               data-testid="casino-void-seer-play"
-              disabled={!voidCheck.enabled}
+              disabled={
+                !voidCheck.enabled ||
+                voidSeerSpinning ||
+                pendingVoidSeerPresentation !== null
+              }
               aria-describedby={
                 voidCheck.enabled
                   ? "casino-void-seer-action-context"
                   : "casino-void-seer-action-context casino-void-seer-reason"
               }
-              onClick={() => dispatch({ type: "casino.void-seer.play", tier: voidTier })}
+              onClick={spinVoidSeer}
             >
               {casinoText(locale, "voidSeerSpin")} · {quantity(locale, voidCost)}{" "}
               {casinoVoidSeerCurrency(locale)}

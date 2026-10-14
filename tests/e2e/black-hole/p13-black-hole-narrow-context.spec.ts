@@ -23,7 +23,7 @@ test("Black Hole charge context stays visible at 390px and 320px @p13-black-hole
   const stateBeforeResearch = await page.evaluate(() => window.miaplacidusTest!.getState());
   const initialResearchPoints = stateBeforeResearch.run.researchPoints;
   const researchPrice = stateBeforeResearch.permanent.blackHole.researchPrice;
-  await research.getByRole("button", { name: new RegExp(copy.researchAction) }).click();
+  await research.locator(".space-action-help-group > .primary-button").click();
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(30_000));
 
   const stateDuringCharge = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -67,7 +67,12 @@ test("Black Hole charge context stays visible at 390px and 320px @p13-black-hole
     await expect(pane).toBeVisible();
     await expect(researchBalance).toBeVisible();
     await expect(researchBalance).toHaveText(
-      formatNumber("en", stateDuringCharge.run.researchPoints, 0, stateDuringCharge.settings.notation),
+      formatNumber(
+        "en",
+        stateDuringCharge.run.researchPoints,
+        0,
+        stateDuringCharge.settings.notation,
+      ),
     );
     await expect(cashBalance).toBeVisible();
     await expect(cashBalance).toHaveText(expectedCash);
@@ -84,7 +89,7 @@ test("Black Hole charge context stays visible at 390px and 320px @p13-black-hole
       const button = upgradeButtons.nth(index);
       await expect(button).toBeVisible();
       await expect(button).toContainText(
-        `${formatNumber("en", upgradePrices[index]!, 0, stateDuringCharge.settings.notation)} RP`,
+        `${formatNumber("en", upgradePrices[index]!, 0, stateDuringCharge.settings.notation)} ${copy.researchPoints}`,
       );
     }
     await expect(activation).toBeVisible();

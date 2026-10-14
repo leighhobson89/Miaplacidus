@@ -62,9 +62,16 @@ async function clearCueLog(page: Page): Promise<void> {
   });
 }
 
+async function dismissRandomEventResultIfPresent(page: Page): Promise<void> {
+  const dialog = page.getByTestId("random-event-result-dialog");
+  await dialog.waitFor({ state: "visible", timeout: 1_000 }).catch(() => undefined);
+  if (await dialog.isVisible()) await dialog.getByRole("button").click();
+}
+
 async function openArchiveResearch(page: Page) {
   await page.locator("#tab-galaxy").click();
   await page.locator("#tab-galactic-megastructures").click();
+  await dismissRandomEventResultIfPresent(page);
   await clearCueLog(page);
   return page.getByTestId("megastructure-track-galacticMemoryArchive");
 }
@@ -73,18 +80,19 @@ test("visible stage 3 research plays the regular force-field cue and stage 5 pla
   page,
 }) => {
   await startMegastructureAudioFixture(page, "meta-megastructure-audio");
+  await dismissRandomEventResultIfPresent(page);
   const archive = await openArchiveResearch(page);
   const initial = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(initial.permanent.megastructures.researchedTechnologyIds).not.toContain(
     MEGASTRUCTURE_TRACKS.galacticMemoryArchive[2],
   );
 
-  await archive.getByRole("button", { name: "Research stage" }).click();
+  await archive.getByRole("button", { name: "Research", exact: true }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
-        window.miaplacidusTest!
-          .getState()
+        window
+          .miaplacidusTest!.getState()
           .permanent.megastructures.researchedTechnologyIds.includes(
             "galacticMemoryArchiveDisconnect",
           ),
@@ -94,28 +102,32 @@ test("visible stage 3 research plays the regular force-field cue and stage 5 pla
   await expect
     .poll(() => readCueNames(page))
     .toEqual(["clickButton.mp3", "forcefieldTakedown.mp3"]);
+  await dismissRandomEventResultIfPresent(page);
 
   const stageFour = MEGASTRUCTURE_TRACKS.galacticMemoryArchive[3]!;
   await clearCueLog(page);
-  await archive.getByRole("button", { name: "Research stage" }).click();
+  await archive.getByRole("button", { name: "Research", exact: true }).click();
   await expect
     .poll(() =>
-      page.evaluate((technologyId) =>
-        window.miaplacidusTest!
-          .getState()
-          .permanent.megastructures.researchedTechnologyIds.includes(technologyId),
-      stageFour),
+      page.evaluate(
+        (technologyId) =>
+          window
+            .miaplacidusTest!.getState()
+            .permanent.megastructures.researchedTechnologyIds.includes(technologyId),
+        stageFour,
+      ),
     )
     .toBe(true);
   expect(await readCueNames(page)).toEqual(["clickButton.mp3"]);
+  await dismissRandomEventResultIfPresent(page);
 
   await clearCueLog(page);
-  await archive.getByRole("button", { name: "Research stage" }).click();
+  await archive.getByRole("button", { name: "Research", exact: true }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
-        window.miaplacidusTest!
-          .getState()
+        window
+          .miaplacidusTest!.getState()
           .permanent.megastructures.researchedTechnologyIds.includes(
             "galacticMemoryArchiveConnect",
           ),
@@ -131,6 +143,7 @@ test("fourth force-field milestone plays final takedown cue @megastructures @aud
   page,
 }) => {
   await startMegastructureAudioFixture(page, "meta-megastructure-route");
+  await dismissRandomEventResultIfPresent(page);
   const archive = await openArchiveResearch(page);
   const before = await page.evaluate(() => window.miaplacidusTest!.getState());
   const fieldStages = Object.values(MEGASTRUCTURE_TRACKS).map((track) => track[2]!);
@@ -141,7 +154,7 @@ test("fourth force-field milestone plays final takedown cue @megastructures @aud
   ).toHaveLength(3);
 
   await clearCueLog(page);
-  await archive.getByRole("button", { name: "Research stage" }).click();
+  await archive.getByRole("button", { name: "Research", exact: true }).click();
   await expect(page.getByTestId("megastructure-force-field")).toContainText("4/4");
   await expect
     .poll(() => readCueNames(page))

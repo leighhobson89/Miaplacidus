@@ -32,25 +32,29 @@ test("P-41 formats and updates the Power battery countdown in every notation @p4
   await page.locator("#tab-energy-batteries").click();
   await page
     .locator('[data-building-id="battery1"]')
-    .getByRole("button", { name: "Buy", exact: true })
+    .getByRole("button", { name: /^Add .* MJ$/ })
     .click();
   await page.locator("#tab-energy-power").click();
   await page
-    .locator('[data-building-id="powerPlant2"]')
-    .getByRole("button", { name: "Buy", exact: true })
+    .locator('[data-building-id="powerPlant2"] .economy-building-actions button')
+    .first()
     .click();
 
   await page.getByRole("tab", { name: /Research/ }).click();
   await page.locator("#tab-research-science-buildings").click();
   const lab = page.locator('[data-building-id="scienceLab"]');
-  await lab.getByRole("button", { name: "Buy", exact: true }).click();
-  await lab.getByRole("button", { name: "Pause", exact: true }).click();
+  await lab.locator(".economy-building-actions button").first().click();
+  const labToggle = lab.locator("button[aria-pressed]");
+  await expect(labToggle).toHaveAttribute("aria-pressed", "true");
+  await labToggle.click();
+  await expect(labToggle).toHaveAttribute("aria-pressed", "false");
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(10_000));
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.quantity))
     .toBe(300);
 
-  await lab.getByRole("button", { name: "Resume", exact: true }).click();
+  await labToggle.click();
+  await expect(labToggle).toHaveAttribute("aria-pressed", "true");
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(10_000));
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.quantity))

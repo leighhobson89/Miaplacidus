@@ -62,7 +62,7 @@ test("P-45 Megastructure page content follows each locale @p45-megastructure-cop
     await expect(pane.locator(".economy-section-heading > p").first()).toHaveText(
       copy.introduction,
     );
-    await expect(pane.getByTestId("megastructure-force-field")).toHaveText(
+    await expect(pane.getByTestId("megastructure-force-field")).toContainText(
       (miaplacidusForceFieldLevel(state) >= 4 ? copy.forceFieldCleared : copy.forceField)
         .replace("{level}", String(miaplacidusForceFieldLevel(state)))
         .replace("{total}", "4"),

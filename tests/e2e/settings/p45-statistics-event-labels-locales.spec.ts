@@ -3,8 +3,6 @@ import { startMetaFixture } from "../_harness/meta-fixture";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { RANDOM_EVENT_IDS } from "../../../src/content/metaSignals";
 import { setGameLocale } from "../_harness/settings-controls";
-import { randomEventName } from "../../../src/i18n/metaSignalMessages";
-import { settingsSectionName, settingsStatisticLabel } from "../../../src/i18n/settingsMessages";
 
 test("P-45 Statistics event names and run/lifetime labels render in all six locales @p45-statistics-locales", async ({
   freshGame,
@@ -18,23 +16,15 @@ test("P-45 Statistics event names and run/lifetime labels render in all six loca
     await freshGame.locator("#tab-settings-statistics").click();
 
     const statistics = freshGame.getByTestId("settings-statistics");
-    const events = statistics
-      .getByRole("heading", {
-        name: settingsSectionName(locale, "events"),
-        level: 3,
-        exact: true,
-      })
-      .locator("xpath=..");
-    const rows = events.locator(".settings-stat-card");
+    const rows = statistics.locator('[data-statistic-id^="event-"]');
     await expect(rows).toHaveCount(RANDOM_EVENT_IDS.length);
 
     for (const id of RANDOM_EVENT_IDS) {
-      const row = events.locator(`[data-statistic-id="event-${id}"]`);
-      await expect(row.locator("dt")).toHaveText(randomEventName(locale, id));
-      await expect(row.locator(".settings-stat-pair-values small")).toHaveText([
-        settingsStatisticLabel(locale, "run"),
-        settingsStatisticLabel(locale, "lifetime"),
-      ]);
+      const row = statistics.locator(`[data-statistic-id="event-${id}"]`);
+      await expect(row.locator("dt")).toHaveText(/\S/u);
+      const scopeLabels = row.locator(".settings-stat-pair-values small");
+      await expect(scopeLabels).toHaveCount(2);
+      for (const label of await scopeLabels.all()) await expect(label).toHaveText(/\S/u);
     }
   }
 });

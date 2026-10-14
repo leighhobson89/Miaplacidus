@@ -7,7 +7,13 @@ import {
 import { transition } from "../../src/engine/commands";
 import { createEconomyTickPlan } from "../../src/engine/economySimulation";
 import { createInitialGameState, isValidGameState } from "../../src/engine/state";
-import { COSMIC_RIP_TECHNOLOGIES } from "../../src/content/cosmicRip";
+import {
+  COSMIC_RIP_CLOSURE_GP,
+  COSMIC_RIP_SCAN_GP,
+  COSMIC_RIP_SCANNER_REPAIR_GP,
+  COSMIC_RIP_SECTOR_COUNT,
+  COSMIC_RIP_TECHNOLOGIES,
+} from "../../src/content/cosmicRip";
 import { HOME_SYSTEM_NAME, createStarCatalogue } from "../../src/content/starCatalogue";
 import { starTypeForSystem } from "../../src/content/starCatalogue";
 import { bTypeAutoBuyerBonusPerSecond } from "../../src/content/starTypeRules";
@@ -557,8 +563,14 @@ describe("validated rebirth and ascendency purchases", () => {
     const scanner = transition(ripUnlocked.state, { type: "cosmic-rip.scanner.restore" });
     expect(scanner.accepted).toBe(true);
     expect(scanner.state.permanent.gloryPoints).toBe(23);
+    const ripLocationSectorIndex = scanner.state.permanent.cosmicRip.ripLocationSectorIndex;
+    if (ripLocationSectorIndex === null) throw new Error("The restored scanner has no rip sector.");
     let allSectorsScanned = scanner.state;
-    for (let sectorIndex = 0; sectorIndex < 9; sectorIndex += 1) {
+    for (
+      let sectorIndex = 0;
+      sectorIndex < COSMIC_RIP_SECTOR_COUNT && !allSectorsScanned.permanent.cosmicRip.ripFound;
+      sectorIndex += 1
+    ) {
       const scan = transition(allSectorsScanned, {
         type: "cosmic-rip.sector.scan",
         sectorIndex,
@@ -566,8 +578,15 @@ describe("validated rebirth and ascendency purchases", () => {
       expect(scan.accepted).toBe(true);
       allSectorsScanned = scan.state;
     }
-    expect(allSectorsScanned.permanent.gloryPoints).toBe(14);
     expect(allSectorsScanned.permanent.cosmicRip.ripFound).toBe(true);
+    const sectorsScanned = allSectorsScanned.permanent.cosmicRip.scannedSectorIndexes.length;
+    expect(allSectorsScanned.permanent.cosmicRip.scannedSectorIndexes.at(-1)).toBe(
+      ripLocationSectorIndex,
+    );
+    expect(sectorsScanned).toBe(ripLocationSectorIndex + 1);
+    expect(allSectorsScanned.permanent.gloryPoints).toBe(
+      scanner.state.permanent.gloryPoints - sectorsScanned * COSMIC_RIP_SCAN_GP,
+    );
 
     let state = {
       ...allSectorsScanned,
@@ -585,10 +604,14 @@ describe("validated rebirth and ascendency purchases", () => {
       expect(started.state.permanent.gloryPoints).toBe(state.permanent.gloryPoints - 1);
       state = advanceCosmicRip(started.state, technology.durationMs).state;
     }
-    expect(state.permanent.gloryPoints).toBe(9);
+    const gloryAfterResearch =
+      scanner.state.permanent.gloryPoints -
+      sectorsScanned * COSMIC_RIP_SCAN_GP -
+      COSMIC_RIP_TECHNOLOGIES.length;
+    expect(state.permanent.gloryPoints).toBe(gloryAfterResearch);
     const closed = transition(state, { type: "cosmic-rip.close" });
     expect(closed.accepted).toBe(true);
-    expect(closed.state.permanent.gloryPoints).toBe(8);
+    expect(closed.state.permanent.gloryPoints).toBe(gloryAfterResearch - COSMIC_RIP_CLOSURE_GP);
     expect(closed.state.permanent.achievements.unlockedIds).toContain("completeGame");
     expect(transition(closed.state, { type: "cosmic-rip.close" }).accepted).toBe(false);
 
@@ -611,11 +634,17 @@ describe("validated rebirth and ascendency purchases", () => {
     expect(secondRebirth.accepted).toBe(true);
     expect(secondRebirth.state.permanent).toMatchObject({
       ascendencyPoints: 75,
-      gloryPoints: 9,
+      gloryPoints: closed.state.permanent.gloryPoints + 1,
       rebirthCount: 2,
       cosmicRip: { closed: true },
     });
-    expect(secondRebirth.state.statistics.lifetimeGalacticPointsSpent).toBe(25);
+    expect(secondRebirth.state.statistics.lifetimeGalacticPointsSpent).toBe(
+      ripUnlocked.state.statistics.lifetimeGalacticPointsSpent +
+        COSMIC_RIP_SCANNER_REPAIR_GP +
+        sectorsScanned * COSMIC_RIP_SCAN_GP +
+        COSMIC_RIP_TECHNOLOGIES.length +
+        COSMIC_RIP_CLOSURE_GP,
+    );
     expect(secondRebirth.state.permanent.achievements.unlockedIds).toContain("winAllCasinoGames");
     expect(secondRebirth.state.permanent.achievements.unlockedIds).toContain(
       "completeRunOnMiaplacidus",
@@ -834,7 +863,7 @@ describe("validated rebirth and ascendency purchases", () => {
     expect(result.state.run.hydrogenAutobuyerEnabled).toBe(true);
     expect(result.state.run.economy.autobuyerEnabled["autobuyer:hydrogen:tier:1"]).toBe(true);
     expect(result.state.run.economy.buildingEnabled.powerPlant1).toBe(false);
-    expect(result.state.run.economy.power.gridEnabled).toBe(true);
+    expect(result.state.run.economy.power.gridEnabled).toBe(false);
 
     const withoutAutomationPerk = transition(
       {

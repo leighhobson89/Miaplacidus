@@ -1025,3 +1025,5 @@ export function megastructureResearchResultCopy(
 ): RandomEventDialogCopy | null {
   return messages[locale][technologyId] ?? null;
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

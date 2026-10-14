@@ -25,7 +25,7 @@ async function setTheme(page: Page, theme: ThemeId): Promise<void> {
       }),
     theme,
   );
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 async function expectInsideRail(page: Page, tabId: string, railSelector: string, label: string) {

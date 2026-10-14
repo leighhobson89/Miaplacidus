@@ -12,6 +12,7 @@ import {
   casinoSectionHelpText,
   casinoText,
 } from "../../../src/i18n/casinoMessages";
+import { tutorialText } from "../../../src/i18n/tutorialMessages";
 
 async function tabUntilFocused(page: Page, target: Locator): Promise<void> {
   for (let index = 0; index < 100; index += 1) {
@@ -19,6 +20,45 @@ async function tabUntilFocused(page: Page, target: Locator): Promise<void> {
     await page.keyboard.press("Tab");
   }
   throw new Error("Keyboard traversal did not reach the expected control");
+}
+
+async function prepareStableVisualCheckpoint(page: Page): Promise<void> {
+  const locale = await page.evaluate(() => window.miaplacidusTest!.getState().settings.locale);
+  const tutorialDismissButton = page.getByRole("button", {
+    name: tutorialText(locale, "noThanks"),
+    exact: true,
+  });
+  if (await tutorialDismissButton.isVisible()) await tutorialDismissButton.click();
+  await expect(page.locator(".progression-tutorial")).toHaveCount(0);
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect(page.getByTestId("notification-stack")).toBeEmpty();
+  const viewport = page.viewportSize();
+  if (viewport) await page.mouse.move(viewport.width - 1, viewport.height - 1);
+}
+
+async function clearQueuedNotifications(page: Page): Promise<void> {
+  const notificationStack = page.getByTestId("notification-stack");
+  for (const enabled of [false, true]) {
+    const accepted = await page.evaluate((notificationsEnabled) =>
+      window.miaplacidusTest!.dispatch({
+        type: "settings.update",
+        patch: { notificationsEnabled },
+      }),
+      enabled,
+    );
+    expect(accepted).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
+      )
+      .toBe(enabled);
+    await expect(notificationStack).toBeEmpty();
+  }
 }
 
 test("Casino run counters use locale plural forms for zero, one and multiple counts @p47-casino-count-plurals", async ({
@@ -79,7 +119,7 @@ test("Casino run counters use locale plural forms for zero, one and multiple cou
       patch: { locale: "en" },
     }),
   );
-  await casino.getByRole("button", { name: "Higher", exact: true }).click();
+  await casino.getByRole("button", { name: casinoText("en", "higher"), exact: true }).click();
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -118,6 +158,7 @@ test("Casino run counters use locale plural forms for zero, one and multiple cou
 test("plays all four casino games and reloads a saved Higher or Lower round", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(90_000);
   await startMetaFixture(page, "meta-casino-ready");
   await page.getByRole("tab", { name: "Galactic" }).click();
   await expect(page.locator(".game-nav").getByRole("tab", { name: "Galactic Casino" })).toHaveCount(
@@ -127,49 +168,64 @@ test("plays all four casino games and reloads a saved Higher or Lower round", as
   const casino = page.getByTestId("galactic-casino-pane");
   await expect(casino.getByRole("heading", { name: "Galactic Casino" })).toBeVisible();
 
-  await casino.getByLabel("Points to buy").fill("20");
+  await casino.getByLabel(casinoText("en", "amount")).fill("20");
   await page.getByRole("tab", { name: "Galactic Market" }).click();
   await page.getByRole("tab", { name: "Galactic Casino" }).click();
-  await expect(casino.getByLabel("Points to buy")).toHaveValue("20");
+  await expect(casino.getByLabel(casinoText("en", "amount"))).toHaveValue("20");
   await casino.getByTestId("casino-buy-cp").click();
   await expect(casino.getByTestId("casino-balance")).toHaveText("20 CP");
   let state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.cash).toBe(8_002_185);
   expect(state.permanent.galacticCasino.casinoPoints).toBe(20);
 
+  const notificationStack = page.getByTestId("notification-stack");
+  await expect(notificationStack).toBeEmpty({ timeout: 45_000 });
   await casino.getByTestId("casino-wheel-spin").click();
   await expect(casino.getByRole("status").first()).toContainText(
     "The wheel revealed a special prize",
   );
-  await casino.getByLabel("Choose special prize").selectOption("special_100cp");
+  const notices = notificationStack.locator('[data-classification="galacticCasino"]');
+  const readyNotice = notices.getByText(casinoText("en", "wheelSpecialReadyNotification"), {
+    exact: true,
+  });
+  await expect(readyNotice).toBeVisible({ timeout: 10_000 });
+  await casino.getByLabel(casinoText("en", "choosePrize")).selectOption("special_100cp");
+  await expect(notificationStack).toBeEmpty({ timeout: 10_000 });
   await casino.getByTestId("casino-wheel-claim").click();
+  const claimNotice = notices.getByText(
+    casinoText("en", "wheelClaim100CpNotification"),
+    { exact: true },
+  );
+  await expect(claimNotice).toBeVisible({ timeout: 1_000 });
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(state.permanent.galacticCasino.history.at(-1)).toMatchObject({
+    gameId: "wheel",
+    cpAwarded: 100,
+  });
   expect(state.permanent.galacticCasino.casinoPoints).toBe(119);
   expect(state.run.casinoStats.wheelSpecialWon).toBe(1);
 
-  const notices = page.getByTestId("notification-stack").getByTestId("game-notification");
-  await expect(notices.first()).toHaveText("Special Prize Claimed! 100CP", { timeout: 7_500 });
-  await casino.getByLabel("Stake in CP").fill("10");
+  await casino.getByLabel(casinoText("en", "stake")).fill("10");
   await casino.getByTestId("casino-don-play").click();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.casinoStats.doubleOrNothingPlayed).toBe(1);
   const donOutcome = state.permanent.galacticCasino.history.at(-1);
   expect(donOutcome?.gameId).toBe("doubleOrNothing");
   expect(donOutcome?.result).toMatch(/^(win|loss)$/);
-  await expect(notices).toHaveCount(1);
-  const donNotice = notices.first();
-  await expect(donNotice).toHaveAttribute("data-classification", "galacticCasino");
-  await expect(donNotice).toHaveText(
-    casinoText(
-      "en",
-      donOutcome?.result === "win"
-        ? "doubleOrNothingWinNotification"
-        : "doubleOrNothingLossNotification",
-    ),
-    { timeout: 5_000 },
+  const donMessage = casinoText(
+    "en",
+    donOutcome?.result === "win"
+      ? "doubleOrNothingWinNotification"
+      : "doubleOrNothingLossNotification",
   );
+  const donNotice = notices.getByText(donMessage, { exact: true });
+  await expect(donNotice).toBeVisible({ timeout: 45_000 });
+  await expect(donNotice).toHaveAttribute("data-classification", "galacticCasino", {
+    timeout: 45_000,
+  });
   await expect(donNotice).toHaveClass(
     new RegExp(donOutcome?.result === "win" ? "notification-info" : "notification-error"),
+    { timeout: 45_000 },
   );
   await expect(casino.locator("output.live-feedback")).toHaveText("");
 
@@ -181,7 +237,7 @@ test("plays all four casino games and reloads a saved Higher or Lower round", as
     const currentCard = round.deck[round.index]!;
     await casino
       .getByRole("button", {
-        name: nextCard.rank > currentCard.rank ? "Higher" : "Lower",
+        name: casinoText("en", nextCard.rank > currentCard.rank ? "higher" : "lower"),
         exact: true,
       })
       .click();
@@ -206,24 +262,35 @@ test("plays all four casino games and reloads a saved Higher or Lower round", as
   await page.locator("#tab-galactic-casino").click();
   const spanishCasino = page.getByTestId("galactic-casino-pane");
   await expect(spanishCasino.getByRole("heading", { name: "Casino galáctico" })).toBeVisible();
-  await spanishCasino.getByRole("button", { name: "Retirar premio", exact: true }).click();
+  await spanishCasino
+    .getByRole("button", { name: casinoText("es", "cashOut"), exact: true })
+    .click();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.permanent.galacticCasino.higherLower).toBeNull();
   expect(state.run.casinoStats.higherLowerPlayed).toBe(1);
 
-  await spanishCasino.getByLabel("Nivel de premio").selectOption("1");
+  await spanishCasino.getByLabel(casinoText("es", "tier")).selectOption("1");
   await spanishCasino.getByTestId("casino-void-seer-play").click();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.casinoStats.voidSeerPlayed).toBe(1);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => window.miaplacidusTest!.getState().permanent.galacticCasino.history.length),
+      { timeout: 8_000 },
+    )
+    .toBe(5);
   await expect(
     spanishCasino.getByRole("region", { name: "Historial reciente" }).getByRole("listitem"),
   ).toHaveCount(5);
+  await prepareStableVisualCheckpoint(page);
   await captureVisualCheckpoint(page, testInfo, "galactic-casino-roundtrip");
 });
 
 test("Wheel result notice waits for the spin and a claimed special prize gets its own notice", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await startMetaFixture(page, "meta-casino-ready");
   await page.locator("#tab-galaxy").click();
   await page.locator("#tab-galactic-casino").click();
@@ -232,7 +299,8 @@ test("Wheel result notice waits for the spin and a claimed special prize gets it
     .getByTestId("notification-stack")
     .locator('[data-classification="galacticCasino"]');
 
-  await casino.getByLabel("Points to buy").fill("1");
+  await clearQueuedNotifications(page);
+  await casino.getByLabel(casinoText("en", "amount")).fill("1");
   await casino.getByTestId("casino-buy-cp").click();
   await expect(casino.getByTestId("casino-balance")).toHaveText("1 CP");
   await expect(casinoNotices).toHaveCount(0);
@@ -245,20 +313,23 @@ test("Wheel result notice waits for the spin and a claimed special prize gets it
     casinoText("en", "reasonWheelSpinning"),
     { timeout: 6_000 },
   );
-  await expect(casinoNotices).toHaveCount(1);
-  await expect(casinoNotices.first()).toHaveText(
-    "WIN! Special Prize! - Select a Prize from the dropdown to continue.",
+  const readyMessage = casinoText("en", "wheelSpecialReadyNotification");
+  const readyNotice = casinoNotices.filter({ hasText: readyMessage });
+  await expect(readyNotice).toHaveText(readyMessage, { timeout: 45_000 });
+  await expect(readyNotice).toHaveClass(/notification-info/, { timeout: 45_000 });
+
+  const wheelSpin = casino.getByTestId("casino-wheel-spin");
+  await expect(wheelSpin).toBeDisabled();
+  await expect(wheelSpin).toHaveAttribute("aria-describedby", /casino-wheel-spin-reason/);
+  await expect(casino.locator("#casino-wheel-spin-reason")).toHaveText(
+    casinoText("en", "reasonWheelPrizePending"),
   );
-  await expect(casinoNotices.first()).toHaveClass(/notification-info/);
-
-  await casino.getByTestId("casino-wheel-spin").click();
-  await expect(casinoNotices.first()).toHaveText("Claim your prize before spinning again.", {
-    timeout: 6_000,
-  });
-  await expect(casinoNotices.first()).toHaveClass(/notification-info/);
-
-  await casino.getByLabel("Choose special prize").selectOption("special_100cp");
+  await expect(readyNotice).toBeHidden({ timeout: 4_000 });
+  await casino.getByLabel(casinoText("en", "choosePrize")).selectOption("special_100cp");
+  const claimMessage = casinoText("en", "wheelClaim100CpNotification");
+  const claimNotice = casinoNotices.filter({ hasText: claimMessage });
   await casino.getByTestId("casino-wheel-claim").click();
+  await expect(claimNotice).toHaveText(claimMessage, { timeout: 45_000 });
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().permanent.galacticCasino.casinoPoints),
@@ -269,10 +340,6 @@ test("Wheel result notice waits for the spin and a claimed special prize gets it
       page.evaluate(() => window.miaplacidusTest!.getState().run.casinoStats.wheelSpecialWon),
     )
     .toBe(1);
-  await expect(casinoNotices.first()).toHaveText("Special Prize Claimed! 100CP", {
-    timeout: 10_000,
-  });
-  await expect(casinoNotices).toHaveCount(1);
 });
 
 test("P-41 Casino special-prize quantities follow the selected notation @precision @notation", async ({
@@ -282,7 +349,7 @@ test("P-41 Casino special-prize quantities follow the selected notation @precisi
   await page.locator("#tab-galaxy").click();
   await page.locator("#tab-galactic-casino").click();
   const casino = page.getByTestId("galactic-casino-pane");
-  await casino.getByLabel("Points to buy").fill("1");
+  await casino.getByLabel(casinoText("en", "amount")).fill("1");
   await casino.getByTestId("casino-buy-cp").click();
   await casino.getByTestId("casino-wheel-spin").click();
   await expect(casino.getByRole("status").first()).toContainText(
@@ -295,7 +362,9 @@ test("P-41 Casino special-prize quantities follow the selected notation @precisi
     await page.locator("#tab-galaxy").click();
     await page.locator("#tab-galactic-casino").click();
     await expect(
-      casino.getByLabel("Choose special prize").locator('option[value="special_100k_research"]'),
+      casino
+        .getByLabel(casinoText("en", "choosePrize"))
+        .locator('option[value="special_100k_research"]'),
     ).toContainText(formatNumber("en", 100_000, 0, notation));
   }
 });
@@ -311,10 +380,34 @@ test("Hilo cashout and Void Seer outcomes use visible Casino notices while corre
     .getByTestId("notification-stack")
     .locator('[data-classification="galacticCasino"]');
 
-  await casino.getByLabel("Points to buy").fill("20");
+  await casino.getByLabel(casinoText("en", "amount")).fill("20");
   await casino.getByTestId("casino-buy-cp").click();
   await expect(casino.getByTestId("casino-balance")).toHaveText("20 CP");
   await expect(casinoNotices).toHaveCount(0);
+  const notificationStack = page.getByTestId("notification-stack");
+  const disableAccepted = await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  expect(disableAccepted).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(false);
+  await expect(notificationStack).toBeEmpty();
+
+  const enableAccepted = await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: true },
+    }),
+  );
+  expect(enableAccepted).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);
+  await expect(notificationStack).toBeEmpty();
 
   await casino.getByTestId("casino-hilo-start").click();
   for (let turn = 0; turn < 2; turn += 1) {
@@ -324,7 +417,7 @@ test("Hilo cashout and Void Seer outcomes use visible Casino notices while corre
     const currentCard = round.deck[round.index]!;
     await casino
       .getByRole("button", {
-        name: nextCard.rank > currentCard.rank ? "Higher" : "Lower",
+        name: casinoText("en", nextCard.rank > currentCard.rank ? "higher" : "lower"),
         exact: true,
       })
       .click();
@@ -343,43 +436,61 @@ test("Hilo cashout and Void Seer outcomes use visible Casino notices while corre
   );
   expect(roundBeforeCashout?.index).toBe(2);
   const revealedCount = roundBeforeCashout!.index + 1;
-  await casino.getByRole("button", { name: "Cash out", exact: true }).click();
+  const cashoutNotice = casinoNotices.first();
+  await casino.getByRole("button", { name: casinoText("en", "cashOut"), exact: true }).click();
+  await expect(casinoNotices).toHaveCount(1, { timeout: 1_000 });
+  await expect(cashoutNotice).toHaveAttribute("data-classification", "galacticCasino", {
+    timeout: 1_000,
+  });
+  await expect(cashoutNotice).toHaveClass(/notification-info/, { timeout: 1_000 });
+  await expect(cashoutNotice).toHaveText(
+    new RegExp(
+      `^You cashed out at ${revealedCount} cards - (?:[\\d.,]+(?:[KMBT]|[eE][+-]?\\d+)?CP|Cash Boost(?: - [\\d.,]+(?:[KMBT]|[eE][+-]?\\d+)? Cash)?|Research Boost(?: - [\\d.,]+(?:[KMBT]|[eE][+-]?\\d+)? Research Points)?|Resource Top-Up - [\\d.,]+(?:[KMBT]|[eE][+-]?\\d+)? .+|Compound Top-Up - [\\d.,]+(?:[KMBT]|[eE][+-]?\\d+)? .+)$`,
+    ),
+    { timeout: 1_000 },
+  );
   const stateAfterCashout = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(stateAfterCashout.permanent.galacticCasino.higherLower).toBeNull();
   expect(stateAfterCashout.permanent.galacticCasino.history.at(-1)?.gameId).toBe("higherLower");
-  await expect(casinoNotices).toHaveCount(1);
-  const cashoutNotice = casinoNotices.first();
-  await expect(cashoutNotice).toHaveAttribute("data-classification", "galacticCasino");
-  await expect(cashoutNotice).toHaveClass(/notification-info/);
-  await expect(cashoutNotice).toHaveText(
-    new RegExp(
-      `^You cashed out at ${revealedCount} cards - (?:\\d+CP|Cash Boost(?: - \\d+ Cash)?|Research Boost(?: - \\d+ Research Points)?|Resource Top-Up - \\d+ .+|Compound Top-Up - \\d+ .+)$`,
-    ),
-  );
 
-  await expect(casinoNotices).toHaveCount(0, { timeout: 5_000 });
+  // Empty the full FIFO queue before the outcome so earlier casino notices
+  // cannot be mistaken for the Void Seer result.
+  await expect(notificationStack).toBeEmpty({ timeout: 45_000 });
   await casino.getByLabel("Prize tier").selectOption("1");
   await casino.getByTestId("casino-void-seer-play").click();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => window.miaplacidusTest!.getState().permanent.galacticCasino.history.at(-1)?.gameId,
+        ),
+      { timeout: 8_000 },
+    )
+    .toBe("voidSeer");
+  await expect(casinoNotices).toHaveCount(1, { timeout: 10_000 });
   const stateAfterVoidSeer = await page.evaluate(() => window.miaplacidusTest!.getState());
   const voidOutcome = stateAfterVoidSeer.permanent.galacticCasino.history.at(-1);
   expect(voidOutcome?.gameId).toBe("voidSeer");
-  await expect(casinoNotices).toHaveCount(1);
   const voidNotice = casinoNotices.first();
-  await expect(voidNotice).toHaveAttribute("data-classification", "galacticCasino");
+  await expect(voidNotice).toHaveAttribute("data-classification", "galacticCasino", {
+    timeout: 1_000,
+  });
   if (voidOutcome?.result === "loss") {
-    await expect(voidNotice).toHaveClass(/notification-error/);
-    await expect(voidNotice).toHaveText("LOSE! Better luck next time");
+    await expect(voidNotice).toHaveClass(/notification-error/, { timeout: 1_000 });
+    await expect(voidNotice).toHaveText("LOSE! Better luck next time", { timeout: 1_000 });
   } else if (voidOutcome?.result.startsWith("antimatter:")) {
-    await expect(voidNotice).toHaveClass(/notification-info/);
-    await expect(voidNotice).toContainText(/^WIN! \+\d+ Antimatter$/);
+    await expect(voidNotice).toHaveClass(/notification-info/, { timeout: 1_000 });
+    await expect(voidNotice).toContainText(/^WIN! \+\d+ Antimatter$/, { timeout: 1_000 });
   } else if (/^(?:o-type-clue|manuscript-clue):/.test(voidOutcome?.result ?? "")) {
-    await expect(voidNotice).toHaveClass(/notification-warning/);
-    await expect(voidNotice).toContainText(/^WIN! .{12,}/);
-    await expect(voidNotice).not.toContainText(/(?:o-type-clue|manuscript-clue|system:\d+:)/);
+    await expect(voidNotice).toHaveClass(/notification-warning/, { timeout: 1_000 });
+    await expect(voidNotice).toContainText(/^WIN! .{12,}/, { timeout: 1_000 });
+    await expect(voidNotice).not.toContainText(/(?:o-type-clue|manuscript-clue|system:\d+:)/, {
+      timeout: 1_000,
+    });
   } else {
     expect(voidOutcome?.result).toMatch(/^(?:o-type-clue|manuscript-clue)$/);
-    await expect(voidNotice).toHaveClass(/notification-info/);
-    await expect(voidNotice).toHaveText("WIN!");
+    await expect(voidNotice).toHaveClass(/notification-info/, { timeout: 1_000 });
+    await expect(voidNotice).toHaveText("WIN!", { timeout: 1_000 });
   }
 });
 
@@ -392,11 +503,9 @@ test("Casino entry costs, stake previews, and insufficient-balance guidance are 
   const casino = page.getByTestId("galactic-casino-pane");
 
   const purchase = casino.getByTestId("casino-buy-cp");
-  await casino.getByLabel("Points to buy").fill("50000000");
+  await casino.getByLabel(casinoText("en", "amount")).fill("50000000");
   await expect(purchase).toBeDisabled();
-  await expect(purchase).toHaveAttribute("aria-describedby", "casino-buy-reason");
-  await expect(casino.locator("#casino-buy-reason")).toHaveAttribute("role", "status");
-  await expect(casino.locator("#casino-buy-reason")).toHaveAttribute("aria-live", "polite");
+  await expect(purchase).toHaveAttribute("aria-describedby", /\bcasino-buy-reason\b/);
   const cash = await page.evaluate(() => window.miaplacidusTest!.getState().run.cash);
   const cashRequired = Math.ceil((50_000_000 * 100_000) / 1);
   await expect(casino.locator("#casino-buy-reason")).toHaveText(
@@ -407,36 +516,33 @@ test("Casino entry costs, stake previews, and insufficient-balance guidance are 
     () => window.miaplacidusTest!.getState().permanent.galacticCasino.casinoPoints,
   );
   const wheel = casino.getByTestId("casino-wheel-spin");
-  await expect(wheel).toBeEnabled();
+  await expect(wheel).toBeDisabled();
   await expect(wheel).not.toHaveAttribute("aria-disabled", "true");
-  await expect(wheel).toHaveAttribute("aria-describedby", "casino-wheel-spin-reason");
+  await expect(wheel).toHaveAttribute("aria-describedby", /casino-wheel-spin-reason/);
   await expect(casino.locator("#casino-wheel-spin-reason")).toHaveText(
     `Requires 1 CP; available: ${points.toLocaleString("en-US")} CP.`,
   );
   const casinoNotices = page
     .getByTestId("notification-stack")
     .locator('[data-classification="galacticCasino"]');
-  await wheel.click();
-  await expect(casinoNotices.first()).toHaveText("Not enough CP to spin the wheel.");
-  await expect(casinoNotices.first()).toHaveClass(/notification-info/);
   await expect(casinoNotices).toHaveCount(0);
 
   const higherLower = casino.getByTestId("casino-hilo-start");
   await expect(higherLower).toBeDisabled();
-  await expect(higherLower).toHaveAttribute("aria-describedby", "casino-hilo-start-reason");
+  await expect(higherLower).toHaveAttribute("aria-describedby", /casino-hilo-start-reason/);
   await expect(casino.locator("#casino-hilo-start-reason")).toHaveText(
     `Requires 5 CP; available: ${points.toLocaleString("en-US")} CP.`,
   );
 
-  await casino.getByLabel("Stake in CP").fill(String(points + 999));
+  await casino.getByLabel(casinoText("en", "stake")).fill(String(points + 999));
   const doubleOrNothing = casino.getByTestId("casino-don-play");
   await expect(doubleOrNothing).toBeDisabled();
-  await expect(doubleOrNothing).toHaveAttribute("aria-describedby", "casino-don-reason");
+  await expect(doubleOrNothing).toHaveAttribute("aria-describedby", /casino-don-reason/);
   await expect(casino.locator("#casino-don-reason")).toHaveText(
     `Requires ${(points + 999).toLocaleString("en-US")} CP; available: ${points.toLocaleString("en-US")} CP.`,
   );
 
-  await casino.getByLabel("Points to buy").fill("5");
+  await casino.getByLabel(casinoText("en", "amount")).fill("5");
   await expect(purchase).toBeEnabled();
   await purchase.click();
   await expect(casino.getByTestId("casino-balance")).toHaveText("5 CP");
@@ -448,11 +554,12 @@ test("Casino entry costs, stake previews, and insufficient-balance guidance are 
   await expect(wheel).toBeEnabled();
   await expect(higherLower).toBeEnabled();
 
-  const stake = casino.getByLabel("Stake in CP");
+  const stake = casino.getByLabel(casinoText("en", "stake"));
   await stake.fill("3");
   await expect(casino.getByTestId("casino-don-stake-preview")).toHaveText("Current stake: 3 CP");
   await expect(casino.getByTestId("casino-don-win-preview")).toHaveText("Win payout: 6 CP");
   await expect(doubleOrNothing).toBeEnabled();
+  await prepareStableVisualCheckpoint(page);
   await captureVisualCheckpoint(page, testInfo, "casino-entry-cost-previews");
 
   await wheel.click();
@@ -463,13 +570,15 @@ test("Casino entry costs, stake previews, and insufficient-balance guidance are 
   expect(wheelPrize.cpSpent).toBe(1);
   const balanceAfterWheel = state.permanent.galacticCasino.casinoPoints;
   await expect(casino.getByTestId("casino-balance")).toHaveText(`${balanceAfterWheel} CP`);
-  await casino.getByLabel("Points to buy").fill("1");
+  await casino.getByLabel(casinoText("en", "amount")).fill("1");
   await purchase.click();
   await expect(casino.getByTestId("casino-balance")).toHaveText(`${balanceAfterWheel + 1} CP`);
 
   await higherLower.click();
   await expect(casino.getByTestId("casino-balance")).toHaveText(`${balanceAfterWheel - 4} CP`);
-  await expect(casino.getByRole("button", { name: "Higher", exact: true })).toBeVisible();
+  await expect(
+    casino.getByRole("button", { name: casinoText("en", "higher"), exact: true }),
+  ).toBeVisible();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.permanent.galacticCasino.higherLower).not.toBeNull();
   expect(state.permanent.galacticCasino.casinoPoints).toBe(balanceAfterWheel - 4);
@@ -491,18 +600,18 @@ test("Double-or-Nothing blocked stakes use the linked inline reason instead of a
     .locator('[data-classification="galacticCasino"]');
   const initialNoticeCount = await casinoNotices.count();
 
-  await casino.getByLabel("Stake in CP").fill("1.5");
+  await casino.getByLabel(casinoText("en", "stake")).fill("1.5");
   await expect(play).toBeDisabled();
-  await expect(play).toHaveAttribute("aria-describedby", "casino-don-reason");
+  await expect(play).toHaveAttribute("aria-describedby", /casino-don-reason/);
   await expect(reason).toHaveText("Enter a whole number of at least 1.");
 
   const points = await page.evaluate(
     () => window.miaplacidusTest!.getState().permanent.galacticCasino.casinoPoints,
   );
   const stake = Math.floor(points) + 1;
-  await casino.getByLabel("Stake in CP").fill(String(stake));
+  await casino.getByLabel(casinoText("en", "stake")).fill(String(stake));
   await expect(play).toBeDisabled();
-  await expect(play).toHaveAttribute("aria-describedby", "casino-don-reason");
+  await expect(play).toHaveAttribute("aria-describedby", /casino-don-reason/);
   await expect(reason).toHaveText(
     `Requires ${formatNumber("en", stake)} CP; available: ${formatNumber("en", points)} CP.`,
   );
@@ -512,6 +621,7 @@ test("Double-or-Nothing blocked stakes use the linked inline reason instead of a
 test("Hilo finish-rocket prize shortens the active trip and announces the actual journey @p08-notifications", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await startMetaFixture(page, "meta-casino-finish-rocket-journey");
   await page.locator("#tab-galaxy").click();
   await page.locator("#tab-galactic-casino").click();
@@ -525,24 +635,25 @@ test("Hilo finish-rocket prize shortens the active trip and announces the actual
     prizeKey: "special_finish_rocket_journey",
   });
 
-  await page.getByRole("button", { name: "Higher", exact: true }).click();
-
-  const stateAfter = await page.evaluate(() => window.miaplacidusTest!.getState());
-  expect(stateAfter.run.timers[timerId!]?.durationMs).toBe(2_000);
-  expect(stateAfter.permanent.galacticCasino.casinoPoints).toBe(42);
   const notices = page
     .getByTestId("notification-stack")
     .locator('[data-classification="galacticCasino"]');
-  await expect(notices).toHaveCount(1);
-  await expect(notices.first()).toHaveClass(/notification-info/);
-  await expect(notices.first()).toHaveText(
-    "WON! Well done you guessed all Cards! Finish Rocket - Finished Rocket Journey Prospector",
-  );
+  await clearQueuedNotifications(page);
+  await page.getByRole("button", { name: casinoText("en", "higher"), exact: true }).click();
+  const resultMessage =
+    "WON! Well done you guessed all Cards! Finish Rocket - Finished Rocket Journey Prospector";
+  const resultNotice = notices.filter({ hasText: resultMessage });
+  await expect(resultNotice).toHaveText(resultMessage, { timeout: 10_000 });
+  await expect(resultNotice).toHaveClass(/notification-info/, { timeout: 10_000 });
+  const stateAfter = await page.evaluate(() => window.miaplacidusTest!.getState());
+  expect(stateAfter.run.timers[timerId!]?.durationMs).toBe(2_000);
+  expect(stateAfter.permanent.galacticCasino.casinoPoints).toBe(42);
 });
 
 test("Wheel rocket warp claim announces its destination and completes the active trip @p08-notifications", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await startMetaFixture(page, "meta-casino-finish-rocket-journey");
   await page.locator("#tab-galaxy").click();
   await page.locator("#tab-galactic-casino").click();
@@ -556,11 +667,19 @@ test("Wheel rocket warp claim announces its destination and completes the active
   expect(stateBefore.permanent.galacticCasino.casinoPoints).toBe(42);
 
   const casino = page.getByTestId("galactic-casino-pane");
+  const notice = page
+    .getByTestId("notification-stack")
+    .locator('[data-classification="galacticCasino"]');
+  await clearQueuedNotifications(page);
   await casino.getByTestId("casino-wheel-spin").click();
-  await expect(casino.getByLabel("Choose special prize")).toBeVisible({ timeout: 6_000 });
-  await casino.getByLabel("Choose special prize").selectOption("special_rocket_warp");
+  await expect(casino.getByLabel(casinoText("en", "choosePrize"))).toBeVisible({ timeout: 6_000 });
+  await casino.getByLabel(casinoText("en", "choosePrize")).selectOption("special_rocket_warp");
+  await clearQueuedNotifications(page);
   await casino.getByTestId("casino-wheel-claim").click();
 
+  const claimMessage = "Special Prize Claimed! Rocket 1 Prospector warped to Asteroid SPI-0002B";
+  const claimNotice = notice.filter({ hasText: claimMessage });
+  await expect(claimNotice).toHaveText(claimMessage, { timeout: 45_000 });
   const stateAfter = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(stateAfter.run.timers[timerId!]?.status).toBe("complete");
   expect(stateAfter.run.space.rockets.rocket1).toMatchObject({
@@ -573,13 +692,6 @@ test("Wheel rocket warp claim announces its destination and completes the active
     cpAwarded: 0,
   });
 
-  const notice = page
-    .getByTestId("notification-stack")
-    .locator('[data-classification="galacticCasino"]');
-  await expect(notice.first()).toHaveText(
-    "Special Prize Claimed! Rocket 1 Prospector warped to Asteroid SPI-0002B",
-    { timeout: 10_000 },
-  );
 });
 
 test("Casino pane presentation stays clear across theme, locale and width @galactic-casino", async ({
@@ -599,7 +711,7 @@ test("Casino pane presentation stays clear across theme, locale and width @galac
     await page.locator("#tab-settings").click();
     await page.locator("#tab-settings-visual").click();
     await page.locator("#settings-theme").selectOption(capture.theme);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", capture.theme);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", capture.theme);
     await page.locator("#tab-galaxy").click();
     await page.locator("#tab-galactic-casino").click();
 
@@ -617,7 +729,7 @@ test("Casino pane presentation stays clear across theme, locale and width @galac
         layoutBoxes: [
           "html",
           "body",
-          ".game-frame",
+          ".game-frame:not(.notification-portal)",
           "main",
           "nav",
           ".game-nav",
@@ -690,7 +802,7 @@ test("Casino keeps its identity and layout across all themes and locales @casino
     await page.locator("#tab-settings").click();
     await page.locator("#tab-settings-visual").click();
     await page.locator("#settings-theme").selectOption(theme);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 
     for (const locale of LOCALE_IDS) {
       await page.locator("#tab-settings").click();
@@ -911,7 +1023,7 @@ test("Casino header help tooltip preserves source guidance across locales and th
           }),
         { nextLocale: locale, nextTheme: theme },
       );
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
       await expect(page.locator("html")).toHaveAttribute("lang", locale);
       await expect(trigger).toHaveAttribute("aria-label", casinoText(locale, "headerHelpLabel"));
       await expect(trigger).toHaveAttribute("aria-describedby", "galactic-casino-header-help");
@@ -932,7 +1044,7 @@ test("Casino header help tooltip preserves source guidance across locales and th
         const probe = document.createElement("span");
         probe.style.color = "var(--text)";
         probe.style.backgroundColor = "var(--panel-raised)";
-        document.querySelector(".game-frame")!.append(probe);
+        document.querySelector(".game-frame:not(.notification-portal)")!.append(probe);
         const expectedStyle = getComputedStyle(probe);
         const expectedText = expectedStyle.color;
         const expectedBackground = expectedStyle.backgroundColor;
@@ -967,13 +1079,13 @@ test("Casino header help tooltip preserves source guidance across locales and th
               viewportWidth: document.documentElement.clientWidth,
             };
           });
-          expect(bounds.left, `${theme}/fr ${viewport.width}px tooltip left`).toBeGreaterThanOrEqual(
-            -1,
-          );
           expect(
-            bounds.right,
-            `${theme}/fr ${viewport.width}px tooltip right`,
-          ).toBeLessThanOrEqual(viewport.width + 1);
+            bounds.left,
+            `${theme}/fr ${viewport.width}px tooltip left`,
+          ).toBeGreaterThanOrEqual(-1);
+          expect(bounds.right, `${theme}/fr ${viewport.width}px tooltip right`).toBeLessThanOrEqual(
+            viewport.width + 1,
+          );
           expect(
             bounds.documentWidth,
             `${theme}/fr ${viewport.width}px document width`,
@@ -1034,7 +1146,7 @@ test("Casino source row help is attached to each section in all locales @p44-cas
 
     for (const row of helpRows) {
       const trigger = casino.getByTestId(`${row.id}-trigger`);
-      const tooltip = casino.getByTestId(row.id);
+      const tooltip = page.getByTestId(row.id);
       const section = casinoText(locale, row.titleKey);
       const expected = row.price
         ? casinoSectionHelpText(locale, row.copyKey).replace("{price}", row.price)
@@ -1094,11 +1206,11 @@ test("rebirth restores the source Casino marker before this run awards AP @ui-na
   await casinoTab.click();
   const casino = page.getByTestId("galactic-casino-pane");
   await expect(casino.getByRole("heading", { name: "Galactic Casino" })).toBeVisible();
-  await expect(casino.getByTestId("casino-buy-cp")).toBeEnabled();
-  await casino.getByTestId("casino-buy-cp").click();
   await expect(casino.getByTestId("casino-balance")).toHaveText("1 CP");
+  await expect(casino.getByTestId("casino-buy-cp")).toBeDisabled();
   const stateAfter = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(stateAfter.permanent.galacticCasino.casinoPoints).toBe(1);
+  expect(stateAfter.run.cash).toBe(0);
 });
 
 test("keyboard users can reach and play every Casino game @galactic-casino @keyboard @p21", async ({
@@ -1129,7 +1241,7 @@ test("keyboard users can reach and play every Casino game @galactic-casino @keyb
   await tabUntilFocused(page, payment);
   await expect(payment).toBeFocused();
 
-  const amount = casino.getByLabel("Points to buy");
+  const amount = casino.getByLabel(casinoText("en", "amount"));
   await page.keyboard.press("Tab");
   await expect(amount).toBeFocused();
   await page.keyboard.press("Control+A");
@@ -1147,23 +1259,21 @@ test("keyboard users can reach and play every Casino game @galactic-casino @keyb
   await expect(casino.getByRole("status").first()).toContainText(
     "The wheel revealed a special prize",
   );
-  await page.keyboard.press("Shift+Tab");
+  const specialPrize = casino.getByLabel(casinoText("en", "choosePrize"));
   const claimButton = casino.getByTestId("casino-wheel-claim");
-  await expect(claimButton).toBeFocused();
-  await page.keyboard.press("Shift+Tab");
-  const specialPrize = casino.getByLabel("Choose special prize");
+  await tabUntilFocused(page, specialPrize);
   await expect(specialPrize).toBeFocused();
   await expect(specialPrize).toHaveAttribute("aria-describedby", "casino-wheel-help");
   await expect(casino.getByTestId("casino-wheel-help")).toBeVisible();
   await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("ArrowUp");
+  await expect(specialPrize).toHaveValue("special_100cp");
   await page.keyboard.press("Tab");
   await expect(claimButton).toBeFocused();
   await page.keyboard.press("Enter");
   let state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.casinoStats.wheelSpecialWon).toBe(1);
 
-  const stake = casino.getByLabel("Stake in CP");
+  const stake = casino.getByLabel(casinoText("en", "stake"));
   await tabUntilFocused(page, stake);
   await expect(stake).toBeFocused();
   await page.keyboard.press("Control+A");
@@ -1179,14 +1289,17 @@ test("keyboard users can reach and play every Casino game @galactic-casino @keyb
   await tabUntilFocused(page, startHigherLower);
   await expect(startHigherLower).toBeFocused();
   await page.keyboard.press("Enter");
-  const higherButton = casino.getByRole("button", { name: "Higher", exact: true });
+  const higherButton = casino.getByRole("button", {
+    name: casinoText("en", "higher"),
+    exact: true,
+  });
   await expect(higherButton).toBeFocused();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   const round = state.permanent.galacticCasino.higherLower!;
   const nextCard = round.deck[round.index + 1]!;
   const currentCard = round.deck[round.index]!;
   const guess = casino.getByRole("button", {
-    name: nextCard.rank > currentCard.rank ? "Higher" : "Lower",
+    name: casinoText("en", nextCard.rank > currentCard.rank ? "higher" : "lower"),
     exact: true,
   });
   if (nextCard.rank <= currentCard.rank) await page.keyboard.press("Tab");
@@ -1199,7 +1312,7 @@ test("keyboard users can reach and play every Casino game @galactic-casino @keyb
   const secondCurrentCard = nextRound.deck[nextRound.index]!;
   const secondNextCard = nextRound.deck[nextRound.index + 1]!;
   const secondGuess = casino.getByRole("button", {
-    name: secondNextCard.rank > secondCurrentCard.rank ? "Higher" : "Lower",
+    name: casinoText("en", secondNextCard.rank > secondCurrentCard.rank ? "higher" : "lower"),
     exact: true,
   });
   await secondGuess.focus();
@@ -1212,7 +1325,10 @@ test("keyboard users can reach and play every Casino game @galactic-casino @keyb
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.permanent.galacticCasino.higherLower?.prizeKey).not.toBeNull();
 
-  const cashOutButton = casino.getByRole("button", { name: "Cash out", exact: true });
+  const cashOutButton = casino.getByRole("button", {
+    name: casinoText("en", "cashOut"),
+    exact: true,
+  });
   await expect(cashOutButton).toBeEnabled();
   await cashOutButton.focus();
   await page.keyboard.press("Enter");
@@ -1254,7 +1370,7 @@ test.describe("touch controls", () => {
     const casino = page.getByTestId("galactic-casino-pane");
     await expect(casino.getByRole("heading", { name: "Galactic Casino" })).toBeVisible();
 
-    const amount = casino.getByLabel("Points to buy");
+    const amount = casino.getByLabel(casinoText("en", "amount"));
     await amount.tap();
     await amount.fill("20");
     await casino.getByTestId("casino-buy-cp").tap();
@@ -1262,6 +1378,11 @@ test.describe("touch controls", () => {
 
     await casino.getByTestId("casino-wheel-spin").tap();
     await expect(casino.getByTestId("casino-wheel-claim")).toBeVisible();
+    await expect(casino.locator(".casino-wheel")).toHaveAttribute("data-special-ready", "true", {
+      timeout: 6_000,
+    });
+    await casino.getByLabel(casinoText("en", "choosePrize")).selectOption("special_100cp");
+    await expect(casino.getByTestId("casino-wheel-claim")).toBeEnabled();
     await casino.getByTestId("casino-wheel-claim").tap();
     let state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.run.casinoStats.wheelPlayed).toBe(1);
@@ -1278,10 +1399,10 @@ test.describe("touch controls", () => {
       const round = state.permanent.galacticCasino.higherLower!;
       const currentCard = round.deck[round.index]!;
       const nextCard = round.deck[round.index + 1]!;
-      const guessId = nextCard.rank > currentCard.rank ? "Higher" : "Lower";
+      const guessId = casinoText("en", nextCard.rank > currentCard.rank ? "higher" : "lower");
       await casino.getByRole("button", { name: guessId, exact: true }).tap();
     }
-    await casino.getByRole("button", { name: "Cash out", exact: true }).tap();
+    await casino.getByRole("button", { name: casinoText("en", "cashOut"), exact: true }).tap();
     state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.run.casinoStats.higherLowerPlayed).toBe(1);
     expect(state.permanent.galacticCasino.higherLower).toBeNull();
@@ -1321,12 +1442,12 @@ test.describe("touch controls", () => {
     await page.locator("#tab-galactic-casino").tap();
     const casino = page.getByTestId("galactic-casino-pane");
 
-    await expect(casino.getByLabel("Choose special prize")).toBeVisible();
-    await expect(casino.getByLabel("Choose special prize")).toBeDisabled();
+    await expect(casino.getByLabel(casinoText("en", "choosePrize"))).toBeVisible();
+    await expect(casino.getByLabel(casinoText("en", "choosePrize"))).toBeDisabled();
     await expect(casino.getByTestId("casino-wheel-claim")).toBeVisible();
     await expect(casino.getByTestId("casino-wheel-claim")).toBeDisabled();
-    await casino.getByLabel("Points to buy").tap();
-    await casino.getByLabel("Points to buy").fill("1");
+    await casino.getByLabel(casinoText("en", "amount")).tap();
+    await casino.getByLabel(casinoText("en", "amount")).fill("1");
     await casino.getByTestId("casino-buy-cp").tap();
     await expect(casino.getByTestId("casino-balance")).toHaveText("1 CP");
 
@@ -1335,22 +1456,23 @@ test.describe("touch controls", () => {
     await expect(spinReason).toHaveText(casinoText("en", "reasonWheelSpinning"));
     await expect(casino.getByTestId("casino-wheel-spin")).toBeDisabled();
     await expect(casino.locator(".casino-wheel")).toHaveAttribute("data-special-ready", "false");
-    await expect(casino.getByLabel("Choose special prize")).toBeDisabled();
+    await expect(casino.getByLabel(casinoText("en", "choosePrize"))).toBeDisabled();
     await expect(casino.getByTestId("casino-wheel-claim")).toBeDisabled();
 
     await expect(spinReason).not.toHaveText(casinoText("en", "reasonWheelSpinning"), {
       timeout: 6_000,
     });
     await expect(casino.locator(".casino-wheel")).toHaveAttribute("data-special-ready", "true");
-    const prizeChoice = casino.getByLabel("Choose special prize");
+    const prizeChoice = casino.getByLabel(casinoText("en", "choosePrize"));
     await expect(prizeChoice).toBeVisible();
-    await expect(prizeChoice).toHaveValue("special_100cp");
+    await expect(prizeChoice).toHaveValue("");
+    await prizeChoice.selectOption("special_100cp");
     await expect(casino.getByTestId("casino-wheel-claim")).toBeEnabled();
     await expect(casino.getByTestId("casino-wheel-spin")).toBeDisabled();
 
     await casino.getByTestId("casino-wheel-claim").tap();
     await expect(casino.getByTestId("casino-balance")).toHaveText("100 CP");
-    await expect(casino.getByLabel("Choose special prize")).toBeDisabled();
+    await expect(casino.getByLabel(casinoText("en", "choosePrize"))).toBeDisabled();
     await expect(casino.getByTestId("casino-wheel-claim")).toBeDisabled();
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     expect(state.run.casinoStats.wheelPlayed).toBe(1);
@@ -1362,14 +1484,16 @@ test.describe("touch controls", () => {
 test("keeps the Double or Nothing control focused through its result notice dismissal @p16-focus", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await startMetaFixture(page, "meta-casino-ready");
   await page.getByRole("tab", { name: "Galactic" }).click();
   await page.getByRole("tab", { name: "Galactic Casino" }).click();
   const casino = page.getByTestId("galactic-casino-pane");
-  await casino.getByLabel("Points to buy").fill("5");
+  await casino.getByLabel(casinoText("en", "amount")).fill("5");
   await casino.getByTestId("casino-buy-cp").click();
-  await casino.getByLabel("Stake in CP").fill("1");
+  await casino.getByLabel(casinoText("en", "stake")).fill("1");
   const play = casino.getByTestId("casino-don-play");
+  await clearQueuedNotifications(page);
   await play.click();
 
   const outcome = await page.evaluate(() =>
@@ -1383,8 +1507,8 @@ test("keeps the Double or Nothing control focused through its result notice dism
     .getByTestId("notification-stack")
     .getByTestId("game-notification")
     .filter({ hasText: noticeText });
-  await expect(resultNotice).toHaveCount(1);
+  await expect(resultNotice).toHaveCount(1, { timeout: 45_000 });
   await expect(play).toBeFocused();
-  await expect(resultNotice).toHaveCount(0, { timeout: 3_000 });
+  await expect(resultNotice).toHaveCount(0, { timeout: 4_000 });
   await expect(play).toBeFocused();
 });

@@ -87,7 +87,7 @@ test("live locale changes preserve Research and Energy building quotes @locale @
       );
       const card = page.locator(`[data-building-id="${buildingId}"]`);
       await expect(card).toBeVisible();
-      await expect(card.locator("p").nth(2)).toContainText(localizedCash(baseline, locale, price));
+      await expect(card.getByText(localizedCash(baseline, locale, price), { exact: true })).toBeVisible();
     }
     await expect(page.locator("#tab-research-science-buildings")).toHaveAttribute(
       "aria-selected",
@@ -111,7 +111,11 @@ test("live locale changes preserve Research and Energy building quotes @locale @
       );
       const card = page.locator(`[data-building-id="${buildingId}"]`);
       await expect(card).toBeVisible();
-      const costLine = card.locator("p").nth(1);
+      const costId =
+        pane === "power"
+          ? `energy-building-${buildingId}-cost`
+          : `battery-${buildingId}-cost`;
+      const costLine = card.locator(`#${costId}`);
       await expect(costLine).toContainText(localizedCash(baseline, locale, cashPrice));
       for (const material of definition.price.materials) {
         const amount = scaledPriceAfterPurchases(material.amount * droneDiscount, owned);

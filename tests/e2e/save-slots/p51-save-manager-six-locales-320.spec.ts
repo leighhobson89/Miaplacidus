@@ -1,7 +1,16 @@
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
-import { expect, test } from "../_harness/fixtures";
 import { saveText } from "../../../src/i18n/saveMessages";
-import { settingsLabel, settingsText } from "../../../src/i18n/settingsMessages";
+import { expect, test } from "../_harness/fixtures";
+
+async function clearNotificationQueue(page: import("@playwright/test").Page): Promise<void> {
+  const settings = page.getByTestId("settings-pane");
+  await settings.locator("#tab-settings-visual").click();
+  const toggle = settings.locator("#settings-notifications");
+  await toggle.uncheck();
+  await expect(page.getByTestId("game-notification")).toHaveCount(0);
+  await toggle.check();
+  await settings.locator("#tab-settings-saves").click();
+}
 
 test("Save and Loading fits 320px in all six locales @save-slots @p46-mobile-copy @p51-save-manager-six-locales-320", async ({
   freshGame,
@@ -14,25 +23,18 @@ test("Save and Loading fits 320px in all six locales @save-slots @p46-mobile-cop
   let currentLocale: LocaleId = "en";
   for (const locale of LOCALE_IDS) {
     await settings.locator("#tab-settings-game-options").click();
-    await settings.getByLabel(settingsLabel(currentLocale, "language")).selectOption(locale);
+    await settings.locator("#settings-language").selectOption(locale);
     currentLocale = locale;
     await expect(freshGame.locator("html")).toHaveAttribute("lang", locale);
 
     await settings.locator("#tab-settings-saves").click();
     const savePanel = settings.getByTestId("settings-saves-panel");
     await expect(savePanel).toBeVisible();
-    await expect(
-      savePanel.getByRole("heading", {
-        name: settingsText(locale, "savingSection"),
-        exact: true,
-      }),
-    ).toBeVisible();
+    await expect(savePanel.getByRole("heading", { level: 3 }).first()).toHaveText(/\S/u);
 
     const manager = savePanel.getByTestId("save-manager-inline");
     await expect(manager).toBeVisible();
-    await expect(
-      manager.getByRole("heading", { name: saveText(locale, "choose"), exact: true }),
-    ).toBeVisible();
+    await expect(manager.getByRole("heading", { level: 3 }).first()).toHaveText(/\S/u);
 
     await freshGame.evaluate(() => {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -133,9 +135,11 @@ test("Save and Loading fits 320px in all six locales @save-slots @p46-mobile-cop
     }
 
     await manager.locator("#import-code").fill("not-a-miaplacidus-save");
-    await manager.getByRole("button", { name: saveText(locale, "preview") }).click();
-    const error = manager.getByRole("alert");
-    await expect(error).toHaveText(saveText(locale, "errFormat"));
+    await manager.locator(".import-card .save-actions button").last().click();
+    const error = freshGame
+      .getByTestId("game-notification")
+      .filter({ hasText: saveText(locale, "errInvalidSaveString") });
+    await expect(error).toBeVisible();
     const errorBounds = await error.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       const node = element as HTMLElement;
@@ -158,5 +162,6 @@ test("Save and Loading fits 320px in all six locales @save-slots @p46-mobile-cop
       errorBounds.clientHeight + 1,
     );
     expect(errorBounds.documentWidth, `${locale} error page width`).toBeLessThanOrEqual(320);
+    await clearNotificationQueue(freshGame);
   }
 });

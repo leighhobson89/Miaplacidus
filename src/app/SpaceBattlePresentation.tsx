@@ -6,7 +6,9 @@ import {
   type PlayerFleetId,
   type StarSystemEncounter,
 } from "../content/space";
+import type { SystemId } from "../content/ids";
 import { playerFleetUnitStats } from "../engine/fleetMechanics";
+import { battleDeathUnitIndex, battleFleetCountAtHealth } from "../engine/spaceCommands";
 import { permanentPerkPurchaseCount } from "../content/economyRules";
 import { philosophyRepeatableRank } from "../engine/philosophy";
 import type { EngineEvent } from "../engine/commands";
@@ -42,7 +44,7 @@ interface BattleUnit {
   sourceHealth: number;
   pendingDeathAtMs: number | null;
   pendingDeathRound: number | null;
-  pendingDeathOrder: number | null;
+  pendingDeathEventUnitIndex: number | null;
   currentGoalId: string | null;
   huntX: number | null;
   huntY: number | null;
@@ -64,7 +66,7 @@ interface BattleExplosion {
 }
 
 interface BattleScene {
-  readonly systemId: string;
+  readonly systemId: SystemId;
   readonly units: BattleUnit[];
   readonly lasers: BattleLaser[];
   readonly explosions: BattleExplosion[];
@@ -72,7 +74,6 @@ interface BattleScene {
   height: number;
   inFormation: boolean;
   sourceCombatActive: boolean;
-  sourceDeathOrder: number;
 }
 
 const ENEMY_BASE_SPEED: Readonly<Record<EnemyFleetId, number>> = {
@@ -113,6 +114,25 @@ function fleetCount(
   return side === "player"
     ? state.run.space.playerFleets[fleetId as PlayerFleetId]
     : encounter.enemyFleets[fleetId as EnemyFleetId];
+}
+
+function fleetCountAtBattleHealth(
+  state: GameState,
+  encounter: StarSystemEncounter,
+  side: BattleSide,
+  fleetId: BattleFleetId,
+): number {
+  const unitHealth =
+    side === "player"
+      ? playerFleetUnitStats(state, fleetId as PlayerFleetId).maxHealth
+      : encounter.lifeformTraits.includes("hiveMind")
+        ? 50
+        : 100;
+  return battleFleetCountAtHealth(
+    fleetHealth(encounter, side, fleetId),
+    unitHealth,
+    fleetCount(state, encounter, side, fleetId),
+  );
 }
 
 function fleetHealth(encounter: StarSystemEncounter, side: BattleSide, fleetId: BattleFleetId): number {
@@ -218,7 +238,7 @@ function createUnits(
           sourceHealth: healthPerUnit,
           pendingDeathAtMs: null,
           pendingDeathRound: null,
-          pendingDeathOrder: null,
+          pendingDeathEventUnitIndex: null,
           currentGoalId: null,
           huntX: null,
           huntY: null,
@@ -300,6 +320,9 @@ function reconcileUnits(
         unit.disabled = true;
         unit.currentGoalId = null;
         unit.health = 0;
+        unit.pendingDeathAtMs = null;
+        unit.pendingDeathRound = null;
+        unit.pendingDeathEventUnitIndex = null;
         if (visible) scene.explosions.push({ x: unit.x, y: unit.y, createdAt: now });
       }
       const healthPerUnit =
@@ -326,7 +349,7 @@ function resetSourceCombatHealth(
         unit.sourceHealth = healthPerUnit;
         unit.pendingDeathAtMs = null;
         unit.pendingDeathRound = null;
-        unit.pendingDeathOrder = null;
+        unit.pendingDeathEventUnitIndex = null;
       }
     }
   }
@@ -359,26 +382,22 @@ function clearUnconfirmedSourceDeaths(
         unit.sourceHealth = healthPerUnit;
         unit.pendingDeathAtMs = null;
         unit.pendingDeathRound = null;
-        unit.pendingDeathOrder = null;
+        unit.pendingDeathEventUnitIndex = null;
       }
     }
   }
 }
 
-/**
- * Engine death events expose confirmed aggregate counts, not per-unit callback
- * times. Modeled source crossings are used only after count reconciliation;
- * aggregate event receipt timestamps must not be treated as source parity.
- */
-type DeathCallbackTiming =
-  | { readonly kind: "modeled-source-crossing"; readonly callbackAtMs: number }
-  | { readonly kind: "aggregate-event-receipt"; readonly callbackAtMs: number };
+/** Render time for a confirmed death explosion. */
+interface DeathVisualTiming {
+  readonly callbackAtMs: number;
+}
 
 function presentConfirmedDeath(
   scene: BattleScene,
   unit: BattleUnit,
   visible: boolean,
-  timing: DeathCallbackTiming,
+  timing: DeathVisualTiming,
 ): void {
   unit.health = 0;
   unit.sourceHealth = 0;
@@ -386,27 +405,9 @@ function presentConfirmedDeath(
   unit.currentGoalId = null;
   unit.pendingDeathAtMs = null;
   unit.pendingDeathRound = null;
-  unit.pendingDeathOrder = null;
+  unit.pendingDeathEventUnitIndex = null;
   if (!visible) return;
   scene.explosions.push({ x: unit.x, y: unit.y, createdAt: timing.callbackAtMs });
-}
-
-function killConfirmedUnits(
-  scene: BattleScene,
-  side: BattleSide,
-  fleetId: BattleFleetId,
-  count: number,
-  visible: boolean,
-  timings: readonly DeathCallbackTiming[],
-): void {
-  const units = scene.units
-    .filter((unit) => unit.side === side && unit.fleetId === fleetId && !unit.disabled)
-    .sort((left, right) => right.order - left.order)
-    .slice(0, count);
-  for (const [index, unit] of units.entries()) {
-    const timing = timings[index];
-    if (timing) presentConfirmedDeath(scene, unit, visible, timing);
-  }
 }
 
 type ConfirmedBattleDeath = Extract<EngineEvent, { readonly type: "space.battle.death" }>;
@@ -420,7 +421,7 @@ interface SourceTimedCasualty {
   readonly eventIndex: number;
   readonly event: ConfirmedBattleDeath;
   readonly unit: BattleUnit;
-  readonly sourceCrossingAtMs: number;
+  readonly sourceCrossingAtMs: number | null;
 }
 
 interface SourceTimingBatch {
@@ -432,72 +433,87 @@ function sourceTimedCasualtiesForBatch(
   entries: readonly ConfirmedDeathEntry[],
 ): SourceTimingBatch {
   const casualtiesByEvent = new Map<number, SourceTimedCasualty[]>();
-  if (entries.length === 0) return { casualtiesByEvent };
-  const eventGroups = new Map<string, ConfirmedDeathEntry[]>();
-  const roundSet = new Set<number>();
+  const unmatchedEntries: ConfirmedDeathEntry[] = [];
+  const usedUnits = new Set<string>();
   for (const entry of entries) {
     const { event } = entry;
-    const key = `${event.round}:${event.side}:${event.fleetId}`;
-    const group = eventGroups.get(key) ?? [];
-    group.push(entry);
-    eventGroups.set(key, group);
-    roundSet.add(event.round);
+    const unit = scene.units.find(
+      (candidate) =>
+        candidate.side === event.side &&
+        candidate.fleetId === event.fleetId &&
+        candidate.pendingDeathAtMs !== null &&
+        candidate.pendingDeathRound === event.round &&
+        candidate.pendingDeathEventUnitIndex === event.unitIndex,
+    );
+    if (!unit || unit.pendingDeathAtMs === null) {
+      unmatchedEntries.push(entry);
+      continue;
+    }
+    usedUnits.add(unit.id);
+    casualtiesByEvent.set(entry.eventIndex, [
+      { eventIndex: entry.eventIndex, event, unit, sourceCrossingAtMs: unit.pendingDeathAtMs },
+    ]);
   }
 
-  const pendingGroups = new Map<string, BattleUnit[]>();
-  for (const unit of scene.units) {
+  const entriesByGroup = new Map<string, ConfirmedDeathEntry[]>();
+  for (const entry of unmatchedEntries) {
+    const { event } = entry;
+    const groupKey = JSON.stringify([event.systemId, event.round, event.side, event.fleetId]);
+    const group = entriesByGroup.get(groupKey) ?? [];
+    group.push(entry);
+    entriesByGroup.set(groupKey, group);
+  }
+  for (const groupEntries of entriesByGroup.values()) {
+    if (groupEntries.some(({ event }) => event.confirmedDeathCount !== 1)) continue;
+    const firstEvent = groupEntries[0]?.event;
+    if (!firstEvent) continue;
+    const candidates = scene.units.filter(
+      (unit) =>
+        !usedUnits.has(unit.id) &&
+        unit.side === firstEvent.side &&
+        unit.fleetId === firstEvent.fleetId &&
+        unit.pendingDeathAtMs !== null &&
+        unit.pendingDeathRound === firstEvent.round,
+    );
     if (
-      unit.disabled ||
-      unit.pendingDeathAtMs === null ||
-      unit.pendingDeathRound === null ||
-      !roundSet.has(unit.pendingDeathRound)
+      candidates.length !== groupEntries.length ||
+      candidates.some((unit) => unit.pendingDeathEventUnitIndex === null)
     ) {
       continue;
     }
-    const key = `${unit.pendingDeathRound}:${unit.side}:${unit.fleetId}`;
-    const group = pendingGroups.get(key) ?? [];
-    group.push(unit);
-    pendingGroups.set(key, group);
-  }
 
-  const sourceMatchedGroups = new Set<string>();
-  for (const key of new Set([...eventGroups.keys(), ...pendingGroups.keys()])) {
-    const confirmedCount = (eventGroups.get(key) ?? []).reduce(
-      (total, entry) => total + entry.event.confirmedDeathCount,
-      0,
-    );
-    if ((pendingGroups.get(key) ?? []).length === confirmedCount) {
-      sourceMatchedGroups.add(key);
-    }
-  }
-
-  for (const [key, group] of eventGroups) {
-    if (!sourceMatchedGroups.has(key)) continue;
-    const pending = (pendingGroups.get(key) ?? []).sort(
+    candidates.sort(
       (left, right) =>
         left.pendingDeathAtMs! - right.pendingDeathAtMs! ||
-        left.pendingDeathOrder! - right.pendingDeathOrder!,
+        left.pendingDeathEventUnitIndex! - right.pendingDeathEventUnitIndex!,
     );
-    const casualties: SourceTimedCasualty[] = [];
-    let offset = 0;
-    for (const entry of group) {
-      const confirmedDeathCount = entry.event.confirmedDeathCount;
-      for (const unit of pending.slice(offset, offset + confirmedDeathCount)) {
-        casualties.push({
+    const orderedEntries = [...groupEntries].sort(
+      (left, right) => left.event.unitIndex - right.event.unitIndex,
+    );
+    for (let index = 0; index < orderedEntries.length; index += 1) {
+      const entry = orderedEntries[index];
+      const unit = candidates[index];
+      if (!entry || !unit || unit.pendingDeathAtMs === null) continue;
+      usedUnits.add(unit.id);
+      casualtiesByEvent.set(entry.eventIndex, [
+        {
           eventIndex: entry.eventIndex,
           event: entry.event,
           unit,
-          sourceCrossingAtMs: unit.pendingDeathAtMs!,
-        });
-      }
-      offset += confirmedDeathCount;
+          sourceCrossingAtMs: unit.pendingDeathAtMs,
+        },
+      ]);
     }
-    for (const entry of group) {
-      casualtiesByEvent.set(
-        entry.eventIndex,
-        casualties.filter((casualty) => casualty.eventIndex === entry.eventIndex),
-      );
-    }
+  }
+  for (const entry of unmatchedEntries) {
+    if (casualtiesByEvent.has(entry.eventIndex)) continue;
+    const unitId = `${entry.event.side}:${entry.event.fleetId}:${entry.event.unitIndex}`;
+    const unit = scene.units.find((candidate) => !usedUnits.has(candidate.id) && candidate.id === unitId);
+    if (!unit) continue;
+    usedUnits.add(unit.id);
+    casualtiesByEvent.set(entry.eventIndex, [
+      { eventIndex: entry.eventIndex, event: entry.event, unit, sourceCrossingAtMs: null },
+    ]);
   }
   return { casualtiesByEvent };
 }
@@ -605,6 +621,7 @@ function updateUnit(
 function assignTargetsAndFire(
   scene: BattleScene,
   store: AudioGameStore,
+  state: GameState,
   encounter: StarSystemEncounter,
   now: number,
 ): void {
@@ -630,11 +647,12 @@ function assignTargetsAndFire(
       for (const candidate of visible) {
         const shotRoll = Math.random();
         if (shotRoll > 0.2 || candidate.id !== unit.currentGoalId) continue;
-        store.playBattleLaserCandidate();
+        const laserCallbackAtMs = performance.now();
+        store.playBattleLaserCandidate(laserCallbackAtMs);
         scene.lasers.push({
           fromId: unit.id,
           toId: candidate.id,
-          createdAt: now,
+          createdAt: laserCallbackAtMs,
           color:
             unit.kind === "air" ? "#ed4bd5" : unit.kind === "sea" ? "#40e0d0" : "#f4d34e",
         });
@@ -656,10 +674,31 @@ function assignTargetsAndFire(
         }
         if (target.sourceHealth <= 0 && target.pendingDeathAtMs === null) {
           const sourceDeathAtMs = performance.now();
+          const pendingDeathRound = encounter.battle.round + 1;
+          const fleetUnitCount = fleetCountAtBattleHealth(
+            state,
+            encounter,
+            target.side,
+            target.fleetId,
+          );
+          const earlierDeathsThisRound = scene.units.filter(
+            (candidate) =>
+              candidate.side === target.side &&
+              candidate.fleetId === target.fleetId &&
+              candidate.pendingDeathAtMs !== null &&
+              candidate.pendingDeathRound === pendingDeathRound &&
+              candidate.pendingDeathEventUnitIndex !== null,
+          ).length;
+          // Match the resolver's health-pool survivor count and fleet-tail slot.
+          // If the sidecar crosses more units than the pool can confirm, don't
+          // register an audio candidate for those speculative crossings.
+          const pendingDeathEventUnitIndex =
+            earlierDeathsThisRound < fleetUnitCount
+              ? battleDeathUnitIndex(fleetUnitCount, earlierDeathsThisRound)
+              : null;
           target.pendingDeathAtMs = sourceDeathAtMs;
-          target.pendingDeathRound = encounter.battle.round + 1;
-          target.pendingDeathOrder = scene.sourceDeathOrder;
-          scene.sourceDeathOrder += 1;
+          target.pendingDeathRound = pendingDeathRound;
+          target.pendingDeathEventUnitIndex = pendingDeathEventUnitIndex;
           store.playBattleExplosionCandidate(sourceDeathAtMs);
           unit.currentGoalId = null;
           unit.huntX = null;
@@ -853,7 +892,6 @@ export function SpaceBattlePresentation({
       height: initialHeight,
       inFormation: false,
       sourceCombatActive: false,
-      sourceDeathOrder: 0,
     };
     sceneRef.current = scene;
 
@@ -893,56 +931,33 @@ export function SpaceBattlePresentation({
         : {
             casualtiesByEvent: new Map<number, readonly SourceTimedCasualty[]>(),
           };
-      // Sidecar timings are source-shaped, not engine-authored. Match confirmed
-      // casualties by per-round/per-fleet counts before emitting their audio cues.
+      // Engine confirmations reconcile presentation casualties; audio is handled
+      // directly from those events by the global audio store.
       const sourceTimedActions = [...sourceTimingBatch.casualtiesByEvent.values()]
         .flat()
         .sort(
           (left, right) =>
-            left.sourceCrossingAtMs - right.sourceCrossingAtMs ||
-            left.unit.pendingDeathOrder! - right.unit.pendingDeathOrder!,
+            (left.sourceCrossingAtMs ?? eventReceivedAtMs) -
+              (right.sourceCrossingAtMs ?? eventReceivedAtMs) ||
+            left.event.round - right.event.round ||
+            left.event.unitIndex - right.event.unitIndex,
         );
-      const fallbackVisuals: {
-        readonly entry: ConfirmedDeathEntry;
-        readonly count: number;
-        readonly timings: readonly DeathCallbackTiming[];
-      }[] = [];
-      for (const entry of confirmedDeathEntries) {
-        const sourceCasualties = sourceTimingBatch.casualtiesByEvent.get(entry.eventIndex) ?? [];
-        const missingCount = Math.max(
-          0,
-          entry.event.confirmedDeathCount - sourceCasualties.length,
-        );
-        if (missingCount === 0) continue;
-        const timings = Array.from({ length: missingCount }, () => ({
-          kind: "aggregate-event-receipt" as const,
-          callbackAtMs: eventReceivedAtMs,
-        }));
-        fallbackVisuals.push({ entry, count: missingCount, timings });
-      }
       for (const casualty of sourceTimedActions) {
         presentConfirmedDeath(currentScene, casualty.unit, true, {
-          kind: "modeled-source-crossing",
-          callbackAtMs: casualty.sourceCrossingAtMs,
+          callbackAtMs: casualty.sourceCrossingAtMs ?? eventReceivedAtMs,
         });
-      }
-      for (const fallback of fallbackVisuals) {
-        killConfirmedUnits(
-          currentScene,
-          fallback.entry.event.side,
-          fallback.entry.event.fleetId,
-          fallback.count,
-          true,
-          fallback.timings,
-        );
       }
       if (latestEncounter) {
         for (const event of events) {
           if (
-            event.systemId === currentScene.systemId &&
-            (event.type === "space.battle.round" || event.type === "space.battle.finished")
+            (event.type === "space.battle.round" || event.type === "space.battle.finished") &&
+            event.systemId === currentScene.systemId
           ) {
-            clearUnconfirmedSourceDeaths(currentScene, latestState, latestEncounter);
+            clearUnconfirmedSourceDeaths(
+              currentScene,
+              latestState,
+              latestEncounter,
+            );
           }
         }
       }
@@ -966,12 +981,22 @@ export function SpaceBattlePresentation({
       currentScene.sourceCombatActive = sourceCombatActive;
       reconcileUnits(currentScene, latestState, latestEncounter, visible, now);
       if (enteredSourceCombat) {
-        resetSourceCombatHealth(currentScene, latestState, latestEncounter);
+        resetSourceCombatHealth(
+          currentScene,
+          latestState,
+          latestEncounter,
+        );
       }
       if (visible) {
         if (latestEncounter.battle.phase === "inProgress") {
           moveUnitsWithCurrentGoals(currentScene);
-          assignTargetsAndFire(currentScene, storeRef.current, latestEncounter, now);
+          assignTargetsAndFire(
+            currentScene,
+            storeRef.current,
+            latestState,
+            latestEncounter,
+            now,
+          );
         } else if (latestEncounter.warMode && latestEncounter.battle.phase === "idle") {
           moveIntoSourceFormation(currentScene);
         }

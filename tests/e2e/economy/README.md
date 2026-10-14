@@ -2,6 +2,8 @@
 
 This area uses Playwright in Chrome with real clicks through the Resources, Energy, Research, and Compounds panels. Most later-system cases start from a named, deterministic fixture so the test can focus on the action under test. Fresh progression begins with a real Hydrogen save, buys the Science Kit and compressor through their controls, unlocks Energy and Compounds, and reaches the first Helium and Carbon child pages through the resource rail. That path checks source order, Energy's initial Energy Storage page, `New` badge clearing, and child-page restoration after switching main tabs. Automatic-sale and compound-creation cases buy/enable producers, operate the source-style two-handle segmented allocation slider with pointer/touch dragging or 5% keyboard steps, and advance the injected clock.
 
+Standalone tests now live with their functional area: [Energy](../energy/README.md), [Resources](../resources/README.md), [Automation](../automation/README.md), [Notation](../notation/README.md), [Precision](../precision/README.md), and [Audio](../audio/README.md). This folder keeps `economy.spec.ts` and specs whose journeys still span multiple areas; those tests were not decomposed as part of the file move.
+
 ## Run
 
 ```powershell
@@ -42,7 +44,7 @@ The M-03 economy and research gate is complete. Rebirth carryover and repeatable
 - Four desktop/mobile-emulated Chrome journeys passed **4/4** for 5% keyboard steps, pointer/touch dragging, allocation readouts, and production/automation using the resource allocation slider. The reviewed `economy-production-allocation-slider.png` screenshot records the themed segments and both handles; the nested compound pane screenshots were refreshed and passed on rerun.
 
 **P-14 allocation keyboard/touch check (9 October 2026):** the new dedicated
-`allocation-input.spec.ts` case passed **1/1** in installed Chrome at a 390×844
+[`allocation-input.spec.ts`](../automation/allocation-input.spec.ts) passed **1/1** in installed Chrome at a 390×844
 CSS-pixel viewport with Pixel 7 touch emulation. It verifies the fieldset's
 accessible group name and keyboard instructions, both named horizontal slider
 handles and their value ranges/readouts, a 5% ArrowRight adjustment, a real
@@ -57,7 +59,7 @@ Run this focused case with installed Chrome:
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 $env:MIAPLACIDUS_TEST_PORT = "4237"
-npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "@p14-allocation-inputs" tests/e2e/economy/allocation-input.spec.ts
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "@p14-allocation-inputs" tests/e2e/automation/allocation-input.spec.ts
 ```
 
 ## Latest verification (3 October 2026)
@@ -196,7 +198,7 @@ npm.cmd run dev:test -- --host 127.0.0.1 --port 4173 --strictPort
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
 $env:MIAPLACIDUS_BROWSER_CHANNEL = 'chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO = '1'
-npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/economy/energy-presentation-matrix.spec.ts
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/energy/energy-presentation-matrix.spec.ts
 ```
 
 ## P-65 Tech Tree scroll and screenshot follow-up (9 October 2026)
@@ -228,7 +230,7 @@ the battery purchase controls, and no visible page-content clipping in these
 captures.
 
 The reviewed Energy files are in
-`tests/e2e/economy/energy-presentation-matrix.spec.ts-snapshots/`:
+`tests/e2e/energy/energy-presentation-matrix.spec.ts-snapshots/`:
 
 - `phase6-energy-summary-terminal-desktop.png`
 - `phase6-energy-summary-light-mobile.png`
@@ -251,7 +253,7 @@ focused installed-Chrome snapshot pass covered all three new Space Mining and
 Power visual cases; the final no-update run passed 3/3 in 11.2 seconds.
 
 The durable images are in
-`tests/e2e/economy/energy-presentation-matrix.spec.ts-snapshots/`:
+`tests/e2e/energy/energy-presentation-matrix.spec.ts-snapshots/`:
 
 - `phase6-energy-power-active-terminal-desktop.png`
 - `phase6-energy-power-inactive-terminal-desktop.png`
@@ -261,7 +263,7 @@ The durable images are in
 Run the focused screenshot cases in installed Chrome with:
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4181'; node ./node_modules/playwright/cli.js test --pass-with-no-tests --workers=1 --retries=0 --trace=off --reporter=line -g '@p66-visual-review' tests/e2e/space-telescope/space-mining-presentation.spec.ts tests/e2e/economy/energy-presentation-matrix.spec.ts
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4181'; node ./node_modules/playwright/cli.js test --pass-with-no-tests --workers=1 --retries=0 --trace=off --reporter=line -g '@p66-visual-review' tests/e2e/space-telescope/space-mining-presentation.spec.ts tests/e2e/energy/energy-presentation-matrix.spec.ts
 ```
 
 9 October 2026 P-66 durable Energy review: `energy-presentation-matrix.spec.ts`
@@ -271,7 +273,7 @@ the lightning artwork, the Summary remains legible at phone width, and battery
 cards stack without clipping. The existing active/inactive Power screenshots
 cover 1280px Terminal and 390px Dark. The focused Energy/Settings visual run
 passed 3/3 without snapshot updates. New files are
-`tests/e2e/economy/energy-presentation-matrix.spec.ts-snapshots/phase6-energy-{summary,batteries}-{terminal-desktop,light-mobile}.png`.
+`tests/e2e/energy/energy-presentation-matrix.spec.ts-snapshots/phase6-energy-{summary,batteries}-{terminal-desktop,light-mobile}.png`.
 
 ## P-41 number display inventory and boundary evidence (9 October 2026)
 
@@ -351,7 +353,7 @@ earlier header-related refresh, I did not update these countdown baselines
 again. P-41 remains open for wider timer/currency visual review.
 
 The Rocket captures are in
-`tests/e2e/economy/p41-timer-presentation.spec.ts-snapshots/`:
+`tests/e2e/notation/p41-timer-presentation.spec.ts-snapshots/`:
 
 - `p41-rocket-countdown-condensed.png`
 - `p41-rocket-countdown-standard.png`
@@ -370,10 +372,10 @@ both captures for each notation.
 Focused Chrome commands:
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4251'; npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line --update-snapshots=all tests/e2e/economy/p41-timer-presentation.spec.ts
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4277'; npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/economy/p41-timer-presentation.spec.ts
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4251'; npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line --update-snapshots=all tests/e2e/notation/p41-timer-presentation.spec.ts
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4277'; npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/notation/p41-timer-presentation.spec.ts
 npm.cmd exec vitest run -- tests/unit/number-formatting.spec.ts
-npx.cmd oxfmt --check tests/e2e/economy/p41-timer-presentation.spec.ts
+npx.cmd oxfmt --check tests/e2e/notation/p41-timer-presentation.spec.ts
 ```
 
 ## P-65 durable Research screenshot review (9 October 2026)
@@ -491,7 +493,7 @@ New six-locale 390px captures are in
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4828'
-node .\node_modules\playwright\cli.js test tests/e2e/economy/p51-e57-economy-phone-locale.spec.ts tests/e2e/space-telescope/e57-fuel-pump-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-phone-costs-4828
+node .\node_modules\playwright\cli.js test tests/e2e/economy/p51-e57-economy-phone-locale.spec.ts tests/e2e/rockets/e57-fuel-pump-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-e57-phone-costs-4828
 ```
 
 **P-65 Tech Tree pan cue (9 October 2026):** the Tech Tree now displays
@@ -632,7 +634,7 @@ recorded below.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_AREA='p41-space-timers'
-npm.cmd run test:e2e:focused -- tests/e2e/economy/p41-timer-presentation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+npm.cmd run test:e2e:focused -- tests/e2e/notation/p41-timer-presentation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **P-41 Rocket fueling and return countdowns (9 October 2026):** focused
@@ -645,7 +647,7 @@ deterministic returning-Rocket fixture. Both passed (2/2).
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4258'
-npm.cmd run test:e2e:focused -- tests/e2e/economy/p41-timer-presentation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'P-41 formats the Rocket fueling ETA|P-41 formats a returning Rocket countdown'
+npm.cmd run test:e2e:focused -- tests/e2e/notation/p41-timer-presentation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'P-41 formats the Rocket fueling ETA|P-41 formats a returning Rocket countdown'
 ```
 
 Cosmic Rip timers, top-row event/battery/time-warp values, and
@@ -660,7 +662,7 @@ sale preview and accepted sale notice both show `$6.60`, without exposing the
 binary tail. The focused installed-Chrome case passed 1/1 in 5.0 seconds:
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4304'; npm.cmd run test:e2e:focused -- tests/e2e/economy/hydrogen-sale-currency-precision.spec.ts --workers=1 --retries=0 --trace=off --reporter=line
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4304'; npm.cmd run test:e2e:focused -- tests/e2e/precision/hydrogen-sale-currency-precision.spec.ts --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **P-41 Titanium compound sale notation (9 October 2026):** the focused
@@ -673,7 +675,7 @@ economy rule changed.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4321'
-npm.cmd run test:e2e:focused -- tests/e2e/economy/p41-compound-sale-currency.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+npm.cmd run test:e2e:focused -- tests/e2e/notation/p41-compound-sale-currency.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **P-41 Hydrogen sale preview and accepted notice notation (9 October 2026):**
@@ -688,7 +690,7 @@ the sale settles the Hydrogen stock to zero. Installed Chrome passed 1/1 in
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4323'
-npm.cmd run test:e2e:focused -- tests/e2e/economy/p41-hydrogen-sale-notation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+npm.cmd run test:e2e:focused -- tests/e2e/notation/p41-hydrogen-sale-notation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **P-41 Energy and Research building cash-cost notation (9 October 2026):**
@@ -701,7 +703,7 @@ differs from Standard for both prices. The focused installed-Chrome case passed
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4324'
-npm.cmd run test:e2e:focused -- tests/e2e/economy/p41-building-currency-costs.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+npm.cmd run test:e2e:focused -- tests/e2e/notation/p41-building-currency-costs.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **P-41 Research, Power, and Battery Buy Max cash notation (9 October 2026):**
@@ -718,7 +720,7 @@ preview text and passed **1/1 in 9.5 seconds** on port 4420.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4420'
-node .\node_modules\playwright\cli.js test --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/economy/p41-building-buymax-currency-costs.spec.ts
+node .\node_modules\playwright\cli.js test --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/notation/p41-building-buymax-currency-costs.spec.ts
 ```
 
 **P-20 power-trip announcement follow-up (9 October 2026):** the Energy Summary's visible `role="alert"` disappears from the accessibility tree when another main tab is selected, so a grid deficit could trip without announcing its completion. `TopStatusBar` now keeps an initially empty localized assertive, atomic alert mounted across pages and fills it when the grid trips. The focused `economy.spec.ts` journey leaves Resources selected, advances the deterministic clock through the deficit grace period, and verifies the alert text plus the `TRIPPED` status; it then returns to Energy and confirms the visible trip alert and recovery flow. Installed Chrome passed 1/1 in 6.3 seconds. The battery-cycle fixture only shows continuous charge/discharge, with no discrete completion event; no announcement was added for those changing quantities.
@@ -951,7 +953,7 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_AREA='p29-economy-audio'
 $env:MIAPLACIDUS_TEST_PORT='4934'
-npm.cmd run test:e2e:focused -- tests/e2e/economy/audio-cues.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+npm.cmd run test:e2e:focused -- tests/e2e/audio/audio-cues.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 ## P-29 power feedback audio evidence (10 October 2026)
@@ -1014,7 +1016,7 @@ minutes** in installed Chrome on port 5072. P-45 Energy can be rerun with:
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5072'
-node .\node_modules\playwright\cli.js test tests/e2e/economy/p45-energy-locales.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-route-locales-5072
+node .\node_modules\playwright\cli.js test tests/e2e/energy/p45-energy-locales.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-route-locales-5072
 ```
 
 ## P-45 Research and Energy visible action/status copy (10 October 2026)
@@ -1232,5 +1234,64 @@ seconds** on isolated port 5397. Setup uses the existing test scenario hook;
 the upgrade itself goes through the normal visible localized control.
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='5397'; npm.cmd run test:e2e:focused -- tests/e2e/economy/p45-hydrogen-storage-result.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results/p45-hydrogen-storage-5397
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='5397'; npm.cmd run test:e2e:focused -- tests/e2e/resources/p45-hydrogen-storage-result.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results/p45-hydrogen-storage-5397
 ```
+
+## P-41 Rocket and Space Mining timer follow-up (14 October 2026)
+
+The P-41 timer spec now dismisses the first-run tutorial before taking a page
+checkpoint. Its Rocket page screenshots were refreshed after reviewing the
+current renderer, and the full-page checkpoint masks only the live run time,
+cash, research points, and antimatter values so that background production does
+not make the page comparison timing-dependent. The Rocket countdown remains
+visible and is still checked against the selected notation. The large Rocket
+SVG allows a 1% pixel difference for low-intensity antialiasing variance; its
+shape and bounds are also checked directly. The focused timer spec passed
+**5/5**, and `npm.cmd run typecheck` passed.
+
+```powershell
+$timerOutput = Join-Path $env:TEMP 'miaplacidus-p41-timer-spec-20261014'
+.\node_modules\.bin\playwright.cmd test tests/e2e/notation/p41-timer-presentation.spec.ts --workers=1 --reporter=list --output=$timerOutput
+```
+## P-45 Resource and Compound action/result rerun (14 October 2026)
+
+The current Resource and Compound visible-copy, Compound creation feedback, and
+manual Hydrogen collection cases passed **3/3** in Chromium across their six-
+locale assertions. The creation check selects the notice by its expected text so
+other achievement notices cannot satisfy the assertion. No snapshots changed.
+
+```powershell
+$economyOutput = Join-Path $env:TEMP 'miaplacidus-p45-resource-compound-current-20261014'
+.\node_modules\.bin\playwright.cmd test tests/e2e/economy/p45-resource-compound-copy.spec.ts --workers=1 --reporter=list --output=$economyOutput
+```
+
+## P-51/P-54 Water storage phone rerun (14 October 2026)
+
+The 320px and 390px dual-input Water storage cost/reason cases passed **2/2**
+across all six locales. No snapshots changed.
+
+```powershell
+$waterOutput = Join-Path $env:TEMP 'miaplacidus-p51-water-phone-current-20261014'
+.\node_modules\.bin\playwright.cmd test tests/e2e/economy/p51-e57-economy-phone-locale.spec.ts --workers=1 --reporter=list --output=$waterOutput --grep 'Water storage'
+```
+## P-41 Hydrogen sale and E-57 cost follow-up (14 October 2026)
+
+The P-41 Hydrogen sale notification was found in all three number notations;
+the focused case passed **1/1** with no snapshot changes. The E-57 Philosophy
+modal and Research/Energy dynamic-cost phone cases also passed **2/2**. The
+current English Tech Tree cost suffix is `Research`, with `Research points`
+reserved for its tooltip, matching the renderer and current assertions. No test
+or product changes were required for these checks.
+
+```powershell
+$env:MIAPLACIDUS_TEST_PORT='4204'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/notation/p41-hydrogen-sale-notation.spec.ts --grep '@p41-hydrogen-sale-notation' --workers=1 --reporter=list --output="$env:TEMP\miaplacidus-p41-hydrogen-sale-notation-current-20261014"
+$env:MIAPLACIDUS_TEST_PORT='4182'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; .\node_modules\.bin\playwright.cmd test tests/e2e/economy/e57-tech-tree-tooltip-locale.spec.ts --grep 'Philosophy choice and selected-path costs fit all phone locales' --workers=1 --reporter=list --output="$env:TEMP\miaplacidus-e57-philosophy-modal-no-update-20261014"
+.\node_modules\.bin\playwright.cmd test tests/e2e/economy/e57-tech-tree-tooltip-locale.spec.ts --grep 'Research and Energy dynamic cost rows fit all phone locales' --workers=1 --reporter=list --output="$env:TEMP\miaplacidus-e57-economy-costs-no-update-20261014"
+```
+
+14 October 2026 focused recovery: the fresh Hydrogen-to-Knowledge-Sharing
+journey passed its current player-control, notification, and state assertions
+after the stale first-research screenshot was reviewed and refreshed from the
+current renderer. Autobuyer and research rates reached their expected values;
+the updated first-research screenshot passed a focused no-update confirmation
+(1/1).

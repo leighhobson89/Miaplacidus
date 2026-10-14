@@ -34,7 +34,9 @@ test("P-41 formats the Black Hole Research Point price in every notation @p41-bl
     expect(state.run.researchPoints).toBe(initialResearchPoints);
     expect(state.permanent.blackHole.researchPrice).toBe(researchPrice);
     const expectedPrice = formatNumber("en", researchPrice, 0, notation);
-    await expect(research.getByRole("button")).toContainText(`${expectedPrice} RP`);
+    await expect(research.locator(".space-action-help-group > .primary-button")).toContainText(
+      `${expectedPrice} RP`,
+    );
     await expect(research.locator("p")).toHaveText(
       `${formatNumber("en", initialResearchPoints, 0, notation)} ${copy.researchPoints}`,
     );

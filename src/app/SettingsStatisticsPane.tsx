@@ -122,7 +122,7 @@ export function SettingsStatisticsPane({
   const valueRow = (
     id: string,
     label: string,
-    value: string,
+    value: ReactNode,
     ownerPaneId?: string,
   ): StatisticsDisplayRow => ({
     id,

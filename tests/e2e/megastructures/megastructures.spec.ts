@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { type Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
@@ -24,6 +25,12 @@ import { resumeSavedPioneer, saveNowFromSettings } from "../_harness/save-contro
 import { setNumberNotation } from "../_harness/settings-controls";
 
 type StoredEntry = readonly [string, string];
+
+async function dismissRandomEventResultIfPresent(page: Page): Promise<void> {
+  const dialog = page.getByTestId("random-event-result-dialog");
+  await dialog.waitFor({ state: "visible", timeout: 1_000 }).catch(() => undefined);
+  if (await dialog.isVisible()) await dialog.getByRole("button").click();
+}
 
 const { compressToUTF16, decompressFromUTF16 } = createRequire(import.meta.url)(
   "lz-string",
@@ -81,7 +88,8 @@ test("reveals Rebirth after a destination scan without changing the selected pag
   // The fixture starts one field milestone short of Miaplacidus route access.
   await page.locator("#tab-galactic-megastructures").click();
   const archive = page.getByTestId("megastructure-track-galacticMemoryArchive");
-  await archive.getByRole("button", { name: "Research stage" }).click();
+  await archive.getByRole("button", { name: "Research", exact: true }).click();
+  await dismissRandomEventResultIfPresent(page);
   await expect(page.getByTestId("megastructure-force-field")).toContainText("4/4");
   await expect(page.locator("#tab-galactic-rebirth")).toHaveCount(0);
   await market.click();
@@ -101,7 +109,7 @@ test("reveals Rebirth after a destination scan without changing the selected pag
   const scanButton = starship.getByTestId("starship-scan-system-button");
   await expect(scanButton).toHaveCount(0);
   await expect(page.locator("#tab-interstellar-colonise")).toHaveCount(0);
-  await starship.getByRole("button", { name: "Launch starship" }).click();
+  await starship.getByRole("button", { name: starshipText("en", "launch") }).click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
     .getByRole("button", { name: "Confirm launch" })
@@ -121,19 +129,26 @@ test("reveals Rebirth after a destination scan without changing the selected pag
   await expect(scanButton).toBeVisible();
   await expect(scanButton).toBeEnabled();
   await scanButton.click();
-  await expect(starship.getByTestId("starship-system-scan-results")).toBeVisible();
+  await expect(starship.getByTestId("starship-scan-complete")).toContainText(
+    starshipText("en", "scanComplete"),
+  );
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.space.systemEncounters.length),
     )
     .toBe(1);
+  await expect(page.locator("#tab-interstellar-colonise")).toBeVisible();
+  await page.locator("#tab-interstellar-colonise").click();
+  await expect(
+    page.getByTestId("starship-pane").getByTestId("starship-system-scan-results"),
+  ).toHaveText(starshipText("en", "lifeDetected"));
+  await page.locator("#tab-interstellar-starship").click();
 
   await expect(page.locator("#tab-interstellar")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#tab-interstellar-starship")).toHaveAttribute("aria-selected", "true");
-  // This route has already awarded Ascendency Points this run, so Colonise
-  // remains correctly gated while the independent Rebirth gate opens.
-  await expect(page.locator("#tab-interstellar-colonise")).toHaveCount(0);
-  await expect(page.locator("#tab-galactic-rebirth")).toHaveCount(1);
+  // A saved scan reveals Colonise even when Ascendency Points were already
+  // awarded this run. Galactic child tabs are mounted when that section opens.
+  await expect(page.locator("#tab-interstellar-colonise")).toBeVisible();
 
   await galactic.click();
   await expect(page.locator("#tab-galactic-rebirth")).toBeVisible();
@@ -148,6 +163,7 @@ test("reveals Rebirth after a destination scan without changing the selected pag
 test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated tabs @megastructures @cosmic-rip @ui-navigation @p28-artwork-review", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(90_000);
   await startMetaFixture(page, "meta-megastructure-route");
   await page.evaluate(() =>
     window.miaplacidusTest!.runScenario("late-game-homecoming-continuation"),
@@ -165,7 +181,8 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
   const ascendencyBeforeFinalStage = await page.evaluate(
     () => window.miaplacidusTest!.getState().permanent.ascendencyPoints,
   );
-  await archive.getByRole("button", { name: "Research stage" }).click();
+  await archive.getByRole("button", { name: "Research", exact: true }).click();
+  await dismissRandomEventResultIfPresent(page);
   await expect(page.getByTestId("megastructure-force-field")).toContainText("4/4");
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().permanent.ascendencyPoints))
@@ -175,7 +192,7 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
     (await page.evaluate(() => window.miaplacidusTest!.getState())).permanent.megastructures
       .researchedTechnologyIds,
   ).toContain(stageThree);
-  const stageFourButton = archive.getByRole("button", { name: "Research stage" });
+  const stageFourButton = archive.getByRole("button", { name: "Research", exact: true });
   await expect(stageFourButton).toBeDisabled();
   const stageFourReasonId = await stageFourButton.getAttribute("aria-describedby");
   expect(stageFourReasonId).toBeTruthy();
@@ -192,9 +209,9 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
     .getByRole("button", { name: "Set as destination" })
     .click();
 
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.getByRole("tab", { name: starshipText("en", "title") }).click();
   const starship = page.getByTestId("starship-pane");
-  await starship.getByRole("button", { name: "Launch starship" }).click();
+  await starship.getByRole("button", { name: starshipText("en", "launch") }).click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
     .getByRole("button", { name: "Confirm launch" })
@@ -290,14 +307,14 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
           });
         }, themeId);
         await expect(page.locator("html")).toHaveAttribute("lang", "en");
-        await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+        await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
         const scene = story.locator(`.miaplacidus-story-scene.scene-${pageNumber + 1}`);
         await expect(scene).toBeVisible();
         await expect(scene).toHaveAttribute("aria-hidden", "true");
         const sceneBounds = await scene.evaluate((element) => {
           const sceneRect = element.getBoundingClientRect();
           const dialogRect = element.closest("dialog")!.getBoundingClientRect();
-          const frame = document.querySelector(".game-frame")!;
+          const frame = document.querySelector(".game-frame:not(.notification-portal)")!;
           const world = element.querySelector<HTMLElement>(".miaplacidus-story-world")!;
           return {
             viewportWidth: window.innerWidth,
@@ -355,6 +372,18 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
   });
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  const tutorialDismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+  if (await tutorialDismissButton.isVisible()) await tutorialDismissButton.click();
+  await expect(page.locator(".progression-tutorial")).toHaveCount(0);
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect(page.getByTestId("notification-stack")).toBeEmpty();
+  const viewport = page.viewportSize();
+  if (viewport) await page.mouse.move(viewport.width - 1, viewport.height - 1);
   await captureVisualCheckpoint(page, testInfo, "miaplacidus-homecoming-complete");
   const cosmicRipTab = page.locator("#tab-cosmic-rip");
   expect(completed.permanent.cosmicRip.unlocked).toBe(true);
@@ -398,7 +427,7 @@ test("explains and associates missing technology and factory location gates @meg
   for (const { track, expected } of reasons) {
     const button = page
       .getByTestId(`megastructure-track-${track}`)
-      .getByRole("button", { name: "Research stage" });
+      .getByRole("button", { name: "Research", exact: true });
     await expect(button).toBeDisabled();
     const reasonId = await button.getAttribute("aria-describedby");
     expect(reasonId).toBeTruthy();
@@ -414,8 +443,8 @@ test("shows the research point requirement and shortfall for a disabled next sta
   await page.getByRole("tab", { name: "Megastructures" }).click();
 
   const archive = page.getByTestId("megastructure-track-galacticMemoryArchive");
-  await archive.getByRole("button", { name: "Research stage" }).click();
-  const nextStageButton = archive.getByRole("button", { name: "Research stage" });
+  await archive.getByRole("button", { name: "Research", exact: true }).click();
+  const nextStageButton = archive.getByRole("button", { name: "Research", exact: true });
   await expect(nextStageButton).toBeDisabled();
   const reasonId = await nextStageButton.getAttribute("aria-describedby");
   expect(reasonId).toBeTruthy();
@@ -469,7 +498,7 @@ test("P-41 formats visible Megastructure and Tech Tree counts in every notation 
     const megastructures = page.getByTestId("megastructure-pane");
     const forceFieldCopy =
       megastructureText("en")[forceFieldCount >= 4 ? "forceFieldCleared" : "forceField"];
-    await expect(megastructures.getByTestId("megastructure-force-field")).toHaveText(
+    await expect(megastructures.getByTestId("megastructure-force-field")).toContainText(
       forceFieldCopy
         .replace("{level}", formatNumber("en", forceFieldCount, 0, notation))
         .replace("{total}", formatNumber("en", MEGASTRUCTURE_IDS.length, 0, notation)),

@@ -65,6 +65,8 @@ export const TUTORIAL_MESSAGE_KEYS = [
   "continue",
   "finish",
   "stepProgress",
+  "step.openThemeDropdown.title",
+  "step.openThemeDropdown.body",
   "step.chooseDarkTheme.title",
   "step.chooseDarkTheme.body",
   "step.inspectScienceClub.title",
@@ -162,6 +164,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<TutorialMessageKey, st
     continue: "Continue",
     finish: "Finish tutorial",
     stepProgress: "Step {step} of {total}",
+    "step.openThemeDropdown.title": "Open the theme selector",
+    "step.openThemeDropdown.body": "Open the theme selector. In the next step, choose Dark.",
     "step.chooseDarkTheme.title": "Choose the Dark theme",
     "step.chooseDarkTheme.body":
       "Select Dark in Visual Options to see its palette. You can switch themes again at any time.",
@@ -264,6 +268,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<TutorialMessageKey, st
     continue: "Continuar",
     finish: "Terminar tutorial",
     stepProgress: "Paso {step} de {total}",
+    "step.openThemeDropdown.title": "Abrir el selector de tema",
+    "step.openThemeDropdown.body": "Abre el selector de tema. En el siguiente paso, elige Oscuro.",
     "step.chooseDarkTheme.title": "Elige el tema Oscuro",
     "step.chooseDarkTheme.body":
       "Selecciona Oscuro en Opciones visuales para ver su paleta. Puedes volver a cambiar de tema cuando quieras.",
@@ -366,6 +372,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<TutorialMessageKey, st
     continue: "Continuar",
     finish: "Concluir tutorial",
     stepProgress: "Etapa {step} de {total}",
+    "step.openThemeDropdown.title": "Abrir o seletor de tema",
+    "step.openThemeDropdown.body": "Abra o seletor de tema. Na próxima etapa, escolha Escuro.",
     "step.chooseDarkTheme.title": "Escolha o tema Escuro",
     "step.chooseDarkTheme.body":
       "Selecione Escuro em Opções visuais para ver a paleta. Você pode trocar de tema quando quiser.",
@@ -468,6 +476,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<TutorialMessageKey, st
     continue: "Weiter",
     finish: "Tutorial beenden",
     stepProgress: "Schritt {step} von {total}",
+    "step.openThemeDropdown.title": "Themenauswahl öffnen",
+    "step.openThemeDropdown.body": "Öffne die Themenauswahl. Wähle im nächsten Schritt Dunkel aus.",
     "step.chooseDarkTheme.title": "Dunkles Design auswählen",
     "step.chooseDarkTheme.body":
       "Wähle unter Visuelle Optionen das dunkle Design aus, um seine Farben zu sehen. Du kannst das Design jederzeit wieder wechseln.",
@@ -569,6 +579,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<TutorialMessageKey, st
     continue: "Continua",
     finish: "Termina il tutorial",
     stepProgress: "Passaggio {step} di {total}",
+    "step.openThemeDropdown.title": "Apri il selettore del tema",
+    "step.openThemeDropdown.body": "Apri il selettore del tema. Nel passaggio successivo, scegli Scuro.",
     "step.chooseDarkTheme.title": "Scegli il tema Scuro",
     "step.chooseDarkTheme.body":
       "Seleziona Scuro in Opzioni visive per vedere la sua tavolozza. Puoi cambiare tema in qualsiasi momento.",
@@ -670,6 +682,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<TutorialMessageKey, st
     continue: "Continuer",
     finish: "Terminer le tutoriel",
     stepProgress: "\u00c9tape {step} sur {total}",
+    "step.openThemeDropdown.title": "Ouvrir le sélecteur de thème",
+    "step.openThemeDropdown.body": "Ouvrez le sélecteur de thème. À l’étape suivante, choisissez Sombre.",
     "step.chooseDarkTheme.title": "Choisir le th\u00e8me Sombre",
     "step.chooseDarkTheme.body":
       "S\u00e9lectionnez Sombre dans Options visuelles pour d\u00e9couvrir sa palette. Vous pourrez changer de th\u00e8me \u00e0 tout moment.",
@@ -692,3 +706,5 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<TutorialMessageKey, st
 export function tutorialText(locale: LocaleId, key: TutorialMessageKey): string {
   return messages[locale][key];
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

@@ -112,7 +112,7 @@ test("P-45 Structural module build result is visible in all six locales @p45-sta
       starshipText(locale, "partBuilt"),
     );
     await expect(structural.locator(".space-rocket-parts")).toHaveText(
-      `${starshipText(locale, "parts")}: ${formatNumber(locale, 1, 0, after.settings.notation)} / ${formatNumber(locale, STARSHIP_MODULES.structural.parts, 0, after.settings.notation)}`,
+      `${starshipText(locale, "parts")} ${formatNumber(locale, 1, 0, after.settings.notation)} / ${formatNumber(locale, STARSHIP_MODULES.structural.parts, 0, after.settings.notation)}`,
     );
     await expect(page.locator("#tab-interstellar-starship")).toHaveAttribute(
       "aria-selected",

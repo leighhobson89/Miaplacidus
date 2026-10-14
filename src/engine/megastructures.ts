@@ -234,7 +234,7 @@ export function restoreMegastructureProgressOnRebirth(state: GameState): GameSta
           ...state.run.economy.power,
           infinitePower: false,
           gridEnabled: false,
-          ...(researched.includes(MEGASTRUCTURE_TRACKS.dysonSphere[4])
+          ...(researched.includes(MEGASTRUCTURE_TRACKS.dysonSphere[4]!)
             ? {
                 infinitePower: true,
                 gridEnabled: true,

@@ -28,7 +28,7 @@ test("notifies one localized Hydrogen sale and respects the notification setting
 
   // Disabling notifications clears the first notice and suppresses the next sale notice.
   await game.locator("#tab-settings").click();
-  const notificationsToggle = game.getByRole("checkbox", { name: "Notifications", exact: true });
+  const notificationsToggle = game.locator("#settings-notifications");
   await expect(notificationsToggle).toBeChecked();
   await notificationsToggle.uncheck();
   await expect(notificationsToggle).not.toBeChecked();

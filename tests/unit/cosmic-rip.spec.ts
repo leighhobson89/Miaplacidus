@@ -189,8 +189,15 @@ describe("Cosmic Rip", () => {
       },
       permanent: { ...route.permanent, gloryPoints: 0 },
     };
+    const noGpScanRoute = {
+      ...noGpRoute,
+      permanent: {
+        ...noGpRoute.permanent,
+        cosmicRip: { ...noGpRoute.permanent.cosmicRip, ripFound: false },
+      },
+    };
     expect(
-      selectEconomyAction(noGpRoute, { type: "cosmic-rip.sector.scan", sectorIndex: 0 }),
+      selectEconomyAction(noGpScanRoute, { type: "cosmic-rip.sector.scan", sectorIndex: 0 }),
     ).toMatchObject({ enabled: false, failure: { code: "cosmic-rip-insufficient-gp" } });
     expect(
       selectEconomyAction(noGpRoute, { type: "cosmic-rip.sector.scan", sectorIndex: 2 }),

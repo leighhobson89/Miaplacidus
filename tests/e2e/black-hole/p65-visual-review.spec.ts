@@ -16,7 +16,7 @@ async function setPresentation(page: Page, locale: LocaleId, themeId: ThemeId): 
     { nextLocale: locale, nextTheme: themeId },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
 }
 
 test("Black Hole identity has reviewed desktop and phone visuals across themes and locales @p65-visual-review", async ({

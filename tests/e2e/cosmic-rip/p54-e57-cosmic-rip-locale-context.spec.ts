@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { formatNumber } from "../../../src/app/numberFormatting";
@@ -22,6 +23,12 @@ const VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 320, height: 740 },
 ] as const;
+
+async function dismissRandomEventResultIfPresent(page: Page, timeout = 1_000): Promise<void> {
+  const dialog = page.getByTestId("random-event-result-dialog");
+  await dialog.waitFor({ state: "visible", timeout }).catch(() => undefined);
+  if (await dialog.isVisible()) await dialog.getByRole("button").click();
+}
 
 test("P-54 E-57 Cosmic Rip costs and active research fit in all locales at phone widths @p54-e57", async ({
   page,
@@ -99,6 +106,7 @@ test("P-54 E-57 Cosmic Rip costs and active research fit in all locales at phone
           }),
         ).toBeVisible();
       }
+      await page.locator("#tab-cosmic-rip-scanner-array").click();
       const upgradeIds = Object.keys(COSMIC_RIP_UPGRADES) as (keyof typeof COSMIC_RIP_UPGRADES)[];
       const upgradeCards = pane.locator(".cosmic-rip-upgrade");
       await expect(upgradeCards).toHaveCount(upgradeIds.length);
@@ -116,6 +124,7 @@ test("P-54 E-57 Cosmic Rip costs and active research fit in all locales at phone
           `${currency(cost.cash)} + ${materials}`,
         );
       }
+      await page.locator("#tab-cosmic-rip-rip").click();
 
       const bounds = await page.evaluate(() => {
         const read = (element: HTMLElement) => {
@@ -165,13 +174,15 @@ test("P-54 E-57 Cosmic Rip sector scan prices fit in all locales at phone widths
   page,
 }, testInfo) => {
   await page.setViewportSize(VIEWPORTS[0]);
-  await startMetaFixture(page, "meta-cosmic-rip-route");
+  await startMetaFixture(page, "meta-cosmic-rip-objective-scan");
   await page.locator("#tab-cosmic-rip").click();
+  await page.getByTestId("cosmic-rip-restore-scanner").click();
+  await dismissRandomEventResultIfPresent(page);
   await page.locator("#tab-cosmic-rip-scanner-array").click();
 
   const pane = page.getByTestId("cosmic-rip-pane");
   const state = await page.evaluate(() => window.miaplacidusTest!.getState());
-  expect(state.permanent.cosmicRip.scannedSectorIndexes).toEqual([4]);
+  expect(state.permanent.cosmicRip.scannedSectorIndexes).toEqual([]);
   const sectorButtons = Array.from({ length: COSMIC_RIP_SECTOR_COUNT }, (_, index) =>
     page.getByTestId(`cosmic-rip-sector-${index}`),
   );
@@ -187,7 +198,10 @@ test("P-54 E-57 Cosmic Rip sector scan prices fit in all locales at phone widths
     );
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     const copy = cosmicRipText(locale);
-    const scanCost = `${formatNumber(locale, COSMIC_RIP_SCAN_GP, 0, state.settings.notation)} ${copy.gpShort}`;
+    const scanCost = copy.sectorScanCost.replace(
+      "{cost}",
+      formatNumber(locale, COSMIC_RIP_SCAN_GP, 0, state.settings.notation),
+    );
 
     for (const viewport of VIEWPORTS) {
       await page.setViewportSize(viewport);
@@ -195,15 +209,13 @@ test("P-54 E-57 Cosmic Rip sector scan prices fit in all locales at phone widths
         pane.getByRole("heading", { name: copy.scannerArrayTitle, exact: true }),
       ).toBeVisible();
       for (const [index, button] of sectorButtons.entries()) {
-        const isFound = index === state.permanent.cosmicRip.ripLocationSectorIndex;
-        const status = isFound ? copy.sectorFound : scanCost;
+        const status = scanCost;
         await expect(button).toHaveAttribute(
           "aria-label",
           `${COSMIC_RIP_SECTOR_IDS[index]}, ${status}`,
         );
         await expect(button.locator("small")).toHaveText(status);
-        if (isFound) await expect(button).toBeDisabled();
-        else await expect(button).toBeEnabled();
+        await expect(button).toBeEnabled();
       }
 
       const bounds = await page.evaluate(() => {

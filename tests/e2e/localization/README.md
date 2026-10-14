@@ -265,5 +265,5 @@ families and the full startup-to-ending audit.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5072'
-node .\node_modules\playwright\cli.js test tests/e2e/economy/p45-energy-locales.spec.ts tests/e2e/localization/p45-space-interstellar-results.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-route-locales-5072
+node .\node_modules\playwright\cli.js test tests/e2e/energy/p45-energy-locales.spec.ts tests/e2e/localization/p45-space-interstellar-results.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-route-locales-5072
 ```

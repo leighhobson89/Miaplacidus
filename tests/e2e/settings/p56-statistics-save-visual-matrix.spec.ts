@@ -37,7 +37,7 @@ test("P-56 Settings Statistics groups and research tooltip stay contained @p56-s
         );
         await settings.locator("#tab-settings-statistics").click();
         await expect(page.locator("html")).toHaveAttribute("lang", locale);
-        await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+        await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
         await expect(statistics.locator(".settings-stat-section")).toHaveCount(14);
 
         const longestGroupIndex = await statistics
@@ -62,7 +62,7 @@ test("P-56 Settings Statistics groups and research tooltip stay contained @p56-s
           const statisticsElement = document.querySelector<HTMLElement>(
             "[data-testid='settings-statistics']",
           );
-          const frame = document.querySelector<HTMLElement>(".game-frame");
+          const frame = document.querySelector<HTMLElement>(".game-frame:not(.notification-portal)");
           if (!panelElement || !statisticsElement || !frame)
             throw new Error("The Statistics page and Settings panel should render.");
 
@@ -256,7 +256,7 @@ test("P-56 Save and Loading import controls stay contained @p56-save-visual", as
         );
         await settings.locator("#tab-settings-saves").click();
         await expect(freshGame.locator("html")).toHaveAttribute("lang", locale);
-        await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+        await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
         await expect(manager.getByTestId("import-preview")).toBeVisible();
         await expect(
           manager.getByRole("button", { name: saveText(locale, "replace"), exact: true }),
@@ -281,7 +281,7 @@ test("P-56 Save and Loading import controls stay contained @p56-save-visual", as
           const preview = managerElement?.querySelector<HTMLElement>(
             "[data-testid='import-preview']",
           );
-          const frame = document.querySelector<HTMLElement>(".game-frame");
+          const frame = document.querySelector<HTMLElement>(".game-frame:not(.notification-portal)");
           const replaceButton = managerElement?.querySelector<HTMLButtonElement>(
             ".import-conflict > .danger-button:disabled",
           );
@@ -352,10 +352,15 @@ test("P-56 Save and Loading import controls stay contained @p56-save-visual", as
                 tag: control.tagName,
                 type: control.getAttribute("type"),
                 bounds: rect(control),
+                clientWidth: control.clientWidth,
+                scrollWidth: control.scrollWidth,
+                overflowX: getComputedStyle(control).overflowX,
                 withinPanel: within(control, savePanel),
                 withinManager: parent === managerElement ? within(control, managerElement) : true,
                 contentWidthFits:
-                  control.tagName === "TEXTAREA" || control.scrollWidth <= control.clientWidth + 1,
+                  control.type === "file" ||
+                  control.tagName === "TEXTAREA" ||
+                  control.scrollWidth <= control.clientWidth + 1,
               };
             }),
             textOverflows: textElements
@@ -393,11 +398,12 @@ test("P-56 Save and Loading import controls stay contained @p56-save-visual", as
           0,
         );
         expect(
-          geometry.controls.every(
-            (control) => control.withinPanel && control.withinManager && control.contentWidthFits,
+          geometry.controls.filter(
+            (control) =>
+              !control.withinPanel || !control.withinManager || !control.contentWidthFits,
           ),
-          `${label} save/import control containment`,
-        ).toBe(true);
+          `${label} failing save/import control bounds`,
+        ).toEqual([]);
         expect(geometry.textOverflows, `${label} save/import labels wrap`).toEqual([]);
         expect(geometry.scrollHeight, `${label} vertical page scrolling`).toBeGreaterThan(
           geometry.viewportHeight,

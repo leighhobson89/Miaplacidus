@@ -2,7 +2,7 @@
 
 **Status:** planned for a later bug run. Do not treat user-reported symptoms as confirmed causes before reproducing them.
 
-This phase is a dedicated pass over the tracked autobuyer reports. Use the [bug run checklist](bug-checklist.md) for triage, controlled reproduction, implementation, and evidence; keep the authoritative issue status in [the bug tracker](../../bugs.md).
+This phase handles the tracked autobuyer reports and implementation fixes from later regression failures. Use the [bug run checklist](bug-checklist.md) for triage, controlled reproduction, implementation, and evidence; keep the authoritative issue status in [the bug tracker](../../bugs.md).
 
 ## Scope
 
@@ -12,6 +12,9 @@ This phase is a dedicated pass over the tracked autobuyer reports. Use the [bug 
 - [ ] Add focused coverage for the observed cause and acceptance conditions before changing its implementation.
 - [ ] Verify the expected behavior through focused unit/browser checks, including relevant powered/unpowered, storage, progression, and save/reload paths.
 - [ ] Record commands, results, and any remaining limitations in both the issue record and the affected feature parity row.
+
+- [ ] Triage failures found in later regression runs, reproduce the cause, and implement required fixes here with linked evidence.
+- [ ] Carry the Phase 6 P-55 focused Statistics selector/render assertions into the planned regression pass; implement any confirmed test-failure fixes here. The owner's source/remake value review passed on 13 October 2026; no assertions were run during that review closeout.
 
 ## Exit gate
 

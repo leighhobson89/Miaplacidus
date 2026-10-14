@@ -1075,9 +1075,9 @@ describe("space content rules", () => {
       input: { wallNowMs: 1, foreground: true, offlineElapsedMs: 3_000 },
     });
     expect(returning.accepted).toBe(true);
-    expect(returning.state.run.space.antimatter).toBeCloseTo(150.4, 10);
-    expect(returning.state.run.space.antimatterMinedThisRun).toBeCloseTo(0.4, 10);
-    expect(returning.state.statistics.lifetimeAntimatterMined).toBeCloseTo(0.4, 10);
+    expect(returning.state.run.space.antimatter).toBe(150);
+    expect(returning.state.run.space.antimatterMinedThisRun).toBe(0);
+    expect(returning.state.statistics.lifetimeAntimatterMined).toBe(0);
     expect(returning.state.run.space.antimatterBoostActive).toBe(false);
     expect(returning.state.run.space.asteroids[0]).toMatchObject({
       remainingAntimatter: 0,
@@ -1100,7 +1100,7 @@ describe("space content rules", () => {
       timerId: returnTimerId,
     });
     expect(returned.accepted).toBe(true);
-    expect(returned.state.run.space.antimatter).toBeCloseTo(150.4, 10);
+    expect(returned.state.run.space.antimatter).toBe(150);
     expect(returned.state.run.space.rockets.rocket1).toMatchObject({
       phase: "ready",
       fuelQuantity: 0,
@@ -1114,7 +1114,7 @@ describe("space content rules", () => {
       type: "timer.complete",
       timerId: returnTimerId,
     });
-    expect(repeatedReturn.state.run.space.antimatter).toBeCloseTo(150.4, 10);
+    expect(repeatedReturn.state.run.space.antimatter).toBe(150);
     expect(repeatedReturn.state.run.space.rockets.rocket1.journeyCount).toBe(1);
     expect(repeatedReturn.state.statistics.completedTimers).toBe(2);
   });
@@ -1242,9 +1242,9 @@ describe("space content rules", () => {
       type: "clock.advance",
       input: { wallNowMs: 1, foreground: true, offlineElapsedMs: 1_000 },
     });
-    expect(advanced.state.run.space.antimatter).toBeCloseTo(151.0528, 8);
-    expect(advanced.state.run.space.antimatterMinedThisRun).toBeCloseTo(1.0528, 8);
-    expect(advanced.state.statistics.lifetimeAntimatterMined).toBeCloseTo(1.0528, 8);
+    expect(advanced.state.run.space.antimatter).toBe(151);
+    expect(advanced.state.run.space.antimatterMinedThisRun).toBe(1);
+    expect(advanced.state.statistics.lifetimeAntimatterMined).toBe(1);
     expect(
       ROCKET_IDS.map((rocketId) => advanced.state.run.space.rockets[rocketId].targetAsteroidId),
     ).toEqual(asteroids.map((asteroid) => asteroid.id));

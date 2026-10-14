@@ -25,7 +25,9 @@ test("P-45 Black Hole fixed page copy renders across all locales and charge stat
   await page.getByRole("tab", { name: "Black Hole" }).click();
 
   const pane = page.locator(".black-hole-pane");
-  const researchButton = page.getByTestId("black-hole-research").getByRole("button");
+  const researchButton = page
+    .getByTestId("black-hole-research")
+    .locator(".space-action-help-group > .primary-button");
 
   for (const locale of LOCALE_IDS) {
     await setLocale(page, locale);

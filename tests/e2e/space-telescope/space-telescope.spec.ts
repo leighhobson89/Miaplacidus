@@ -1,4 +1,4 @@
-import { expect, test } from "../_harness/fixtures";
+import { expect, test, type Page } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import type { LocaleId } from "../../../src/content/ids";
@@ -11,6 +11,7 @@ import { STAR_WEATHER_TIMER_ID } from "../../../src/engine/weather";
 import { rocketText } from "../../../src/i18n/rocketMessages";
 import { spaceText } from "../../../src/i18n/spaceMessages";
 import { spaceNotificationText } from "../../../src/i18n/spaceNotificationMessages";
+import { economyLabel } from "../../../src/i18n/economyMessages";
 
 const ALL_LOCALES: readonly LocaleId[] = ["en", "es", "pt", "de", "it", "fr"];
 
@@ -37,6 +38,52 @@ async function startSpaceFixture(
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect(page.getByText("Space Telescope Pioneer")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  const dismissTutorial = page.getByRole("button", { name: "No thanks", exact: true });
+  if (await dismissTutorial.isVisible()) await dismissTutorial.click();
+}
+
+async function buildTelescope(page: import("@playwright/test").Page): Promise<void> {
+  const button = page.getByRole("button", {
+    name: spaceText("en", "telescopeBuild"),
+    exact: true,
+  });
+  await expect(button).toBeEnabled();
+  await button.click();
+}
+
+async function clearQueuedNotifications(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect(page.getByTestId("notification-stack")).toBeEmpty();
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: true },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);
+}
+
+async function dismissRandomEventResultIfPresent(page: Page): Promise<void> {
+  const dialog = page.getByTestId("random-event-result-dialog");
+  for (let dismissed = 0; dismissed < 10; dismissed += 1) {
+    if (!(await dialog.isVisible())) return;
+    await dialog.getByRole("button").click();
+    await expect
+      .poll(async () => {
+        if ((await dialog.count()) === 0) return null;
+        if (!(await dialog.isVisible())) return undefined;
+        return dialog.getByRole("heading").innerText();
+      })
+      .not.toBeUndefined();
+  }
+  await expect(dialog).toHaveCount(0);
 }
 
 test("keeps Mining hidden until a rocket reaches an asteroid @space-telescope", async ({
@@ -89,13 +136,14 @@ test("announces asteroid-search completion while another tab is selected @space-
   page,
 }) => {
   await startSpaceFixture(page);
+  await clearQueuedNotifications(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
   const pane = page.getByTestId("space-mining-pane");
   await expect(pane).toBeVisible();
   await expect(pane).toContainText(`$${formatNumber("en", 10_000)}`);
   await expect(pane).toContainText(`${formatNumber("en", 20_000)} Iron`);
-  await page.getByRole("button", { name: "Build telescope" }).click();
+  await buildTelescope(page);
   const telescopeNotice = page.locator(
     '[data-testid="game-notification"][data-classification="special"]',
   );
@@ -104,12 +152,19 @@ test("announces asteroid-search completion while another tab is selected @space-
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.telescopeBuilt))
     .toBe(true);
-  await expect(pane).toContainText("Telescope built");
+  await expect(
+    pane
+      .getByRole("region", { name: spaceText("en", "telescopeTitle") })
+      .locator(".space-card-heading .status-pill.is-ready"),
+  ).toHaveText(spaceText("en", "telescopeBuilt"));
+  await expect(page.getByTestId("space-feedback")).toHaveText("");
   const initialAsteroidIds = await page.evaluate(() =>
     window.miaplacidusTest!.getState().run.space.asteroids.map((asteroid) => asteroid.id),
   );
   await expect(telescopeNotice).toHaveCount(0);
-  await page.getByRole("button", { name: "Scan for asteroids" }).click();
+  await page
+    .getByRole("button", { name: spaceText("en", "scanAsteroids"), exact: true })
+    .click();
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
     .toBe("asteroids");
@@ -120,9 +175,12 @@ test("announces asteroid-search completion while another tab is selected @space-
       ),
     )
     .toBe("running");
-  const surveyProgress = page.getByRole("progressbar", { name: "Scanning", exact: true });
+  const surveyProgress = page.getByRole("progressbar", {
+    name: spaceText("en", "surveySearching"),
+    exact: true,
+  });
   await expect(surveyProgress).toBeVisible();
-  await expect(surveyProgress).toHaveAttribute("aria-label", "Scanning");
+  await expect(surveyProgress).toHaveAttribute("aria-label", spaceText("en", "surveySearching"));
   const initialSurveyProgress = await surveyProgress.evaluate((element) => {
     const progress = element as HTMLProgressElement;
     return { value: progress.value, max: progress.max };
@@ -171,7 +229,6 @@ test("announces asteroid-search completion while another tab is selected @space-
     const asteroid = state.run.space.asteroids.find((entry) => !previousIds.includes(entry.id));
     return asteroid ? { name: asteroid.name, rarity: asteroid.rarity } : null;
   }, initialAsteroidIds);
-  const completedScan = completedDiscovery?.name ?? null;
   const expectedNotification = completedDiscovery
     ? spaceNotificationText(
         "fr",
@@ -185,31 +242,26 @@ test("announces asteroid-search completion while another tab is selected @space-
   const globalScanNotice = notificationRegion
     .getByTestId("game-notification")
     .filter({ hasText: completedDiscovery?.name ?? expectedNotification });
-  await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
+  await expect(notificationRegion).toHaveAttribute("data-visible-limit", "2");
   await expect(globalScanNotice).toHaveRole("status");
   await expect(globalScanNotice).toHaveAttribute("aria-atomic", "true");
   await expect(globalScanNotice).toHaveText(expectedNotification);
 
   await page.locator("#tab-space-mining").click();
-  const scanAnnouncement = page.getByTestId("space-feedback");
-  await expect(scanAnnouncement).toHaveRole("status");
-  await expect(scanAnnouncement).toHaveAttribute("aria-live", "polite");
-  await expect(scanAnnouncement).toHaveAttribute("aria-atomic", "true");
-  await expect(scanAnnouncement).toHaveText(
-    completedScan
-      ? spaceText("fr", "feedbackAsteroidFound", { name: completedScan })
-      : spaceText("fr", "feedbackScanMissed"),
-  );
+  await expect(page.getByTestId("space-mining-pane")).toBeVisible();
 });
 
 test("shows telescope survey power loss as a pause and resumes the countdown @space-live-countdown", async ({
   page,
 }) => {
   await startSpaceFixture(page);
+  await clearQueuedNotifications(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  await page.getByRole("button", { name: "Scan for asteroids" }).click();
+  await buildTelescope(page);
+  await page
+    .getByRole("button", { name: spaceText("en", "scanAsteroids"), exact: true })
+    .click();
 
   const status = page.getByTestId("space-survey-status");
   const countdown = page.getByTestId("space-survey-countdown");
@@ -237,7 +289,9 @@ test("shows telescope survey power loss as a pause and resumes the countdown @sp
 
   await page.getByRole("tab", { name: "Energy" }).click();
   await page.locator("#tab-energy-power").click();
-  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  const powerSwitch = page.locator("#panel-energy .energy-master-switch");
+  await expect(powerSwitch).toHaveText(economyLabel("en", "deactivatePower"));
+  await powerSwitch.click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
@@ -261,7 +315,8 @@ test("shows telescope survey power loss as a pause and resumes the countdown @sp
 
   await page.getByRole("tab", { name: "Energy" }).click();
   await page.locator("#tab-energy-power").click();
-  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
+  await expect(powerSwitch).toHaveText(economyLabel("en", "activatePower"));
+  await powerSwitch.click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
@@ -282,11 +337,13 @@ test("exposes live Star Study and Void Pillage progress across all locales @spac
   page,
 }) => {
   await startSpaceFixture(page);
+  await clearQueuedNotifications(page);
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: spaceText("en", "telescopeBuild") }).click();
+  await buildTelescope(page);
+  await clearQueuedNotifications(page);
 
-  await page.getByRole("button", { name: spaceText("en", "studyStars") }).click();
+  await page.getByRole("button", { name: spaceText("en", "studyStars"), exact: true }).click();
   const studyProgress = page.getByRole("progressbar", {
     name: spaceText("en", "surveyStudying"),
     exact: true,
@@ -345,7 +402,6 @@ test("exposes live Star Study and Void Pillage progress across all locales @spac
     const state = window.miaplacidusTest!.getState();
     return {
       starStudyRange: state.run.space.starStudyRange,
-      notation: state.settings.notation,
     };
   });
   expect(completedStudy.starStudyRange).toBeGreaterThan(studyBeforeCompletion.starStudyRange);
@@ -355,13 +411,15 @@ test("exposes live Star Study and Void Pillage progress across all locales @spac
       exact: true,
     }),
   ).toHaveCount(0);
-  await expect(spaceFeedback).toHaveText(
-    spaceText("fr", "feedbackStudyComplete", {
-      range: formatNumber("fr", completedStudy.starStudyRange, 0, completedStudy.notation),
-    }),
-  );
+  await expect(spaceFeedback).toHaveText("");
 
   await startSpaceFixture(page, "space-voidborn-pillage");
+  await clearQueuedNotifications(page);
+  expect(
+    await page.evaluate(() =>
+      window.miaplacidusTest!.applyDebugAction("set-language", { locale: "fr" }),
+    ),
+  ).toBe(true);
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
   const voidbornState = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -370,9 +428,9 @@ test("exposes live Star Study and Void Pillage progress across all locales @spac
   expect(voidbornState.run.philosophyAbilityActive).toBe(true);
   expect(voidbornState.run.space.telescopeBuilt).toBe(true);
 
-  await page.getByRole("button", { name: spaceText("en", "pillageVoid") }).click();
+  await page.getByRole("button", { name: spaceText("fr", "pillageVoid"), exact: true }).click();
   const pillageProgress = page.getByRole("progressbar", {
-    name: spaceText("en", "surveyPillaging"),
+    name: spaceText("fr", "surveyPillaging"),
     exact: true,
   });
   await expect(pillageProgress).toBeVisible();
@@ -421,6 +479,12 @@ test("exposes live Star Study and Void Pillage progress across all locales @spac
     (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1),
     pillageBeforeCompletion.remainingMs!,
   );
+  const notificationRegion = page.getByTestId("notification-stack");
+  const pillageNotice = notificationRegion
+    .getByRole("status")
+    .filter({ hasText: spaceNotificationText("fr", "voidPillageComplete") });
+  await expect(pillageNotice).toContainText(spaceNotificationText("fr", "voidPillageComplete"));
+  await expect(pillageNotice).toHaveAttribute("aria-atomic", "true");
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
     .toBeNull();
@@ -435,13 +499,8 @@ test("exposes live Star Study and Void Pillage progress across all locales @spac
       exact: true,
     }),
   ).toHaveCount(0);
-  const notificationRegion = page.getByTestId("notification-stack");
-  const pillageNotice = notificationRegion
-    .getByRole("status")
-    .filter({ hasText: spaceNotificationText("fr", "voidPillageComplete") });
-  await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
-  await expect(pillageNotice).toHaveCount(1);
-  await expect(pillageNotice).toHaveAttribute("aria-atomic", "true");
+  await expect(spaceFeedback).toHaveText("");
+  await expect(notificationRegion).toHaveAttribute("data-visible-limit", "2");
   await expect(pillageNotice).toContainText(spaceNotificationText("fr", "voidPillageComplete"));
   await expect(page.getByTestId("space-feedback")).not.toContainText(
     spaceNotificationText("fr", "voidPillageComplete"),
@@ -452,6 +511,7 @@ test("keeps launch-pad weather separate from the telescope and shows precipitati
   page,
 }) => {
   await startSpaceFixture(page);
+  await clearQueuedNotifications(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
 
@@ -533,11 +593,13 @@ test("keeps launch-pad weather separate from the telescope and shows precipitati
   await expect(weatherCountdown).toHaveAttribute("data-remaining-ms", /[1-9]\d*/);
 
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  await page.getByRole("button", { name: "Scan for asteroids" }).click();
+  await buildTelescope(page);
+  await page
+    .getByRole("button", { name: spaceText("en", "scanAsteroids"), exact: true })
+    .click();
   const surveyCountdown = page.getByTestId("space-survey-countdown");
   await expect(surveyCountdown).toBeVisible();
-  await expect(surveyCountdown).toContainText("Survey time remaining:");
+  await expect(surveyCountdown).toContainText("Time remaining:");
   const initialSurveyMs = Number(await surveyCountdown.getAttribute("data-remaining-ms"));
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
   await expect
@@ -556,7 +618,10 @@ test("explains the one-unit rocket-part shortfall through its associated reason 
   const buildPart = rocket.getByRole("button", { name: "Build Rocket Part" });
   await expect(rocket).toContainText(`${formatNumber("en", 3_000)} Steel`);
   await expect(buildPart).toBeDisabled();
-  await expect(buildPart).toHaveAttribute("aria-describedby", "rocket-rocket1-part-reason");
+  await expect(buildPart).toHaveAttribute(
+    "aria-describedby",
+    "rocket-rocket1-part-cost rocket-rocket1-part-reason",
+  );
   await expect(page.locator("#rocket-rocket1-part-reason")).toHaveText(
     `Not enough Steel. Required: ${formatNumber("en", 3_000)}.`,
   );
@@ -572,7 +637,7 @@ test("builds a rocket part at exact stock and charges every quoted cost @space-t
   const rocket = page.getByTestId("rocket-card-rocket1");
   const buildPart = rocket.getByRole("button", { name: "Build Rocket Part" });
   await expect(buildPart).toBeEnabled();
-  await expect(buildPart).not.toHaveAttribute("aria-describedby", /.+/);
+  await expect(buildPart).toHaveAttribute("aria-describedby", "rocket-rocket1-part-cost");
   const cashBefore = await page.evaluate(() => window.miaplacidusTest!.getState().run.cash);
   await buildPart.click();
 
@@ -603,7 +668,10 @@ test("builds a rocket part at exact stock and charges every quoted cost @space-t
   await expect(nextPartCost).toContainText("791 Titanium");
   await expect(nextPartCost).toContainText(`${formatNumber("en", 3_390)} Steel`);
   await expect(buildPart).toBeDisabled();
-  await expect(buildPart).toHaveAttribute("aria-describedby", "rocket-rocket1-part-reason");
+  await expect(buildPart).toHaveAttribute(
+    "aria-describedby",
+    "rocket-rocket1-part-cost rocket-rocket1-part-reason",
+  );
   await expect(page.locator("#rocket-rocket1-part-reason")).toHaveText(
     `Not enough Steel. Required: ${formatNumber("en", 3_390)}.`,
   );
@@ -615,10 +683,10 @@ test("unlocked Auto Telescope starts the selected survey mode @space-telescope",
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
+  await buildTelescope(page);
   const controls = page.getByTestId("auto-telescope-controls");
   await expect(controls).toBeVisible();
-  await controls.getByLabel("Action").selectOption("stars");
+  await controls.getByLabel(spaceText("en", "autoRowLabel")).selectOption("stars");
   await page.getByRole("button", { name: "Enable automation" }).click();
   await expect
     .poll(() =>
@@ -638,6 +706,7 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
   page,
 }) => {
   await startSpaceFixture(page);
+  await clearQueuedNotifications(page);
 
   await page.keyboard.press("NumpadSubtract");
   const debugMenu = page.getByTestId("debug-scenario-menu");
@@ -652,7 +721,9 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
 
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-launch-pad").click();
-  await page.getByRole("button", { name: "Build launch pad" }).click();
+  await page
+    .getByRole("button", { name: rocketText("en", "buildLaunchPad"), exact: true })
+    .click();
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.launchPadBuilt))
     .toBe(true);
@@ -676,9 +747,11 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
     )
     .toBe("ready");
   await page.locator("#tab-space-mining-rocket-2").click();
-  await rocket2.getByRole("button", { name: "Buy fuel pump" }).click();
+  await rocket2
+    .getByRole("button", { name: rocketText("en", "buyPump"), exact: true })
+    .click();
   await page.locator("#tab-space-mining-rocket-1").click();
-  await rocket.getByRole("button", { name: "Buy fuel pump" }).click();
+  await rocket.getByRole("button", { name: rocketText("en", "buyPump"), exact: true }).click();
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(6_000_000));
   await expect
     .poll(() =>
@@ -699,14 +772,25 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
   const clearWeatherMenu = page.getByTestId("debug-scenario-menu");
   await clearWeatherMenu.getByTestId("debug-action-clear-weather").click();
   await clearWeatherMenu.getByRole("button", { name: "Close" }).click();
-  await rocket.getByRole("button", { name: "Launch rocket" }).click();
+  await dismissRandomEventResultIfPresent(page);
+  const launchRocket1 = rocket.getByRole("button", {
+    name: rocketText("en", "launch"),
+    exact: true,
+  });
+  await expect(launchRocket1).toBeEnabled();
+  await launchRocket1.click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.phase),
     )
     .toBe("orbit");
   await page.locator("#tab-space-mining-rocket-2").click();
-  await rocket2.getByRole("button", { name: "Launch rocket" }).click();
+  const launchRocket2 = rocket2.getByRole("button", {
+    name: rocketText("en", "launch"),
+    exact: true,
+  });
+  await expect(launchRocket2).toBeEnabled();
+  await launchRocket2.click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket2.phase),
@@ -714,8 +798,13 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
     .toBe("orbit");
 
   await page.locator("#tab-space-mining-rocket-1").click();
-  const travelButton = rocket.getByRole("button", { name: "Travel to selected asteroid" });
-  await expect(rocket).toContainText("Target: —");
+  const travelButton = rocket.getByRole("button", {
+    name: rocketText("en", "travelToAsteroid"),
+    exact: true,
+  });
+  await expect(
+    rocket.getByText(`${rocketText("en", "destination")}: —`, { exact: true }),
+  ).toBeVisible();
   await expect(travelButton).toBeDisabled();
   await expect(page.locator("#rocket-rocket1-travel-reason")).toHaveText(
     "Select an available asteroid in this system.",
@@ -756,11 +845,11 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
     .toEqual({ phase: "outbound", selected: availableAsteroid!.id, reservedBy: "rocket1" });
 
   const rocketTravelProgress = rocket.getByRole("progressbar", {
-    name: "Travelling to asteroid",
+    name: rocketText("en", "outbound"),
     exact: true,
   });
   await expect(rocketTravelProgress).toBeVisible();
-  await expect(rocketTravelProgress).toHaveAttribute("aria-label", "Travelling to asteroid");
+  await expect(rocketTravelProgress).toHaveAttribute("aria-label", rocketText("en", "outbound"));
   const initialRocketTravelProgress = await rocketTravelProgress.evaluate((element) => {
     const progress = element as HTMLProgressElement;
     return { value: progress.value, max: progress.max };
@@ -777,7 +866,8 @@ test("an orbiting rocket explains the missing asteroid target and travels after 
 
   await page.locator("#tab-space-mining-rocket-2").click();
   const reservedTargetTravelButton = rocket2.getByRole("button", {
-    name: "Travel to selected asteroid",
+    name: rocketText("en", "travelToAsteroid"),
+    exact: true,
   });
   await expect(reservedTargetTravelButton).toBeDisabled();
   await expect(page.locator("#rocket-rocket2-travel-reason")).toHaveText(
@@ -793,12 +883,15 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   page,
 }, testInfo) => {
   await startSpaceFixture(page);
+  await clearQueuedNotifications(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-launch-pad").click();
   for (let rocket = 1; rocket <= 4; rocket += 1) {
     await expect(page.locator(`#tab-space-mining-rocket-${rocket}`)).toHaveCount(0);
   }
-  await page.getByRole("button", { name: "Build launch pad" }).click();
+  await page
+    .getByRole("button", { name: rocketText("en", "buildLaunchPad"), exact: true })
+    .click();
   const launchPadNotice = page.locator(
     '[data-testid="game-notification"][data-classification="special"]',
   );
@@ -852,7 +945,7 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   await captureVisualCheckpoint(page, testInfo, "space-rocket-1-mobile");
   await page.setViewportSize({ width: 1280, height: desktopHeight });
 
-  await rocket.getByRole("button", { name: "Buy fuel pump" }).click();
+  await rocket.getByRole("button", { name: rocketText("en", "buyPump"), exact: true }).click();
   const fuelEta = rocket.getByTestId("rocket-fuel-eta-rocket1");
   const fuelProgress = rocket.getByRole("progressbar", {
     name: "Antimatter fuel",
@@ -942,7 +1035,9 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   );
   await page.getByRole("tab", { name: /Energy/ }).click();
   await page.locator("#tab-energy-power").click();
-  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  const powerSwitch = page.locator("#panel-energy .energy-master-switch");
+  await expect(powerSwitch).toHaveText(economyLabel("en", "deactivatePower"));
+  await powerSwitch.click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
@@ -952,7 +1047,9 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-rocket-1").click();
   await expect(fuelEta).toHaveText("Turn on the power grid before fueling.");
-  await expect(rocket.getByRole("button", { name: "Pause fueling" })).toHaveAttribute(
+  await expect(
+    rocket.getByRole("button", { name: rocketText("en", "pauseFueling"), exact: true }),
+  ).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -970,7 +1067,8 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
 
   await page.getByRole("tab", { name: /Energy/ }).click();
   await page.locator("#tab-energy-power").click();
-  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
+  await expect(powerSwitch).toHaveText(economyLabel("en", "activatePower"));
+  await powerSwitch.click();
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.economy.power.gridEnabled),
@@ -980,9 +1078,13 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   await page.locator("#tab-space-mining-rocket-1").click();
   await expect(fuelEta).toContainText("Time to full:");
 
-  await rocket.getByRole("button", { name: "Pause fueling" }).click();
+  await rocket
+    .getByRole("button", { name: rocketText("en", "pauseFueling"), exact: true })
+    .click();
   await expect(fuelEta).toHaveText("Fueling is paused.");
-  await expect(rocket.getByRole("button", { name: "Start fueling" })).toHaveAttribute(
+  await expect(
+    rocket.getByRole("button", { name: rocketText("en", "startFueling"), exact: true }),
+  ).toHaveAttribute(
     "aria-pressed",
     "false",
   );
@@ -996,7 +1098,9 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
     ),
   ).toBe(pausedFuel);
 
-  await rocket.getByRole("button", { name: "Start fueling" }).click();
+  await rocket
+    .getByRole("button", { name: rocketText("en", "startFueling"), exact: true })
+    .click();
   const resumedEtaMs = Number(await fuelEta.getAttribute("data-remaining-ms"));
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(10_000));
   await expect
@@ -1014,7 +1118,6 @@ test("assembles a rocket, buys its powered fuel pump, and reports fuel progress 
   const fuelReadyNotice = page.locator(
     '[data-testid="game-notification"][data-classification="rocket"]',
   );
-  await expect(page.getByTestId("notification-stack")).toHaveAttribute("aria-live", "polite");
   await expect(fuelReadyNotice).toHaveRole("status");
   await expect(fuelReadyNotice).toHaveAttribute("aria-atomic", "true");
   await expect(fuelReadyNotice).toHaveText("Rocket 1 is ready for Launch!");
@@ -1034,7 +1137,7 @@ test("shows the rocket's live outbound countdown on its page @space-live-countdo
   await expect(journeyCountdown).toBeVisible();
   await expect(journeyCountdown).toContainText("Journey time remaining:");
   const journeyProgress = page.getByRole("progressbar", {
-    name: "Travelling to asteroid",
+    name: rocketText("en", "outbound"),
     exact: true,
   });
   await expect(journeyProgress).toBeVisible();

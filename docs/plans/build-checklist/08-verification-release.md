@@ -70,8 +70,8 @@
 - [ ] **V-52** Produce concise player help for multiple slots, confirmed-name Start, exports, imports and browser-storage limits.
 - [ ] **V-53** Produce a developer handoff with architecture map, content catalogue, save schema and migration rules.
 - [ ] **V-54** Archive completed feature plans and attach the current focused test results to area documentation.
-- [ ] **V-55** Obtain the owner's quick OK on the six-language review sample and record it.
-- [ ] **V-56** Seek project approval before the repository's **full** test-suite run, as required by [AGENTS.md](../../../AGENTS.md); then run and record it.
+- [ ] **V-55** Verify required player-facing strings have non-empty values in `en`, `es`, `pt`, `de`, `it`, and `fr`; record any missing locale entries. Translation quality and linguistic sign-off are not release gates.
+- [ ] **V-56** Seek project approval before the repository's **full** test-suite run, as required by [AGENTS.md](../../../AGENTS.md); then run and record it. Defer implementation changes caused by failures to Phase 9 after reproducing them.
 - [ ] **V-57** Review the release candidate from a clean browser profile and an existing MIAPLACIDUS save.
 - [ ] **V-58** Record release version, artifact hash, known deviations, test summary and owner acceptance in a final release note.
 

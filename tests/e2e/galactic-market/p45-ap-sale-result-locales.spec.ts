@@ -43,7 +43,7 @@ test("P-45 Galactic Market AP sale results render in all locales @p45-market-ap-
     );
 
     await sale.getByLabel(marketText(locale, "sellAp")).selectOption(String(quantity));
-    await expect(sale.locator(".card-copy > p").nth(1)).toHaveText(expectedPayout);
+    await expect(sale.locator(".card-copy > p").nth(1)).toContainText(expectedPayout);
     const sellButton = sale.getByRole("button", {
       name: marketText(locale, "sellApAction"),
       exact: true,

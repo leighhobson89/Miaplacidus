@@ -1,4 +1,4 @@
-import { expect, test } from "../_harness/fixtures";
+import { dismissTutorialOfferIfPresent, expect, test } from "../_harness/fixtures";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { PHILOSOPHY_ABILITY_RESEARCH_COST } from "../../../src/content/philosophy";
 import { philosophyText } from "../../../src/i18n/philosophyMessages";
@@ -19,6 +19,7 @@ async function startSpaceFixture(page: import("@playwright/test").Page): Promise
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await dismissTutorialOfferIfPresent(page);
 }
 
 test("P-45 Philosophy purchases show localized active and rank results @p45-philosophy-purchases", async ({
@@ -27,8 +28,8 @@ test("P-45 Philosophy purchases show localized active and rank results @p45-phil
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  await page.getByRole("button", { name: "Study Stars", exact: true }).click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({
@@ -54,7 +55,9 @@ test("P-45 Philosophy purchases show localized active and rank results @p45-phil
     () => window.miaplacidusTest!.getState().run.researchPoints,
   );
 
-  await abilityCard.getByRole("button", { name: philosophyText("en").buy }).click();
+  await abilityCard
+    .getByRole("button", { name: philosophyText("en").abilityAction, exact: true })
+    .click();
   await expect
     .poll(() =>
       page.evaluate(() => ({

@@ -32,7 +32,7 @@ async function setPresentation(
     { locale, themeId },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
 }
 
 async function expectRebirthContained(page: Page, label: string): Promise<void> {
@@ -110,9 +110,7 @@ async function expectRebirthContained(page: Page, label: string): Promise<void> 
 
   expect(bounds.viewportWidth, `${label} viewport`).toBeGreaterThan(0);
   expect(bounds.viewportHeight, `${label} viewport height`).toBeGreaterThan(0);
-  expect(bounds.documentWidth, `${label} document width`).toBeLessThanOrEqual(
-    bounds.viewportWidth,
-  );
+  expect(bounds.documentWidth, `${label} document width`).toBeLessThanOrEqual(bounds.viewportWidth);
   for (const [name, box] of Object.entries({
     pane: bounds.pane,
     heading: bounds.heading,
@@ -121,9 +119,7 @@ async function expectRebirthContained(page: Page, label: string): Promise<void> 
     dialog: bounds.dialog,
   })) {
     expect(box.left, `${label} ${name} left edge`).toBeGreaterThanOrEqual(-1);
-    expect(box.right, `${label} ${name} right edge`).toBeLessThanOrEqual(
-      bounds.viewportWidth + 1,
-    );
+    expect(box.right, `${label} ${name} right edge`).toBeLessThanOrEqual(bounds.viewportWidth + 1);
     expect(box.scrollWidth, `${label} ${name} internal width`).toBeLessThanOrEqual(
       box.clientWidth + 1,
     );
@@ -174,120 +170,104 @@ async function expectRebirthContained(page: Page, label: string): Promise<void> 
     expect(node.left, `${nodeLabel} left edge`).toBeGreaterThanOrEqual(bounds.dialog.left - 1);
     expect(node.right, `${nodeLabel} right edge`).toBeLessThanOrEqual(bounds.dialog.right + 1);
     expect(node.top, `${nodeLabel} top edge`).toBeGreaterThanOrEqual(bounds.dialog.top - 1);
-    expect(node.bottom, `${nodeLabel} bottom edge`).toBeLessThanOrEqual(
-      bounds.dialog.bottom + 1,
-    );
+    expect(node.bottom, `${nodeLabel} bottom edge`).toBeLessThanOrEqual(bounds.dialog.bottom + 1);
     if (["h2", "p", "button"].includes(node.tag)) {
       expect(node.scrollWidth, `${nodeLabel} text fit`).toBeLessThanOrEqual(node.clientWidth + 2);
     }
   }
 }
 
-test(
-  "P-56 Galactic Rebirth content fits every locale, theme, and viewport @p56-rebirth-content-visual @galactic-market @presentation",
-  async ({ page }, testInfo) => {
-    test.setTimeout(240_000);
-    await startMetaFixture(page, "meta-market-rebirth-ready");
-    await expect(page.locator("[data-app-ready]")).toBeVisible();
-    await page.evaluate(() =>
-      window.miaplacidusTest!.dispatch({
-        type: "settings.update",
-        patch: { notificationsEnabled: false },
-      }),
-    );
-    await expect(page.locator('[data-testid="game-notification"]')).toHaveCount(0);
-    await page.addStyleTag({
-      content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
-    });
+test("P-56 Galactic Rebirth content fits every locale, theme, and viewport @p56-rebirth-content-visual @galactic-market @presentation", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(240_000);
+  await startMetaFixture(page, "meta-market-rebirth-ready");
+  await expect(page.locator("[data-app-ready]")).toBeVisible();
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect(page.locator('[data-testid="game-notification"]')).toHaveCount(0);
+  await page.addStyleTag({
+    content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
+  });
 
-    const captures = new Set([
-      "en/terminal/1280",
-      "de/light/390",
-      "pt/galaxy/1280",
-      "fr/space/320",
-    ]);
-    const dialogCapture = "p56-rebirth-fr-space-320-dialog.png";
-    const pane = page.getByTestId("rebirth-pane");
-    const marketPane = page.locator(".galactic-market-pane");
+  const captures = new Set(["en/terminal/1280", "de/light/390", "pt/galaxy/1280", "fr/space/320"]);
+  const dialogCapture = "p56-rebirth-fr-space-320-dialog.png";
+  const pane = page.getByTestId("rebirth-pane");
+  const marketPane = page.locator(".galactic-market-pane");
 
-    for (const locale of LOCALE_IDS) {
-      for (const themeId of THEME_IDS) {
-        for (const viewport of VIEWPORTS) {
-          await page.setViewportSize(viewport);
-          await setPresentation(page, locale, themeId);
-          await page.locator("#tab-galaxy").click();
+  for (const locale of LOCALE_IDS) {
+    for (const themeId of THEME_IDS) {
+      for (const viewport of VIEWPORTS) {
+        await page.setViewportSize(viewport);
+        await setPresentation(page, locale, themeId);
+        await page.locator("#tab-galaxy").click();
 
-          const rebirthTab = page.locator("#tab-galactic-rebirth");
-          await expect(rebirthTab, `${locale}/${themeId} Rebirth child tab`).toBeVisible();
-          await expect(rebirthTab).toHaveAttribute("data-source-option-id", "option1");
-          await expect(page.locator("#tab-galactic-market")).toBeVisible();
-          await page.locator("#tab-galactic-market").click();
-          await expect(marketPane).toBeVisible();
-          await expect(marketPane.locator(".rebirth-liquidation-card")).toHaveCount(0);
+        const rebirthTab = page.locator("#tab-galactic-rebirth");
+        await expect(rebirthTab, `${locale}/${themeId} Rebirth child tab`).toBeVisible();
+        await expect(rebirthTab).toHaveAttribute("data-source-option-id", "option1");
+        await expect(page.locator("#tab-galactic-market")).toBeVisible();
+        await page.locator("#tab-galactic-market").click();
+        await expect(marketPane).toBeVisible();
+        await expect(marketPane.locator(".rebirth-liquidation-card")).toHaveCount(0);
 
-          await rebirthTab.click();
-          await expect(rebirthTab).toHaveAttribute("aria-selected", "true");
-          await expect(pane).toBeVisible();
-          await expect(pane).toHaveAttribute("aria-labelledby", "rebirth-pane-title");
-          await expect(pane.locator("#rebirth-pane-title")).toHaveText(
-            rebirthText(locale, "title"),
-          );
-          await expect(
-            pane.locator('.page-artwork-row [data-celestial-illustration="megastructure"]'),
-          ).toBeVisible();
-          const cards = pane.locator(".action-grid > .upgrade-card");
-          await expect(cards).toHaveCount(3);
-          await expect(cards.nth(0).locator("h3")).toContainText(metaText(locale, "ap"));
-          await expect(cards.nth(1).locator("h3")).toContainText(metaText(locale, "rebirths"));
-          await expect(cards.nth(2).locator("h3")).toContainText(
-            marketText(locale, "liquidation"),
-          );
-          const liquidationCard = pane.locator(".rebirth-liquidation-card");
-          await expect(liquidationCard).toHaveCount(1);
-          await expect(liquidationCard).toContainText(marketText(locale, "liquidationValue"));
-          await expect(liquidationCard).toContainText(marketText(locale, "liquidationAp"));
+        await rebirthTab.click();
+        await expect(rebirthTab).toHaveAttribute("aria-selected", "true");
+        await expect(pane).toBeVisible();
+        await expect(pane).toHaveAttribute("aria-labelledby", "rebirth-pane-title");
+        await expect(pane.locator("#rebirth-pane-title")).toHaveText(rebirthText(locale, "title"));
+        await expect(
+          pane.locator('.page-artwork-row [data-celestial-illustration="megastructure"]'),
+        ).toBeVisible();
+        const cards = pane.locator(".action-grid > .upgrade-card");
+        await expect(cards).toHaveCount(3);
+        await expect(cards.nth(0).locator("h3")).toContainText(metaText(locale, "ap"));
+        await expect(cards.nth(1).locator("h3")).toContainText(metaText(locale, "rebirths"));
+        await expect(cards.nth(2).locator("h3")).toContainText(marketText(locale, "liquidation"));
+        const liquidationCard = pane.locator(".rebirth-liquidation-card");
+        await expect(liquidationCard).toHaveCount(1);
+        await expect(liquidationCard).toContainText(marketText(locale, "liquidationValue"));
+        await expect(liquidationCard).toContainText(marketText(locale, "liquidationAp"));
 
-          const key = `${locale}/${themeId}/${viewport.width}`;
-          if (captures.has(key)) {
-            await capture(
-              page,
-              testInfo,
-              `p56-rebirth-${locale}-${themeId}-${viewport.width}.png`,
-            );
-          }
-
-          const liquidationButton = pane.getByRole("button", {
-            name: marketText(locale, "liquidate"),
-            exact: true,
-          });
-          await expect(liquidationButton).toBeEnabled();
-          await liquidationButton.click();
-          const dialog = page.getByRole("dialog", {
-            name: marketText(locale, "liquidateTitle"),
-            exact: true,
-          });
-          await expect(dialog).toBeVisible();
-          await expect(dialog).toContainText(marketText(locale, "liquidatePrompt"));
-          await expect(
-            dialog.getByRole("button", {
-              name: marketText(locale, "confirmLiquidation"),
-              exact: true,
-            }),
-          ).toBeVisible();
-          await expect(
-            dialog.getByRole("button", { name: marketText(locale, "cancel"), exact: true }),
-          ).toBeVisible();
-
-          const label = `${locale}/${themeId} Rebirth at ${viewport.width}px`;
-          await expectRebirthContained(page, label);
-          if (key === "fr/space/320") await capture(page, testInfo, dialogCapture);
-
-          await dialog
-            .getByRole("button", { name: marketText(locale, "cancel"), exact: true })
-            .click();
-          await expect(dialog).toBeHidden();
+        const key = `${locale}/${themeId}/${viewport.width}`;
+        if (captures.has(key)) {
+          await capture(page, testInfo, `p56-rebirth-${locale}-${themeId}-${viewport.width}.png`);
         }
+
+        const liquidationButton = pane.getByRole("button", {
+          name: marketText(locale, "liquidate"),
+          exact: true,
+        });
+        await expect(liquidationButton).toBeEnabled();
+        await liquidationButton.click();
+        const dialog = page.getByRole("dialog", {
+          name: marketText(locale, "liquidateTitle"),
+          exact: true,
+        });
+        await expect(dialog).toBeVisible();
+        await expect(dialog).toContainText(marketText(locale, "liquidatePrompt"));
+        await expect(
+          dialog.getByRole("button", {
+            name: marketText(locale, "confirmLiquidation"),
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(
+          dialog.getByRole("button", { name: marketText(locale, "cancel"), exact: true }),
+        ).toBeVisible();
+
+        const label = `${locale}/${themeId} Rebirth at ${viewport.width}px`;
+        await expectRebirthContained(page, label);
+        if (key === "fr/space/320") await capture(page, testInfo, dialogCapture);
+
+        await dialog
+          .getByRole("button", { name: marketText(locale, "cancel"), exact: true })
+          .click();
+        await expect(dialog).toBeHidden();
       }
     }
-  },
-);
+  }
+});

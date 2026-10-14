@@ -130,14 +130,14 @@ test("Settings pages use the requested artwork, headings, and inline save contro
   await expect(savePanel.getByTestId("save-manager-inline")).toBeVisible();
   await expect(
     savePanel.getByTestId("save-manager-inline").getByRole("heading", {
-      name: "Choose a local pioneer",
+      name: "Other saved pioneers",
     }),
   ).toHaveCount(1);
   await expect(savePanel.getByTestId("save-now")).toBeVisible();
   await expect(savePanel.locator("#save-rename")).toBeVisible();
   await expect(savePanel.locator("#save-copy-name")).toBeVisible();
   await expect(savePanel.locator("#import-code")).toBeVisible();
-  await expect(savePanel.getByLabel("Portable save code")).toBeVisible();
+  await expect(savePanel.getByLabel("Please paste your Save Data here...")).toBeVisible();
   await expect(
     freshGame.getByRole("dialog", { name: "Hydrogen Pioneer", exact: true }),
   ).toHaveCount(0);
@@ -174,7 +174,7 @@ test("Settings child pages have durable desktop and phone visual captures @p66-v
       view.theme,
     );
     expect(themeChanged, `${view.theme} theme is applied`).toBe(true);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", view.theme);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", view.theme);
     await page.getByRole("tab", { name: "Settings" }).click();
 
     for (const settingsPage of pages) {
@@ -221,10 +221,10 @@ test("unlaunched Starship keeps its title, artwork, and framed card @phase6-tab-
   await page.setViewportSize({ width: 1280, height: 900 });
   await startFixture(page, "space-starship-ready", "Prelaunch Presentation Pioneer");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
 
   const starship = page.getByTestId("starship-pane");
-  await expect(starship.locator("#starship-title")).toHaveText("Starship");
+  await expect(starship.locator("#starship-title")).toHaveText("Star Ship");
   await expect(starship).not.toHaveClass(/starship-card-plain/);
   await expect(starship).toHaveCSS("border-top-width", "1px");
   await expect(
@@ -243,10 +243,10 @@ test("launched Starship and Colonise use their tab-specific title and artwork @p
   await page.setViewportSize({ width: 1280, height: 900 });
   await startFixture(page, "space-starship-scanning", "Presentation Pioneer");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
 
   const starship = page.getByTestId("starship-pane");
-  await expect(starship.locator("#starship-title")).toHaveText("Starship");
+  await expect(starship.locator("#starship-title")).toHaveText("Star Ship");
   await expect(starship).toHaveClass(/starship-card-plain/);
   await expect(starship).toHaveCSS("border-width", "0px");
   await expect(starship.locator(".space-card-illustration-wrap")).toHaveCount(0);
@@ -270,7 +270,7 @@ test("launched Starship and Colonise use their tab-specific title and artwork @p
   expect(headingPrecedesOrbitingStatus).toBe(true);
 
   await starship.getByTestId("starship-scan-system-button").click();
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
   const colonise = page.getByTestId("starship-pane");
   const surface = colonise.locator(
     '.space-card-illustration-wrap [data-celestial-illustration="colonised-surface"]',

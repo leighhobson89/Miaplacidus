@@ -154,6 +154,12 @@ const STEP_DEFINITIONS: Readonly<Record<ProgressionTutorialStepId, TutorialStepD
     requiresOpenDestination: true,
     minimumReadMs: 4000,
   },
+  openThemeDropdown: {
+    title: "step.openThemeDropdown.title",
+    body: "step.openThemeDropdown.body",
+    destinationLabel: "openVisualSettings",
+    destination: "visualSettings",
+  },
   chooseDarkTheme: {
     title: "step.chooseDarkTheme.title",
     body: "step.chooseDarkTheme.body",
@@ -249,7 +255,7 @@ export function ProgressionTutorial({
   const tutorial = state.permanent.progressionTutorial;
   const stepId = tutorial.stepId;
   const lastAutoAdvancedStep = useRef<ProgressionTutorialStepId | null>(null);
-  const lastAnnouncedStep = useRef<ProgressionTutorialStepId | null>(null);
+  const lastAnnouncementKey = useRef<string | null>(null);
   const [stepAnnouncement, setStepAnnouncement] = useState("");
   const stepIndex = stepId ? PROGRESSION_TUTORIAL_STEP_IDS.indexOf(stepId) : -1;
   const milestoneSatisfied = stepId
@@ -260,13 +266,14 @@ export function ProgressionTutorial({
 
   useEffect(() => {
     if (tutorial.status !== "active" || !stepId || !step) {
-      lastAnnouncedStep.current = null;
+      lastAnnouncementKey.current = null;
       setStepAnnouncement("");
       return;
     }
-    if (lastAnnouncedStep.current === stepId) return;
+    const announcementKey = `${locale}:${stepId}`;
+    if (lastAnnouncementKey.current === announcementKey) return;
 
-    lastAnnouncedStep.current = stepId;
+    lastAnnouncementKey.current = announcementKey;
     const progress = tutorialText(locale, "stepProgress")
       .replace("{step}", String(stepIndex + 1))
       .replace("{total}", String(PROGRESSION_TUTORIAL_STEP_IDS.length));

@@ -5,6 +5,7 @@ import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import { displayCurrency } from "../../../src/engine/precision";
 import { quoteGalacticTrade } from "../../../src/engine/galacticMarket";
+import { marketText } from "../../../src/i18n/metaMessages";
 
 const NARROW_VIEWPORTS = [
   { width: 390, height: 844 },
@@ -24,9 +25,9 @@ test("Galactic Market trade quote, balances, and action fit at narrow widths @p1
 
   const market = page.getByRole("region", { name: "Galactic Market" });
   const tradeCard = market.locator(".upgrade-card").first();
-  await market.getByLabel("You give").selectOption("hydrogen");
-  await market.getByLabel("You receive").selectOption("helium");
-  await market.getByLabel("Quantity to trade").fill("10");
+  await market.getByLabel(marketText("en", "tradeRow")).selectOption("hydrogen");
+  await market.getByLabel(marketText("en", "tradeFor")).selectOption("helium");
+  await market.getByLabel(marketText("en", "quantity")).fill("10");
 
   const before = await page.evaluate(() => window.miaplacidusTest!.getState());
   const quote = quoteGalacticTrade(before, "hydrogen", "helium", 10);
@@ -39,7 +40,7 @@ test("Galactic Market trade quote, balances, and action fit at narrow widths @p1
     2,
     before.settings.notation,
   );
-  const tradeButton = market.getByRole("button", { name: "Confirm trade", exact: true });
+  const tradeButton = market.getByRole("button", { name: marketText("en", "trade"), exact: true });
 
   for (const viewport of NARROW_VIEWPORTS) {
     await page.setViewportSize(viewport);
@@ -47,12 +48,21 @@ test("Galactic Market trade quote, balances, and action fit at narrow widths @p1
     await expect(page.locator("#tab-galactic-market")).toHaveAttribute("aria-selected", "true");
     await expect(market).toBeVisible();
     await expect(tradeCard).toBeVisible();
-    await expect(market.getByLabel("You give")).toHaveValue("hydrogen");
-    await expect(market.getByLabel("You receive")).toHaveValue("helium");
-    await expect(market.getByLabel("Quantity to trade")).toHaveValue("10");
-    await expect(market.getByText(/^You give:/)).toContainText("10 Hydrogen");
-    await expect(market.getByText(/^You receive:/)).toContainText(
-      `${formatNumber("en", quote!.incomingQuantity, 0, before.settings.notation)} Helium`,
+    await expect(market.getByLabel(marketText("en", "tradeRow"))).toHaveValue("hydrogen");
+    await expect(market.getByLabel(marketText("en", "tradeFor"))).toHaveValue("helium");
+    await expect(market.getByLabel(marketText("en", "quantity"))).toHaveValue("10");
+    const outgoingSummary = `${marketText("en", "summaryOutgoing")} 10 Hydrogen`;
+    const incomingSummary = `${marketText("en", "summaryIncoming")} ${formatNumber(
+      "en",
+      quote!.incomingQuantity,
+      0,
+      before.settings.notation,
+    )} Helium`;
+    await expect(tradeCard.locator("p").filter({ hasText: outgoingSummary })).toHaveText(
+      outgoingSummary,
+    );
+    await expect(tradeCard.locator("p").filter({ hasText: incomingSummary })).toHaveText(
+      incomingSummary,
     );
     await expect(
       market.getByText(
@@ -98,10 +108,13 @@ test("Galactic Market trade quote, balances, and action fit at narrow widths @p1
     await captureVisualCheckpoint(page, testInfo, `p13-market-trade-quote-${viewport.width}`);
   }
 
+  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 10_000 });
   await tradeButton.click();
   const after = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(after.run.goods.hydrogen.quantity).toBe(before.run.goods.hydrogen.quantity - 10);
-  expect(after.run.goods.helium.quantity).toBe(before.run.goods.helium.quantity + quote!.incomingQuantity);
+  expect(after.run.goods.helium.quantity).toBe(
+    before.run.goods.helium.quantity + quote!.incomingQuantity,
+  );
   expect(after.permanent.galacticMarket.history).toHaveLength(1);
   expect(after.run.cash).toBe(before.run.cash);
   await expect(page.getByTestId("cash-balance")).toHaveText(cashValue);

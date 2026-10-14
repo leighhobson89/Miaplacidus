@@ -65,7 +65,7 @@ export function GalacticMarketPane({ state, store }: Props) {
   const [outgoingGoodId, setOutgoingGoodId] = useState<EconomicGoodId | "">(unlockedGoods[0] ?? "");
   const [incomingGoodId, setIncomingGoodId] = useState<EconomicGoodId | "">("");
   const [quantityText, setQuantityText] = useState("1");
-  const [apSellQuantity, setApSellQuantity] = useState<1 | 5 | 10>(1);
+  const [apSellQuantity, setApSellQuantity] = useState<1 | 5 | 10 | "">("");
   const [feedback, setFeedback] = useState("");
   const selectedMarketGoods = ECONOMIC_GOOD_IDS.filter(
     (goodId) => goodId === outgoingGoodId || goodId === incomingGoodId,
@@ -86,10 +86,13 @@ export function GalacticMarketPane({ state, store }: Props) {
   const tradeCheck = tradeCommand
     ? checkPreconditions(state, tradeCommand)
     : { ok: false as const, failure: { code: "market-invalid-trade" } };
-  const apSellCheck = checkPreconditions(state, {
-    type: "meta.market.sell-ap",
-    quantity: apSellQuantity,
-  });
+  const apSellCheck =
+    apSellQuantity === ""
+      ? { ok: false as const, failure: { code: "market-invalid-trade" } }
+      : checkPreconditions(state, {
+          type: "meta.market.sell-ap",
+          quantity: apSellQuantity,
+        });
   const marketFailureReason = (
     check: { readonly ok: boolean; readonly failure?: { readonly code: string } },
     details: Parameters<typeof marketFailureText>[2] = {},
@@ -131,10 +134,13 @@ export function GalacticMarketPane({ state, store }: Props) {
           }
         : {},
   );
-  const apSellReason = marketFailureReason(apSellCheck, {
-    required: whole(state, apSellQuantity),
-    available: whole(state, state.permanent.ascendencyPoints),
-  });
+  const apSellReason =
+    apSellQuantity === ""
+      ? ""
+      : marketFailureReason(apSellCheck, {
+          required: whole(state, apSellQuantity),
+          available: whole(state, state.permanent.ascendencyPoints),
+        });
   function dispatchTrade(): void {
     if (!tradeCommand || !outgoingGoodId || !incomingGoodId) return;
     const result = store.dispatch(tradeCommand);
@@ -147,6 +153,7 @@ export function GalacticMarketPane({ state, store }: Props) {
   }
 
   function sellAp(): void {
+    if (apSellQuantity === "") return;
     const result = store.dispatch({ type: "meta.market.sell-ap", quantity: apSellQuantity });
     setFeedback(
       result.accepted
@@ -311,10 +318,12 @@ export function GalacticMarketPane({ state, store }: Props) {
                 aria-label={marketText(locale, "sellAp")}
                 value={apSellQuantity}
                 disabled={disabled}
-                onChange={(event) =>
-                  setApSellQuantity(Number(event.currentTarget.value) as 1 | 5 | 10)
-                }
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setApSellQuantity(value === "" ? "" : (Number(value) as 1 | 5 | 10));
+                }}
               >
+                <option value="">{marketText(locale, "selectQuantity")}</option>
                 {[1, 5, 10].map((amount) => {
                   const label =
                     amount === 1 ? "sellAp1" : amount === 5 ? "sellAp5" : "sellAp10";
@@ -328,7 +337,7 @@ export function GalacticMarketPane({ state, store }: Props) {
             </label>
             <p>
               {marketText(locale, "cashGain")} {" "}
-              {currency(state, apSellQuantity * market.apSellPrice)}
+              {currency(state, apSellQuantity === "" ? 0 : apSellQuantity * market.apSellPrice)}
             </p>
             <button
               type="button"

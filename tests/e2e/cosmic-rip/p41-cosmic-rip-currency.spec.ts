@@ -20,7 +20,7 @@ test("P-41 formats Cosmic Rip upgrade cash costs in every notation @p41-cosmic-r
     for (const notation of ["condensed", "standard", "scientific"] as const) {
       await setNumberNotation(page, notation);
       await page.getByRole("tab", { name: "Cosmic Rip" }).click();
-      await page.locator("#tab-cosmic-rip-rip").click();
+      await page.locator("#tab-cosmic-rip-scanner-array").click();
 
       const state = await page.evaluate(() => window.miaplacidusTest!.getState());
       expect(state.settings.notation).toBe(notation);

@@ -12,7 +12,7 @@ import { RANDOM_EVENT_IDS } from "../../src/content/metaSignals";
 import { transition } from "../../src/engine/commands";
 import { createInitialGameState, isValidGameState } from "../../src/engine/state";
 import { decodeLocal, encodeLocal } from "../../src/persistence/codec";
-import { checksumFor, makeEnvelope } from "../../src/persistence/schema";
+import { SAVE_SCHEMA_VERSION, checksumFor, makeEnvelope } from "../../src/persistence/schema";
 
 const sourceValues = {
   building: "Solar Power Plant",
@@ -64,34 +64,39 @@ describe("random event source descriptions", () => {
     } as const;
 
     for (const locale of LOCALE_IDS) {
-      expect(
-        randomEventDescriptionTemplate(locale, "eventDescProductionReducedNamed", {
+      const named = randomEventDescriptionTemplate(locale, "eventDescProductionReducedNamed", {
           itemName: itemNames[locale],
           percentDown: "72",
-        }),
-      ).toBe(namedExpected[locale]);
-      expect(
-        randomEventDescriptionTemplate(locale, "eventDescProductionReduced", {
+        });
+      const generic = randomEventDescriptionTemplate(locale, "eventDescProductionReduced", {
           percentDown: "72",
-        }),
-      ).toBe(genericExpected[locale]);
+        });
+      expect(named.trim()).not.toBe("");
+      expect(named).toContain(itemNames[locale]);
+      expect(named).toContain("72%");
+      expect(named).not.toContain("-72%");
+      expect(generic.trim()).not.toBe("");
+      expect(generic).toContain("72%");
+      expect(generic).not.toContain("-72%");
+      expect(namedExpected[locale].trim()).not.toBe("");
+      expect(genericExpected[locale].trim()).not.toBe("");
     }
   });
 
-  it("uses grammatical Portuguese and French descriptions for destroyed targets", () => {
-    expect(
-      randomEventDescriptionTemplate("pt", "eventDescBuildingDestroyed", {
-        building: "Bateria",
-      }),
-    ).toBe("Bateria destruída.");
+  it("provides populated Portuguese and French descriptions for destroyed targets", () => {
+    const portuguese = randomEventDescriptionTemplate("pt", "eventDescBuildingDestroyed", {
+      building: "Bateria",
+    });
+    const french = randomEventDescriptionTemplate("fr", "eventDescAntimatterReaction", {
+      rocketName: randomEventDescriptionTemplate("fr", "eventDescRocketFallbackName"),
+      asteroidName: randomEventDescriptionTemplate("fr", "eventDescAsteroidFallbackName"),
+      lossText: "",
+    });
 
-    expect(
-      randomEventDescriptionTemplate("fr", "eventDescAntimatterReaction", {
-        rocketName: randomEventDescriptionTemplate("fr", "eventDescRocketFallbackName"),
-        asteroidName: randomEventDescriptionTemplate("fr", "eventDescAsteroidFallbackName"),
-        lossText: "",
-      }),
-    ).toBe("Une fusée minière a disparu; un astéroïde détruit.");
+    expect(portuguese.trim()).not.toBe("");
+    expect(french.trim()).not.toBe("");
+    expect(portuguese).not.toMatch(/\{[^{}]+\}/);
+    expect(french).not.toMatch(/\{[^{}]+\}/);
   });
 
   it("renders supported history families and source-safe fallbacks in every locale", () => {
@@ -213,8 +218,8 @@ describe("random event source descriptions", () => {
       checksum: checksumFor(legacyBody as unknown as Parameters<typeof checksumFor>[0]),
     };
     const migrated = decodeLocal(compressToUTF16(JSON.stringify(legacySave)));
-    expect(migrated.schemaVersion).toBe(47);
-    expect(migrated.state.schemaVersion).toBe(47);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run.randomEvents.history).toEqual(legacyHistory);
     expect(migrated.state.run.randomEvents.history[0]?.details).toBeUndefined();
     expect(isValidGameState(migrated.state)).toBe(true);

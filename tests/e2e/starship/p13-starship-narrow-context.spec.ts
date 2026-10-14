@@ -65,7 +65,7 @@ test("Starship keeps travel cost, currency, ETA, progress, and action context vi
     .getByTestId("star-selection")
     .getByRole("button", { name: "Set as destination" })
     .click();
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
 
   const starship = page.getByTestId("starship-pane");
   const summary = starship.locator(".starship-travel-summary");
@@ -110,7 +110,7 @@ test("Starship keeps travel cost, currency, ETA, progress, and action context vi
       `${starshipText("en", "fuelCost")}: ${fuel}`,
     );
     await expect(summary).toContainText(`${time} s`);
-    await expect(summary.getByRole("button", { name: "Launch starship" })).toBeEnabled();
+    await expect(summary.getByRole("button", { name: "Travel" })).toBeEnabled();
     await expectNarrowBounds(page, viewport.width, [
       ["Starship pane", '[data-testid="starship-pane"]'],
       ["Cash balance", '[data-testid="top-stat-cash"]'],
@@ -120,7 +120,7 @@ test("Starship keeps travel cost, currency, ETA, progress, and action context vi
     ]);
   }
 
-  await summary.getByRole("button", { name: "Launch starship" }).click();
+  await summary.getByRole("button", { name: "Travel" }).click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
     .getByRole("button", { name: starshipText("en", "confirmLaunch") })
@@ -156,7 +156,7 @@ test("Starship keeps travel cost, currency, ETA, progress, and action context vi
     await expect(countdown).toContainText("Journey time remaining:");
     await expect(progress).toBeVisible();
     await expect(progress).toHaveAttribute("max", "100");
-    await expect(summary.getByRole("button", { name: "Launch starship" })).toHaveCount(0);
+    await expect(summary.getByRole("button", { name: "Travel" })).toHaveCount(0);
     await expectNarrowBounds(page, viewport.width, [
       ["Starship pane", '[data-testid="starship-pane"]'],
       ["Cash balance", '[data-testid="top-stat-cash"]'],

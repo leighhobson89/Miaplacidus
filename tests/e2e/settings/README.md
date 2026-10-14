@@ -813,13 +813,7 @@ The native-select regression now verifies both source behaviors: opening the
 notation select plays `clickSwitch.mp3`, and choosing a different value plays
 `clickButton.mp3`. `settings.update` patches for locale, theme, currency, or
 notation now use the option-selection cue; other settings patches retain the
-switch cue. P-29 now emits ordered aggregate `space.battle.impact` and
-`space.battle.death` events around damage resolution. Audio applies source-style
-20% attempts per represented shooter candidate and the strict `>80ms`/`>140ms`
-laser/explosion guards synchronously. The engine still has no individual unit
-geometry, visibility, or animation timestamps, so exact target eligibility and
-intra-volley death timing remain approximations; this implementation has not
-been tested or browser-reviewed. Remaining P-29 work includes the broader
+switch cue. P-29 death audio now consumes one engine-confirmed `space.battle.death` record per final loss, with a fleet-local slot and pooled-health-derived crossing offset. The global audio adapter applies the strict `>140ms` guard from dispatch, including hidden-page results. Per-ship source timing remains approximate because combat health is pooled; no tests or browser checks were run. Remaining P-29 work includes the broader
 source-callsite-to-remake cue crosswalk and visible route checks for antimatter
 boost, Black Hole, News and Casino claims, power-trip/weather alarms, and
 force-field/megastructure and battle outcomes. The Telescope/Rocket visible
@@ -848,7 +842,7 @@ fallback, `storage.increased` maps to `increaseStorage`, and `resource.sold`
 maps to `kaching` for either category. Clock-driven Resource sales and
 automatic Compound creation remain silent.
 
-The focused Chrome case `tests/e2e/economy/audio-cues.spec.ts` verifies the
+The focused Chrome case `tests/e2e/audio/audio-cues.spec.ts` verifies the
 visible Hydrogen collect/sell and Diesel create/sell routes, with exactly one
 cue per action and the expected resulting stocks. It passed **1/1 in 6.4
 seconds** on port 4932. The expanded installed-Chrome run of that spec now
@@ -865,7 +859,7 @@ npm.cmd run test:e2e:focused -- tests/e2e/settings/audio-cue-routes.spec.ts --pr
 npm.cmd run test:e2e:focused -- tests/e2e/settings/settings-preferences.spec.ts -g 'collapsibles and native selects play the source swipe cue' --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 $env:MIAPLACIDUS_TEST_AREA='p29-economy-audio'
 $env:MIAPLACIDUS_TEST_PORT='4934'
-npm.cmd run test:e2e:focused -- tests/e2e/economy/audio-cues.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+npm.cmd run test:e2e:focused -- tests/e2e/audio/audio-cues.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 npm.cmd run test:unit:focused -- tests/unit/audio-event-dispatch.spec.ts
 npm.cmd run typecheck
 ```
@@ -1265,3 +1259,8 @@ node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retrie
 npm.cmd run typecheck
 .\node_modules\.bin\oxfmt.cmd --check src\styles.css tests\e2e\settings\p56-statistics-save-visual-matrix.spec.ts
 ```
+
+14 October 2026 focused failure recovery: the audio and visual preferences
+roundtrip across two local pioneers passed **1/1** on port 4192 alongside four
+focused Save and Loading cases. All artifacts were written under system Temp;
+the full suite was not rerun.

@@ -223,3 +223,12 @@ existing deterministic five-child route now asserts each rendered tab's
 Star Map/option1, Star Data/option2, Starship/option3, Fleet Hangar/option4,
 and Colonise/option5. The focused installed-Chrome route passed 1/1 in 15.6
 seconds on port 5542. See the [navigation route](navigation-progression.spec.ts).
+
+**P-65 Miaplaedia rail rerun (14 October 2026):** the focused
+`progressive unlock states keep main tabs in source order` Chrome case passed
+1/1 as part of a 4/4 Miaplaedia/App Boot run on port 6401. Its tab-order,
+selected-panel, unlock, and phone-rail checks passed; the current App Boot
+screenshots matched without another snapshot update. I reviewed the 1280px
+source-order, 390px source-order, unlock-state, and selected-phone captures.
+Miaplaedia remains last in the visible source order and selection scrolls its
+full label into view. No navigation implementation defect was found.

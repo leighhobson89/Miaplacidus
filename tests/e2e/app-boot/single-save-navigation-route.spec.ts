@@ -59,8 +59,10 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
   await page.locator("#tab-research").click();
   await page.locator("#tab-research-science-buildings").click();
   const scienceKit = page.locator('[data-building-id="scienceKit"]');
-  await scienceKit.getByRole("button", { name: "Buy", exact: true }).click();
-  await expect(scienceKit).toContainText("Owned: 1");
+  await scienceKit.locator(".economy-building-actions button").first().click();
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.upgrades.scienceKit))
+    .toBe(1);
 
   await page.locator("#tab-hydrogen").click();
   for (let count = 1; count < 50; count += 1) await collectHydrogen.click();
@@ -75,7 +77,7 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
   const knowledgeSharing = page.locator('[data-technology-id="knowledgeSharing"]');
   await expect(knowledgeSharing).toBeEnabled();
   await knowledgeSharing.click();
-  await expect(knowledgeSharing).toContainText("Researched");
+  await expect(knowledgeSharing.locator(".technology-map-researched")).toBeVisible();
 
   const firstSaveHead = await appSaveHeadKeys(page);
   expect(firstSaveHead).toHaveLength(1);
@@ -181,9 +183,12 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
   await expect(casinoTab).toHaveAttribute("aria-selected", "true");
 
   const casino = page.getByTestId("galactic-casino-pane");
-  const payment = casino.getByLabel("Pay with");
+  const purchaseCard = casino.locator(".casino-grid .upgrade-card").first();
+  const payment = purchaseCard.getByRole("combobox");
+  await expect(payment).toHaveAttribute("aria-label", /\S/u);
   await tabUntilFocused(page, payment);
-  const amount = casino.getByLabel("Points to buy");
+  const amount = purchaseCard.getByRole("spinbutton");
+  await expect(amount).toHaveAttribute("aria-label", /\S/u);
   await page.keyboard.press("Tab");
   await expect(amount).toBeFocused();
   await page.keyboard.press("Control+A");
@@ -209,13 +214,14 @@ test("one saved pioneer reaches late-game pages by keyboard after the navigation
   const situationTab = page.locator("#tab-cosmic-rip-situation");
   await situationTab.focus();
   await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
-  const ripTab = page.locator("#tab-cosmic-rip-rip");
-  await expect(ripTab).toBeFocused();
-  await expect(ripTab).toHaveAttribute("aria-selected", "true");
+  const scannerArrayTab = page.locator("#tab-cosmic-rip-scanner-array");
+  await expect(scannerArrayTab).toBeFocused();
+  await expect(scannerArrayTab).toHaveAttribute("aria-selected", "true");
 
   const sensorBuoy = page.locator(".cosmic-rip-upgrade").filter({ hasText: "Sensor Buoy" });
-  const purchaseBuoy = sensorBuoy.getByRole("button", { name: "Purchase" });
+  const purchaseBuoy = sensorBuoy.getByRole("button").last();
+  await expect(purchaseBuoy).toBeEnabled();
+  await expect(purchaseBuoy).toHaveAccessibleName(/\S/u);
   await tabUntilFocused(page, purchaseBuoy);
   await page.keyboard.press("Enter");
   await expect

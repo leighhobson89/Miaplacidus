@@ -14,6 +14,7 @@ import { translate } from "../i18n/messages";
 import { validatePioneerName } from "../persistence/validation";
 import { formatCurrency } from "./currencyFormatting";
 import { formatNumber } from "./numberFormatting";
+import { useGameNotifications } from "./NotificationStack";
 
 export interface SaveManagerProps {
   readonly locale: LocaleId;
@@ -35,14 +36,13 @@ export interface SaveManagerProps {
 export function SaveManager(props: SaveManagerProps) {
   const { locale, repository, slots, activeSlotId, revision, state } = props;
   const t = (key: SaveMessageKey) => saveText(locale, key);
+  const notify = useGameNotifications();
   const formatInteger = (value: number) => new Intl.NumberFormat(locale).format(value);
   const formatKilobytes = (bytes: number) => formatInteger(Math.ceil(bytes / 1024));
   const [name, setName] = useState(state.run.pioneerName);
   const [copyName, setCopyName] = useState("");
   const [code, setCode] = useState("");
   const [preview, setPreview] = useState<SaveEnvelopeV1 | null>(null);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [newImportName, setNewImportName] = useState("");
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
@@ -88,8 +88,7 @@ export function SaveManager(props: SaveManagerProps) {
 
   function showError(errorValue: unknown) {
     const codeValue = errorValue instanceof SaveError ? errorValue.code : "unknown";
-    setError(saveErrorText(locale, codeValue));
-    setNotice("");
+    notify(saveErrorText(locale, codeValue), { classification: "save", type: "error" });
   }
 
   function showImportError(errorValue: unknown) {
@@ -97,13 +96,10 @@ export function SaveManager(props: SaveManagerProps) {
       showError(errorValue);
       return;
     }
-    setError(t("errImport"));
-    setNotice("");
+    notify(t("errImport"), { classification: "save", type: "error" });
   }
 
   async function previewImport() {
-    setError("");
-    setNotice("");
     try {
       const imported = decodePortable(code);
       setPreview(imported);
@@ -120,7 +116,7 @@ export function SaveManager(props: SaveManagerProps) {
           errorValue.code === "invalid-code" ||
           errorValue.code === "invalid-json")
       ) {
-        setError(t("errInvalidSaveString"));
+        notify(t("errInvalidSaveString"), { classification: "save", type: "error" });
       } else {
         showError(errorValue);
       }
@@ -140,8 +136,7 @@ export function SaveManager(props: SaveManagerProps) {
       } finally {
         release();
       }
-      setNotice(t("importedAsNew"));
-      setError("");
+      notify(t("importedAsNew"), { classification: "save", type: "success" });
       setPreview(null);
       setCode("");
     } catch (errorValue) {
@@ -170,8 +165,10 @@ export function SaveManager(props: SaveManagerProps) {
       }
       const replacesActiveSave = matchingSlot.slotId === activeSlotId;
       if (replacesActiveSave) props.onReplaceActive(updated);
-      setNotice(t(replacesActiveSave ? "loaded" : "imported"));
-      setError("");
+      notify(t(replacesActiveSave ? "loaded" : "imported"), {
+        classification: "save",
+        type: "success",
+      });
       setPreview(null);
       setCode("");
       setReplaceConfirmed(false);
@@ -195,21 +192,17 @@ export function SaveManager(props: SaveManagerProps) {
   async function pasteCode() {
     try {
       setCode(await navigator.clipboard.readText());
-      setError("");
     } catch {
-      setError(t("clipboardReadError"));
-      setNotice("");
+      notify(t("clipboardReadError"), { classification: "save", type: "error" });
     }
   }
 
   async function copyCode() {
     try {
       await navigator.clipboard.writeText(currentCode);
-      setNotice(t("clipboardCopied"));
-      setError("");
+      notify(t("clipboardCopied"), { classification: "save", type: "success" });
     } catch {
-      setError(t("clipboardCopyError"));
-      setNotice("");
+      notify(t("clipboardCopyError"), { classification: "save", type: "error" });
     }
   }
 
@@ -234,7 +227,6 @@ export function SaveManager(props: SaveManagerProps) {
       .then((text) => {
         setCode(text);
         setPreview(null);
-        setError("");
       })
       .catch(showError);
   }
@@ -294,12 +286,6 @@ export function SaveManager(props: SaveManagerProps) {
           </ul>
         )}
       </section>
-      {error && (
-        <p className="save-error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <output className="save-notice">{notice}</output>}
       <div className="save-manager-grid">
         <section className="save-manager-card">
           <h3>{t("rename")}</h3>
@@ -543,7 +529,6 @@ export function SaveManager(props: SaveManagerProps) {
                 type="button"
                 onClick={() => {
                   setPreview(null);
-                  setError("");
                 }}
               >
                 {t("cancelImport")}

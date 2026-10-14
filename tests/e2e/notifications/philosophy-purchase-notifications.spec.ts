@@ -1,4 +1,4 @@
-import { expect, test } from "../_harness/fixtures";
+import { dismissTutorialOfferIfPresent, expect, test } from "../_harness/fixtures";
 
 async function startPhilosophyFixture(page: import("@playwright/test").Page): Promise<void> {
   await page.addInitScript(() => {
@@ -15,6 +15,7 @@ async function startPhilosophyFixture(page: import("@playwright/test").Page): Pr
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await dismissTutorialOfferIfPresent(page);
 }
 
 test("philosophy purchases show source notices and respect notification settings @p08", async ({
@@ -26,7 +27,7 @@ test("philosophy purchases show source notices and respect notification settings
 
   const philosophy = page.getByTestId("philosophy-pane");
   const ability = philosophy.locator('[data-philosophy-ability="spaceStorageTankResearch"]');
-  await ability.getByRole("button", { name: "Research" }).click();
+  await ability.getByRole("button", { name: "UNLOCK", exact: true }).click();
   const abilityNotice = page
     .getByTestId("game-notification")
     .filter({ hasText: "ABILITY: Base storage expansion multiplier now 5x instead of 2x!" });

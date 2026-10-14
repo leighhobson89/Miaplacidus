@@ -354,3 +354,15 @@ separate reviewed child-page captures remain in its own README. The clean
 installed-Chrome no-update run passed 12/12 in 45.5 seconds. No P-66-specific
 desktop/mobile visual gap was found. Cross-theme/locale and 320px matrix breadth
 remains tracked separately under P-56/P-65.
+
+14 October 2026 Cosmic Rip regression recovery: the focused installed-Chrome run passed the `@theme-cosmic-rip` active-surface case and the `@p65-cosmic-rip-matrix` identity/layout matrix. The latter covers all three Cosmic Rip child pages across six locales, nine themes, and 1280px, 390px, and 320px widths. Both passed in the 10/11 first batch; P-66 alone required reviewed snapshot refreshes and passed its separate no-update confirmation. Artifacts are in system Temp under `miaplacidus-cosmic-rip-focused-20261014` and `miaplacidus-cosmic-rip-p66-confirm-20261014`.
+
+14 October 2026 P-66 Interstellar refresh: the visual-review fixture now
+dismisses the guided tutorial and suppresses incidental notices before capturing
+Starship, Fleet Hangar, and Colonise. This keeps transient onboarding and
+achievement feedback out of the page captures. I reviewed all eight refreshed
+desktop/phone captures; page headings, illustrations, scan details, controls,
+and fleet cards remain visible in the selected 1280px Terminal and 390px Light
+states. The P-66 case passed 1/1 in the combined **7/7 no-update** Interstellar
+visual run on port 6424 (4.1 minutes). Captures remain under
+`phase6-interstellar-visual-review.spec.ts-snapshots/`.

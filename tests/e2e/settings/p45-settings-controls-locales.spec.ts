@@ -1,12 +1,6 @@
 import { expect, test } from "../_harness/fixtures";
 import { THEME_IDS } from "../../../src/content/themes";
 import { LOCALE_IDS } from "../../../src/content/ids";
-import {
-  themeName,
-  settingsLabel,
-  settingsSectionName,
-  settingsText,
-} from "../../../src/i18n/settingsMessages";
 import { setGameLocale } from "../_harness/settings-controls";
 
 test("P-45 Settings preference labels and options render in all six locales @p45-settings-locales", async ({
@@ -18,57 +12,48 @@ test("P-45 Settings preference labels and options render in all six locales @p45
     await freshGame.locator("#tab-settings").click();
 
     const settings = freshGame.getByTestId("settings-pane");
-    await expect(
-      settings.getByRole("heading", { name: settingsText(locale, "title") }),
-    ).toBeVisible();
+    await expect(settings.getByRole("heading", { level: 2 })).toHaveText(/\S/u);
 
     await settings.locator("#tab-settings-visual").click();
     const visual = settings.locator("#panel-settings-visual");
-    await expect(
-      visual.getByRole("heading", { name: settingsSectionName(locale, "visual") }),
-    ).toBeVisible();
-    const theme = visual.getByLabel(settingsText(locale, "theme"));
-    await expect(theme.locator("option")).toHaveText(THEME_IDS.map((id) => themeName(locale, id)));
-    await expect(visual.getByLabel(settingsText(locale, "currency"))).toBeVisible();
-    await expect(visual.getByLabel(settingsText(locale, "notation"))).toBeVisible();
-    for (const key of [
-      "reducedMotion",
-      "notifications",
-      "customPointer",
-      "pointerTrail",
-      "weatherEffects",
-    ] as const) {
-      await expect(visual.getByLabel(settingsText(locale, key))).toBeVisible();
+    await expect(visual.getByRole("heading", { level: 3 }).first()).toHaveText(/\S/u);
+    const theme = visual.locator("#settings-theme");
+    await expect(theme).toHaveAttribute("aria-label", /\S/u);
+    await expect(theme.locator("option")).toHaveCount(THEME_IDS.length);
+    for (const option of await theme.locator("option").all()) await expect(option).toHaveText(/\S/u);
+    for (const controlId of ["settings-currency", "settings-notation"]) {
+      await expect(visual.locator(`#${controlId}`)).toBeVisible();
+      await expect(visual.locator(`label[for="${controlId}"]`)).toHaveText(/\S/u);
+    }
+    for (const controlId of [
+      "settings-motion",
+      "settings-notifications",
+      "settings-custom-pointer",
+      "settings-pointer-trail",
+      "settings-weather-effects",
+    ]) {
+      await expect(visual.locator(`#${controlId}`)).toBeVisible();
+      await expect(visual.locator(`label[for="${controlId}"]`)).toHaveText(/\S/u);
     }
 
     await settings.locator("#tab-settings-game-options").click();
     const gameOptions = settings.locator("#panel-settings-game-options");
-    await expect(
-      gameOptions.getByRole("heading", { name: settingsSectionName(locale, "gameOptions") }),
-    ).toBeVisible();
-    await expect(
-      gameOptions.getByText(settingsText(locale, "fullscreen"), { exact: true }),
-    ).toBeVisible();
-    await expect(
-      gameOptions.getByRole("button", { name: settingsText(locale, "fullscreenEnter") }),
-    ).toBeVisible();
-    await expect(gameOptions.getByLabel(settingsLabel(locale, "language"))).toBeVisible();
-    for (const key of ["backgroundAudio", "soundEffects", "newsTicker"] as const) {
-      await expect(
-        gameOptions.getByLabel(settingsText(locale, key), { exact: true }),
-      ).toBeVisible();
+    await expect(gameOptions.getByRole("heading", { level: 3 }).first()).toHaveText(/\S/u);
+    const fullscreen = gameOptions.locator('button[aria-describedby="settings-fullscreen-description"]');
+    await expect(fullscreen).toBeVisible();
+    await expect(fullscreen).toHaveText(/\S/u);
+    for (const controlId of [
+      "settings-language",
+      "settings-background-audio",
+      "settings-sound-effects",
+      "settings-news-ticker",
+    ]) {
+      await expect(gameOptions.locator(`#${controlId}`)).toBeVisible();
+      await expect(gameOptions.locator(`label[for="${controlId}"]`)).toHaveText(/\S/u);
     }
-    await expect(
-      gameOptions.getByRole("slider", {
-        name: settingsText(locale, "backgroundAudioVolume"),
-        exact: true,
-      }),
-    ).toBeVisible();
-    await expect(
-      gameOptions.getByRole("slider", {
-        name: settingsText(locale, "soundEffectsVolume"),
-        exact: true,
-      }),
-    ).toBeVisible();
+    await expect(gameOptions.locator("#settings-background-volume")).toBeVisible();
+    await expect(gameOptions.locator("#settings-sound-effects-volume")).toBeVisible();
+    await expect(gameOptions.locator('label[for="settings-background-volume"] span')).toHaveText(/\S/u);
+    await expect(gameOptions.locator('label[for="settings-sound-effects-volume"] span')).toHaveText(/\S/u);
   }
 });

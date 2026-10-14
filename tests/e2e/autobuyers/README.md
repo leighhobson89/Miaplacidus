@@ -19,3 +19,5 @@ Run with `npm run test:e2e:focused -- tests/e2e/autobuyers/hydrogen-compressor.s
 ## Observed result
 
 2 October 2026: 1/1 compressor browser test passed; it produced exactly 20 units in 10 seconds and remained at 20 after pause. Screenshot baselines cover the active, producing and paused states. First-slice price, stock and atomicity checks passed in the focused unit run. This does not cover the other Hydrogen tiers or other buyer systems.
+
+14 October 2026 focused recovery: the Test Lab helper now opens its lazily mounted dialog before waiting for it, and this case expands the collapsed Hydrogen Autobuyers section before buying. The pause/resume assertion uses the tier button's accessible name and `aria-pressed` state. The three snapshots were reviewed against the current Terminal renderer and refreshed; the focused case passed **1/1** both while refreshing and again without update mode on port 4199. All runner artifacts were written under system Temp.

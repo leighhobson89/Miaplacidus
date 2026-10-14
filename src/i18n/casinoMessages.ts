@@ -49,6 +49,8 @@ type CasinoCopy = {
   readonly tier: string;
   readonly chance: string;
   readonly voidSeerSpin: string;
+  readonly voidSeerFirstNumber: string;
+  readonly voidSeerSecondNumber: string;
   readonly history: string;
   readonly noHistory: string;
   readonly runStats: string;
@@ -179,6 +181,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     tier: "Prize tier",
     chance: "Match chance",
     voidSeerSpin: "SPIN",
+    voidSeerFirstNumber: "First hand: {number}",
+    voidSeerSecondNumber: "Second hand: {number}",
     history: "Recent game history",
     noHistory: "No casino games played yet.",
     runStats: "This run",
@@ -310,6 +314,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     tier: "Nivel de premio",
     chance: "Probabilidad de coincidencia",
     voidSeerSpin: "GIRAR",
+    voidSeerFirstNumber: "Primera mano: {number}",
+    voidSeerSecondNumber: "Segunda mano: {number}",
     history: "Historial reciente",
     noHistory: "Aún no has jugado en el casino.",
     runStats: "Esta partida",
@@ -442,6 +448,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     tier: "Nível do prémio",
     chance: "Probabilidade de coincidência",
     voidSeerSpin: "GIRAR",
+    voidSeerFirstNumber: "Primeira mão: {number}",
+    voidSeerSecondNumber: "Segunda mão: {number}",
     history: "Histórico recente",
     noHistory: "Ainda não jogaste no casino.",
     runStats: "Esta partida",
@@ -574,6 +582,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     tier: "Preisstufe",
     chance: "Trefferchance",
     voidSeerSpin: "DREHEN",
+    voidSeerFirstNumber: "Erste Hand: {number}",
+    voidSeerSecondNumber: "Zweite Hand: {number}",
     history: "Letzte Spiele",
     noHistory: "Noch keine Casinospiele gespielt.",
     runStats: "Dieser Durchlauf",
@@ -706,6 +716,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     tier: "Livello del premio",
     chance: "Probabilità di corrispondenza",
     voidSeerSpin: "GIRA",
+    voidSeerFirstNumber: "Prima mano: {number}",
+    voidSeerSecondNumber: "Seconda mano: {number}",
     history: "Cronologia recente",
     noHistory: "Non hai ancora giocato al casinò.",
     runStats: "Questa partita",
@@ -838,6 +850,8 @@ const COPY: Record<LocaleId, CasinoCopy> = {
     tier: "Niveau du prix",
     chance: "Chance de correspondance",
     voidSeerSpin: "TOURNER",
+    voidSeerFirstNumber: "Première main : {number}",
+    voidSeerSecondNumber: "Deuxième main : {number}",
     history: "Historique récent",
     noHistory: "Aucune partie de casino pour le moment.",
     runStats: "Cette partie",
@@ -1281,43 +1295,43 @@ export type WheelNotificationCopyKey =
 
 const WHEEL_NOTIFICATION_COPY: Record<LocaleId, Record<WheelNotificationCopyKey, string>> = {
   en: {
-    claimStarshipWarp: "Special Prize Claimed! Starship warped instantly to {star}.",
-    claimRocketWarp: "Special Prize Claimed! {rocket} is now at {destination}.",
+    claimStarshipWarp: "Special Prize Claimed! Starship warped instantly to {star}",
+    claimRocketWarp: "Special Prize Claimed! {rocket} warped to {destination}",
     spinClaimBefore: "Claim your prize before spinning again.",
     spinInsufficientCp: "Not enough CP to spin the wheel.",
   },
   es: {
     claimStarshipWarp:
-      "¡Premio especial reclamado! La nave estelar se teletransportó instantáneamente a {star}.",
-    claimRocketWarp: "¡Premio especial reclamado! {rocket} ya está en {destination}.",
+      "¡Premio especial reclamado! La nave estelar se teletransportó instantáneamente a {star}",
+    claimRocketWarp: "¡Premio especial reclamado! {rocket} teletransportado a {destination}",
     spinClaimBefore: "Reclama tu premio antes de girar de nuevo.",
     spinInsufficientCp: "No hay suficientes CP para girar la rueda.",
   },
   pt: {
     claimStarshipWarp:
-      "Prémio especial reclamado! A nave estelar foi teletransportada instantaneamente para {star}.",
-    claimRocketWarp: "Prémio especial reclamado! {rocket} está agora em {destination}.",
+      "Prémio especial reclamado! Nave estelar teletransportada instantaneamente para {star}",
+    claimRocketWarp: "Prémio especial reclamado! {rocket} teletransportado para {destination}",
     spinClaimBefore: "Reclame o seu prémio antes de girar novamente.",
     spinInsufficientCp: "Não há CP suficientes para girar a roda.",
   },
   de: {
     claimStarshipWarp:
-      "Sonderpreis beansprucht! Das Sternenschiff wurde sofort zu {star} teleportiert.",
-    claimRocketWarp: "Sonderpreis beansprucht! {rocket} ist jetzt bei {destination}.",
+      "Sonderpreis beansprucht! Sternenschiff sofort zu {star} teleportiert",
+    claimRocketWarp: "Sonderpreis beansprucht! {rocket} teleportiert zu {destination}",
     spinClaimBefore: "Beanspruche deinen Preis, bevor du erneut drehst.",
     spinInsufficientCp: "Nicht genug CP, um das Rad zu drehen.",
   },
   it: {
     claimStarshipWarp:
-      "Premio speciale reclamato! L'astronave è stata teletrasportata istantaneamente verso {star}.",
-    claimRocketWarp: "Premio speciale reclamato! {rocket} si trova ora a {destination}.",
+      "Premio speciale reclamato! Astronave curvata istantaneamente verso {star}",
+    claimRocketWarp: "Premio speciale reclamato! {rocket} curvato verso {destination}",
     spinClaimBefore: "Reclama il tuo premio prima di girare di nuovo.",
     spinInsufficientCp: "Non abbastanza CP per girare la ruota.",
   },
   fr: {
     claimStarshipWarp:
-      "Prix spécial réclamé ! Le vaisseau spatial a été téléporté instantanément vers {star}.",
-    claimRocketWarp: "Prix spécial réclamé ! {rocket} se trouve maintenant à {destination}.",
+      "Prix spécial réclamé ! Vaisseau stellaire téléporté instantanément vers {star}",
+    claimRocketWarp: "Prix spécial réclamé ! {rocket} téléporté vers {destination}",
     spinClaimBefore: "Réclamez votre prix avant de tourner à nouveau.",
     spinInsufficientCp: "Pas assez de PC pour tourner la roue.",
   },

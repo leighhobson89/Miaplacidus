@@ -1,6 +1,8 @@
 import { expect, test } from "../_harness/fixtures";
 import type { Page, TestInfo } from "@playwright/test";
-import { economyLabel } from "../../../src/i18n/economyMessages";
+import { ENERGY_BUILDINGS, SCIENCE_BUILDINGS } from "../../../src/content/economy";
+import { economyLabel, formatEconomyMessage } from "../../../src/i18n/economyMessages";
+import { formatNumber } from "../../../src/app/numberFormatting";
 import { topStatusText } from "../../../src/i18n/topStatusMessages";
 
 const VIEWPORTS = [
@@ -40,7 +42,7 @@ async function setPresentation(page: Page, themeId: (typeof THEMES)[number]): Pr
       patch: { locale: "fr", themeId: theme },
     });
   }, themeId);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
 }
 
@@ -95,9 +97,13 @@ test("P-51 Research and Energy cost context fits French narrow layouts and theme
   const scienceCard = page.locator(
     '#panel-research-science-buildings [data-building-id="scienceKit"]',
   );
-  const sciencePrice = scienceCard.locator(":scope > p").nth(2);
+  const initialState = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const sciencePrice = scienceCard.locator(":scope > p").nth(3);
   const scienceBuy = scienceCard.getByRole("button", {
-    name: economyLabel("fr", "buy"),
+    name: formatEconomyMessage("fr", "researchBuildingAction", {
+      rate: String(SCIENCE_BUILDINGS.scienceKit.ratePerSecond),
+      resource: economyLabel("fr", "research"),
+    }),
     exact: true,
   });
 
@@ -124,7 +130,7 @@ test("P-51 Research and Energy cost context fits French narrow layouts and theme
         ["Science Kit card", '#panel-research-science-buildings [data-building-id="scienceKit"]'],
         [
           "Science Kit price",
-          '#panel-research-science-buildings [data-building-id="scienceKit"] > p:nth-of-type(3)',
+          '#panel-research-science-buildings [data-building-id="scienceKit"] > p:nth-of-type(4)',
         ],
         [
           "Science Kit action",
@@ -151,9 +157,16 @@ test("P-51 Research and Energy cost context fits French narrow layouts and theme
   await expect(sciencePrice).not.toHaveText(initialSciencePrice ?? "");
 
   const batteryCard = page.locator('#panel-energy [data-building-id="battery1"]');
-  const batteryPrice = batteryCard.locator(":scope > p").nth(1);
+  const batteryPrice = batteryCard.locator("#battery-battery1-cost");
   const batteryBuy = batteryCard.getByRole("button", {
-    name: economyLabel("fr", "buy"),
+    name: formatEconomyMessage("fr", "addEnergyCapacity", {
+      capacity: formatNumber(
+        "fr",
+        Math.floor(ENERGY_BUILDINGS.battery1.capacity / 1000),
+        2,
+        initialState.settings.notation,
+      ),
+    }),
     exact: true,
   });
   await page.locator("#tab-energy").click();
@@ -176,7 +189,7 @@ test("P-51 Research and Energy cost context fits French narrow layouts and theme
       await expectTargetsFit(page, viewport.width, theme, [
         ["Energy page", "#pane-energy"],
         ["Battery I card", '#panel-energy [data-building-id="battery1"]'],
-        ["Battery I price", '#panel-energy [data-building-id="battery1"] > p:nth-of-type(2)'],
+        ["Battery I price", "#battery-battery1-cost"],
         [
           "Battery I action",
           '#panel-energy [data-building-id="battery1"] .economy-building-actions',

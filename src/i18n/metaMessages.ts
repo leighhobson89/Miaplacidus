@@ -602,6 +602,7 @@ export type MarketMessageKey =
   | "cashGain"
   | "sellAp"
   | "sellApAction"
+  | "selectQuantity"
   | "sellAp1"
   | "sellAp5"
   | "sellAp10"
@@ -652,6 +653,7 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     cashGain: "Cash Gain:",
     sellAp: "Sell AP:",
     sellApAction: "SELL",
+    selectQuantity: "Select Quantity",
     sellAp1: "Sell 1 AP",
     sellAp5: "Sell 5 AP",
     sellAp10: "Sell 10 AP",
@@ -705,6 +707,7 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     cashGain: "Dinero Ganado:",
     sellAp: "Vender PA:",
     sellApAction: "VENDER",
+    selectQuantity: "Selecciona la cantidad",
     sellAp1: "Vender 1 PA",
     sellAp5: "Vender 5 PA",
     sellAp10: "Vender 10 PA",
@@ -759,6 +762,7 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     cashGain: "Dinheiro Ganho:",
     sellAp: "Vender PA:",
     sellApAction: "VENDER",
+    selectQuantity: "Selecione a quantidade",
     sellAp1: "Vender 1 PA",
     sellAp5: "Vender 5 PA",
     sellAp10: "Vender 10 PA",
@@ -812,6 +816,7 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     cashGain: "Bargeldgewinn:",
     sellAp: "AP Verkaufen:",
     sellApAction: "VERKAUFEN",
+    selectQuantity: "Menge wählen",
     sellAp1: "1 AP Verkaufen",
     sellAp5: "5 AP Verkaufen",
     sellAp10: "10 AP Verkaufen",
@@ -867,6 +872,7 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     cashGain: "Denaro Guadagnato:",
     sellAp: "Vendi PA:",
     sellApAction: "VENDI",
+    selectQuantity: "Seleziona la quantità",
     sellAp1: "Vendi 1 PA",
     sellAp5: "Vendi 5 PA",
     sellAp10: "Vendi 10 PA",
@@ -921,6 +927,7 @@ const MARKET_COPY: Record<LocaleId, Record<MarketMessageKey, string>> = {
     cashGain: "Gain en Argent:",
     sellAp: "Vendre des PA:",
     sellApAction: "VENDRE",
+    selectQuantity: "Choisir la quantité",
     sellAp1: "Vendre 1 PA",
     sellAp5: "Vendre 5 PA",
     sellAp10: "Vendre 10 PA",

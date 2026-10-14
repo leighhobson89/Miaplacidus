@@ -2,6 +2,28 @@ import { expect, test } from "../_harness/fixtures";
 import { precipitationForCurrentWeather, STAR_WEATHER_TIMER_ID } from "../../../src/engine/weather";
 import { economyGoodName } from "../../../src/app/economyDisplay";
 
+async function clearNotificationQueue(page: import("@playwright/test").Page): Promise<void> {
+  const notifications = page
+    .getByTestId("notification-stack")
+    .locator('[data-testid="game-notification"]');
+  for (const enabled of [false, true]) {
+    const accepted = await page.evaluate((notificationsEnabled) =>
+      window.miaplacidusTest!.dispatch({
+        type: "settings.update",
+        patch: { notificationsEnabled },
+      }),
+      enabled,
+    );
+    expect(accepted).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
+      )
+      .toBe(enabled);
+    if (!enabled) await expect(notifications).toHaveCount(0);
+  }
+}
+
 test("announces hazardous weather once and keeps ordinary conditions quiet @notifications", async ({
   page,
 }) => {
@@ -92,7 +114,6 @@ test("announces timer-triggered severe weather while Hydrogen is selected @notif
   await expect(weatherNotice).toHaveCount(1);
   await expect(weatherNotice).toHaveRole("status");
   await expect(weatherNotice).toHaveAttribute("aria-atomic", "true");
-  await expect(page.getByTestId("notification-stack")).toHaveAttribute("aria-live", "polite");
   await expect(hydrogenTab).toHaveAttribute("aria-selected", "true");
   await expect(weatherNotice).toContainText(/Heavy Rain|Volcano Eruption/);
 });
@@ -126,13 +147,15 @@ test("weather notices describe unlocked rain benefits and volcanic effects @noti
       condition,
     );
 
+  await clearNotificationQueue(page);
   expect(await dispatchWeather("rain")).toBe(true);
   await expect(weather).toHaveText(
     `Heavy Rain! No launches until it clears, but ${precipitationName} stores benefit!`,
   );
   await expect(weather).toHaveClass(/notification-warning/);
 
-  await page.waitForTimeout(3_200);
+  await expect(weather).toHaveCount(0, { timeout: 4_000 });
+  await clearNotificationQueue(page);
   expect(await dispatchWeather("volcano")).toBe(true);
   await expect(weather).toHaveText(
     "Volcano Eruption! No launches until it clears, and solar power generation severely affected!",

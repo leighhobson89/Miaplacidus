@@ -14,6 +14,26 @@ import {
 } from "../../../src/i18n/metaMessages";
 import { casinoFailureText, casinoText } from "../../../src/i18n/casinoMessages";
 
+async function clearQueuedNotifications(page: import("@playwright/test").Page): Promise<void> {
+  const notificationStack = page.getByTestId("notification-stack");
+  for (const enabled of [false, true]) {
+    const accepted = await page.evaluate((notificationsEnabled) =>
+      window.miaplacidusTest!.dispatch({
+        type: "settings.update",
+        patch: { notificationsEnabled },
+      }),
+      enabled,
+    );
+    expect(accepted).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
+      )
+      .toBe(enabled);
+    await expect(notificationStack).toBeEmpty();
+  }
+}
+
 test("P-45 Galactic Market trade and lockdown feedback render in all locales @p45-meta-locales", async ({
   page,
 }) => {
@@ -37,11 +57,9 @@ test("P-45 Galactic Market trade and lockdown feedback render in all locales @p4
     const quote = quoteGalacticTrade(state, "hydrogen", "helium", 10);
     expect(quote, `${locale} trade quote`).not.toBeNull();
 
-    await market.getByLabel(marketText(locale, "outgoing")).selectOption("hydrogen");
-    await market.getByLabel(marketText(locale, "incoming")).selectOption("helium");
+    await market.getByLabel(marketText(locale, "tradeRow")).selectOption("hydrogen");
+    await market.getByLabel(marketText(locale, "tradeFor")).selectOption("helium");
     await market.getByLabel(marketText(locale, "quantity")).fill("10");
-    await market.getByRole("button", { name: marketText(locale, "trade"), exact: true }).click();
-
     const expectedTradeNotice = marketText(locale, "tradeCompleteNotification")
       .replace(
         "{outgoing}",
@@ -56,16 +74,23 @@ test("P-45 Galactic Market trade and lockdown feedback render in all locales @p4
         `${formatNumber(locale, quote!.commissionQuantity, 0, state.settings.notation)} ${economyGoodName(locale, "hydrogen")}`,
       );
     const notice = page.locator('[data-testid="game-notification"][data-classification="special"]');
-    await expect(notice).toHaveText(expectedTradeNotice);
-    await expect(notice).toHaveCount(0, { timeout: 6_000 });
+    await clearQueuedNotifications(page);
+    await market.getByRole("button", { name: marketText(locale, "trade"), exact: true }).click();
+    await expect(notice).toHaveText(expectedTradeNotice, { timeout: 1_000 });
+    await expect(notice).toHaveCount(0, { timeout: 4_000 });
   }
 
-  await page.evaluate(() =>
+  const lockdownAccepted = await page.evaluate(() =>
     window.miaplacidusTest!.dispatch({
       type: "random-event.force",
       eventId: "galacticMarketLockdown",
     }),
   );
+  expect(lockdownAccepted).toBe(true);
+  const lockdownResultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(lockdownResultDialog).toBeVisible();
+  await lockdownResultDialog.getByRole("button").click();
+  await expect(lockdownResultDialog).toBeHidden();
   for (const locale of LOCALE_IDS) {
     await page.evaluate(
       (nextLocale) =>
@@ -75,8 +100,15 @@ test("P-45 Galactic Market trade and lockdown feedback render in all locales @p4
         }),
       locale,
     );
+    await clearQueuedNotifications(page);
     await page.locator("#tab-galactic-ascendency-perks").click();
+    const expectedOfflineNotice = marketOfflineNotificationText(locale);
+    const notice = page
+      .locator('[data-testid="game-notification"][data-classification="special"]')
+      .filter({ hasText: expectedOfflineNotice });
     await page.locator("#tab-galactic-market").click();
+    await expect(notice).toHaveText(expectedOfflineNotice, { timeout: 1_000 });
+    await expect(notice).toHaveClass(/notification-warning/);
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     const lockedReason = `${marketFailureText(locale, "market-locked")} ${marketLockCountdownText(
       locale,
@@ -90,11 +122,6 @@ test("P-45 Galactic Market trade and lockdown feedback render in all locales @p4
     await expect(tradeButton).toBeDisabled();
     await expect(tradeButton).toHaveAttribute("aria-describedby", "galactic-market-trade-reason");
     await expect(market.locator("#galactic-market-trade-reason")).toHaveText(lockedReason);
-    const notice = page
-      .locator('[data-testid="game-notification"][data-classification="special"]')
-      .filter({ hasText: marketOfflineNotificationText(locale) });
-    await expect(notice).toHaveText(marketOfflineNotificationText(locale), { timeout: 6_000 });
-    await expect(notice).toHaveClass(/notification-warning/);
     await expect(notice).toHaveCount(0, { timeout: 4_000 });
   }
 });
@@ -122,7 +149,7 @@ test("P-45 Casino Double-or-Nothing result notices render in all locales @p45-me
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     const play = casino.getByTestId("casino-don-play");
     await expect(play).toBeDisabled();
-    await expect(play).toHaveAttribute("aria-describedby", "casino-don-reason");
+    await expect(play).toHaveAttribute("aria-describedby", /\bcasino-don-reason\b/);
     await expect(casino.locator("#casino-don-reason")).toHaveText(
       casinoFailureText(locale, "casino-insufficient-cp", {
         required: formatNumber(locale, 1, 0),
@@ -152,6 +179,7 @@ test("P-45 Casino Double-or-Nothing result notices render in all locales @p45-me
     );
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await casino.getByLabel(casinoText(locale, "stake")).fill("1");
+    await clearQueuedNotifications(page);
     await casino.getByTestId("casino-don-play").click();
     const outcome = await page.evaluate(() =>
       window.miaplacidusTest!.getState().permanent.galacticCasino.history.at(-1),
@@ -162,7 +190,7 @@ test("P-45 Casino Double-or-Nothing result notices render in all locales @p45-me
         ? "doubleOrNothingWinNotification"
         : "doubleOrNothingLossNotification";
     const notice = notices.filter({ hasText: casinoText(locale, key) });
-    await expect(notice).toHaveText(casinoText(locale, key));
+    await expect(notice).toHaveText(casinoText(locale, key), { timeout: 1_000 });
     await expect(notice).toHaveClass(
       new RegExp(outcome?.result === "win" ? "notification-info" : "notification-error"),
     );
@@ -198,6 +226,7 @@ test("P-45 Casino Wheel ready and claim feedback render in all locales @p45-meta
 
     await casino.getByLabel(casinoText(locale, "amount")).fill("1");
     await casino.getByTestId("casino-buy-cp").click();
+    await clearQueuedNotifications(page);
     await casino.getByTestId("casino-wheel-spin").click();
     const spinResult = await page.evaluate(() =>
       window.miaplacidusTest!.getState().permanent.galacticCasino.history.at(-1),
@@ -207,17 +236,20 @@ test("P-45 Casino Wheel ready and claim feedback render in all locales @p45-meta
     const readyNotice = notices.filter({
       hasText: casinoText(locale, "wheelSpecialReadyNotification"),
     });
-    await expect(readyNotice).toHaveText(casinoText(locale, "wheelSpecialReadyNotification"));
+    await expect(readyNotice).toHaveText(casinoText(locale, "wheelSpecialReadyNotification"), {
+      timeout: 10_000,
+    });
     await expect(readyNotice).toHaveClass(/notification-info/);
 
     await casino.getByLabel(casinoText(locale, "choosePrize")).selectOption("special_100cp");
-    await casino.getByTestId("casino-wheel-claim").click();
+    await clearQueuedNotifications(page);
     const expectedClaim = casinoText(locale, "wheelClaim100CpNotification").replace(
       "100",
       formatNumber(locale, 100, 0),
     );
     const claimNotice = notices.filter({ hasText: expectedClaim });
-    await expect(claimNotice).toHaveText(expectedClaim);
+    await casino.getByTestId("casino-wheel-claim").click();
+    await expect(claimNotice).toHaveText(expectedClaim, { timeout: 1_000 });
     await expect(claimNotice).toHaveClass(/notification-info/);
   }
 });
@@ -250,6 +282,7 @@ test("P-45 Casino Hilo cashout and Void Seer results render in all locales @p45-
 
     await casino.getByLabel(casinoText(locale, "amount")).fill("20");
     await casino.getByTestId("casino-buy-cp").click();
+    await clearQueuedNotifications(page);
     await casino.getByTestId("casino-hilo-start").click();
     for (let turn = 0; turn < 2; turn += 1) {
       const state = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -282,9 +315,10 @@ test("P-45 Casino Hilo cashout and Void Seer results render in all locales @p45-
       expectedCashout.state,
     );
     expect(cashoutNotice).not.toBeNull();
-    await casino.getByRole("button", { name: casinoText(locale, "cashOut"), exact: true }).click();
     const renderedCashout = notices.filter({ hasText: cashoutNotice!.message });
-    await expect(renderedCashout).toHaveText(cashoutNotice!.message);
+    await clearQueuedNotifications(page);
+    await casino.getByRole("button", { name: casinoText(locale, "cashOut"), exact: true }).click();
+    await expect(renderedCashout).toHaveText(cashoutNotice!.message, { timeout: 1_000 });
     await expect(renderedCashout).toHaveClass(new RegExp(`notification-${cashoutNotice!.type}`));
 
     await casino.getByLabel(casinoText(locale, "tier")).selectOption("1");
@@ -293,15 +327,44 @@ test("P-45 Casino Hilo cashout and Void Seer results render in all locales @p45-
       type: "casino.void-seer.play",
       tier: 1,
     });
-    const voidNotice = casinoEventNotice(
-      locale,
-      expectedVoidSeer.events[0]!,
-      expectedVoidSeer.state,
+    const startedEvent = expectedVoidSeer.events.find(
+      (event) => event.type === "casino.void-seer.started",
     );
+    expect(startedEvent?.type).toBe("casino.void-seer.started");
+    if (startedEvent?.type !== "casino.void-seer.started") {
+      throw new Error("Void Seer play did not start");
+    }
+    const expectedResolution = transition(expectedVoidSeer.state, {
+      type: "casino.void-seer.resolve",
+      outcome: startedEvent.outcome,
+    });
+    const resultEvent = expectedResolution.events.find(
+      (event) => event.type === "casino.void-seer.result",
+    );
+    expect(resultEvent?.type).toBe("casino.void-seer.result");
+    if (resultEvent?.type !== "casino.void-seer.result") {
+      throw new Error("Void Seer result was not resolved");
+    }
+    const voidNotice = casinoEventNotice(locale, resultEvent, expectedResolution.state);
     expect(voidNotice).not.toBeNull();
-    await casino.getByTestId("casino-void-seer-play").click();
     const renderedVoid = notices.filter({ hasText: voidNotice!.message });
-    await expect(renderedVoid).toHaveText(voidNotice!.message);
+    await clearQueuedNotifications(page);
+    await casino.getByTestId("casino-void-seer-play").click();
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () => window.miaplacidusTest!.getState().permanent.galacticCasino.history.at(-1)?.gameId,
+          ),
+        { timeout: 8_000 },
+      )
+      .toBe("voidSeer");
+    const resolvedOutcome = await page.evaluate(
+      () => window.miaplacidusTest!.getState().permanent.galacticCasino.history.at(-1),
+    );
+    expect(resolvedOutcome?.gameId).toBe("voidSeer");
+    expect(resolvedOutcome?.result).toBe(startedEvent.outcome.detail);
+    await expect(renderedVoid).toHaveText(voidNotice!.message, { timeout: 1_000 });
     await expect(renderedVoid).toHaveClass(new RegExp(`notification-${voidNotice!.type}`));
   }
 });

@@ -36,7 +36,7 @@ test("all random-event glyphs render within a theme-aware phone gallery @p28-art
           host.setAttribute("aria-label", "P-28 random-event artwork review");
           host.style.cssText =
             "display:grid;grid-template-columns:repeat(auto-fit,minmax(3.5rem,1fr));gap:0.75rem;padding:1rem;";
-          document.querySelector(".game-frame")!.append(host);
+          document.querySelector(".game-frame:not(.notification-portal)")!.append(host);
           const root = (reactDom.createRoot ?? reactDom.default?.createRoot)(host);
           const createElement = react.createElement ?? react.default?.createElement;
           root.render(
@@ -69,7 +69,7 @@ test("all random-event glyphs render within a theme-aware phone gallery @p28-art
           viewportWidth: window.innerWidth,
           documentWidth: document.documentElement.scrollWidth,
           themeBackground: getComputedStyle(
-            document.querySelector(".game-frame")!,
+            document.querySelector(".game-frame:not(.notification-portal)")!,
           ).getPropertyValue("--bg-color"),
           galleryWithinViewport: rect.left >= 0 && rect.right <= window.innerWidth,
           glyphs: glyphs.map((glyph) => {

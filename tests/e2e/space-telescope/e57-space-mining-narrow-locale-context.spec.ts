@@ -206,7 +206,10 @@ test("Rocket part cost, precondition text, and Rocket 1-4 travel progress fit na
       }
       const buildPart = rocket.getByRole("button", { name: rocketText(locale, "buildPart") });
       await expect(buildPart).toBeDisabled();
-      await expect(buildPart).toHaveAttribute("aria-describedby", "rocket-rocket1-part-reason");
+      await expect(buildPart).toHaveAttribute(
+        "aria-describedby",
+        "rocket-rocket1-part-cost rocket-rocket1-part-reason",
+      );
       await expect(page.locator("#rocket-rocket1-part-reason")).toHaveText(
         spaceText(locale, "reasonInsufficientMaterial", {
           material: economyGoodName(locale, "steel"),
@@ -254,11 +257,9 @@ test("Rocket part cost, precondition text, and Rocket 1-4 travel progress fit na
           exact: true,
         });
         const countdown = rocket.getByTestId(`rocket-journey-countdown-${rocketId}`);
-        await expect(
-          rocket.getByRole("heading", {
-            name: rocketText(locale, "rocketLabel", { index: index + 1 }),
-          }),
-        ).toBeVisible();
+        await expect(page.locator("#pane-space-mining .game-page-title:visible")).toHaveText(
+          rocketText(locale, "rocketLabel", { index: index + 1 }),
+        );
         await expect(progress).toBeVisible();
         await expect(countdown).toContainText(
           rocketText(locale, "journeyTimeRemaining", { time: "" }).trim(),

@@ -129,10 +129,10 @@ function seedForPrizeIndex(index: number, max: number): number {
   throw new Error(`No matching prize index was found: ${index}`);
 }
 
-function seedForVoidSeerOutcome(won: boolean): number {
+function seedForVoidSeerOutcome(won: boolean, max: number): number {
   for (let seed = 0; seed < 100_000; seed += 1) {
-    const first = nextRandomInteger({ seed, draws: 0 }, 0, 6);
-    const second = nextRandomInteger(first.state, 0, 6);
+    const first = nextRandomInteger({ seed, draws: 0 }, 0, max);
+    const second = nextRandomInteger(first.state, 0, max);
     if ((first.value === second.value) === won) return seed;
   }
   throw new Error(`No matching Void Seer result was found: ${won}`);
@@ -261,8 +261,18 @@ describe("Galactic Casino current-run and lifetime counters", () => {
 
   it("adds exact paired Void Seer deltas for accepted matches and misses", () => {
     for (const won of [true, false]) {
-      const before = withCounterBaselines(casinoReadyState(seedForVoidSeerOutcome(won)));
-      const result = transition(before, { type: "casino.void-seer.play", tier: 2 });
+      const before = withCounterBaselines(casinoReadyState(seedForVoidSeerOutcome(won, 8)));
+      const started = transition(before, { type: "casino.void-seer.play", tier: 2 });
+      expect(started.accepted, JSON.stringify(started.failure)).toBe(true);
+      expectCounterDeltas(before, started.state, { cpSpent: 10, voidSeerPlayed: 1 });
+      const startEvent = started.events.find((entry) => entry.type === "casino.void-seer.started");
+      expect(startEvent?.type).toBe("casino.void-seer.started");
+      if (startEvent?.type !== "casino.void-seer.started") continue;
+      expect(startEvent.outcome.won).toBe(won);
+      const result = transition(started.state, {
+        type: "casino.void-seer.resolve",
+        outcome: startEvent.outcome,
+      });
       expect(result.accepted, JSON.stringify(result.failure)).toBe(true);
       expectCounterDeltas(before, result.state, {
         cpSpent: 10,

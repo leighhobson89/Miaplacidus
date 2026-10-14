@@ -1,4 +1,4 @@
-import { expect, test } from "../_harness/fixtures";
+import { dismissTutorialOfferIfPresent, expect, test } from "../_harness/fixtures";
 import { THEME_IDS } from "../../../src/content/themes";
 
 async function startPhilosophyChoiceFixture(page: import("@playwright/test").Page) {
@@ -16,11 +16,12 @@ async function startPhilosophyChoiceFixture(page: import("@playwright/test").Pag
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await dismissTutorialOfferIfPresent(page);
 
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  await page.getByRole("button", { name: "Study Stars", exact: true }).click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({
@@ -54,10 +55,10 @@ test("philosophy path artwork fits every theme on desktop and phone @p28-artwork
           patch: { themeId: nextTheme },
         });
       }, themeId);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
       const measurements = await dialog.evaluate((element) => {
         const dialogRect = element.getBoundingClientRect();
-        const frameStyle = getComputedStyle(document.querySelector(".game-frame")!);
+        const frameStyle = getComputedStyle(document.querySelector(".game-frame:not(.notification-portal)")!);
         return {
           viewportWidth: window.innerWidth,
           documentWidth: document.documentElement.scrollWidth,

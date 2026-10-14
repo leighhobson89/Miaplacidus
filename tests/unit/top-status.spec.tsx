@@ -15,6 +15,7 @@ import {
 import { createInitialGameState, type GameState } from "../../src/engine/state";
 import { createGameStore } from "../../src/engine/store";
 import { topStatusText } from "../../src/i18n/topStatusMessages";
+import { randomEventName } from "../../src/i18n/metaSignalMessages";
 import { philosophyText } from "../../src/i18n/philosophyMessages";
 import { formatNumber } from "../../src/app/numberFormatting";
 import { formatCountdown } from "../../src/app/timeFormatting";
@@ -275,7 +276,7 @@ describe("top status selectors and balances", () => {
       <TopStatusBar state={eventState} store={activeStore} locale="en" />,
     );
     expect(activeMarkup).toContain('class="top-stat-label">Last Event / Ongoing Event</span>');
-    expect(activeMarkup).toContain("Research breakthrough");
+    expect(activeMarkup).toContain(randomEventName("en", "researchBreakthrough"));
     expect(activeMarkup).toContain("(2m 0s)");
     expect(activeMarkup).toContain("Remaining: 2m 0s");
 

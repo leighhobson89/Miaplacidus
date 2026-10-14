@@ -121,11 +121,19 @@ describe("Galactic Casino economy and games", () => {
         space: {
           ...state.run.space,
           starshipDistanceTravelledThisRun: 4,
-          starship: { ...state.run.space.starship, phase: "orbiting" as const },
+          starship: {
+            ...state.run.space.starship,
+            destinationSystemId: "system:5:0",
+            phase: "orbiting" as const,
+            durationMs: 10_000,
+            antimatterSpent: 1,
+          },
         },
       },
+      statistics: { ...state.statistics, lifetimeStarshipDistanceTravelled: 4 },
     };
     expect(afterArrival.run.space.ascendencyAwardedThisRun).toBe(false);
+    expect(isValidGameState(afterArrival)).toBe(true);
     const unlocked = transition(afterArrival, {
       type: "casino.points.buy",
       goodId: "cash",
@@ -759,11 +767,20 @@ describe("Galactic Casino economy and games", () => {
 
   it("records a deterministic Void Seer match and applies its long-run antimatter award", () => {
     const state = casinoReadyState(seedForFirstDrawMatch(12));
-    const result = transition(state, { type: "casino.void-seer.play", tier: 3 });
+    const started = transition(state, { type: "casino.void-seer.play", tier: 3 });
+    expect(started.accepted).toBe(true);
+    const startEvent = started.events.find((entry) => entry.type === "casino.void-seer.started");
+    expect(startEvent?.type).toBe("casino.void-seer.started");
+    if (startEvent?.type !== "casino.void-seer.started") return;
+    expect(startEvent.outcome.won).toBe(true);
+    const result = transition(started.state, {
+      type: "casino.void-seer.resolve",
+      outcome: startEvent.outcome,
+    });
     expect(result.accepted).toBe(true);
-    const event = result.events.find((entry) => entry.type === "casino.void-seer.result");
-    expect(event?.type).toBe("casino.void-seer.result");
-    if (event?.type === "casino.void-seer.result") expect(event.won).toBe(true);
+    expect(result.events).toContainEqual(
+      expect.objectContaining({ type: "casino.void-seer.result", won: true }),
+    );
     expect(result.state.run.space.antimatter).toBeGreaterThan(10);
     expect(result.state.permanent.galacticCasino.casinoPoints).toBe(985);
     expect(result.state.run.casinoStats.voidSeerWon).toBe(1);

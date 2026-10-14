@@ -59,7 +59,10 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
           />
         </div>
         <p>{text.introduction}</p>
-        <p data-testid="megastructure-force-field">
+        <div
+          className="megastructure-force-field"
+          data-testid="megastructure-force-field"
+        >
           {forceFieldMessage
             .replace("{level}", number(forceFieldLevel))
             .replace("{total}", number(4))}
@@ -79,7 +82,7 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
             }
             testId="megastructure-force-field-help"
           />
-        </p>
+        </div>
       </div>
       <div className="deep-space-banner page-artwork-row">
         <CelestialIllustration kind="megastructure" />

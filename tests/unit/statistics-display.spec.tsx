@@ -17,6 +17,7 @@ import { createInitialGameState, type GameState } from "../../src/engine/state";
 import { decodePortable, encodePortable } from "../../src/persistence/codec";
 import { makeEnvelope } from "../../src/persistence/schema";
 import { settingsStatisticLabel } from "../../src/i18n/settingsMessages";
+import { interstellarStatisticLabel } from "../../src/i18n/interstellarStatisticsMessages";
 import {
   runStatisticLabel,
   statisticsText,
@@ -342,7 +343,7 @@ describe("statistics display parity", () => {
     expect(rowStart).toBeGreaterThanOrEqual(0);
     expect(pairStart).toBeGreaterThan(rowStart);
     expect(valueEnd).toBeGreaterThan(pairStart);
-    expect(values).toEqual(["0", statisticsNotApplicableLabel("en")]);
+    expect(values).toEqual(["0", interstellarStatisticLabel("en", "notApplicable")]);
   });
 
   it("renders Overview Antimatter Mined from the lifetime total", () => {

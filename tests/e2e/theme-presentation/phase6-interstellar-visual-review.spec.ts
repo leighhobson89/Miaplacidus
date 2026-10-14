@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, test } from "../_harness/fixtures";
+import { dismissTutorialOfferIfPresent, expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import type { ThemeId } from "../../../src/content/themes";
 
@@ -22,6 +22,20 @@ async function startFixture(
   await expect
     .poll(() => page.evaluate(() => typeof window.miaplacidusTest?.applyDebugAction === "function"))
     .toBe(true);
+  await dismissTutorialOfferIfPresent(page);
+  const notificationsDisabled = await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  expect(notificationsDisabled).toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
+    )
+    .toBe(false);
+  await expect(page.getByTestId("notification-stack")).toBeEmpty();
 }
 
 async function setPresentation(page: Page, themeId: ThemeId): Promise<void> {
@@ -32,7 +46,7 @@ async function setPresentation(page: Page, themeId: ThemeId): Promise<void> {
     });
   }, themeId);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
 }
 
 async function hideAmbientOverlays(page: Page): Promise<void> {
@@ -74,7 +88,7 @@ test("Interstellar Starship, Fleet, and Colonise have reviewed desktop and phone
   await page.locator("#tab-interstellar").click();
   await page.locator("#tab-interstellar-starship").click();
   const unlaunched = page.getByTestId("starship-pane");
-  await expect(unlaunched.locator("#starship-title")).toHaveText("Starship");
+  await expect(unlaunched.locator("#starship-title")).toHaveText("Star Ship");
   await expect(unlaunched).not.toHaveClass(/starship-card-plain/);
   await expect(
     unlaunched.locator('.space-card-illustration-wrap [data-celestial-illustration="starship"]'),
@@ -96,14 +110,14 @@ test("Interstellar Starship, Fleet, and Colonise have reviewed desktop and phone
   await page.locator("#tab-interstellar").click();
   await page.locator("#tab-interstellar-starship").click();
   const starship = page.getByTestId("starship-pane");
-  await expect(starship.locator("#starship-title")).toHaveText("Starship");
+  await expect(starship.locator("#starship-title")).toHaveText("Star Ship");
   await expect(starship).toHaveClass(/starship-card-plain/);
   await expect(starship).toHaveCSS("border-width", "0px");
   await expect(starship.locator(".space-card-illustration-wrap")).toHaveCount(0);
   await expect(starship.locator(".space-card-heading .eyebrow")).toHaveCount(0);
   await starship.getByTestId("starship-scan-system-button").click();
   await expect(starship.getByTestId("starship-scan-complete")).toBeVisible();
-  await expect(page.locator('[data-testid="game-notification"]')).toBeHidden();
+  await expect(page.getByTestId("notification-stack")).toBeEmpty();
 
   for (const viewport of [
     { width: 1280, height: 900, theme: "terminal", suffix: "terminal-desktop" },

@@ -17,6 +17,7 @@ export const PROGRESSION_TUTORIAL_STEP_IDS = [
   "researchKnowledgeSharing",
   "inspectScienceClub",
   "visitVisualSettings",
+  "openThemeDropdown",
   "chooseDarkTheme",
   "visitAudioSettings",
   "readAudioSettings",

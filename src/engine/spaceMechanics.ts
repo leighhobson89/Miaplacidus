@@ -81,11 +81,13 @@ import {
 } from "./spaceRules";
 import type { ClockStep } from "./clock";
 import type { TickPlan } from "./transactions";
-import type {
-  RapidExpansionOutcome,
-  SpaceCommand,
-  SpaceCommandFailure,
-  SpaceEvent,
+import {
+  battleDeathUnitIndex,
+  battleFleetCountAtHealth,
+  type RapidExpansionOutcome,
+  type SpaceCommand,
+  type SpaceCommandFailure,
+  type SpaceEvent,
 } from "./spaceCommands";
 import type { EngineEvent, PreconditionResult } from "./commands";
 import {
@@ -119,6 +121,28 @@ function retainFinalDeathCueCounts<FleetId extends string>(
       (remaining.get(event.fleetId) ?? 0) - confirmedDeathCount,
     );
     return confirmedDeathCount > 0 ? [{ ...event, confirmedDeathCount }] : [];
+  });
+}
+
+function confirmedBattleDeathEvents(
+  systemId: SystemId,
+  round: number,
+  side: BattleCueEvent["side"],
+  fleetId: string,
+  countBeforeDamage: number,
+  confirmedDeathCount: number,
+): BattleCueEvent[] {
+  if (confirmedDeathCount <= 0) return [];
+  return Array.from({ length: confirmedDeathCount }, (_, deathOrdinal) => {
+    return {
+      type: "space.battle.death",
+      systemId,
+      round,
+      side,
+      fleetId,
+      unitIndex: battleDeathUnitIndex(countBeforeDamage, deathOrdinal),
+      confirmedDeathCount: 1,
+    } as BattleCueEvent;
   });
 }
 
@@ -162,6 +186,7 @@ function rocketJourneyTimerId(rocketId: RocketId) {
 }
 
 const STARSHIP_BATTLE_TIMER_ID = createTimerId("battle", "starship-combat");
+const STARSHIP_BATTLE_ROUND_DURATION_MS = 250;
 
 export function starshipTravelPlan(state: GameState, systemId: string) {
   const catalogue = createStarCatalogue(GALAXY_SEED_DEFAULT);
@@ -238,13 +263,6 @@ function currentEncounter(state: GameState) {
 
 function enemyFleetCount(encounter: NonNullable<ReturnType<typeof currentEncounter>>): number {
   return encounter.enemyFleets.air + encounter.enemyFleets.land + encounter.enemyFleets.sea;
-}
-
-function playerHasAnyFleet(state: GameState): boolean {
-  return (
-    state.run.space.fleetEnvoyBuilt ||
-    PLAYER_FLEET_IDS.some((fleetId) => state.run.space.playerFleets[fleetId] > 0)
-  );
 }
 
 function encounterCanSettle(encounter: NonNullable<ReturnType<typeof currentEncounter>>): boolean {
@@ -627,7 +645,6 @@ export function checkSpacePreconditions(
       systemId !== null &&
       encounter !== undefined &&
       encounterCanSettle(encounter) &&
-      playerHasAnyFleet(state) &&
       !state.run.space.ascendencyAwardedThisRun &&
       !state.permanent.settledSystemIds.includes(systemId)
       ? { ok: true }
@@ -990,7 +1007,7 @@ const ENEMY_BATTLE_TARGETS: Readonly<
 };
 
 function fleetCountAtHealth(healthPool: number, unitHealth: number, maximum: number): number {
-  return Math.min(maximum, Math.ceil(Math.max(0, healthPool) / Math.max(1, unitHealth)));
+  return battleFleetCountAtHealth(healthPool, unitHealth, maximum);
 }
 
 function selectLowestHealthTarget<T extends string>(
@@ -1141,14 +1158,16 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
     enemyPools[targetId] = Math.max(0, enemyPools[targetId] - damage);
     const targetDeaths = targetCountBeforeDamage - enemyCount(targetId);
     if (targetDeaths > 0) {
-      playerAttackCueEvents.push({
-        type: "space.battle.death",
-        systemId,
-        round,
-        side: "enemy",
-        fleetId: targetId,
-        confirmedDeathCount: targetDeaths,
-      });
+      playerAttackCueEvents.push(
+        ...confirmedBattleDeathEvents(
+          systemId,
+          round,
+          "enemy",
+          targetId,
+          targetCountBeforeDamage,
+          targetDeaths,
+        ),
+      );
     }
   }
 
@@ -1172,14 +1191,16 @@ function resolveBattleRound(state: GameState, systemId: SystemId): SpaceTransiti
     damageDealtToPlayers += damage;
     const targetDeaths = targetCountBeforeDamage - playerCount(targetId);
     if (targetDeaths > 0) {
-      enemyAttackCueEvents.push({
-        type: "space.battle.death",
-        systemId,
-        round,
-        side: "player",
-        fleetId: targetId,
-        confirmedDeathCount: targetDeaths,
-      });
+      enemyAttackCueEvents.push(
+        ...confirmedBattleDeathEvents(
+          systemId,
+          round,
+          "player",
+          targetId,
+          targetCountBeforeDamage,
+          targetDeaths,
+        ),
+      );
     }
   }
   if (encounter.lifeformTraits.includes("powerSiphon") && damageDealtToPlayers > 0) {
@@ -1656,7 +1677,7 @@ export function applySpaceCommand(state: GameState, command: SpaceCommand): Spac
     const timer = createTimer({
       id: STARSHIP_BATTLE_TIMER_ID,
       domain: "battle",
-      durationMs: 250,
+      durationMs: STARSHIP_BATTLE_ROUND_DURATION_MS,
       repeat: true,
     });
     return {
@@ -2357,7 +2378,19 @@ export function advanceSpaceMining(
   }
   if (isOfflineStep) {
     // Cosmic Forge floors the aggregate offline asteroid gain for both mined
-    // counters and does not count offline megastructure production there.
+    // quantity and counters, and does not count offline megastructure production there.
+    if (offlineAntimatterMined > 0) {
+      nextState = {
+        ...nextState,
+        run: {
+          ...nextState.run,
+          space: {
+            ...nextState.run.space,
+            antimatter: Math.floor(nextState.run.space.antimatter),
+          },
+        },
+      };
+    }
     const offlineMinedForStatistics = Math.floor(offlineAntimatterMined);
     if (offlineMinedForStatistics > 0) {
       nextState = {

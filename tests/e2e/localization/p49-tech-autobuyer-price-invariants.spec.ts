@@ -100,7 +100,7 @@ test("live locale changes preserve Tech Tree and autobuyer prices @locale @p49",
     for (const technology of standardTechnologies) {
       const node = page.locator(`.technology-map-node[data-technology-id="${technology.id}"]`);
       await expect(node).toBeVisible();
-      const expected = `${formatNumber(locale, technology.price, 2, baselineState.settings.notation)} ${economyLabel(locale, "points")}`;
+      const expected = `${formatNumber(locale, technology.price, 2, baselineState.settings.notation)} ${economyLabel(locale, "researchCostSuffix")}`;
       await expect(node.locator(".technology-map-node-cost")).toHaveText(expected);
     }
     await expect(page.locator("#tab-research-tech-tree")).toHaveAttribute("aria-selected", "true");
@@ -125,7 +125,7 @@ test("live locale changes preserve Tech Tree and autobuyer prices @locale @p49",
       costs: `${format(selection.totalCost)} ${name}`,
       result: `+${format(selection.count * HYDROGEN_AUTOBUYER_RATE)} ${name} ${economyLabel(locale, "perSecond")}`,
     });
-    await expect(section.locator(".autobuyer-card p.economy-rate")).toHaveText(expectedPreview);
+    await expect(section.locator("#hydrogen-autobuyer-buy-max-preview")).toHaveText(expectedPreview);
   };
 
   const verifyMaterialAutobuyers = async (locale: GameState["settings"]["locale"]) => {
@@ -155,7 +155,7 @@ test("live locale changes preserve Tech Tree and autobuyer prices @locale @p49",
         await expect(tierCard.locator("button").first()).toContainText(
           formatNumber(locale, expectedPrice, 2, state.settings.notation),
         );
-        await expect(tierCard.locator("p.economy-rate")).toHaveText(
+        await expect(tierCard.locator(`#resource-${id}-autobuyer-${tier}-buy-max-preview`)).toHaveText(
           previewText(state, id, tier),
         );
       }
@@ -180,7 +180,7 @@ test("live locale changes preserve Tech Tree and autobuyer prices @locale @p49",
         await expect(tierCard.locator("button").first()).toContainText(
           formatNumber(locale, expectedPrice, 2, state.settings.notation),
         );
-        await expect(tierCard.locator("p.economy-rate")).toHaveText(
+        await expect(tierCard.locator(`#compound-${id}-autobuyer-${tier}-buy-max-preview`)).toHaveText(
           previewText(state, id, tier),
         );
       }

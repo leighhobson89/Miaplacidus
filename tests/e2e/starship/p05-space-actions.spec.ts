@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "../_harness/fixtures";
+import { spaceText } from "../../../src/i18n/spaceMessages";
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -141,7 +142,7 @@ test("Space Mining and Interstellar mechanics actions meet 44px and keyboard/tou
       measuredTargets += await recordUndersizedTargets(pane, `${width}px ${route}`, failures);
 
       if (width === 320 && route === "interstellar-fleet-hangar") {
-        const envoy = pane.getByRole("button", { name: "Build Envoy", exact: true });
+        const envoy = pane.getByTestId("starship-envoy-build");
         if (await envoy.isEnabled()) {
           await envoy.tap();
           await expect
@@ -179,7 +180,10 @@ test("Space Mining and Interstellar mechanics actions meet 44px and keyboard/tou
     await page.locator("#tab-space-mining-telescope").tap();
     const card = page.locator(".space-card:visible");
     await expect(card).toHaveCount(1);
-    const buildTelescope = card.getByRole("button", { name: "Build telescope", exact: true });
+    const buildTelescope = card.getByRole("button", {
+      name: "Build Space Telescope",
+      exact: true,
+    });
     if (await buildTelescope.isVisible()) await buildTelescope.tap();
     const autoTelescope = page.getByTestId("auto-telescope-controls");
     await expect(autoTelescope).toBeVisible();
@@ -188,7 +192,7 @@ test("Space Mining and Interstellar mechanics actions meet 44px and keyboard/tou
       `${width}px Auto Telescope controls`,
       failures,
     );
-    const mode = autoTelescope.getByLabel("Action");
+    const mode = autoTelescope.getByLabel(spaceText("en", "autoRowLabel"));
     if (width === 320) {
       await mode.focus();
       await page.keyboard.press("ArrowDown");
@@ -236,7 +240,7 @@ test("Space Mining and Interstellar mechanics actions meet 44px and keyboard/tou
       `${width}px unlaunched Starship`,
       failures,
     );
-    const launch = pane.getByRole("button", { name: "Launch starship" });
+    const launch = pane.getByRole("button", { name: "Travel" });
     await launch.tap();
     const dialog = page.getByRole("dialog", { name: "Warning: point of no return" });
     await expect(dialog).toBeVisible();

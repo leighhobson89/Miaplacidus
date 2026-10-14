@@ -80,7 +80,7 @@ test("P-56 status metadata fits every locale, theme, and viewport @p56-status-vi
           "lang",
           locale,
         );
-        await expect(page.locator(".game-frame"), `${themeId} theme`).toHaveAttribute(
+        await expect(page.locator(".game-frame:not(.notification-portal)"), `${themeId} theme`).toHaveAttribute(
           "data-theme",
           themeId,
         );

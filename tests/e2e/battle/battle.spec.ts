@@ -51,7 +51,7 @@ test("wins a hostile battle through the starship controls and records settlement
 }) => {
   await startBattleFixture(page, "space-battle-victory");
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByTestId("starship-enter-war-button").click();
   await pane.getByTestId("starship-battle-engage-button").click();
   await advanceBattle(page);
 
@@ -62,11 +62,10 @@ test("wins a hostile battle through the starship controls and records settlement
       ),
     )
     .toBe("victory");
-  const victoryNotice = page.locator(
-    '[data-testid="game-notification"][data-classification="battle"]',
-  );
-  await expect(victoryNotice).toContainText("Victory");
+  // The floating toast shares a two-card FIFO and may be delayed by other notices.
+  await expect(pane.getByTestId("starship-battle-status")).toContainText("Victory");
   const victory = await page.evaluate(() => window.miaplacidusTest!.getState());
+  const ascendencyBefore = victory.permanent.ascendencyPoints;
   const destinationId = victory.run.space.starship.destinationSystemId;
   const destinationProfile = victory.run.space.systemProfiles.find(
     (profile) => profile.systemId === destinationId,
@@ -78,7 +77,9 @@ test("wins a hostile battle through the starship controls and records settlement
   await expect(pane.getByTestId("starship-system-settled")).toBeVisible();
   const settled = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(settled.permanent.settledSystemIds).toContain(destinationId);
-  expect(settled.permanent.ascendencyPoints).toBe(destinationProfile!.ascendencyPoints * 2);
+  expect(settled.permanent.ascendencyPoints).toBe(
+    ascendencyBefore + destinationProfile!.ascendencyPoints * 2,
+  );
   expect(settled.permanent.gloryPoints).toBe(0);
   expect(settled.run.space.ascendencyAwardedThisRun).toBe(true);
   expect(
@@ -94,7 +95,7 @@ test("retains the starship and surviving enemy after defeat, then retries with r
   const destinationBefore = await page.evaluate(
     () => window.miaplacidusTest!.getState().run.space.starship.destinationSystemId,
   );
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByTestId("starship-enter-war-button").click();
   await pane.getByTestId("starship-battle-engage-button").click();
   await advanceBattle(page);
 
@@ -105,31 +106,28 @@ test("retains the starship and surviving enemy after defeat, then retries with r
       ),
     )
     .toBe("defeat");
-  const defeatNotice = page.locator(
-    '[data-testid="game-notification"][data-classification="battle"]',
-  );
-  await expect(defeatNotice).toContainText("Defeat");
+  // Keep the outcome assertion on the battle panel; floating notices expire after three seconds.
+  await expect(pane.getByTestId("starship-battle-status")).toContainText("Defeat");
   const defeat = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(defeat.run.space.playerFleets.scout).toBe(0);
   expect(defeat.run.space.systemEncounters[0]?.enemyFleets.air).toBeGreaterThan(0);
   expect(defeat.run.space.starship.destinationSystemId).toBe(destinationBefore);
 
-  await pane
-    .getByTestId("starship-fleet-scout")
-    .getByRole("button", { name: "Build one ship" })
-    .click();
+  await page.getByRole("tab", { name: /Fleet Hangar/ }).click();
+  await pane.getByTestId("starship-fleet-build-scout").click();
   const rebuilt = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(rebuilt.run.space.playerFleets.scout).toBe(1);
   expect(rebuilt.run.space.systemEncounters[0]?.battle.playerHealthPool.scout).toBe(100);
 
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await page.getByRole("tab", { name: "Colonise" }).click();
+  await pane.getByTestId("starship-enter-war-button").click();
   await pane.getByTestId("starship-battle-engage-button").click();
   const retry = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(retry.run.space.systemEncounters[0]?.battle.phase).toBe("inProgress");
   expect(retry.run.space.starship.destinationSystemId).toBe(destinationBefore);
 });
 
-test("plays a ship-death explosion when a combat round destroys ships @battle @audio", async ({
+test("does not synthesize explosion cues from aggregate casualties without rendered death callbacks @battle @audio", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -164,6 +162,9 @@ test("plays a ship-death explosion when a combat round destroys ships @battle @a
     window.__battleAudioSources = sources;
   });
   await startBattleFixture(page, "space-battle-defeat");
+  await page.addStyleTag({
+    content: '[data-testid="starship-battle-canvas"] { display: none !important; }',
+  });
   await page.evaluate(() => {
     window.miaplacidusTest!.dispatch({
       type: "settings.update",
@@ -172,7 +173,7 @@ test("plays a ship-death explosion when a combat round destroys ships @battle @a
     window.__battleAudioSources!.length = 0;
   });
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByTestId("starship-enter-war-button").click();
   await pane.getByTestId("starship-battle-engage-button").click();
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
 
@@ -188,7 +189,7 @@ test("plays a ship-death explosion when a combat round destroys ships @battle @a
       /shipBattleExplode[12]\.mp3/.test(source),
     ),
   );
-  expect(explosionSources).toHaveLength(1);
+  expect(explosionSources).toHaveLength(0);
   expect(
     await page.evaluate(() => window.miaplacidusTest!.getState().run.space.playerFleets.scout),
   ).toBe(0);
@@ -200,7 +201,7 @@ test("shows the vassalization success result through the envoy controls @diploma
   await startBattleFixture(page, "space-diplomacy-power");
   const pane = page.getByTestId("starship-pane");
   const diplomacy = pane.getByTestId("starship-diplomacy");
-  await diplomacy.getByRole("button", { name: "Request vassalization" }).click();
+  await diplomacy.getByTestId("starship-diplomacy-vassalize-button").click();
 
   const state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.space.systemEncounters[0]?.lastDiplomacyMessage).toBe("vassalized");
@@ -216,7 +217,7 @@ test("shows failed vassalization and offers war through the envoy controls @dipl
   const pane = page.getByTestId("starship-pane");
   await pane
     .getByTestId("starship-diplomacy")
-    .getByRole("button", { name: "Request vassalization" })
+    .getByTestId("starship-diplomacy-vassalize-button")
     .click();
 
   const state = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -232,7 +233,7 @@ test("covers both bully outcomes and forced war through the envoy controls @dipl
   const pane = page.getByTestId("starship-pane");
   await pane
     .getByTestId("starship-diplomacy")
-    .getByRole("button", { name: "Bully the civilization" })
+    .getByTestId("starship-diplomacy-bully-button")
     .click();
   let state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.space.systemEncounters[0]?.lastDiplomacyMessage).toBe("bullyScared");
@@ -244,7 +245,7 @@ test("covers both bully outcomes and forced war through the envoy controls @dipl
   const surrenderPane = page.getByTestId("starship-pane");
   await surrenderPane
     .getByTestId("starship-diplomacy")
-    .getByRole("button", { name: "Bully the civilization" })
+    .getByTestId("starship-diplomacy-bully-button")
     .click();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.space.systemEncounters[0]?.lastDiplomacyMessage).toBe("bullySurrendered");
@@ -254,7 +255,7 @@ test("covers both bully outcomes and forced war through the envoy controls @dipl
   const hostilePane = page.getByTestId("starship-pane");
   await hostilePane
     .getByTestId("starship-diplomacy")
-    .getByRole("button", { name: "Bully the civilization" })
+    .getByTestId("starship-diplomacy-bully-button")
     .click();
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.space.systemEncounters[0]?.lastDiplomacyMessage).toBe("bullyAttack");
@@ -283,6 +284,8 @@ test("settles an unoccupied arrival without opening battle @colonise", async ({ 
   expect(stateAfter.permanent.settledSystemIds).toContain(
     stateBefore.run.space.starship.destinationSystemId,
   );
-  expect(stateAfter.permanent.ascendencyPoints).toBe(destinationProfile!.ascendencyPoints);
+  expect(stateAfter.permanent.ascendencyPoints).toBe(
+    stateBefore.permanent.ascendencyPoints + destinationProfile!.ascendencyPoints,
+  );
   expect(stateAfter.permanent.gloryPoints).toBe(0);
 });

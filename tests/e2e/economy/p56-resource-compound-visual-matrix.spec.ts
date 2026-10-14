@@ -32,7 +32,7 @@ async function setPresentation(
     { locale, themeId },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
 }
 
 async function expandAllDetails(container: ReturnType<Page["locator"]>): Promise<void> {

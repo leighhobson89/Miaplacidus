@@ -18,6 +18,10 @@ test("announces the Galactic Market lockdown when its child page is selected", a
     }),
   );
   expect(accepted).toBe(true);
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
   await page.getByRole("tab", { name: "Ascendency Perks" }).click();
   await page.getByRole("tab", { name: "Galactic Market" }).click();
 

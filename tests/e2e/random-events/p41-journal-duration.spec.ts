@@ -14,6 +14,10 @@ test("P-41 formats and advances the active-event journal duration @p41-journal-d
     }),
   );
   expect(accepted).toBe(true);
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
 
   const notationValues: Record<"condensed" | "standard" | "scientific", string> = {
     condensed: "",
@@ -84,6 +88,10 @@ test("P-41 formats live News interval and journal history ages in every notation
   }));
   expect(forced.event).toBe(true);
   expect(forced.news).toBe(true);
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
 
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(10_000));
   const journal = page.getByTestId("meta-journal-pane");

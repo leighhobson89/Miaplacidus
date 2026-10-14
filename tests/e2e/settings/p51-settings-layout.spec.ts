@@ -27,7 +27,7 @@ test("P-51 Settings pages stay contained at narrow widths in Terminal and Light 
     for (const theme of ["terminal", "light"] as const) {
       await settings.locator("#tab-settings-visual").click();
       await settings.locator("#settings-theme").selectOption(theme);
-      await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 
       for (const paneId of SETTINGS_PANES) {
         await settings.locator(`#tab-${paneId}`).click();

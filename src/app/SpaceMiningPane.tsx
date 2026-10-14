@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ASTEROID_SCAN_TIMER_ID,
   LAUNCH_PAD_COST,
@@ -9,6 +9,7 @@ import {
   ROCKET_PART_REQUIREMENTS,
   STAR_STUDY_TIMER_ID,
   TELESCOPE_COST,
+  VOID_PILLAGE_POWER_PER_SECOND,
   VOID_PILLAGE_TIMER_ID,
   type TelescopeMode,
   type AsteroidRarity,
@@ -146,6 +147,12 @@ function rocketPhaseText(
     return rocket.fuelPumpEnabled
       ? rocketText(locale, "fuelling")
       : rocketText(locale, "readyForRefuel");
+  }
+  if (rocket.phase === "orbit") {
+    return rocketText(
+      locale,
+      state.run.space.selectedAsteroidId !== null ? "readyToTravel" : "selectDestination",
+    );
   }
   return rocketText(locale, rocket.phase);
 }
@@ -526,7 +533,11 @@ const WEATHER_MESSAGES: Readonly<Record<SpaceWeatherCondition, SpaceMessageKey>>
 export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPaneProps) {
   const locale = state.settings.locale;
   const [feedback, setFeedback] = useState("");
+  const [isNarrowViewport, setIsNarrowViewport] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.("(max-width: 520px)").matches === true,
+  );
   const space = state.run.space;
+  const previousSurvey = useRef<GameState["run"]["space"]["activeSurvey"]>(space.activeSurvey);
   const currentWeather = currentWeatherForSystem(space);
   const weatherTimer = state.run.timers[STAR_WEATHER_TIMER_ID];
   const weatherChangeInMs = weatherTimer
@@ -540,6 +551,18 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
     state.permanent.rebirthCount > 0 &&
     state.permanent.philosophyId === "voidborn" &&
     state.run.philosophyAbilityActive;
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia("(max-width: 520px)");
+    const updateViewport = () => setIsNarrowViewport(mediaQuery.matches);
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
+  useEffect(() => {
+    if (previousSurvey.current !== null && space.activeSurvey === null) setFeedback("");
+    previousSurvey.current = space.activeSurvey;
+  }, [space.activeSurvey]);
   useEffect(
     () => () => {
       if (store.getState().run.space.antimatterBoostActive)
@@ -714,8 +737,18 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
       tabIndex={0}
       data-testid="space-mining-pane"
     >
-      <div className="pane-heading">
-        <div className="space-mining-title-row">
+      <div
+        className="pane-heading"
+        style={
+          rocketPageDescription && isNarrowViewport
+            ? { flexDirection: "column", alignItems: "stretch" }
+            : undefined
+        }
+      >
+        <div
+          className="space-mining-title-row"
+          style={rocketPageDescription && isNarrowViewport ? { width: "100%" } : undefined}
+        >
           <h2 className="game-page-title">{paneTitle}</h2>
           {pageHelp && (
             <InfoTooltip
@@ -785,7 +818,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                 disabled={!built.ok}
                 aria-describedby={builtReason ? "telescope-build-reason" : undefined}
                 onClick={() =>
-                  dispatch({ type: "space.telescope.build" }, spaceText(locale, "feedbackBuilt"))
+                  dispatch({ type: "space.telescope.build" })
                 }
               >
                 {spaceText(locale, "telescopeBuild")}
@@ -840,12 +873,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                   type="button"
                   disabled={!scan.ok}
                   aria-describedby={scanReason ? "telescope-scan-reason" : undefined}
-                  onClick={() =>
-                    dispatch(
-                      { type: "space.telescope.scan.start" },
-                      spaceText(locale, "feedbackSurveyStarted"),
-                    )
-                  }
+                  onClick={() => dispatch({ type: "space.telescope.scan.start" })}
                 >
                   {spaceText(locale, "scanAsteroids")}
                 </button>
@@ -865,12 +893,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                   type="button"
                   disabled={!study.ok}
                   aria-describedby={studyReason ? "telescope-study-reason" : undefined}
-                  onClick={() =>
-                    dispatch(
-                      { type: "space.telescope.study.start" },
-                      spaceText(locale, "feedbackSurveyStarted"),
-                    )
-                  }
+                  onClick={() => dispatch({ type: "space.telescope.study.start" })}
                 >
                   {spaceText(locale, "studyStars")}
                 </button>
@@ -890,12 +913,7 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                     type="button"
                     disabled={!pillage.ok}
                     aria-describedby={pillageReason ? "telescope-pillage-reason" : undefined}
-                    onClick={() =>
-                      dispatch(
-                        { type: "space.telescope.pillage.start" },
-                        spaceText(locale, "feedbackPillageStarted"),
-                      )
-                    }
+                    onClick={() => dispatch({ type: "space.telescope.pillage.start" })}
                   >
                     {spaceText(locale, "pillageVoid")}
                   </button>

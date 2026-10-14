@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
+import type { Page } from "@playwright/test";
 import { LOCALE_IDS } from "../../../src/content/ids";
-import { saveText } from "../../../src/i18n/saveMessages";
+import { saveErrorText, saveText } from "../../../src/i18n/saveMessages";
 import { expect, test } from "../_harness/fixtures";
 import { openSaveManager, saveNowFromSettings } from "../_harness/save-controls";
 
@@ -12,10 +13,27 @@ function portableJson(value: unknown): string {
   return `MIA1:${compressToEncodedURIComponent(JSON.stringify(value))}`;
 }
 
+async function expectSaveNotification(
+  page: Page,
+  type: "error" | "success",
+  message: string,
+): Promise<void> {
+  await expect(
+    page
+      .locator(`[data-testid="game-notification"].notification-${type}`)
+      .filter({ hasText: message }),
+  ).toHaveText(message);
+  await expect(
+    page.locator(".save-manager-inline .save-error, .save-manager-inline .save-notice"),
+  ).toHaveCount(0);
+  await page.clock.runFor(3_300);
+}
+
 test("import errors and success copy stay localized across six locales @p46-import-errors-locale", async ({
   page,
 }) => {
   test.setTimeout(120_000);
+  await page.clock.install();
   await page.goto("/?testSeed=20261009&testLocale=en");
   await page.locator("#pioneer-name").fill("Import Errors Locale Pioneer");
   await page.getByTestId("start-game").click();
@@ -52,59 +70,43 @@ test("import errors and success copy stay localized across six locales @p46-impo
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.locator("#tab-settings-saves").click();
     await page.getByTestId("save-now").click();
-    await expect(page.getByTestId("save-status")).toHaveText(saveText(locale, "saved"));
+    await expect(page.getByTestId("save-status")).toHaveText(/\S/u);
 
     await manager.locator("#import-code").fill("MIA1:garbage");
     await manager.getByRole("button", { name: saveText(locale, "preview"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errCode"),
-    );
+    await expectSaveNotification(page, "error", saveText(locale, "errInvalidSaveString"));
 
     await manager.locator("#import-code").fill(`MIA1:${compressToEncodedURIComponent("not-json")}`);
     await manager.getByRole("button", { name: saveText(locale, "preview"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errCode"),
-    );
+    await expectSaveNotification(page, "error", saveText(locale, "errInvalidSaveString"));
 
     await manager.locator("#import-code").fill(portableJson({}));
     await manager.getByRole("button", { name: saveText(locale, "preview"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errIntegrity"),
-    );
+    await expectSaveNotification(page, "error", saveErrorText(locale, "invalid-envelope"));
 
-    await manager.locator("#import-code").fill(portableJson({ schemaVersion: 48 }));
+    await manager.locator("#import-code").fill(portableJson({ schemaVersion: 56 }));
     await manager.getByRole("button", { name: saveText(locale, "preview"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errFuture"),
-    );
+    await expectSaveNotification(page, "error", saveErrorText(locale, "future-version"));
 
     await manager.locator("input[type='file']").setInputFiles({
       name: "oversized-save.txt",
       mimeType: "text/plain",
       buffer: oversizedFile,
     });
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errTooLarge"),
-    );
+    await expectSaveNotification(page, "error", saveErrorText(locale, "too-large"));
 
     await manager.locator("input[type='file']").setInputFiles({
       name: "unreadable-save.txt",
       mimeType: "text/plain",
       buffer: Buffer.from("MIA1:test"),
     });
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errGeneric"),
-    );
+    await expectSaveNotification(page, "error", saveErrorText(locale, "unknown"));
 
     await manager.getByRole("button", { name: saveText(locale, "paste"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "clipboardReadError"),
-    );
+    await expectSaveNotification(page, "error", saveText(locale, "clipboardReadError"));
 
     await manager.getByRole("button", { name: saveText(locale, "copy"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "clipboardCopyError"),
-    );
+    await expectSaveNotification(page, "error", saveText(locale, "clipboardCopyError"));
 
     await page.evaluate(() => {
       Object.defineProperty(navigator, "clipboard", {
@@ -113,7 +115,7 @@ test("import errors and success copy stay localized across six locales @p46-impo
       });
     });
     await manager.getByRole("button", { name: saveText(locale, "copy"), exact: true }).click();
-    await expect(manager.locator(".save-notice")).toHaveText(saveText(locale, "clipboardCopied"));
+    await expectSaveNotification(page, "success", saveText(locale, "clipboardCopied"));
 
     await manager.locator("#import-code").fill(portableCode);
     await manager.getByRole("button", { name: saveText(locale, "preview"), exact: true }).click();
@@ -122,19 +124,15 @@ test("import errors and success copy stay localized across six locales @p46-impo
     );
     await manager.locator("#import-new-name").fill("   ");
     await manager.getByRole("button", { name: saveText(locale, "importNew"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errName"),
-    );
+    await expectSaveNotification(page, "error", saveErrorText(locale, "invalid-name"));
     await manager.locator("#import-new-name").fill("Import Errors Locale Pioneer");
     await manager.getByRole("button", { name: saveText(locale, "importNew"), exact: true }).click();
-    await expect(manager.locator(".save-error[role='alert']")).toHaveText(
-      saveText(locale, "errDuplicate"),
-    );
+    await expectSaveNotification(page, "error", saveErrorText(locale, "duplicate-name"));
 
     await manager.locator("#import-code").fill(portableCode);
     await manager.getByRole("button", { name: saveText(locale, "preview"), exact: true }).click();
     await manager.locator("#import-new-name").fill(`Imported Copy ${locale}`);
     await manager.getByRole("button", { name: saveText(locale, "importNew"), exact: true }).click();
-    await expect(manager.locator(".save-notice")).toHaveText(saveText(locale, "importedAsNew"));
+    await expectSaveNotification(page, "success", saveText(locale, "importedAsNew"));
   }
 });

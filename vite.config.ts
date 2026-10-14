@@ -10,4 +10,18 @@ export default defineConfig(({ mode }) => ({
   build: {
     sourcemap: mode === "test",
   },
+  ...(mode === "test"
+    ? {
+        server: {
+          watch: {
+            ignored: [
+              "**/test-results/**",
+              "**/test-results-*/**",
+              "**/playwright-report/**",
+              "**/blob-report/**",
+            ],
+          },
+        },
+      }
+    : {}),
 }));

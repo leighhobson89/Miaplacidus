@@ -395,3 +395,15 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5401'
 node .\node_modules\playwright\cli.js test tests/e2e/starship/p45-module-build-result.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-starship-module-result-5401
 ```
+
+14 October 2026 focused failure recovery: the thirteen failed-manifest
+Starship behavior cases passed **13/13 in 1.5 minutes** on port 6420. This
+covered narrow Fleet/Colonise layouts, 44px actions, arrival notices, module
+build results, scan reports and persistence, diplomacy, affordability, and
+keyboard activation. The six failed P-56 Interstellar visual cases also passed
+in the subsequent **7/7 no-update** visual run on port 6424, which included the
+P-66 review. I refreshed and reviewed the six French/Terminal/390px P-56
+captures. Review found single-letter final-line wraps beside the status pill in
+French `Vaisseau Stellaire` and `Coloniser` headings; all text remains inside
+the pane, but those wraps need a source-level layout follow-up. No game source
+was changed in this test-only recovery slice.

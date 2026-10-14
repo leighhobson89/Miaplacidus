@@ -187,9 +187,7 @@ export function spaceEventNotice(
         star: systemName(event.systemId),
       });
     case "space.stars.studied":
-      return formatNotice(locale, "starStudyComplete", "special", "info", {
-        range: formatNumber(locale, space.starStudyRange, 0, state.settings.notation),
-      });
+      return formatNotice(locale, "starStudyComplete", "special", "info");
     case "space.void-pillage.completed":
       return voidPillageNotice(locale, event.gains, state.settings.notation);
     case "space.asteroid.scan-missed":

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { RANDOM_EVENT_IDS } from "../content/metaSignals";
+import type { LocaleId } from "../content/ids";
 import {
   checkNewsPrizeClaim,
   newsPrizeClaimAmount,
@@ -47,7 +48,11 @@ export function MetaJournalPane({
   const locale = state.settings.locale;
   const events = state.run.randomEvents;
   const news = state.run.newsTicker;
-  const [newsCopy, setNewsCopy] = useState<LocaleNewsCopy | null>(null);
+  const [newsCopyState, setNewsCopyState] = useState<{
+    readonly locale: LocaleId;
+    readonly copy: LocaleNewsCopy;
+  } | null>(null);
+  const newsCopy = newsCopyState?.locale === locale ? newsCopyState.copy : null;
   const latestEvents = [...events.history].reverse();
   const latestNews = [...news.entries].slice(-12).reverse();
   const latestHistoryByEvent = new Map(events.history.map((entry) => [entry.id, entry]));
@@ -56,7 +61,7 @@ export function MetaJournalPane({
     if (!active) return;
     let current = true;
     void import("../i18n/sourceNewsCopy").then((module) => {
-      if (current) setNewsCopy(module.sourceNewsCopy(locale));
+      if (current) setNewsCopyState({ locale, copy: module.sourceNewsCopy(locale) });
     });
     return () => {
       current = false;

@@ -1,5 +1,5 @@
 import { ECONOMIC_GOOD_IDS, type EconomicGoodId, type LocaleId } from "../content/ids";
-import type { EngineEvent, GameCommand } from "../engine/commands";
+import type { EconomyStorageCategory, EngineEvent, GameCommand } from "../engine/commands";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
 import { formatNumber } from "./numberFormatting";
@@ -40,6 +40,31 @@ export function dispatchEconomyStoragePurchase(
       capacity: formatNumber(locale, increased.capacity, 0, result.state.settings.notation),
     }),
     { classification: "storage", type: "success", durationMs: 3000 },
+  );
+  return true;
+}
+
+/** Increase affordable storage within one source-owned category and report one aggregate result. */
+export function dispatchEconomyStorageIncreaseAll(
+  store: GameStore,
+  category: EconomyStorageCategory,
+  notify: Notify,
+): boolean {
+  const result = store.dispatch({ type: "economy.storage.increaseAllCategory", category });
+  if (!result.accepted) return false;
+
+  const increasedGoods = result.events
+    .filter((event) => event.type === "storage.increased")
+    .map((event) => event.goodId);
+  if (increasedGoods.length === 0) return true;
+  if (result.state.settings.notificationsEnabled === false) return true;
+
+  const locale = result.state.settings.locale;
+  notify(
+    formatEconomyMessage(locale, "storageIncreasedAllNotice", {
+      materials: increasedGoods.map((goodId) => economyGoodName(locale, goodId)).join(", "),
+    }),
+    { classification: "storage", type: "success", durationMs: 4000 },
   );
   return true;
 }

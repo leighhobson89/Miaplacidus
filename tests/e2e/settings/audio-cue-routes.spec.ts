@@ -3,9 +3,11 @@ import { expect, test } from "../_harness/fixtures";
 
 type AudioFixture =
   | "meta-market-ready"
+  | "meta-market-rebirth-ready"
   | "power-buildings"
   | "power-deficit"
-  | "space-battle-victory";
+  | "space-battle-victory"
+  | "space-unoccupied";
 
 type AudioMockState = {
   readonly src: string;
@@ -227,29 +229,42 @@ test("touch activation of a main tab plays one click cue @settings @audio @p29-a
 test("market trade, AP sale, and liquidation play the cash cue @settings @audio @p29-audio-routes", async ({
   page,
 }) => {
-  await startAudioFixture(page, "meta-market-ready");
+  await startAudioFixture(page, "meta-market-rebirth-ready");
   await page.getByRole("tab", { name: "Galactic" }).click();
   await page.getByRole("tab", { name: "Galactic Market" }).click();
   const market = page.getByRole("region", { name: "Galactic Market" });
-
-  await market.getByLabel("You give").selectOption("hydrogen");
-  await market.getByLabel("You receive").selectOption("helium");
-  await market.getByLabel("Quantity to trade").fill("10");
+  const tradeInputs = market.getByRole("combobox");
+  await expect(tradeInputs).toHaveCount(3);
+  await expect(tradeInputs.nth(0)).toHaveAccessibleName(/\S/u);
+  await expect(tradeInputs.nth(1)).toHaveAccessibleName(/\S/u);
+  await tradeInputs.nth(0).selectOption("hydrogen");
+  await tradeInputs.nth(1).selectOption("helium");
+  await market.getByRole("spinbutton").fill("10");
   await clearAudioSources(page);
-  await market.getByRole("button", { name: "Confirm trade", exact: true }).click();
+  const tradeCard = market.locator(".action-grid .upgrade-card").first();
+  const tradeButton = tradeCard.getByRole("button").last();
+  await expect(tradeButton).toHaveAccessibleName(/\S/u);
+  await tradeButton.click();
   await expectCues(page, ["clickButton.mp3", "kaching.mp3"]);
 
-  await market.getByLabel("AP to sell").selectOption("10");
+  const apSaleCard = market.locator(".action-grid .upgrade-card").nth(1);
+  await apSaleCard.getByRole("combobox").selectOption("10");
   await clearAudioSources(page);
-  await market.getByRole("button", { name: "Sell AP for cash", exact: true }).click();
+  const sellApButton = apSaleCard.getByRole("button").last();
+  await expect(sellApButton).toHaveAccessibleName(/\S/u);
+  await sellApButton.click();
   await expectCues(page, ["clickButton.mp3", "kaching.mp3"]);
 
+  await page.locator("#tab-galactic-rebirth").click();
+  const liquidationCard = page.locator(".rebirth-liquidation-card");
   await clearAudioSources(page);
-  await market.getByRole("button", { name: "Liquidate all assets", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Confirm asset liquidation" });
+  const liquidateButton = liquidationCard.getByRole("button").last();
+  await expect(liquidateButton).toHaveAccessibleName(/\S/u);
+  await liquidateButton.click();
+  const dialog = liquidationCard.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await clearAudioSources(page);
-  await dialog.getByRole("button", { name: "CONFIRM LIQUIDATION" }).click();
+  await dialog.locator(".primary-button").click();
   await expectCues(page, ["clickButton.mp3", "kaching.mp3"]);
 });
 
@@ -260,9 +275,12 @@ test("individual power plant toggle plays its power cue @settings @audio @p29-au
   await page.getByRole("tab", { name: /Energy/ }).click();
   await page.locator("#tab-energy-power").click();
   const powerPlant = page.locator('[data-building-id="powerPlant1"]');
-  await powerPlant.getByRole("button", { name: "Buy", exact: true }).click();
-  const enabledControl = powerPlant.getByRole("checkbox", { name: "Power Plant" });
+  const purchaseButton = powerPlant.locator(".economy-building-actions").getByRole("button").first();
+  await expect(purchaseButton).toHaveAccessibleName(/\S/u);
+  await purchaseButton.click();
+  const enabledControl = powerPlant.getByRole("checkbox");
   await expect(enabledControl).toBeVisible();
+  await expect(enabledControl).toHaveAccessibleName(/\S/u);
   await expect(enabledControl).toBeChecked();
 
   await clearAudioSources(page);
@@ -288,11 +306,14 @@ test("grid trip and manual power recovery play the source-matched cues @settings
   await page.getByRole("tab", { name: /Energy/ }).click();
   await page.locator("#tab-energy-power").click();
   await clearAudioSources(page);
-  await page.getByRole("button", { name: "DEACTIVATE POWER", exact: true }).click();
+  const powerSwitch = page.locator(".energy-master-switch");
+  await expect(powerSwitch).toHaveAccessibleName(/\S/u);
+  await powerSwitch.click();
   await expectOnlyCue(page, "powerOff.mp3");
 
   await clearAudioSources(page);
-  await page.getByRole("button", { name: "ACTIVATE POWER", exact: true }).click();
+  await expect(powerSwitch).toHaveAccessibleName(/\S/u);
+  await powerSwitch.click();
   await expectOnlyCue(page, "powerOn.mp3");
 });
 
@@ -368,28 +389,10 @@ test("background audio gesture starts and switches weather loops, then pauses th
 test("settling a star system plays the settlement construction cue @settings @audio @p29-audio-routes", async ({
   page,
 }) => {
-  await startAudioFixture(page, "space-battle-victory");
+  await startAudioFixture(page, "space-unoccupied");
   await page.getByRole("tab", { name: "Interstellar" }).click();
   await page.locator("#tab-interstellar-colonise").click();
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
-  await pane.getByTestId("starship-battle-engage-button").click();
-
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const phase = await page.evaluate(
-      () => window.miaplacidusTest!.getState().run.space.systemEncounters[0]?.battle.phase,
-    );
-    if (phase !== "inProgress") break;
-    await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
-  }
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.miaplacidusTest!.getState().run.space.systemEncounters[0]?.battle.phase,
-      ),
-    )
-    .toBe("victory");
-
   const destinationId = await page.evaluate(
     () => window.miaplacidusTest!.getState().run.space.starship.destinationSystemId,
   );

@@ -208,7 +208,25 @@ describe("space battle and settlement flow", () => {
       civilizationLevel: "unsentient",
       warMode: false,
     });
-    const settled = transition(state, { type: "space.system.settle" });
+    const noFleetState: GameState = {
+      ...state,
+      run: {
+        ...state.run,
+        space: {
+          ...state.run.space,
+          fleetEnvoyBuilt: false,
+          playerFleets: { scout: 0, marauder: 0, landStalker: 0, navalStrafer: 0 },
+          playerFleetCombatTotals: {
+            scout: { attackPower: 0, defensePower: 0 },
+            marauder: { attackPower: 0, defensePower: 0 },
+            landStalker: { attackPower: 0, defensePower: 0 },
+            navalStrafer: { attackPower: 0, defensePower: 0 },
+          },
+        },
+      },
+    };
+    expect(isValidGameState(noFleetState)).toBe(true);
+    const settled = transition(noFleetState, { type: "space.system.settle" });
 
     expect(settled.accepted).toBe(true);
     expect(settled.state.permanent.ascendencyPoints).toBe(3);

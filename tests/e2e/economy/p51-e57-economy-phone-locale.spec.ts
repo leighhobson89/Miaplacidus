@@ -1,7 +1,7 @@
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
-import { economyGoodName } from "../../../src/app/economyDisplay";
+import { economyGoodName, economyGoodPageTitle } from "../../../src/app/economyDisplay";
 import { COMPOUND_IDS, LOCALE_IDS, MATERIAL_IDS } from "../../../src/content/ids";
 import { economyLabel } from "../../../src/i18n/economyMessages";
 import { setGameLocale } from "../_harness/settings-controls";
@@ -29,6 +29,40 @@ async function startEconomyFixture(
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await stabilizeCapture(page);
+}
+
+async function stabilizeCapture(page: Page): Promise<void> {
+  const tutorialStatus = await page.evaluate(
+    () => window.miaplacidusTest!.getState().permanent.progressionTutorial.status,
+  );
+  if (tutorialStatus === "available") {
+    const dismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+    await expect(dismissButton).toBeVisible();
+    await dismissButton.click();
+  }
+  await expect(page.locator(".progression-tutorial")).toHaveCount(0);
+
+  const notifications = page.getByTestId("notification-stack").getByTestId("game-notification");
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(false);
+  await expect(notifications).toHaveCount(0);
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: true },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);
 }
 
 async function expectInsidePhone(
@@ -171,7 +205,9 @@ async function reviewEconomyRowsAtWidth(
       const panel = page.locator(`#panel-compounds-${id}`);
       const compound = panel.locator(`[data-compound-id="${id}"]`);
       await expect(panel, `${locale} ${id} panel`).toBeVisible();
-      await expect(compound.locator(".pane-heading h2")).toHaveText(economyGoodName(locale, id));
+      await expect(compound.locator(".pane-heading h2")).toHaveText(
+        economyGoodPageTitle(locale, id),
+      );
       await expect(compound.locator(".hydrogen-hero")).toBeVisible();
       await expect(compound.locator(".compound-recipe")).toBeVisible();
       await expect(compound.locator(".compound-create-row")).toBeVisible();
@@ -337,7 +373,11 @@ async function reviewWaterStorageAtWidth(page: Page, viewport: PhoneViewport): P
     await expect(storageButton).toBeDisabled();
     const describedBy = await storageButton.getAttribute("aria-describedby");
     expect(describedBy, `${locale} Water storage exposes its disabled reason`).toBeTruthy();
-    const reason = storage.locator(`#${describedBy}`);
+    const reasonId = describedBy?.split(/\s+/).at(-1);
+    expect(reasonId, `${locale} Water storage reason is associated with its action`).toBe(
+      "good-water-storage-reason",
+    );
+    const reason = storage.locator(`#${reasonId}`);
     await expect(reason).toBeVisible();
     await expectNoPageTooltipOrModal(panel, `${locale} Water storage`);
     await expectInsidePhone(

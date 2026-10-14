@@ -143,14 +143,14 @@ test("weather, weather-effects and reduced-motion changes clear and stop overlay
   await freshGame.locator("#tab-settings").click();
   const settings = freshGame.getByTestId("settings-pane");
   await settings.locator("#settings-weather-effects").uncheck();
-  await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-weather-effects", "off");
+  await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-weather-effects", "off");
   await expectAnimationStopped(freshGame);
 
   await settings.locator("#settings-weather-effects").check();
   await expect.poll(async () => (await pixelsMatchingWeatherSource(freshGame, "rain")).sourceColoredPixels)
     .toBeGreaterThan(0);
   await settings.locator("#settings-motion").check();
-  await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-reduced-motion", "true");
+  await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-reduced-motion", "true");
   await expectAnimationStopped(freshGame);
 
   await settings.locator("#settings-motion").uncheck();

@@ -13,6 +13,7 @@ import {
 } from "react";
 import type { EconomicGoodId, LocaleId } from "../content/ids";
 import { isEconomicGoodId, LOCALE_IDS, autobuyerUpgradeId } from "../content/ids";
+import { DEFAULT_THEME_ID } from "../content/themes";
 import {
   HYDROGEN_STORAGE_MULTIPLIER,
   HYDROGEN_STORAGE_PRICE_OFFSET,
@@ -96,6 +97,8 @@ import { technologyNotificationText } from "../i18n/technologyNotificationMessag
 import { spaceNotificationText } from "../i18n/spaceNotificationMessages";
 import { createSpaceEventNoticeHandler } from "./spaceEventNotifications";
 import { createCasinoEventNoticeHandler } from "./casinoEventNotifications";
+import type { VoidSeerOutcome } from "../engine/galacticCasino";
+import { VOID_SEER_RESULT_DELAY_MS } from "./galacticCasinoTiming";
 import { createBlackHoleEventNoticeHandler } from "./blackHoleEventNotifications";
 import {
   createCosmicRipEventNoticeHandler,
@@ -114,7 +117,6 @@ import {
   RandomEventResultDialog,
   type RandomEventDialogEntry,
 } from "./RandomEventResultDialog";
-import { CosmicRipEndingCinematic } from "./CosmicRipEndingCinematic";
 import type { RandomEventDialogCopy } from "../i18n/randomEventDialogTypes";
 import { createRandomEventInstabilityNoticeHandler } from "./randomEventInstabilityNotifications";
 import { createRandomEventTriggeredNoticeHandler } from "./randomEventTriggeredNotifications";
@@ -189,6 +191,11 @@ const SettingsPane = lazy(() =>
 const MiaplaediaPane = lazy(() =>
   import("./MiaplaediaPane").then((module) => ({ default: module.MiaplaediaPane })),
 );
+const CosmicRipEndingCinematic = lazy(() =>
+  import("./CosmicRipEndingCinematic").then((module) => ({
+    default: module.CosmicRipEndingCinematic,
+  })),
+);
 
 // The parent tab panel controls visibility, so preserve the last child tree as
 // soon as it becomes inactive and refresh it only when the player returns.
@@ -253,6 +260,7 @@ function EconomyRail({
   label,
   testId,
   className,
+  navigationDisabled = false,
   onSelect,
 }: {
   readonly groups: readonly {
@@ -268,6 +276,7 @@ function EconomyRail({
   readonly label: string;
   readonly testId: string;
   readonly className?: string;
+  readonly navigationDisabled?: boolean;
   readonly onSelect: (paneId: string) => void;
 }) {
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<ReadonlySet<string>>(() =>
@@ -317,6 +326,8 @@ function EconomyRail({
                     key={goodId}
                     className={`resource-item${activePane === paneId ? " is-current" : ""}`}
                     type="button"
+                    disabled={navigationDisabled}
+                    aria-disabled={navigationDisabled || undefined}
                     data-testid={
                       panePrefix === "resources"
                         ? `resource-rail-${goodId}`
@@ -483,6 +494,7 @@ export function App() {
 }
 
 function AppContent() {
+  const notify = useGameNotifications();
   const initial = useState(bootOptions)[0];
   const repository = useState<SaveRepository | null>(() => {
     if (
@@ -537,11 +549,17 @@ function AppContent() {
       return null;
     }
   });
-  const [selectionError, setSelectionError] = useState("");
-  const [selectionNotice, setSelectionNotice] = useState("");
   const [starting, setStarting] = useState(false);
   const [focusNameOnStartup, setFocusNameOnStartup] = useState(false);
   const [slotRefresh, setSlotRefresh] = useState(0);
+  const startScreenThemeId = useMemo(() => {
+    if (!repository || !selectedSlotId) return DEFAULT_THEME_ID;
+    try {
+      return repository.readSlot(selectedSlotId)?.state.settings.themeId ?? DEFAULT_THEME_ID;
+    } catch {
+      return DEFAULT_THEME_ID;
+    }
+  }, [repository, selectedSlotId]);
   const testClock = useMemo(() => new TestClock(), []);
   const frameMetrics = useMemo<FrameMetrics>(
     () => ({ frames: 0, firstFrameAt: null, lastFrameAt: null }),
@@ -553,28 +571,20 @@ function AppContent() {
   function setDraftName(name: string) {
     setPioneerName(name);
     setSelectedSlotId(null);
-    setSelectionError("");
-    setSelectionNotice("");
   }
 
   function selectSavedPioneer(slotId: string, name: string) {
     setPioneerName(name);
     setSelectedSlotId(slotId);
-    setSelectionError("");
-    setSelectionNotice("");
   }
 
   function setDraftLocale(nextLocale: LocaleId) {
     setLocale(nextLocale);
-    setSelectionError("");
-    setSelectionNotice("");
   }
 
   async function startSelectedRun() {
     if (starting) return;
     setStarting(true);
-    setSelectionError("");
-    setSelectionNotice("");
     let releaseLock = () => {};
     let unsavedWarning: SaveErrorCode | "" = "";
     try {
@@ -688,7 +698,9 @@ function AppContent() {
               "space-megastructure-attention",
               "meta-rebirth-ready",
               "meta-market-ready",
+              "meta-market-rebirth-ready",
               "meta-market-action-reasons",
+              "meta-market-action-reasons-rebirth-ready",
               "meta-casino-ready",
               "meta-casino-timewarp",
               "meta-casino-finish-rocket-journey",
@@ -710,6 +722,7 @@ function AppContent() {
               "meta-cosmic-rip-route",
               "meta-cosmic-rip-objective-scan",
               "meta-cosmic-rip-restore-affordance",
+              "meta-cosmic-rip-sector-action-affordances",
               "meta-cosmic-rip-action-affordances",
               "meta-cosmic-rip-close-affordance",
               "meta-cosmic-rip-ending-ready",
@@ -768,8 +781,9 @@ function AppContent() {
       });
     } catch (error) {
       releaseLock();
-      setSelectionError(
+      notify(
         saveErrorText(locale, error instanceof SaveError ? error.code : "storage-unavailable"),
+        { classification: "save", type: "error" },
       );
     } finally {
       setStarting(false);
@@ -782,19 +796,19 @@ function AppContent() {
     if (!match?.[1]) return;
     const release = await acquireSlotLock(match[1]);
     if (!release) {
-      setSelectionError(saveErrorText(locale, "conflict"));
+      notify(saveErrorText(locale, "conflict"), { classification: "save", type: "error" });
       return;
     }
     try {
       const recovered = repository.restoreGeneration(reference, Date.now());
       setPioneerName(recovered.pioneerName);
       setSelectedSlotId(null);
-      setSelectionError("");
-      setSelectionNotice(saveText(locale, "recovered"));
+      notify(saveText(locale, "recovered"), { classification: "save", type: "success" });
       setSlotRefresh((value) => value + 1);
     } catch (error) {
-      setSelectionError(
+      notify(
         saveErrorText(locale, error instanceof SaveError ? error.code : "corrupt-slot"),
+        { classification: "save", type: "error" },
       );
     } finally {
       release();
@@ -815,8 +829,7 @@ function AppContent() {
     const currentLocale = store?.getState().settings.locale ?? locale;
     setPioneerName(fallbackName);
     setSelectedSlotId(null);
-    setSelectionError("");
-    setSelectionNotice(saveText(currentLocale, "saveDeleted"));
+    notify(saveText(currentLocale, "saveDeleted"), { classification: "save", type: "success" });
     session?.releaseLock();
     setStore(null);
     setSession(null);
@@ -906,14 +919,13 @@ function AppContent() {
           <SaveStartScreen
             key={slotRefresh}
             locale={locale}
+            themeId={startScreenThemeId}
             setLocale={setDraftLocale}
             name={pioneerName}
             setName={setDraftName}
             slots={repository?.list() ?? []}
             selectedSlotId={selectedSlotId}
             focusNameOnMount={focusNameOnStartup}
-            error={selectionError}
-            notice={selectionNotice}
             storageAvailable={repository !== null}
             onSelectSlot={selectSavedPioneer}
             starting={starting}
@@ -943,14 +955,24 @@ function GameSession({
   onSaveAsNew,
 }: GameSessionProps) {
   const store = useMemo(() => withGameAudio(engineStore), [engineStore]);
+  const isBattleNavigationLocked = () =>
+    store
+      .getState()
+      .run.space.systemEncounters.some(({ battle }) => battle.phase === "inProgress");
+  const battleInProgressAtMount = isBattleNavigationLocked();
   useEffect(() => () => store.dispose(), [store]);
   const snapshot = useGameSnapshot(store);
   const notify = useGameNotifications();
   const announceScreenReader = useGameScreenReaderAnnouncements();
   const setNotificationsEnabled = useGameNotificationControls();
-  const [activeTab, setActiveTab] = useState<GameTabId>("hydrogen");
+  const [activeTab, setActiveTab] = useState<GameTabId>(
+    battleInProgressAtMount ? "interstellar" : "hydrogen",
+  );
   const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<GameTabId>>(
-    () => new Set(["hydrogen"]),
+    () =>
+      new Set<GameTabId>(
+        battleInProgressAtMount ? ["hydrogen", "interstellar"] : ["hydrogen"],
+      ),
   );
   const [visitedPanes, setVisitedPanes] = useState<ReadonlySet<string>>(
     () =>
@@ -964,14 +986,21 @@ function GameSession({
         "interstellar-star-map",
         "space-mining-telescope",
         "cosmic-rip-situation",
+        ...(battleInProgressAtMount ? ["interstellar-colonise"] : []),
       ]),
   );
   const [activeGalacticPane, setActiveGalacticPane] = useState<GalacticPaneId>("galactic-rebirth");
+  const [pendingVoidSeerPresentation, setPendingVoidSeerPresentation] = useState<{
+    readonly outcome: VoidSeerOutcome;
+    readonly startedAt: number;
+  } | null>(null);
   const [activeMiaplaediaPane, setActiveMiaplaediaPane] =
     useState<MiaplaediaPaneId>("miaplaedia-get-started");
   const [activeSettingsPane, setActiveSettingsPane] = useState<SettingsPaneId>("settings-visual");
   const [activeInterstellarPane, setActiveInterstellarPane] =
-    useState<InterstellarPaneId>("interstellar-star-map");
+    useState<InterstellarPaneId>(
+      battleInProgressAtMount ? "interstellar-colonise" : "interstellar-star-map",
+    );
   const [activeSpaceMiningPane, setActiveSpaceMiningPane] =
     useState<SpaceMiningPaneId>("space-mining-launch-pad");
   const [activeCosmicRipPane, setActiveCosmicRipPane] =
@@ -1046,6 +1075,7 @@ function GameSession({
   }> | null>(null);
   const t = (key: MessageKey) => translate(snapshot.locale, key);
   const activateTab = (tabId: GameTabId) => {
+    if (isBattleNavigationLocked()) return;
     store.playUiCue("click");
     setVisitedTabs((current) => (current.has(tabId) ? current : new Set(current).add(tabId)));
     setActiveTab(tabId);
@@ -1062,12 +1092,14 @@ function GameSession({
   };
   const clearAttention = (pageId: string) => visitNavigationPages([pageId]);
   const activatePane = (paneId: string, playClick = true) => {
+    if (isBattleNavigationLocked()) return;
     if (playClick) store.playUiCue("click");
     setVisitedPanes((current) => (current.has(paneId) ? current : new Set(current).add(paneId)));
     visitNavigationPages([paneId]);
   };
   const playSoundEffectsDisableCue = useCallback(() => store.playUiCue("swipe"), [store]);
   const openSavingAndLoading = () => {
+    if (isBattleNavigationLocked()) return;
     setActiveSettingsPane("settings-saves");
     activatePane("settings-saves", false);
     activateTab("settings");
@@ -1141,6 +1173,10 @@ function GameSession({
     },
     [repository, savePersistent, saveWritesPaused, store, slotId, saveLabel],
   );
+  const persistCurrentRef = useRef(persistCurrent);
+  useEffect(() => {
+    persistCurrentRef.current = persistCurrent;
+  }, [persistCurrent]);
 
   const dispatchTutorialCommand = useCallback(
     (command: ProgressionTutorialCommand) => {
@@ -1158,6 +1194,10 @@ function GameSession({
   const recordTutorialThemeSelectorInteraction = useCallback(() => {
     const state = store.getState();
     const tutorial = state.permanent.progressionTutorial;
+    if (tutorial.status === "active" && tutorial.stepId === "openThemeDropdown") {
+      dispatchTutorialCommand({ type: "tutorial.advance", stepId: "openThemeDropdown" });
+      return;
+    }
     if (
       tutorial.status === "active" &&
       tutorial.stepId === "chooseDarkTheme" &&
@@ -1450,6 +1490,7 @@ function GameSession({
   }
 
   const currentState = store.getState();
+  const battleNavigationLocked = isBattleNavigationLocked();
   useEffect(() => {
     setNotificationsEnabled(currentState.settings.notificationsEnabled !== false);
   }, [currentState.settings.notificationsEnabled, setNotificationsEnabled]);
@@ -1521,6 +1562,41 @@ function GameSession({
     );
     return store.subscribeEvents(routeCasinoEvents);
   }, [notify, store]);
+
+  useEffect(() => {
+    const timers = new Map<number, number>();
+    const resolveAfterReels = (outcome: VoidSeerOutcome, startedAt: number) => {
+      if (timers.has(outcome.playId)) return;
+      setPendingVoidSeerPresentation({ outcome, startedAt });
+      const delayMs = Math.max(
+        0,
+        VOID_SEER_RESULT_DELAY_MS - (performance.now() - startedAt),
+      ) + 1;
+      const timeoutId = window.setTimeout(() => {
+        timers.delete(outcome.playId);
+        const result = store.dispatch({ type: "casino.void-seer.resolve", outcome });
+        if (result.accepted) {
+          setPendingVoidSeerPresentation((current) =>
+            current?.outcome.playId === outcome.playId ? null : current,
+          );
+          persistCurrentRef.current();
+        }
+      }, delayMs);
+      timers.set(outcome.playId, timeoutId);
+    };
+    const unsubscribe = store.subscribeEvents((events) => {
+      for (const event of events) {
+        if (event.type === "casino.void-seer.started") {
+          resolveAfterReels(event.outcome, performance.now());
+        }
+      }
+    });
+    return () => {
+      unsubscribe();
+      for (const timeoutId of timers.values()) window.clearTimeout(timeoutId);
+      timers.clear();
+    };
+  }, [store]);
 
   useEffect(() => {
     const routeCosmicRipEvents = createCosmicRipEventNoticeHandler(
@@ -1737,7 +1813,20 @@ function GameSession({
   if (blackHoleReady) {
     liveAttentionLabels.set("galactic-black-hole", blackHoleText(snapshot.locale).ready);
   }
-  const interstellarPanels = interstellarPaneItems(snapshot.locale, currentState);
+  const stateInterstellarPanels = interstellarPaneItems(snapshot.locale, currentState);
+  const interstellarPanels =
+    battleNavigationLocked &&
+    !stateInterstellarPanels.some((panel) => panel.id === "interstellar-colonise")
+      ? [
+          ...stateInterstellarPanels,
+          {
+            id: "interstellar-colonise",
+            label: starshipText(snapshot.locale, "coloniseTabLabel"),
+            sourceOptionId: "option5" as const,
+            panelId: "panel-interstellar-starship",
+          },
+        ]
+      : stateInterstellarPanels;
   const spaceMiningPanels = spaceMiningPaneItems(snapshot.locale, currentState);
   const cosmicRipPanels = cosmicRipPaneItems(snapshot.locale, currentState);
   const miaplaediaPanels = miaplaediaPaneItems(snapshot.locale);
@@ -1775,9 +1864,15 @@ function GameSession({
   const availableTabIds = new Set(
     GAME_TABS.filter((tab) => isGameTabAvailable(tab.id, currentState)).map((tab) => tab.id),
   );
-  const orderedTabs = GAME_TABS.filter((tab) => availableTabIds.has(tab.id));
+  const orderedTabs = GAME_TABS.filter(
+    (tab) => availableTabIds.has(tab.id) || (battleNavigationLocked && tab.id === "interstellar"),
+  );
   const activeTabIsVisible = orderedTabs.some((tab) => tab.id === activeTab);
-  const selectedTabId = activeTabIsVisible ? activeTab : (orderedTabs[0]?.id ?? "hydrogen");
+  const selectedTabId = battleNavigationLocked
+    ? "interstellar"
+    : activeTabIsVisible
+      ? activeTab
+      : (orderedTabs[0]?.id ?? "hydrogen");
   useLayoutEffect(() => {
     const selectedTab = document.getElementById(`tab-${selectedTabId}`);
     const navigation = selectedTab?.closest<HTMLElement>(".game-nav");
@@ -1794,13 +1889,13 @@ function GameSession({
     }
   }, [selectedTabId]);
   useEffect(() => {
-    if (selectedTabId !== activeTab) {
+    if (selectedTabId !== activeTab && !battleNavigationLocked) {
       setActiveTab(selectedTabId);
       setVisitedTabs((current) =>
         current.has(selectedTabId) ? current : new Set([...current, selectedTabId]),
       );
     }
-  }, [activeTab, selectedTabId]);
+  }, [activeTab, battleNavigationLocked, selectedTabId]);
   const availablePaneItems = [...paneItemsByTab]
     .filter(([tabId]) => availableTabIds.has(tabId as GameTabId))
     .flatMap(([, items]) => items);
@@ -1850,11 +1945,11 @@ function GameSession({
   const selectedResearchPane = researchPanels.some((panel) => panel.id === activeResearchPane)
     ? activeResearchPane
     : (researchPanels[0]?.id ?? "research-tech-tree");
-  const selectedInterstellarPane = interstellarPanels.some(
-    (panel) => panel.id === activeInterstellarPane,
-  )
-    ? activeInterstellarPane
-    : (interstellarPanels[0]?.id ?? "interstellar-star-map");
+  const selectedInterstellarPane = battleNavigationLocked
+    ? "interstellar-colonise"
+    : interstellarPanels.some((panel) => panel.id === activeInterstellarPane)
+      ? activeInterstellarPane
+      : (interstellarPanels[0]?.id ?? "interstellar-star-map");
   const selectedSpaceMiningPane = spaceMiningPanels.some(
     (panel) => panel.id === activeSpaceMiningPane,
   )
@@ -1931,6 +2026,7 @@ function GameSession({
     miaplaedia: activeMiaplaediaPane,
   };
   const activateNavigationTab = (tabId: GameTabId) => {
+    if (isBattleNavigationLocked()) return;
     const activePaneId = activePaneByTab[tabId];
     visitNavigationPages(activePaneId ? [tabId, activePaneId] : [tabId]);
     if (activePaneId) {
@@ -1941,36 +2037,43 @@ function GameSession({
     activateTab(tabId);
   };
   const openTutorialResources = () => {
+    if (isBattleNavigationLocked()) return;
     activateTab("hydrogen");
     setActiveResourcePane("resources-hydrogen");
     activatePane("resources-hydrogen", false);
   };
   const openTutorialResearch = () => {
+    if (isBattleNavigationLocked()) return;
     activateTab("research");
     setActiveResearchPane("research-science-buildings");
     activatePane("research-science-buildings", false);
   };
   const openTutorialTechTree = () => {
+    if (isBattleNavigationLocked()) return;
     activateTab("research");
     setActiveResearchPane("research-tech-tree");
     activatePane("research-tech-tree", false);
   };
   const openTutorialVisualSettings = () => {
+    if (isBattleNavigationLocked()) return;
     activateTab("settings");
     setActiveSettingsPane("settings-visual");
     activatePane("settings-visual", false);
   };
   const openTutorialAudioSettings = () => {
+    if (isBattleNavigationLocked()) return;
     activateTab("settings");
     setActiveSettingsPane("settings-game-options");
     activatePane("settings-game-options", false);
   };
   const openTutorialMiaplaediaPane = (paneId: MiaplaediaPaneId) => {
+    if (isBattleNavigationLocked()) return;
     activateTab("miaplaedia");
     setActiveMiaplaediaPane(paneId);
     activatePane(paneId, false);
   };
   const activateGalacticPane = (paneId: GalacticPaneId) => {
+    if (isBattleNavigationLocked()) return;
     const notice =
       paneId === "galactic-market"
         ? galacticMarketLockdownEntryNotice(snapshot.locale, store.getState())
@@ -2062,7 +2165,11 @@ function GameSession({
         onOpenAudioSettings={openTutorialAudioSettings}
         onOpenMiaplaediaPane={openTutorialMiaplaediaPane}
       />
-      <GameNotificationRegion />
+      <GameNotificationRegion
+        themeId={snapshot.themeId}
+        reducedMotion={currentState.settings.reducedMotion}
+        customPointerEnabled={currentState.settings.customPointerEnabled !== false}
+      />
       <RandomEventResultDialog
         entries={randomEventResultDialogs}
         onDismiss={(id) =>
@@ -2070,11 +2177,13 @@ function GameSession({
         }
       />
       {cosmicRipEndingVisible ? (
-        <CosmicRipEndingCinematic
-          locale={snapshot.locale}
-          reducedMotion={currentState.settings.reducedMotion}
-          onComplete={completeCosmicRipEnding}
-        />
+        <Suspense fallback={null}>
+          <CosmicRipEndingCinematic
+            locale={snapshot.locale}
+            reducedMotion={currentState.settings.reducedMotion}
+            onComplete={completeCosmicRipEnding}
+          />
+        </Suspense>
       ) : null}
       {exitConfirmation && (
         <dialog
@@ -2186,7 +2295,9 @@ function GameSession({
                 id={`tab-${tab.id}`}
                 className={`nav-tab${selected ? " is-selected" : ""}`}
                 type="button"
+                disabled={battleNavigationLocked}
                 role="tab"
+                aria-disabled={battleNavigationLocked || undefined}
                 title={overview}
                 aria-description={overview}
                 aria-selected={selected}
@@ -2197,6 +2308,10 @@ function GameSession({
                   activateNavigationTab(tab.id);
                 }}
                 onKeyDown={(event) => {
+                  if (isBattleNavigationLocked()) {
+                    event.preventDefault();
+                    return;
+                  }
                   if (
                     event.key !== "ArrowRight" &&
                     event.key !== "ArrowLeft" &&
@@ -2238,11 +2353,13 @@ function GameSession({
           state={currentState}
           activePane={selectedResourcePane}
           hidden={selectedTabId !== "hydrogen"}
+          navigationDisabled={battleNavigationLocked}
           panePrefix="resources"
           label={economyLabel(snapshot.locale, "resources")}
           testId="resource-rail"
           storageScope={`${slotId}:resource-rail`}
           onSelect={(paneId) => {
+            if (isBattleNavigationLocked()) return;
             activateTab("hydrogen");
             activatePane(paneId, false);
             setActiveResourcePane(paneId);
@@ -2253,12 +2370,14 @@ function GameSession({
           state={currentState}
           activePane={selectedCompoundPane}
           hidden={selectedTabId !== "compounds"}
+          navigationDisabled={battleNavigationLocked}
           panePrefix="compounds"
           label={economyLabel(snapshot.locale, "compounds")}
           testId="compound-rail"
           className="compound-rail"
           storageScope={`${slotId}:compound-rail`}
           onSelect={(paneId) => {
+            if (isBattleNavigationLocked()) return;
             activateTab("compounds");
             activatePane(paneId, false);
             setActiveCompoundPane(paneId);
@@ -2290,10 +2409,12 @@ function GameSession({
                               items={resourcePanels}
                               selectedId={selectedResourcePane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               storageScope={`${slotId}:resources`}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveResourcePane(id);
                               }}
@@ -2818,9 +2939,11 @@ function GameSession({
                               items={energyPanels}
                               selectedId={selectedEnergyPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveEnergyPane(id);
                               }}
@@ -2838,9 +2961,11 @@ function GameSession({
                               items={researchPanels}
                               selectedId={selectedResearchPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveResearchPane(id);
                               }}
@@ -2860,10 +2985,12 @@ function GameSession({
                               items={compoundPanels}
                               selectedId={selectedCompoundPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               storageScope={`${slotId}:compounds`}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveCompoundPane(id);
                               }}
@@ -2882,6 +3009,7 @@ function GameSession({
                               items={galacticPanels}
                               selectedId={selectedGalacticPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               attentionLabelsById={liveAttentionLabels}
@@ -2909,24 +3037,31 @@ function GameSession({
                                   ) : panel.id === "galactic-black-hole" ? (
                                     <BlackHolePane state={store.getState()} store={store} />
                                   ) : panel.id === "galactic-casino" ? (
-                                    <GalacticCasinoPane state={store.getState()} store={store} />
+                                    <GalacticCasinoPane
+                                      state={store.getState()}
+                                      store={store}
+                                      pendingVoidSeerPresentation={pendingVoidSeerPresentation}
+                                    />
                                   ) : null
                                 ) : null}
                               </section>
                             ))}
                           </div>
                         ) : tab.id === "interstellar" &&
-                          store
-                            .getState()
-                            .run.economy.researchedTechnologies.includes("stellarCartography") ? (
+                          (battleNavigationLocked ||
+                            store
+                              .getState()
+                              .run.economy.researchedTechnologies.includes("stellarCartography")) ? (
                           <div className="tab-section-layout">
                             <PaneNavigation
                               items={interstellarPanels}
                               selectedId={selectedInterstellarPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveInterstellarPane(id as InterstellarPaneId);
                               }}
@@ -2942,6 +3077,7 @@ function GameSession({
                                     : "map"
                                 }
                                 onShowOnMap={() => {
+                                  if (isBattleNavigationLocked()) return;
                                   activatePane("interstellar-star-map");
                                   setActiveInterstellarPane("interstellar-star-map");
                                 }}
@@ -2959,7 +3095,8 @@ function GameSession({
                                 selectedInterstellarPane !== "interstellar-colonise"
                               }
                             >
-                              {(visitedPanes.has("interstellar-starship") ||
+                              {(battleNavigationLocked ||
+                                visitedPanes.has("interstellar-starship") ||
                                 visitedPanes.has("interstellar-fleet-hangar") ||
                                 visitedPanes.has("interstellar-colonise")) && (
                                 <StarshipPane
@@ -2987,9 +3124,11 @@ function GameSession({
                               items={spaceMiningPanels}
                               selectedId={selectedSpaceMiningPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveSpaceMiningPane(id as SpaceMiningPaneId);
                               }}
@@ -3007,9 +3146,11 @@ function GameSession({
                               items={cosmicRipPanels}
                               selectedId={selectedCosmicRipPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveCosmicRipPane(id as CosmicRipPaneId);
                               }}
@@ -3026,9 +3167,11 @@ function GameSession({
                               items={miaplaediaPanels}
                               selectedId={activeMiaplaediaPane}
                               label={t("nav.subsections")}
+                              navigationDisabled={battleNavigationLocked}
                               attentionIds={attentionIds}
                               attentionLabel={t("nav.new")}
                               onSelect={(id) => {
+                                if (isBattleNavigationLocked()) return;
                                 activatePane(id);
                                 setActiveMiaplaediaPane(id as MiaplaediaPaneId);
                               }}
@@ -3059,9 +3202,13 @@ function GameSession({
                             attentionIds={attentionIds}
                             attentionLabel={t("nav.new")}
                             activePane={activeSettingsPane}
-                            onSelectPane={setActiveSettingsPane}
+                            navigationDisabled={battleNavigationLocked}
+                            onSelectPane={(paneId) => {
+                              if (!isBattleNavigationLocked()) setActiveSettingsPane(paneId);
+                            }}
                             onPaneVisit={activatePane}
                             onNavigateToPane={(paneId) => {
+                              if (isBattleNavigationLocked()) return;
                               activatePane(paneId, false);
                               if (paneId.startsWith("settings-")) {
                                 setActiveSettingsPane(paneId as SettingsPaneId);

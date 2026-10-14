@@ -1,11 +1,12 @@
 import { expect, test } from "../_harness/fixtures";
-import { economyGoodName } from "../../../src/app/economyDisplay";
+import { economyGoodName, economyGoodPageTitle } from "../../../src/app/economyDisplay";
 import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import { COMPOUND_IDS, LOCALE_IDS, MATERIAL_IDS, type LocaleId } from "../../../src/content/ids";
 import { displayCurrency } from "../../../src/engine/precision";
 import { selectGoodSale } from "../../../src/engine/selectors";
 import { economyLabel, formatEconomyMessage } from "../../../src/i18n/economyMessages";
+import { economyActionHelp } from "../../../src/i18n/economyActionHelpMessages";
 import { translate } from "../../../src/i18n/messages";
 import { philosophyCompoundRecipe } from "../../../src/engine/philosophy";
 
@@ -39,6 +40,7 @@ test("Resource and Compound visible actions and statuses use the active locale @
 }) => {
   test.setTimeout(300_000);
   await startEconomyFixture(page);
+  const notifications = page.getByTestId("notification-stack").getByTestId("game-notification");
 
   for (const locale of LOCALE_IDS) {
     await setLocale(page, locale);
@@ -67,7 +69,7 @@ test("Resource and Compound visible actions and statuses use the active locale @
       await expect(collect).toContainText(
         id === "hydrogen"
           ? translate(locale, "hydrogen.collect")
-          : `${economyLabel(locale, "collect")} ${name}`,
+          : economyLabel(locale, "collect"),
       );
       if (await collect.isEnabled()) await collect.click();
       await expect(collect).toBeDisabled();
@@ -83,12 +85,12 @@ test("Resource and Compound visible actions and statuses use the active locale @
       await expect(storage.locator("h3")).toHaveText(
         id === "hydrogen"
           ? translate(locale, "hydrogen.storage.title")
-          : economyLabel(locale, "storage"),
+          : `${economyLabel(locale, "storage")}: ${name}`,
       );
       if (id === "hydrogen") {
-        await expect(storage.locator(".card-copy p")).toHaveText(
-          translate(locale, "hydrogen.storage.description"),
-        );
+        const storageHelp = economyActionHelp(locale, "hydrogen", "storage");
+        expect(storageHelp.trim(), `${locale} Hydrogen storage help should be populated`).not.toBe("");
+        await expect(storage.locator(".card-copy p")).toHaveText(storageHelp);
         await expect(storage.locator(".cost-line")).toContainText(
           translate(locale, "hydrogen.storage.price"),
         );
@@ -99,12 +101,9 @@ test("Resource and Compound visible actions and statuses use the active locale @
           }),
         ).toBeVisible();
       } else {
-        await expect(
-          storage.getByRole("button", {
-            name: economyLabel(locale, "increaseStorage"),
-            exact: true,
-          }),
-        ).toBeVisible();
+        const storageButton = storage.getByRole("button");
+        await expect(storageButton).toBeVisible();
+        await expect(storageButton).toContainText(economyLabel(locale, "increaseStorage"));
       }
 
       const sale = resource.locator(".hydrogen-sale-controls");
@@ -115,7 +114,7 @@ test("Resource and Compound visible actions and statuses use the active locale @
           ? translate(locale, "hydrogen.sale.preview")
           : economyLabel(locale, "salePreview");
       await expect(sale.locator(".card-copy h3")).toHaveText(sellLabel);
-      await expect(sale.locator(".card-copy p")).toContainText(`${salePreviewLabel}:`);
+      await expect(sale.locator(".card-copy p").last()).toContainText(`${salePreviewLabel}:`);
       const saleAmount =
         id === "hydrogen"
           ? translate(locale, "hydrogen.sell.amount")
@@ -127,7 +126,7 @@ test("Resource and Compound visible actions and statuses use the active locale @
           name:
             id === "hydrogen"
               ? translate(locale, "hydrogen.sell.all")
-              : economyLabel(locale, "sellAll"),
+              : economyLabel(locale, "allStock"),
           exact: true,
         }),
       ).toBeAttached();
@@ -175,7 +174,9 @@ test("Resource and Compound visible actions and statuses use the active locale @
 
       const panel = page.locator(`#panel-compounds-${id}`);
       const compound = panel.locator(`[data-compound-id="${id}"]`);
-      await expect(compound.locator(".pane-heading h2")).toHaveText(name);
+      await expect(compound.locator(".pane-heading h2")).toHaveText(
+        economyGoodPageTitle(locale, id),
+      );
       const recipe = compound.locator(".compound-recipe");
       await expect(recipe).toContainText(`${economyLabel(locale, "recipe")}:`);
       const state = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -197,17 +198,19 @@ test("Resource and Compound visible actions and statuses use the active locale @
       );
 
       const storage = compound.locator(".hydrogen-storage-card");
-      await expect(storage.locator("h3")).toHaveText(economyLabel(locale, "storage"));
+      await expect(storage.locator("h3")).toHaveText(
+        `${economyLabel(locale, "storage")}: ${name}`,
+      );
       await expect(
-        storage.getByRole("button", {
-          name: economyLabel(locale, "increaseStorage"),
-          exact: true,
-        }),
+        storage.getByRole("button"),
       ).toBeVisible();
+      await expect(storage.getByRole("button")).toContainText(
+        economyLabel(locale, "increaseStorage"),
+      );
 
       const sale = compound.locator(".hydrogen-sale-controls");
       await expect(sale.locator(".card-copy h3")).toHaveText(economyLabel(locale, "sell"));
-      await expect(sale.locator(".card-copy p")).toContainText(
+      await expect(sale.locator(".card-copy p").last()).toContainText(
         `${economyLabel(locale, "salePreview")}:`,
       );
       await expect(sale.getByLabel(`${economyLabel(locale, "saleAmount")} ${name}`)).toBeVisible();
@@ -241,6 +244,7 @@ test("Resource and Compound visible actions and statuses use the active locale @
     await page.locator("#tab-hydrogen").click();
     await page.locator("#tab-resources-hydrogen").click();
     const hydrogen = page.locator("#panel-resources-hydrogen");
+    await expect(notifications).toHaveCount(0, { timeout: 30_000 });
     await hydrogen.locator("#hydrogen-sell-amount").selectOption("1");
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     const sale = selectGoodSale(state, "hydrogen", 1);
@@ -261,9 +265,9 @@ test("Resource and Compound visible actions and statuses use the active locale @
         exact: true,
       })
       .click();
-    await expect(
-      page.getByTestId("notification-stack").getByTestId("game-notification").last(),
-    ).toHaveText(expectedNotice);
+    await expect(notifications.filter({ hasText: expectedNotice }).last()).toHaveText(
+      expectedNotice,
+    );
   }
 });
 
@@ -280,9 +284,11 @@ test("Compound creation success feedback is rendered in all locales @p45-compoun
   await autoCreateSection.locator("summary").click();
   const autoCreate = autoCreateSection.locator("input[type=checkbox]");
   if (await autoCreate.isChecked()) await autoCreate.uncheck();
+  const notifications = page.getByTestId("notification-stack").getByTestId("game-notification");
 
   for (const locale of LOCALE_IDS) {
     await setLocale(page, locale);
+    await expect(notifications).toHaveCount(0, { timeout: 20_000 });
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     const recipe = philosophyCompoundRecipe(state, "diesel");
     const expectedParts = new Intl.ListFormat(locale, {
@@ -310,7 +316,7 @@ test("Compound creation success feedback is rendered in all locales @p45-compoun
       })
       .click();
 
-    const notice = page.getByTestId("notification-stack").getByTestId("game-notification").last();
+    const notice = notifications.filter({ hasText: expectedNotice }).last();
     await expect(notice).toHaveAttribute("data-classification", "create");
     await expect(notice).toHaveText(expectedNotice);
     const after = await page.evaluate(() => window.miaplacidusTest!.getState());

@@ -79,21 +79,23 @@ test("P-54 E-57 all Market rows and Rebirth liquidation dialog fit at phone widt
       ).toBeVisible();
 
       for (const { outgoing, incoming } of goodPairs) {
-        await market.getByLabel(copy("outgoing")).selectOption(outgoing);
-        await market.getByLabel(copy("incoming")).selectOption(incoming);
+        await market.getByLabel(copy("tradeRow")).selectOption(outgoing);
+        await market.getByLabel(copy("tradeFor")).selectOption(incoming);
         await market.getByLabel(copy("quantity")).fill("10");
         const quote = quoteGalacticTrade(state, outgoing, incoming, 10);
         expect(quote, `${outgoing} -> ${incoming}`).not.toBeNull();
 
         const card = market.locator(".upgrade-card").first();
-        await expect(market.getByLabel(copy("outgoing"))).toHaveValue(outgoing);
-        await expect(market.getByLabel(copy("incoming"))).toHaveValue(incoming);
+        await expect(market.getByLabel(copy("tradeRow"))).toHaveValue(outgoing);
+        await expect(market.getByLabel(copy("tradeFor"))).toHaveValue(incoming);
         await expect(market.getByLabel(copy("quantity"))).toHaveValue("10");
-        await expect(card.locator("p").filter({ hasText: `${copy("outgoing")}:` })).toHaveText(
-          `${copy("outgoing")}: ${formatNumber(locale, 10, 0, state.settings.notation)} ${economyGoodName(locale, outgoing)}`,
+        const outgoingSummary = `${copy("summaryOutgoing")} ${formatNumber(locale, 10, 0, state.settings.notation)} ${economyGoodName(locale, outgoing)}`;
+        const incomingSummary = `${copy("summaryIncoming")} ${formatNumber(locale, quote!.incomingQuantity, 0, state.settings.notation)} ${economyGoodName(locale, incoming)}`;
+        await expect(card.locator("p").filter({ hasText: outgoingSummary })).toHaveText(
+          outgoingSummary,
         );
-        await expect(card.locator("p").filter({ hasText: `${copy("incoming")}:` })).toHaveText(
-          `${copy("incoming")}: ${formatNumber(locale, quote!.incomingQuantity, 0, state.settings.notation)} ${economyGoodName(locale, incoming)}`,
+        await expect(card.locator("p").filter({ hasText: incomingSummary })).toHaveText(
+          incomingSummary,
         );
         await expect(
           card
@@ -143,7 +145,7 @@ test("P-54 E-57 all Market rows and Rebirth liquidation dialog fit at phone widt
           0,
           state.settings.notation,
         );
-        await expect(apSale.locator("p").nth(1)).toHaveText(proceeds);
+        await expect(apSale.locator("p").nth(1)).toHaveText(`${copy("cashGain")} ${proceeds}`);
       }
 
       await page.locator("#tab-galactic-rebirth").click();

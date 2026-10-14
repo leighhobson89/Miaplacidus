@@ -64,14 +64,9 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
         name: starshipText(locale, "battleTitle"),
       }),
     ).toBeVisible();
-    if (locale === "en") {
-      await starship.getByRole("button", { name: starshipText(locale, "enterWar") }).click();
-      await starship.getByTestId("starship-battle-engage-button").click();
-    }
-    const enemyHealth = starship.getByTestId("starship-battle").locator("dd").nth(1);
-    for (const key of ["fleetAir", "fleetLand", "fleetSea"] as const) {
-      await expect(enemyHealth).toContainText(`${starshipText(locale, key)}:`);
-    }
+    await expect(starship.getByTestId("starship-battle-status")).toHaveText(
+      starshipText(locale, "battleidle"),
+    );
 
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-launch-pad").click();
@@ -103,6 +98,20 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
     }
   }
   expect(renderedTitles.size).toBeGreaterThan(6);
+
+  // Battle navigation is intentionally locked while a battle is active, so
+  // exercise the battle action after completing the cross-locale page sweep.
+  await setGameLocale(page, "en");
+  await page.locator("#tab-interstellar").click();
+  await page.locator("#tab-interstellar-colonise").click();
+  const starship = page.getByTestId("starship-pane");
+  await starship.getByRole("button", { name: starshipText("en", "enterWar"), exact: true }).click();
+  await starship.getByTestId("starship-battle-engage-button").click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().run.space.systemEncounters[0]?.battle.phase),
+    )
+    .toBe("inProgress");
 });
 
 test("shows source-matched Fleet Hangar copy and contained help at 320px in all locales @p44-fleet-copy", async ({

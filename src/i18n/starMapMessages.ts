@@ -79,6 +79,7 @@ export type StarMapMessageKey = keyof typeof en;
 const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessageKey, string>>>>> = {
   en,
   es: {
+    unidentifiedStar: "Unidentified star",
     title: "Mapa Estelar",
     mapHeaderHelp: "Este es un mapa de la galaxia conocida.",
     description:
@@ -110,6 +111,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     sortDescending: "Cambiar a orden descendente",
   },
   pt: {
+    unidentifiedStar: "Unidentified star",
     title: "Mapa Estelar",
     mapHeaderHelp: "Este é um mapa da galáxia conhecida.",
     description: "Estude estrelas próximas, pesquise o catálogo e selecione um sistema descoberto.",
@@ -140,6 +142,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     sortDescending: "Mudar para ordem decrescente",
   },
   de: {
+    unidentifiedStar: "Unidentified star",
     title: "Sternenkarte",
     mapHeaderHelp: "Dies ist eine Karte der bekannten Galaxie.",
     description: "Erforsche nahe Sterne, durchsuche den Katalog und wähle ein entdecktes System.",
@@ -170,6 +173,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     sortDescending: "Absteigende Sortierung wählen",
   },
   it: {
+    unidentifiedStar: "Unidentified star",
     title: "Mappa Stellare",
     mapHeaderHelp: "Questa è una mappa della galassia conosciuta.",
     description: "Studia le stelle vicine, cerca nel catalogo e seleziona un sistema scoperto.",
@@ -201,6 +205,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarMapMessage
     sortDescending: "Passa all'ordine decrescente",
   },
   fr: {
+    unidentifiedStar: "Unidentified star",
     title: "Carte des Étoiles",
     mapHeaderHelp: "Ceci est une carte de la galaxie connue.",
     description:

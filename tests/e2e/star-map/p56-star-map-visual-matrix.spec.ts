@@ -3,6 +3,7 @@ import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { THEME_IDS, type ThemeId } from "../../../src/content/themes";
 import { starMapText } from "../../../src/i18n/starMapMessages";
+import { stabilizeStarMapVisual } from "./visual-stability";
 
 const VIEWPORTS = [
   { width: 1280, height: 900, key: "desktop" },
@@ -28,6 +29,7 @@ async function startFixture(page: import("@playwright/test").Page): Promise<void
       window.miaplacidusTest!.applyDebugAction("prepare-run-starship-launch"),
     ),
   ).toBe(true);
+  await stabilizeStarMapVisual(page);
   await page.addStyleTag({
     content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
   });
@@ -48,7 +50,7 @@ async function setPresentation(
     { nextLocale: locale, nextTheme: theme },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 test("Star Map route presentation fits all locales, themes, and viewport widths @p56-visual-matrix", async ({

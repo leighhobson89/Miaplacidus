@@ -217,3 +217,37 @@ The latest installed-Chrome rerun of `p44-star-scan-info-tooltips.spec.ts`
 passed **1/1 in 19.6 seconds** on port 5455, including the weather tooltip and
 all six locales. This run confirms the existing control is still reachable and
 localized; no code change was made.
+
+## 14 October 2026 focused failure follow-up
+
+The saved full-run manifest showed three Star Map failures: E-57 compared
+header text that still included the `i` tooltip icons; the P-56 and P-65 visual
+captures differed from their baselines; and the Star Data/map cases had stale
+fixture and accessible-name expectations. E-57 now strips the tooltip control
+wrappers before comparing the nine localized headers. The weather-glyph case
+uses the discovered-system fixture and checks settled rows when present without
+requiring this fixture to create one. The Star Data route journey now expects
+the rendered row action name `Show this Star on the Star Map: {star}`.
+
+Refreshed visual baselines cover the P-56 Terminal desktop, Frosty phone, and
+Space 320px views; the P-65 French Frosty 320px Star Data page; the P-66
+Terminal desktop and Light mobile maps; and the Star Data unfiltered desktop
+and mobile views. I reviewed these captures: the map heading, mode/search
+controls, route/selected-system panels, table headings, and scrollable table
+remain visible in their respective layouts. The E-57 localized route and table
+checks passed across six locales at 390px and 320px. The full P-56 matrix passed
+all 162 locale/theme/viewport combinations with its existing geometry checks.
+
+The snapshot-refresh run updated the eight captures, then exposed one remaining
+stale accessible-name assertion in the Star Data route journey; after correcting
+it, the focused no-update Chrome batch passed **6/6 in 2.8 minutes** on port
+4884. This batch contains only E-57, P-56, P-65, P-66, the Star Data weather
+glyph case, and the Star Data filter/sort/map-focus journey; the full suite was
+not rerun.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+$env:MIAPLACIDUS_TEST_PORT='4884'
+node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-star-map-focused-verify-20261014 tests/e2e/star-map/e57-star-map-data-narrow-locale-context.spec.ts tests/e2e/star-map/p56-star-map-visual-matrix.spec.ts tests/e2e/star-map/p65-star-data-visual-review.spec.ts tests/e2e/star-map/star-map.spec.ts --grep "@e57-star-map|@p56-visual-matrix|@p65-visual-review|@p66-visual-review|Star Data pairs each system's weather glyph|filters and sorts Star Data, targets a discovered system, and focuses it on the map"
+```

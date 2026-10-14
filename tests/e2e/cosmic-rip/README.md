@@ -6,6 +6,8 @@ The fixture skips the long Miaplacidus route while leaving scanner, research, GP
 
 P-06 affordance coverage is also in `cosmic-rip.spec.ts`: deterministic fixtures check the 10 GP scanner restore and 1 GP closure costs, and visible localized precondition reasons with `aria-describedby` for scanner restore, sector scans, telemetry purchases, locked technology research, and closure. Source ownership is preserved: the disabled 10-GP restore reason is on Situation; Near Space Scanner Array stays hidden before restoration and, after restoration, contains scanning/sector controls and their precondition reason; Cosmic Rip actions appear after discovery. Sector accessible names include the 1 GP scan cost in all six locales. Upgrade cash uses the selected currency and material names localize in all six locales; the rapidly changing telemetry wallet is not an `aria-live` region.
 
+The scanner sector reason uses a separate scanner-restored, Rip-not-yet-found, zero-GP fixture so the disabled scan control is available under Near Space Scanner Array before the Rip child page is unlocked. Upgrade and research precondition checks use the found-Rip fixture, and closure checks use Situation, which owns the close action and closed ending.
+
 Verification record (4 October 2026): Chrome `npm.cmd run test:e2e:focused -- tests/e2e/cosmic-rip/cosmic-rip.spec.ts` passed 1 browser journey after status output styling was aligned with the existing visual baseline. The once-only G-43–G-50 unit suite passed 20 files / 207 tests. The Chrome channel was used because the bundled Chromium executable is not installed.
 
 P-07 follow-up (5 October 2026): the `@timers` case starts the first Cosmic Rip technology through its visible research control and confirms the localized remaining-time text appears while the Rip page stays selected. The focused Chrome timer run passed this case and the Hilo status case (2/2), using installed Chrome with video capture disabled.
@@ -238,3 +240,7 @@ not edited.
 
 Focused installed-Chrome coverage passed **5/5 in 34.9 seconds** on port 5574.
 `npm.cmd run typecheck` and the focused Oxfmt check passed.
+
+## 14 October 2026 focused regression recovery
+
+The saved full-run failures for Cosmic Rip were re-resolved by current test titles and rerun in installed Chrome. The focused batch passed 10/11: both Cosmic Rip announcement/scan notification cases, P-41 notation, all three P-45 copy cases, both P-54 phone-width cases, the Cosmic Rip theme surface, and the P-65 Cosmic Rip child-page matrix passed. P-66 alone exposed stale visual baselines: the current Scanner Array and Rip pages now include the restored scanner/located-sector states, telemetry upgrades, and containment research. I reviewed the five changed desktop/mobile captures; their content and bounds match the current renderer. The P-66 update run passed 1/1 on port 4252, then the no-update confirmation passed 1/1 in 7.7 seconds on port 4253. Thus all 11 assigned saved failure cases pass across the focused batch and confirmation runs. Reports and actual screenshots are in system Temp under `miaplacidus-cosmic-rip-focused-20261014`, `miaplacidus-cosmic-rip-p66-update-20261014`, and `miaplacidus-cosmic-rip-p66-confirm-20261014`.

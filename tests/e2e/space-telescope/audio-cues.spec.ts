@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
+import { rocketText } from "../../../src/i18n/rocketMessages";
+import { spaceText } from "../../../src/i18n/spaceMessages";
 
 type SpaceAudioFixture =
   | "space-telescope"
@@ -79,6 +81,28 @@ async function clearCues(page: Page): Promise<void> {
   });
 }
 
+async function dismissRandomEventResultIfPresent(page: Page): Promise<void> {
+  const dialog = page.getByTestId("random-event-result-dialog");
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    if (!(await dialog.isVisible())) return;
+    const closed = dialog.evaluate(
+      (element) =>
+        new Promise<void>((resolve) =>
+          element.addEventListener("close", () => resolve(), { once: true }),
+        ),
+    );
+    await dialog.getByRole("button").click();
+    await closed;
+  }
+  await expect(dialog).toHaveCount(0);
+}
+
 async function expectCues(page: Page, expected: readonly string[]): Promise<void> {
   await expect.poll(() => cueFiles(page)).toEqual(expected);
 }
@@ -96,11 +120,18 @@ test("telescope build, asteroid search, and star study play their source cues @s
   await page.locator("#tab-space-mining-telescope").click();
 
   await clearCues(page);
-  await page.getByRole("button", { name: "Build telescope", exact: true }).click();
+  const buildTelescope = page.getByRole("button", {
+    name: spaceText("en", "telescopeBuild"),
+    exact: true,
+  });
+  await expect(buildTelescope).toBeEnabled();
+  await buildTelescope.click();
   await expectCues(page, ["clickButton.mp3", "buildTelescope.mp3"]);
 
   await clearCues(page);
-  await page.getByRole("button", { name: "Scan for asteroids", exact: true }).click();
+  await page
+    .getByRole("button", { name: spaceText("en", "scanAsteroids"), exact: true })
+    .click();
   await expectCues(page, ["clickButton.mp3", "asteroidScan.mp3"]);
   const scanRemainingMs = await page.evaluate(() => {
     const timer = window.miaplacidusTest!.getState().run.timers["survey:asteroid-scan"]!;
@@ -113,7 +144,7 @@ test("telescope build, asteroid search, and star study play their source cues @s
     .toBeNull();
   await expectCues(page, []);
 
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page.getByRole("button", { name: spaceText("en", "studyStars"), exact: true }).click();
   await expectCues(page, ["clickButton.mp3", "starStudy.mp3"]);
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
@@ -126,7 +157,10 @@ test("launch pad construction pairs its generic and dedicated cues @space-telesc
   await startAudioFixture(page, "space-telescope", "Audio Launch Pad Pioneer");
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-launch-pad").click();
-  const buildLaunchPad = page.getByRole("button", { name: /^Build launch pad$/i });
+  const buildLaunchPad = page.getByRole("button", {
+    name: rocketText("en", "buildLaunchPad"),
+    exact: true,
+  });
   await expect(buildLaunchPad).toBeEnabled();
 
   await clearCues(page);
@@ -145,7 +179,7 @@ test("Void Pillage uses the Cosmic Forge star-study cue @space-telescope @audio 
   expect(state.run.philosophyAbilityActive).toBe(true);
 
   await clearCues(page);
-  await page.getByRole("button", { name: "Pillage the Void", exact: true }).click();
+  await page.getByRole("button", { name: spaceText("en", "pillageVoid"), exact: true }).click();
   await expectCues(page, ["clickButton.mp3", "starStudy.mp3"]);
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
@@ -187,7 +221,7 @@ test("rocket pump, launch, outbound travel and outbound arrival follow source cu
   const rocket = page.getByTestId("rocket-card-rocket1");
 
   await clearCues(page);
-  await rocket.getByRole("button", { name: "Buy fuel pump", exact: true }).click();
+  await rocket.getByRole("button", { name: rocketText("en", "buyPump"), exact: true }).click();
   await expectCues(page, ["clickButton.mp3", "fuelRocket.mp3"]);
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(6_000_000));
   await expect
@@ -205,9 +239,15 @@ test("rocket pump, launch, outbound travel and outbound arrival follow source cu
   await debugMenu.getByTestId("debug-action-clear-weather").click();
   await debugMenu.getByTestId("debug-action-add-10-asteroids").click();
   await debugMenu.getByRole("button", { name: "Close" }).click();
+  await dismissRandomEventResultIfPresent(page);
 
   await clearCues(page);
-  await rocket.getByRole("button", { name: "Launch rocket", exact: true }).click();
+  const launchRocket = rocket.getByRole("button", {
+    name: rocketText("en", "launch"),
+    exact: true,
+  });
+  await expect(launchRocket).toBeEnabled();
+  await launchRocket.click();
   await expectCues(page, ["rocketLaunch.mp3"]);
 
   await page.locator("#tab-space-mining-asteroids").click();
@@ -220,7 +260,9 @@ test("rocket pump, launch, outbound travel and outbound arrival follow source cu
   await page.getByTestId(`asteroid-${target!.id}`).getByRole("button").click();
   await page.locator("#tab-space-mining-rocket-1").click();
   await clearCues(page);
-  await rocket.getByRole("button", { name: "Travel to selected asteroid", exact: true }).click();
+  await rocket
+    .getByRole("button", { name: rocketText("en", "travelToAsteroid"), exact: true })
+    .click();
   await expectNoRocketTravelCue(page);
 
   const outboundRemainingMs = await page.evaluate(() => {

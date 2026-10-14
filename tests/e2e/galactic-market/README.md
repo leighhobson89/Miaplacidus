@@ -160,7 +160,7 @@ in the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md
 identity-and-pane-bounds matrix with detailed trade content. It checks six
 locales, nine themes, and 1280px/390px/320px viewports (162 combinations) with
 a deterministic Hydrogen-for-Helium quote and quantity 10. Assertions cover
-the localized heading and description, asteroid artwork, three Market cards,
+the localized heading and description, asteroid artwork, two Market cards,
 live quote rows, action controls, empty history state, card/content bounds,
 text fit, and document overflow. The liquidation confirmation belongs to the
 separate Galactic > Rebirth child and is covered by the P-54 locale/viewport
@@ -195,11 +195,27 @@ horizontal viewport bounds, vertical document bounds for the page and cards,
 card-content containment, and dialog viewport/content bounds. It opens the
 localized liquidation dialog and cancels it in every combination; it never
 confirms liquidation. Four page captures and one French Space 320px dialog
-capture are attached when run. This addition is **unrun**; no tests, builds, or
-formatting commands were run for it.
+capture are attached when run. The no-update Chrome matrix passed 1/1 in the
+final 14 October recovery batch on port 6827. A narrow 320px heading-size
+adjustment now fits the German Rebirth card label.
 
 Run with:
 
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/galactic-market/p56-rebirth-content-visual-matrix.spec.ts
 ```
+
+## 14 October focused regression recovery
+
+All ten Galactic Market/Rebirth failure titles from the saved 14 October
+manifest passed across focused installed-Chrome runs. Four passed in the initial
+17-case batch on port 6821; the six repaired cases passed in the final no-update
+batch on port 6827. That final batch passed all seven selected cases, 7/7 in
+2.7 minutes, including the Casino visual case.
+
+The P-13 390px and 320px captures were reviewed after refresh; trade controls
+and quote text stay inside the viewport. The P-66 Rebirth desktop and phone
+captures were refreshed and reviewed; the liquidation card remains on Rebirth.
+The P-56 Market matrix measures its two Market cards, with liquidation owned by
+the separate Rebirth page. The complete 162-combination P-56 Market and Rebirth
+matrices passed in the focused recovery.

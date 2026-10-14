@@ -18,7 +18,7 @@ test("confirms, cancels, and reloads a second rebirth into the settled system @p
     ),
   ).toBe(12);
 
-  const rebirthTrigger = pane.getByRole("button", { name: "Rebirth", exact: true });
+  const rebirthTrigger = pane.getByRole("button", { name: "REBIRTH", exact: true });
   await rebirthTrigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "CANCEL", exact: true }).click();

@@ -21,6 +21,10 @@ test("P-45 event names, journal labels, and prize notice render in every locale 
     window.miaplacidusTest!.dispatch({ type: "random-event.force", eventId: "scienceTheft" });
     window.miaplacidusTest!.dispatch({ type: "news.ticker.force", category: "prize", id: 2000 });
   });
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
 
   for (const locale of LOCALE_IDS) {
     await setGameLocale(page, locale);
@@ -30,16 +34,16 @@ test("P-45 event names, journal labels, and prize notice render in every locale 
 
     const journal = page.getByTestId("meta-journal-pane");
     await expect(
-      journal.getByRole("heading", { name: metaSignalText(locale, "title") }),
+      journal.getByRole("heading", { name: metaSignalText(locale, "title"), exact: true }),
     ).toBeVisible();
     await expect(
-      journal.getByRole("heading", { name: metaSignalText(locale, "news") }),
+      journal.getByRole("heading", { name: metaSignalText(locale, "news"), exact: true }),
     ).toBeVisible();
     await expect(
-      journal.getByRole("heading", { name: metaSignalText(locale, "events") }),
+      journal.getByRole("heading", { name: metaSignalText(locale, "activeTitle"), exact: true }),
     ).toBeVisible();
     await expect(
-      journal.getByRole("heading", { name: metaSignalText(locale, "history") }),
+      journal.getByRole("heading", { name: metaSignalText(locale, "history"), exact: true }),
     ).toBeVisible();
 
     const historyEvent = journal.locator('[data-event-id="scienceTheft"]');

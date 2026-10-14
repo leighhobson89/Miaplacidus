@@ -15,7 +15,7 @@ export function randomEventHistoryDescription(
 ): string {
   const details = entry.details;
   const amount = (value: number) =>
-    notation === "normal"
+    notation === "standard"
       ? formatNumber(locale, Math.floor(value), 0, notation)
       : formatNumber(locale, value, 0, notation);
   switch (entry.id) {

@@ -1,4 +1,4 @@
-import { expect, test } from "../_harness/fixtures";
+import { dismissTutorialOfferIfPresent, expect, test } from "../_harness/fixtures";
 import { LOCALE_IDS, PHILOSOPHY_IDS } from "../../../src/content/ids";
 import {
   PHILOSOPHY_ABILITY_RESEARCH_COST,
@@ -22,6 +22,7 @@ async function startSpaceFixture(page: import("@playwright/test").Page): Promise
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await dismissTutorialOfferIfPresent(page);
 }
 
 test("P-45 Philosophy choice and research copy render in all locales @p45-philosophy-copy", async ({
@@ -30,8 +31,8 @@ test("P-45 Philosophy choice and research copy render in all locales @p45-philos
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  await page.getByRole("button", { name: "Study Stars", exact: true }).click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({
@@ -102,7 +103,9 @@ test("P-45 Philosophy choice and research copy render in all locales @p45-philos
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     const copy = philosophyText(locale);
     await expect(pane.getByRole("heading", { level: 2 })).toHaveText(copy.paths.expansionist.name);
-    await expect(pane.locator(".philosophy-path-heading p:not(.eyebrow)")).toHaveText(
+    await expect(
+      pane.locator(".philosophy-path-heading > div > p:not(.eyebrow):last-of-type"),
+    ).toHaveText(
       copy.paths.expansionist.summary,
     );
     const ability = copy.abilities[path.abilityId];
@@ -114,7 +117,9 @@ test("P-45 Philosophy choice and research copy render in all locales @p45-philos
     await expect(abilityCard.locator("p").nth(1)).toHaveText(
       `${copy.nextCost}: ${formatNumber(locale, PHILOSOPHY_ABILITY_RESEARCH_COST, 0, state.settings.notation)} ${copy.researchShort}`,
     );
-    await expect(abilityCard.getByRole("button", { name: copy.buy })).toBeVisible();
+    await expect(
+      abilityCard.getByRole("button", { name: copy.abilityAction, exact: true }),
+    ).toBeVisible();
     await expect(pane.getByRole("heading", { name: copy.repeatables, exact: true })).toBeVisible();
 
     for (const [index, repeatableId] of path.repeatables.entries()) {

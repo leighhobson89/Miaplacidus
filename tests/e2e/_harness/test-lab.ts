@@ -3,8 +3,10 @@ import type { Page } from "@playwright/test";
 /** Run one Test Lab control, then return the app to its normal playable state. */
 export async function runTestLabAction(page: Page, buttonName: string): Promise<void> {
   const dialog = page.locator("dialog.debug-tools:not(.debug-scenario-menu)");
-  await dialog.waitFor({ state: "attached" });
-  const isOpen = await dialog.evaluate((element) => (element as HTMLDialogElement).open);
+  const isAttached = (await dialog.count()) > 0;
+  const isOpen = isAttached
+    ? await dialog.evaluate((element) => (element as HTMLDialogElement).open)
+    : false;
   if (!isOpen) {
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();

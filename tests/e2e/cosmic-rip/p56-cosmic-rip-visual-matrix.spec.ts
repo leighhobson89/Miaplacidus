@@ -1,3 +1,4 @@
+import { type Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
@@ -17,6 +18,11 @@ const PAGES = [
   { id: "rip", headingId: null, copyKey: "title" },
 ] as const;
 
+async function dismissTutorialIfVisible(page: Page): Promise<void> {
+  const dismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+  if (await dismissButton.isVisible()) await dismissButton.click();
+}
+
 async function setPresentation(
   page: import("@playwright/test").Page,
   locale: LocaleId,
@@ -32,7 +38,7 @@ async function setPresentation(
     { nextLocale: locale, nextTheme: theme },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 test("Cosmic Rip pages fit every locale, theme, and target viewport @p56-visual-matrix", async ({
@@ -40,6 +46,7 @@ test("Cosmic Rip pages fit every locale, theme, and target viewport @p56-visual-
 }, testInfo) => {
   test.setTimeout(180_000);
   await startMetaFixture(page, "meta-cosmic-rip-route");
+  await dismissTutorialIfVisible(page);
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   // The late-game fixture earns many achievements; silence their transient
   // notices so these page-layout captures stay focused and deterministic.
@@ -82,8 +89,8 @@ test("Cosmic Rip pages fit every locale, theme, and target viewport @p56-visual-
             await expect(activePanel.locator(`#${item.headingId}`)).toHaveText(heading);
           } else {
             await expect(activePanel).toHaveAttribute("aria-labelledby", tab.id);
-            await expect(activePanel.locator("#cosmic-rip-upgrades-title")).toHaveText(
-              copy.upgrades,
+            await expect(activePanel.locator("#cosmic-rip-tech-title")).toHaveText(
+              copy.technologies,
             );
           }
 

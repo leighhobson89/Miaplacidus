@@ -312,3 +312,20 @@ node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retrie
 npm.cmd run typecheck
 .\node_modules\.bin\oxfmt.cmd --check tests\e2e\miaplaedia\p56-miaplaedia-visual.spec.ts
 ```
+
+14 October 2026 P-66 visual refresh: after reviewing the current failure
+captures, I refreshed `miaplaedia-early-concepts.png` and the fourteen
+`phase6-guide-*.png` desktop/phone captures for the seven individual source
+documents. The differences were stale screenshots after guide descriptions
+were added and a one-pixel full-page height change; the current pages show the
+description, heading, and article content without clipping. The focused Chrome
+run passed **4/4 in 25.0 seconds** on port 6401 without snapshot update mode:
+the source-option ownership route, all remaining-guide captures, Early
+Concepts captures, and the App Boot progression case. The ownership assertions
+still map all seven Miaplaedia tabs to their own source document and rendered
+heading. No renderer or navigation defect was found. The broader P-56/P-65
+theme, locale, and viewport matrices remain open.
+
+```powershell
+$env:MIAPLACIDUS_TEST_PORT='6401'; $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/miaplaedia/miaplaedia.spec.ts tests/e2e/app-boot/navigation-progression.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-miaplaedia-focused-6401" --grep 'Miaplaedia maps each guide option|Remaining Miaplaedia guides|Early Concepts has durable|progressive unlock states keep main tabs in source order'
+```

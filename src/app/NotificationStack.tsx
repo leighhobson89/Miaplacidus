@@ -1,6 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { NotificationScheduler } from "./notificationScheduler";
+import { createPortal } from "react-dom";
+import { MAX_VISIBLE_GAME_NOTIFICATIONS, NotificationScheduler } from "./notificationScheduler";
+
+export const GAME_NOTIFICATION_VISIBLE_MS = 3000;
+export const GAME_NOTIFICATION_FADE_MS = 300;
+export const GAME_NOTIFICATION_LIFETIME_MS =
+  GAME_NOTIFICATION_VISIBLE_MS + GAME_NOTIFICATION_FADE_MS;
 
 export type GameNotificationType = "info" | "success" | "warning" | "error";
 
@@ -14,13 +20,13 @@ interface GameNotification {
   readonly message: string;
   readonly classification: string;
   readonly type: GameNotificationType;
-  readonly durationMs: number;
   readonly action?: GameNotificationAction;
 }
 
 export interface GameNotificationOptions {
   readonly classification?: string;
   readonly type?: GameNotificationType;
+  /** @deprecated All floating notices use the same three-second visible lifetime. */
   readonly durationMs?: number;
   readonly action?: GameNotificationAction;
 }
@@ -60,26 +66,25 @@ export function GameNotificationProvider({ children }: { readonly children: Reac
   const enabled = useRef(true);
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const [scheduler] = useState(() => new NotificationScheduler<GameNotification>());
-  const dismissRef = useRef<(id: number, classification: string) => void>(() => {});
+  const dismissRef = useRef<(id: number) => void>(() => {});
 
   const armTimer = useCallback((notification: GameNotification) => {
-    if (notification.durationMs <= 0) return;
     timers.current.set(
       notification.id,
       setTimeout(
-        () => dismissRef.current(notification.id, notification.classification),
-        notification.durationMs,
+        () => dismissRef.current(notification.id),
+        GAME_NOTIFICATION_LIFETIME_MS,
       ),
     );
   }, []);
 
   const dismiss = useCallback(
-    (id: number, classification: string) => {
+    (id: number) => {
       const timer = timers.current.get(id);
       if (timer) clearTimeout(timer);
       timers.current.delete(id);
       if (!enabled.current) return;
-      const activated = scheduler.dismiss(classification, id);
+      const activated = scheduler.dismiss(id);
       activated.forEach(armTimer);
       setNotifications(scheduler.snapshot());
     },
@@ -94,7 +99,6 @@ export function GameNotificationProvider({ children }: { readonly children: Reac
         message,
         classification: options.classification ?? "default",
         type: options.type ?? "info",
-        durationMs: Math.max(0, options.durationMs ?? 3000),
         ...(options.action
           ? {
               action: {
@@ -103,7 +107,7 @@ export function GameNotificationProvider({ children }: { readonly children: Reac
                   try {
                     options.action?.onClick();
                   } finally {
-                    dismissRef.current(notification.id, notification.classification);
+                    dismissRef.current(notification.id);
                   }
                 },
               },
@@ -162,18 +166,39 @@ export function GameNotificationProvider({ children }: { readonly children: Reac
   );
 }
 
-export function GameNotificationRegion() {
+export function GameNotificationRegion({
+  themeId,
+  reducedMotion,
+  customPointerEnabled,
+}: {
+  readonly themeId: string;
+  readonly reducedMotion: boolean;
+  readonly customPointerEnabled: boolean;
+}) {
   const notifications = useContext(NotificationListContext);
   const announcements = useContext(AnnouncementListContext);
-  return (
-    <>
-      <div className="notification-stack" data-testid="notification-stack">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="game-frame notification-portal"
+      data-testid="notification-portal"
+      data-theme={themeId}
+      data-reduced-motion={reducedMotion ? "true" : "false"}
+      data-custom-pointer={customPointerEnabled ? "true" : "false"}
+    >
+      <div
+        className="notification-stack"
+        data-testid="notification-stack"
+        data-visible-limit={MAX_VISIBLE_GAME_NOTIFICATIONS}
+      >
         {notifications.map((notification) => (
           <div
             key={notification.id}
             className={`notification-card notification-${notification.type} classification-${notification.classification}${notification.action ? " notification-card-has-action" : ""}`}
             data-testid="game-notification"
             data-classification={notification.classification}
+            data-visible-duration-ms={GAME_NOTIFICATION_VISIBLE_MS}
             role="status"
             aria-atomic="true"
           >
@@ -203,6 +228,7 @@ export function GameNotificationRegion() {
           </span>
         ))}
       </div>
-    </>
+    </div>,
+    document.body,
   );
 }

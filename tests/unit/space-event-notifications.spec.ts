@@ -316,8 +316,6 @@ describe("space event notifications", () => {
       { type: "space.starship.launched", systemId, durationMs: 1000, antimatterSpent: 1 },
       { type: "space.starship.arrived", systemId },
       { type: "space.rocket.launched", rocketId },
-      { type: "space.rocket.travel-started", rocketId, asteroidId, direction: "outbound" },
-      { type: "space.rocket.travel-started", rocketId, asteroidId, direction: "returning" },
       { type: "space.rocket.arrived", rocketId, asteroidId },
       { type: "space.rocket.returned", rocketId, asteroidId },
       { type: "space.weather.changed", condition: "rain" },
@@ -335,13 +333,11 @@ describe("space event notifications", () => {
 
     for (const locale of LOCALE_IDS) {
       const notices = events.map((event) => spaceEventNotice(locale, event, state));
-      expect(notices).toHaveLength(18);
+      expect(notices).toHaveLength(16);
       expect(notices.every((notice) => notice !== null && notice.message.length > 0)).toBe(true);
       expect(notices.map((notice) => notice?.classification)).toEqual([
         "starShip",
         "starShip",
-        "rocket",
-        "rocket",
         "rocket",
         "rocket",
         "rocket",
@@ -358,8 +354,22 @@ describe("space event notifications", () => {
         "special",
       ]);
       expect(notices.every((notice) => !notice?.message.includes("{"))).toBe(true);
-      expect(notices[6]?.message).toContain(asteroidId);
+      expect(notices[3]?.message).toContain(asteroidId);
     }
+    expect(
+      spaceEventNotice(
+        "en",
+        { type: "space.rocket.travel-started", rocketId, asteroidId, direction: "outbound" },
+        state,
+      ),
+    ).toBeNull();
+    expect(
+      spaceEventNotice(
+        "en",
+        { type: "space.rocket.travel-started", rocketId, asteroidId, direction: "returning" },
+        state,
+      ),
+    ).toBeNull();
   });
 
   it("matches all eight conditional rain and volcano source variants in every locale", () => {
@@ -732,7 +742,7 @@ describe("space event notifications", () => {
     expect(rocket?.message).toContain(asteroidId);
     expect(rocket).toMatchObject({ classification: "rocket", type: "info", durationMs: 3_000 });
     expect(rocketReturned?.message).toContain("Pioneer One");
-    expect(rocketReturned?.message).toContain(asteroidId);
+    expect(rocketReturned?.message).not.toContain(asteroidId);
     expect(rocketReturned).toMatchObject({
       classification: "rocket",
       type: "info",

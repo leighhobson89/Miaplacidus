@@ -158,3 +158,5 @@ export function cosmicRipMilestoneResultDialogCopy(
     ...(resultId === "ripLocated" ? { openDelayMs: 2000 } : {}),
   };
 }
+
+export const LOCALIZATION_VALIDATION_DATA = { messages } as const;

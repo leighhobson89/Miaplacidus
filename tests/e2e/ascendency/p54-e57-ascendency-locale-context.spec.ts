@@ -55,10 +55,20 @@ test("P-54 E-57 Ascendency perk copy and AP costs fit in all locales at phone wi
         const level = ascendencyPerkLevel(state.permanent.acquiredPerks, perk.id);
         const cost = ascendencyPerkCost(state.permanent.acquiredPerks, perk.id);
         const maxed = ascendencyPerkMaxed(state.permanent.acquiredPerks, perk.id);
+        const maximumPurchases = "maxPurchases" in perk ? perk.maxPurchases : undefined;
+        const rebuyable =
+          maximumPurchases === undefined
+            ? metaText(locale, "yes")
+            : maximumPurchases > 1
+              ? formatNumber(locale, maximumPurchases, 0, state.settings.notation)
+              : metaText(locale, "no");
+        const expectedRebuyable = `${metaText(locale, "rebuyable")} ${rebuyable}`;
         const expectedCost = `${metaText(locale, "level")}: ${formatNumber(locale, level, 0, state.settings.notation)} · ${metaText(locale, "cost")}: ${maxed ? metaText(locale, "maxed") : formatNumber(locale, cost, 0, state.settings.notation)} AP`;
         await expect(card.getByRole("heading", { name, exact: true })).toBeVisible();
         await expect(card.locator(".card-copy p")).toHaveText(description);
-        await expect(card.locator(".cost-line")).toHaveText(expectedCost);
+        await expect(card.locator(".cost-line")).toHaveText(
+          `${expectedRebuyable} · ${expectedCost}`,
+        );
         await expect(card.getByRole("button")).toBeVisible();
       }
 

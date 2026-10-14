@@ -334,3 +334,24 @@ export function cosmicRipResearchResultDialog(
     confirmLabel: localized.confirmLabel,
   };
 }
+
+const localizationValidationMessages = Object.fromEntries(
+  Object.entries(messages).map(([locale, localized]) => [
+    locale,
+    {
+      ...localized,
+      technologies: Object.fromEntries(
+        Object.entries(localized.technologies).map(([technologyId, technology]) => [
+          technologyId,
+          // German uses this optional grammar fragment after the name; it is not a standalone
+          // message leaf and deliberately has no matching value in the other locales.
+          Object.fromEntries(
+            Object.entries(technology).filter(([key]) => key !== "researchedSuffix"),
+          ),
+        ]),
+      ),
+    },
+  ]),
+) as Readonly<Record<LocaleId, CosmicRipResearchResultCopy>>;
+
+export const LOCALIZATION_VALIDATION_DATA = { messages: localizationValidationMessages } as const;

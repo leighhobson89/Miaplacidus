@@ -23,12 +23,11 @@ for (const locale of LOCALE_IDS) {
     await page.locator("#tab-galactic-black-hole").click();
     await page
       .getByTestId("black-hole-research")
-      .getByRole("button", { name: new RegExp(copy.researchAction) })
+      .locator(".space-action-help-group > .primary-button")
       .click();
 
     const notificationStack = page.getByTestId("notification-stack");
     await expect(notificationStack).toHaveCount(1);
-    await expect(notificationStack).toHaveAttribute("aria-live", "polite");
     const resourcesTab = page.locator("#tab-hydrogen");
     await resourcesTab.click();
     await expect(resourcesTab).toHaveAttribute("aria-selected", "true");

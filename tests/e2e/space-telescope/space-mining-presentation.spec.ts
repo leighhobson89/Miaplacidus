@@ -151,6 +151,8 @@ async function startSpaceFixture(
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  const dismissTutorial = page.getByRole("button", { name: "No thanks", exact: true });
+  if (await dismissTutorial.isVisible()) await dismissTutorial.click();
 }
 
 async function revealAsteroids(page: Page): Promise<void> {
@@ -222,9 +224,13 @@ async function verifySpaceMiningPageContent(
       costs.locator("li"),
       `${locale} Telescope quote has cash/material rows`,
     ).toHaveCount(4);
-    await expect(visibleCard.getByRole("button"), `${locale} Telescope build control`).toHaveText(
-      spaceText(locale, "telescopeBuild"),
-    );
+    await expect(
+      visibleCard.getByRole("button", {
+        name: spaceText(locale, "telescopeBuild"),
+        exact: true,
+      }),
+      `${locale} Telescope build control`,
+    ).toBeVisible();
   } else if (contentKind === "asteroids") {
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     const asteroids = state.run.space.asteroids;
@@ -364,7 +370,7 @@ async function verifySpaceMiningMatrix(
       await page.locator("#tab-settings").click();
       await page.locator("#tab-settings-visual").click();
       await page.locator("#settings-theme").selectOption(theme);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 
       for (const viewport of VIEWPORTS) {
         await page.setViewportSize(viewport);
@@ -598,7 +604,7 @@ test("current Tech Tree and Space Mining pages have reviewable desktop and mobil
       themeId,
     );
     expect(accepted, `${themeId} theme applied for visual review`).toBe(true);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
   };
   const capture = async (name: string) => {
     await page.evaluate(
@@ -616,6 +622,50 @@ test("current Tech Tree and Space Mining pages have reviewable desktop and mobil
   await page.locator("#tab-research").click();
   await page.locator("#tab-research-tech-tree").click();
   await expect(page.locator("#pane-research .game-page-title:visible")).toHaveText("Tech Tree");
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  await expect
+    .poll(() =>
+      page
+        .getByTestId("technology-tree")
+        .evaluate((tree) => tree.parentElement?.getBoundingClientRect().height ?? 0),
+    )
+    .toBeGreaterThan(0);
+  await page.waitForFunction(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const measure = () => {
+          const viewport = document.querySelector<HTMLElement>("[data-testid='technology-tree-viewport']");
+          const stage = document.querySelector<HTMLElement>(".technology-map-stage");
+          const tree = document.querySelector<HTMLElement>("[data-testid='technology-tree']");
+          if (!viewport || !stage || !tree) return null;
+          return [
+            viewport.getBoundingClientRect().height,
+            stage.getBoundingClientRect().width,
+            stage.getBoundingClientRect().height,
+            tree.scrollWidth,
+            tree.scrollHeight,
+          ];
+        };
+        const first = measure();
+        requestAnimationFrame(() => {
+          const second = measure();
+          requestAnimationFrame(() => {
+            const third = measure();
+            resolve(
+              first !== null &&
+                second !== null &&
+                third !== null &&
+                first.every((value, index) => value === second[index] && value === third[index]) &&
+                third[2]! > 0,
+            );
+          });
+        });
+      }),
+    null,
+    { polling: "raf", timeout: 10_000 },
+  );
   await capture("phase6-tech-tree-terminal-desktop.png");
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -662,7 +712,7 @@ test("Asteroids and Launch Pad have reviewable desktop and phone visuals @p65-vi
       themeId,
     );
     expect(accepted, `${themeId} theme applied for visual review`).toBe(true);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
   };
   const capture = async (title: string, illustration: string, name: string) => {
     await expect(pane.locator(".game-page-title:visible")).toHaveText(title);
@@ -749,7 +799,7 @@ test("Mining has reviewable desktop and phone visuals @p65-visual-review @p66-vi
       themeId,
     );
     expect(accepted, `${themeId} theme applied for visual review`).toBe(true);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
   };
   const capture = async (name: string) => {
     await expect(pane.locator(".game-page-title:visible")).toHaveText("Mining");

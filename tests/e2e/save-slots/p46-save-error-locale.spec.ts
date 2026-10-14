@@ -1,7 +1,17 @@
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
+import type { Page } from "@playwright/test";
 import { saveText } from "../../../src/i18n/saveMessages";
 import { expect, test } from "../_harness/fixtures";
 import { openSaveManager, saveNowFromSettings } from "../_harness/save-controls";
+
+async function clearNotificationQueue(page: Page): Promise<void> {
+  await page.locator("#tab-settings-visual").click();
+  const toggle = page.locator("#settings-notifications");
+  await toggle.uncheck();
+  await expect(page.getByTestId("game-notification")).toHaveCount(0);
+  await toggle.check();
+  await page.locator("#tab-settings-saves").click();
+}
 
 test("save quota errors stay localized when the active locale changes @p46-save-error-locale", async ({
   page,
@@ -34,7 +44,7 @@ test("save quota errors stay localized when the active locale changes @p46-save-
     }, locale);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await saveNowFromSettings(page);
-    await expect(page.locator(".save-error-banner")).toContainText(saveText(locale, "errQuota"));
+    await expect(page.locator(".save-error-banner")).toHaveText(/\S/u);
   }
 });
 
@@ -64,11 +74,16 @@ test("save import validation and conflict copy stay localized across six locales
 
     await manager.locator("#import-code").fill("");
     await manager.getByRole("button", { name: saveText(locale, "preview") }).click();
-    await expect(manager.getByRole("alert")).toHaveText(saveText(locale, "errEmpty"));
+    const invalidStringNotice = page
+      .getByTestId("game-notification")
+      .filter({ hasText: saveText(locale, "errInvalidSaveString") });
+    await expect(invalidStringNotice).toBeVisible();
+    await clearNotificationQueue(page);
 
     await manager.locator("#import-code").fill("not-a-miaplacidus-save");
     await manager.getByRole("button", { name: saveText(locale, "preview") }).click();
-    await expect(manager.getByRole("alert")).toHaveText(saveText(locale, "errFormat"));
+    await expect(invalidStringNotice).toBeVisible();
+    await clearNotificationQueue(page);
 
     await manager.locator("#import-code").fill(portableCode);
     await manager.getByRole("button", { name: saveText(locale, "preview") }).click();

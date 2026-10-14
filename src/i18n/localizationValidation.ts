@@ -14,6 +14,9 @@ import {
   cosmicopediaSourceMessages,
 } from "./cosmicopediaMessages";
 import { LOCALIZATION_VALIDATION_DATA as cosmicRip } from "./cosmicRipMessages";
+import { LOCALIZATION_VALIDATION_DATA as cosmicRipEndingCinematic } from "./cosmicRipEndingCinematicMessages";
+import { LOCALIZATION_VALIDATION_DATA as cosmicRipMilestoneResultDialogs } from "./cosmicRipMilestoneResultDialogMessages";
+import { LOCALIZATION_VALIDATION_DATA as cosmicRipResearchResultDialogs } from "./cosmicRipResearchResultDialogMessages";
 import { LOCALIZATION_VALIDATION_DATA as debugScenario } from "./debugScenarioMessages";
 import { LOCALIZATION_VALIDATION_DATA as economy } from "./economyMessages";
 import { LOCALIZATION_VALIDATION_DATA as economyActionHelp } from "./economyActionHelpMessages";
@@ -21,11 +24,13 @@ import { LOCALIZATION_VALIDATION_DATA as researchActionHelp } from "./researchAc
 import { LOCALIZATION_VALIDATION_DATA as energyStatistics } from "./energyStatisticsMessages";
 import { LOCALIZATION_VALIDATION_DATA as interstellarStatistics } from "./interstellarStatisticsMessages";
 import { LOCALIZATION_VALIDATION_DATA as megastructure } from "./megastructureMessages";
+import { LOCALIZATION_VALIDATION_DATA as megastructureResearchResults } from "./megastructureResearchResultMessages";
 import { LOCALIZATION_VALIDATION_DATA as meta } from "./metaMessages";
 import { LOCALIZATION_VALIDATION_DATA as market } from "./marketMessages";
 import { LOCALIZATION_VALIDATION_DATA as metaSignal } from "./metaSignalMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventDescription } from "./randomEventDescriptionMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventEndDialogs } from "./randomEventEndDialogMessages";
+import { LOCALIZATION_VALIDATION_DATA as randomEventEndDetails } from "./randomEventEndDetailMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventEndNotifications } from "./randomEventEndNotificationMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventInstabilityNotifications } from "./randomEventInstabilityNotificationMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventStartDialogs } from "./randomEventStartDialogMessages";
@@ -45,6 +50,7 @@ import { LOCALIZATION_VALIDATION_DATA as starship } from "./starshipMessages";
 import { LOCALIZATION_VALIDATION_DATA as statistics } from "./statisticsMessages";
 import { LOCALIZATION_VALIDATION_DATA as technologyNotifications } from "./technologyNotificationMessages";
 import { LOCALIZATION_VALIDATION_DATA as topStatus } from "./topStatusMessages";
+import { LOCALIZATION_VALIDATION_DATA as tutorial } from "./tutorialMessages";
 
 export interface LocalizationCatalogue {
   readonly id: string;
@@ -119,6 +125,9 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
   ...groupedCatalogues("blackHole", blackHole),
   ...groupedCatalogues("casino", casino),
   ...groupedCatalogues("cosmicRip", cosmicRip),
+  ...groupedCatalogues("cosmicRipEndingCinematic", cosmicRipEndingCinematic),
+  ...groupedCatalogues("cosmicRipMilestoneResultDialogs", cosmicRipMilestoneResultDialogs),
+  ...groupedCatalogues("cosmicRipResearchResultDialogs", cosmicRipResearchResultDialogs),
   ...groupedCatalogues("debugScenario", debugScenario),
   ...groupedCatalogues("economy", economy),
   ...groupedCatalogues("economyActionHelp", economyActionHelp),
@@ -126,11 +135,13 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
   ...groupedCatalogues("energyStatistics", energyStatistics),
   ...groupedCatalogues("interstellarStatistics", interstellarStatistics),
   ...groupedCatalogues("megastructure", megastructure),
+  ...groupedCatalogues("megastructureResearchResults", megastructureResearchResults),
   ...groupedCatalogues("meta", meta),
   ...groupedCatalogues("market", market),
   ...groupedCatalogues("metaSignal", metaSignal),
   ...groupedCatalogues("randomEventDescription", randomEventDescription),
   ...groupedCatalogues("randomEventEndDialogs", randomEventEndDialogs),
+  ...groupedCatalogues("randomEventEndDetails", randomEventEndDetails),
   ...groupedCatalogues("randomEventEndNotifications", randomEventEndNotifications),
   ...groupedCatalogues("randomEventInstabilityNotifications", randomEventInstabilityNotifications),
   ...groupedCatalogues("randomEventStartDialogs", randomEventStartDialogs),
@@ -164,6 +175,7 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
     notices: "localized",
   }),
   ...groupedCatalogues("topStatus", topStatus),
+  ...groupedCatalogues("tutorial", tutorial),
   toLocaleRoot("achievementNames", ACHIEVEMENT_NAMES),
   toLocaleRoot("achievementDescriptions", ACHIEVEMENT_DESCRIPTIONS),
   toLocaleRoot("economyBuildingNames", ECONOMY_BUILDING_NAMES),

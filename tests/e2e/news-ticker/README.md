@@ -302,3 +302,15 @@ $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 $env:MIAPLACIDUS_TEST_PORT = "5394"
 npm.cmd run test:e2e:focused -- tests/e2e/news-ticker/news-ticker.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results/p45-news-prize-5394 -g "P-45 visible ticker prize claims"
 ```
+
+14 October 2026 test follow-up: the full focused News Ticker browser file passed
+27/27 in installed Chrome with one worker and no snapshot updates. The disco
+capture baseline was refreshed to match the centered message position set by the
+capture helper, then passed again in the full run. The separate ticker unit
+checks and reduced-motion browser check also passed during the same focused test
+session.
+
+The eight News Ticker screenshot cases named in the 14 October full-run manifest
+were re-run on isolated Chrome port 6399: all 8 passed without snapshot updates.
+I reviewed the seven wacky-effect captures; each shows its activated message at
+the centered capture position with its intended effect.

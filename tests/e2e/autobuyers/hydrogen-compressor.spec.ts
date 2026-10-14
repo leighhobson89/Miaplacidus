@@ -7,7 +7,9 @@ test("the compressor produces 4 Hydrogen per second at B-type Spica and pauses t
 }, testInfo) => {
   await runTestLabAction(freshGame, "Hydrogen ready to buy");
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("50");
-  await freshGame.getByRole("button", { name: "Buy compressor" }).click();
+  const autobuyerSection = freshGame.locator(".hydrogen-autobuyer-section");
+  await autobuyerSection.locator(":scope > summary").click();
+  await autobuyerSection.getByRole("button", { name: "Buy compressor", exact: true }).click();
   await expect(freshGame.getByTestId("hydrogen-autobuyer-count")).toHaveText("1");
   await expect(freshGame.getByTestId("hydrogen-rate")).toContainText("4");
   await captureVisualCheckpoint(freshGame, testInfo, "compressor-running");
@@ -15,7 +17,13 @@ test("the compressor produces 4 Hydrogen per second at B-type Spica and pauses t
   await runTestLabAction(freshGame, "Advance 10 seconds");
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("40");
   await captureVisualCheckpoint(freshGame, testInfo, "compressor-produced-hydrogen");
-  await freshGame.getByRole("button", { name: "Pause compressor" }).click();
+  const compressorToggle = freshGame.getByRole("button", {
+    name: "Autobuyer for Hydrogen, tier 1",
+    exact: true,
+  });
+  await expect(compressorToggle).toHaveAttribute("aria-pressed", "true");
+  await compressorToggle.click();
+  await expect(compressorToggle).toHaveAttribute("aria-pressed", "false");
   await runTestLabAction(freshGame, "Advance 10 seconds");
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("40");
   await expect(freshGame.getByTestId("hydrogen-rate")).toContainText("0");

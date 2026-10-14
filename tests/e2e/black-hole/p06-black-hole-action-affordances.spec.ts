@@ -27,7 +27,9 @@ test("Black Hole Recharge shortfall, recovery, charge, and warp actions match en
 
   const pane = page.locator(".black-hole-pane");
   const researchCommand = { type: "black-hole.research" } as const;
-  const research = pane.getByTestId("black-hole-research").getByRole("button");
+  const research = pane
+    .getByTestId("black-hole-research")
+    .locator(".space-action-help-group > .primary-button");
   const initial = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(selectEconomyAction(initial, researchCommand)).toEqual({ enabled: true });
   await expect(research).toBeEnabled();
@@ -37,11 +39,11 @@ test("Black Hole Recharge shortfall, recovery, charge, and warp actions match en
   const durationCommand = { type: "black-hole.upgrade", upgradeId: "duration" } as const;
   const powerButton = pane
     .locator(".black-hole-upgrade")
-    .filter({ hasText: "Upgrade power" })
+    .nth(0)
     .getByRole("button");
   const durationButton = pane
     .locator(".black-hole-upgrade")
-    .filter({ hasText: "Upgrade duration" })
+    .nth(1)
     .getByRole("button");
   await expect(powerButton).toBeEnabled();
   await expect(durationButton).toBeEnabled();

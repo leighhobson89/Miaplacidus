@@ -1,9 +1,6 @@
 import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
-import {
-  blackHoleText,
-  blackHoleWarpEndedNotification,
-} from "../../../src/i18n/blackHoleMessages";
+import { blackHoleText, blackHoleWarpEndedNotification } from "../../../src/i18n/blackHoleMessages";
 
 test("Black Hole warp expiry is announced after leaving its tab @black-hole @p20-announcements", async ({
   page,
@@ -16,7 +13,7 @@ test("Black Hole warp expiry is announced after leaving its tab @black-hole @p20
   await page.locator("#tab-galactic-black-hole").click();
   await page
     .getByTestId("black-hole-research")
-    .getByRole("button", { name: new RegExp(copy.researchAction) })
+    .locator(".space-action-help-group > .primary-button")
     .click();
 
   const chargeTimer = await page.evaluate(
@@ -63,6 +60,7 @@ test("Black Hole warp expiry is announced after leaving its tab @black-hole @p20
   await expect(announcementRegion.getByTestId("screen-reader-announcement").last()).toHaveText(
     warpEndedCopy,
   );
-  await expect(notificationStack.getByTestId("game-notification").filter({ hasText: warpEndedCopy }))
-    .toHaveCount(0);
+  await expect(
+    notificationStack.getByTestId("game-notification").filter({ hasText: warpEndedCopy }),
+  ).toHaveCount(0);
 });

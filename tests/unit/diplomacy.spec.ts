@@ -68,6 +68,7 @@ function diplomacyState(): GameState {
           timerId: null,
           durationMs: 1,
           antimatterSpent: 1,
+          travelDistanceLy: null,
         },
         systemEncounters: [createEncounter()],
       },

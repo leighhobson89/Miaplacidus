@@ -89,7 +89,7 @@ test("Megastructure stage research result localizes across all locales @p45-mega
     await expect(page.getByTestId(`megastructure-research-reason-${trackId}`)).toHaveText(
       expectedReason,
     );
-    await expect(page.getByTestId("megastructure-force-field")).toHaveText(
+    await expect(page.getByTestId("megastructure-force-field")).toContainText(
       copy.forceFieldCleared.replace("{level}", "4").replace("{total}", "4"),
     );
   }

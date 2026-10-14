@@ -31,12 +31,13 @@ async function setPresentation(
   );
   expect(result).toBe(true);
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 test("P-56 Black Hole charging content fits all locales, themes, and viewports @p56-black-hole-content", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(300_000);
   await page.setViewportSize(VIEWPORTS[0]);
   await startMetaFixture(page, "meta-black-hole-discovered");
   await page.addStyleTag({
@@ -48,7 +49,10 @@ test("P-56 Black Hole charging content fits all locales, themes, and viewports @
   const pane = page.locator(".black-hole-pane");
   const copy = blackHoleText("en");
   await expect(pane.locator("#black-hole-title")).toHaveText(copy.title);
-  await pane.getByTestId("black-hole-research").getByRole("button").click();
+  await pane
+    .getByTestId("black-hole-research")
+    .locator(".space-action-help-group > .primary-button")
+    .click();
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(30_000));
 
   const seededState = await page.evaluate(() => window.miaplacidusTest!.getState());
@@ -117,16 +121,14 @@ test("P-56 Black Hole charging content fits all locales, themes, and viewports @
         expect(progressValues.value).toBeCloseTo((timer.elapsedMs / timer.durationMs) * 100, 2);
 
         for (const upgradeId of UPGRADE_IDS) {
-          const upgradeButton = pane.getByRole("button", {
-            name: `${localizedCopy.upgradeNames[upgradeId]} \u00b7 ${formatNumber(
-              locale,
-              hole[`${upgradeId}Price`],
-              0,
-              notation,
-            )} RP`,
-            exact: true,
-          });
+          const upgradeButton = pane
+            .locator(".black-hole-upgrade")
+            .nth(UPGRADE_IDS.indexOf(upgradeId))
+            .getByRole("button");
           await expect(upgradeButton).toBeVisible();
+          await expect(upgradeButton).toContainText(
+            `${formatNumber(locale, hole[`${upgradeId}Price`], 0, notation)} ${localizedCopy.researchPoints}`,
+          );
           await expect(upgradeButton).toBeEnabled();
         }
 

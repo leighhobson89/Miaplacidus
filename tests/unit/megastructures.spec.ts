@@ -220,7 +220,7 @@ describe("megastructure progression", () => {
       1_000_000_000 +
       10_000_000_000;
     expect(restored.run.goods.hydrogen.storageCapacity).toBe(expectedCapacity);
-    expect(restored.run.economy.power).toMatchObject({ infinitePower: true, gridEnabled: true });
+    expect(restored.run.economy.power).toMatchObject({ infinitePower: false, gridEnabled: false });
     expect(restored.run.economy.researchedTechnologies).toEqual(
       expect.arrayContaining([archive[0], archive[1], archive[3], archive[4], dyson[3]]),
     );
@@ -231,8 +231,11 @@ describe("megastructure progression", () => {
     const dyson = MEGASTRUCTURE_TRACKS.dysonSphere;
     const core = MEGASTRUCTURE_TRACKS.celestialProcessingCore;
     const forge = MEGASTRUCTURE_TRACKS.plasmaForge;
-    const dysonStageTwo = factoryState({ researched: [dyson[1]!] });
+    const dysonStageTwo = applyMegastructureTechnology(factoryState(), dyson[1]!);
     expect(megastructurePowerPlantMultiplier(dysonStageTwo)).toBe(1.25);
+    expect(
+      megastructurePowerPlantMultiplier(restoreMegastructureProgressOnRebirth(dysonStageTwo)),
+    ).toBe(1);
 
     const localCore = factoryState({
       megastructureId: "celestialProcessingCore",
@@ -495,11 +498,13 @@ describe("megastructure audio cues", () => {
         store.dispose();
       }
     };
+    const sourceCuesForResearch = (base: GameState, technologyId: TechId) =>
+      playedForResearch(base, technologyId).filter((file) => file !== "clickButton.mp3");
 
     try {
       const core = MEGASTRUCTURE_TRACKS.celestialProcessingCore;
       expect(
-        playedForResearch(
+        sourceCuesForResearch(
           factoryState({
             megastructureId: "celestialProcessingCore",
             researched: core.slice(0, 2),
@@ -514,7 +519,7 @@ describe("megastructure audio cues", () => {
         .map((track) => track[2]!)
         .filter((technologyId) => technologyId !== archive[2]);
       expect(
-        playedForResearch(
+        sourceCuesForResearch(
           factoryState({
             megastructureId: "galacticMemoryArchive",
             researched: [...otherForceFieldTechs, ...archive.slice(0, 2)],
@@ -525,7 +530,7 @@ describe("megastructure audio cues", () => {
       ).toEqual(["forcefieldTakedownFinal.mp3"]);
 
       expect(
-        playedForResearch(
+        sourceCuesForResearch(
           factoryState({
             megastructureId: "galacticMemoryArchive",
             researched: archive.slice(0, 4),

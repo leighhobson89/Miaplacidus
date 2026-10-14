@@ -5,6 +5,7 @@ import { LOCALE_IDS } from "../../../src/content/ids";
 import { THEME_IDS } from "../../../src/content/themes";
 import { achievementText } from "../../../src/i18n/achievementMessages";
 import { metaSignalText } from "../../../src/i18n/metaSignalMessages";
+import { saveText } from "../../../src/i18n/saveMessages";
 import { settingsSectionName } from "../../../src/i18n/settingsMessages";
 
 const settingsSpecialPageIds = [
@@ -59,9 +60,9 @@ test("theme dropdowns keep readable text and themed popup colors @theme-dropdown
 
   for (const theme of THEME_IDS) {
     await themeSelect.selectOption(theme);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 
-    const colors = await page.locator(".game-frame").evaluate((frame) => {
+    const colors = await page.locator(".game-frame:not(.notification-portal)").evaluate((frame) => {
       const select = frame.querySelector<HTMLSelectElement>("#settings-theme");
       if (!select) throw new Error("Theme dropdown should render");
       const option = Array.from(select.options).find((entry) => !entry.selected);
@@ -87,7 +88,7 @@ test("theme dropdowns keep readable text and themed popup colors @theme-dropdown
     expect(colors.optionBackground).toBe(colors.panel);
     expect(colors.selectBackground).not.toBe("rgba(0, 0, 0, 0)");
 
-    const controlClassColors = await page.locator(".game-frame").evaluate(
+    const controlClassColors = await page.locator(".game-frame:not(.notification-portal)").evaluate(
       (frame, classes) => {
         const fixtureRoot = document.createElement("div");
         fixtureRoot.hidden = true;
@@ -127,9 +128,9 @@ test("theme dropdowns keep readable text and themed popup colors @theme-dropdown
   }
 
   await themeSelect.selectOption("terminal");
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", "terminal");
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", "terminal");
   await page.locator("#tab-hydrogen").click();
-  const terminalSurfaces = await page.locator(".game-frame").evaluate((frame) => {
+  const terminalSurfaces = await page.locator(".game-frame:not(.notification-portal)").evaluate((frame) => {
     const selectors = [".hydrogen-hero", ".settings-controls", ".settings-control select"];
     return Object.fromEntries(
       selectors.map((selector) => {
@@ -159,7 +160,7 @@ test("economy headings, stock, and rates use the active theme's text palette @th
       page.locator('#pane-hydrogen [data-resource-id="hydrogen"] .economy-card-heading'),
     ).toHaveCount(0);
 
-    const paletteChecks = await page.locator(".game-frame").evaluate((frame, selectedTheme) => {
+    const paletteChecks = await page.locator(".game-frame:not(.notification-portal)").evaluate((frame, selectedTheme) => {
       const sample = document.createElement("span");
       frame.append(sample);
       const token = (value: string) => {
@@ -176,7 +177,7 @@ test("economy headings, stock, and rates use the active theme's text palette @th
         [".eyebrow", muted],
         [".run-name", muted],
         [".global-context-bar .top-stat-value", ink],
-        [".top-status-bar .top-stat-value", ink],
+        [".top-status-bar .top-stat-value", ready],
         [".location-status-copy strong", ink],
         [".location-status-copy small", muted],
         [".game-nav .nav-tab:not(.is-selected)", muted],
@@ -359,7 +360,7 @@ test("economy headings, stock, and rates use the active theme's text palette @th
     await expect(techTreePanel).toHaveCSS("outline-offset", "2px");
     const focusColors = await techTreePanel.evaluate((panel) => {
       const outline = getComputedStyle(panel).outlineColor;
-      const frame = panel.closest<HTMLElement>(".game-frame");
+      const frame = panel.closest<HTMLElement>(".game-frame:not(.notification-portal)");
       const sample = document.createElement("span");
       if (!frame) throw new Error("Focused tab panel should belong to the themed game frame");
       const visible = panel.matches(":focus-visible");
@@ -398,7 +399,7 @@ test("Miaplaedia guide content fits all themes at desktop and phone widths @them
       await page.locator("#tab-settings").click();
       await page.locator("#tab-settings-visual").click();
       await page.locator("#settings-theme").selectOption(theme);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 
       const apValue = page.getByTestId("top-stat-ap").locator(".top-stat-value");
       await apValue.focus();
@@ -576,7 +577,7 @@ test("Settings pages fit all themes through the 320px layout @theme-settings-mat
       await page.locator("#tab-settings").click();
       await page.locator("#tab-settings-visual").click();
       await page.locator("#settings-theme").selectOption(theme);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
       const hydrogenTitleSize = await page
         .locator("#panel-resources-hydrogen .pane-heading h2")
         .evaluate((element) => getComputedStyle(element).fontSize);
@@ -785,7 +786,7 @@ test("all themes keep late-game panes and save errors visible at wide and phone 
       await page.locator("#tab-settings").click();
       await page.locator("#tab-settings-visual").click();
       await page.locator("#settings-theme").selectOption(theme);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 
       await page.locator("#tab-research").click();
       await page.locator("#tab-research-tech-tree").click();
@@ -830,12 +831,20 @@ test("all themes keep late-game panes and save errors visible at wide and phone 
       const manager = page.getByTestId("save-manager-inline");
       await manager.locator("#import-code").fill("not a MIAPLACIDUS save code");
       await manager.getByRole("button", { name: "Preview import" }).click();
-      await expect(manager.getByRole("alert")).toBeVisible();
+      const errorNotice = page
+        .getByTestId("notification-stack")
+        .getByTestId("game-notification")
+        .filter({ hasText: saveText("en", "errInvalidSaveString") })
+        .last();
+      await expect(errorNotice).toBeVisible();
+      await expect(errorNotice).toHaveText(saveText("en", "errInvalidSaveString"));
+      await expect(errorNotice).toHaveAttribute("data-classification", "save");
+      await expect(errorNotice).toHaveClass(/notification-error/);
       const errorWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(errorWidth, `${theme} save error at ${viewport.width}px`).toBeLessThanOrEqual(
         viewport.width,
       );
-      const validSaveCode = await manager.getByLabel("Portable save code").inputValue();
+      const validSaveCode = await manager.getByLabel(saveText("en", "export")).inputValue();
       await manager.locator("#import-code").fill(validSaveCode);
       await manager.getByRole("button", { name: "Preview import", exact: true }).click();
       await expect(manager.getByTestId("import-preview")).toBeVisible();
@@ -886,7 +895,7 @@ test("all top-level tabs fit four viewport widths in Terminal @theme-tab-matrix"
     const geometry = await page.evaluate((id) => {
       const tab = document.getElementById(`tab-${id}`);
       const pane = document.getElementById(`pane-${id}`);
-      const frame = document.querySelector<HTMLElement>(".game-frame");
+      const frame = document.querySelector<HTMLElement>(".game-frame:not(.notification-portal)");
       if (!tab || !pane || !frame) throw new Error("Visible top-level tab and pane should render");
       const panel = pane.getBoundingClientRect();
       const frameBounds = frame.getBoundingClientRect();
@@ -940,7 +949,7 @@ test("all top-level tabs fit four viewport widths in Terminal @theme-tab-matrix"
   await page.locator("#tab-settings").click();
   await page.locator("#tab-settings-visual").click();
   await page.locator("#settings-theme").selectOption("terminal");
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", "terminal");
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", "terminal");
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     for (const tabId of tabIds) await visit(tabId, viewport);

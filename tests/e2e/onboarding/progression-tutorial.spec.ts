@@ -44,25 +44,29 @@ test("P-36 explains technology options before the Tech Tree and enforces both re
   const tutorialTitle = page.getByRole("heading", { name: "Technology options", exact: true });
   const continueButton = page.getByRole("button", { name: "Continue", exact: true });
   await expect(tutorialTitle).toBeVisible();
-  await expect(page.getByText("Here you can view and select technologies to research.")).toBeVisible();
+  await expect(
+    page.getByText("Here you can view and select technologies to research.", { exact: true }),
+  ).toBeVisible();
   await expect(continueButton).toBeDisabled();
 
   await page.getByRole("button", { name: "Open Tech Tree", exact: true }).click();
   await expect(page.locator("#panel-research-tech-tree")).toBeVisible();
-  await expect(page.locator("#progression-tutorial-read-hint-explainTechnologyOptions")).toBeVisible();
+  const technologyReadHint = page.locator(
+    "#progression-tutorial-read-hint-explainTechnologyOptions",
+  );
+  await expect(technologyReadHint).toBeVisible();
   await expect(continueButton).toBeDisabled();
-  await page.clock.runFor(2_999);
-  await expect(continueButton).toBeDisabled();
-  await page.clock.runFor(1);
+  await page.clock.runFor(3_000);
+  await expect(technologyReadHint).toHaveCount(0);
   await expect(continueButton).toBeEnabled();
 
   await continueButton.click();
   await expect(page.getByRole("heading", { name: "Explore the Tech Tree", exact: true })).toBeVisible();
   await expect(page.locator("#panel-research-tech-tree")).toBeVisible();
-  await expect(page.locator("#progression-tutorial-read-hint-exploreTechTree")).toBeVisible();
+  const exploreReadHint = page.locator("#progression-tutorial-read-hint-exploreTechTree");
+  await expect(exploreReadHint).toBeVisible();
   await expect(continueButton).toBeDisabled();
-  await page.clock.runFor(3_999);
-  await expect(continueButton).toBeDisabled();
-  await page.clock.runFor(1);
+  await page.clock.runFor(4_000);
+  await expect(exploreReadHint).toHaveCount(0);
   await expect(continueButton).toBeEnabled();
 });

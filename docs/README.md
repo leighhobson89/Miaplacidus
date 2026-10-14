@@ -23,6 +23,7 @@
 - [Bug tracker](bugs.md) — player-reported defects and their current investigation status.
 - [Reuse and replacement decisions](plans/reuse-decisions.md) — what to port, adapt, or redesign.
 - [Test harness plan](plans/test-harness.md) — implemented M-01 browser coverage, visual baselines and focused test commands.
+- [E2E functional-area coverage and refactor](plans/e2e-functional-area-coverage-and-refactor.md) — current folder ownership, source coverage gaps, area-isolated execution and regression recovery before Phase 7.
 - [Run and deploy guide](run-and-deploy.md) — start the Vite development server, preview the production build and publish `dist/` to a static host.
 - [Archived PXX audits and Phase 6 handoffs](archive/audits/README.md) — dated source-to-remake findings linked from the active checklists and parity ledger.
 - [Completed F-11–F-18 toolchain plan](archive/plans/2026-10-02-toolchain-project-structure.md) — app scaffold, module rules, build modes and typed catalogue IDs.

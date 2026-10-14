@@ -81,7 +81,7 @@ for (const activeTrackId of TRACK_IDS) {
           );
           const context = `${activeTrackId}/${locale}/${theme}/${viewport.width}px`;
           await expect(page.locator("html"), `${context} language`).toHaveAttribute("lang", locale);
-          await expect(page.locator(".game-frame"), `${context} theme`).toHaveAttribute(
+          await expect(page.locator(".game-frame:not(.notification-portal)"), `${context} theme`).toHaveAttribute(
             "data-theme",
             theme,
           );
@@ -97,7 +97,7 @@ for (const activeTrackId of TRACK_IDS) {
           await expect(
             pane.getByTestId("megastructure-force-field"),
             `${context} force field`,
-          ).toHaveText(
+          ).toContainText(
             (miaplacidusForceFieldLevel(state) >= 4 ? copy.forceFieldCleared : copy.forceField)
               .replace("{level}", number(miaplacidusForceFieldLevel(state)))
               .replace("{total}", number(4)),

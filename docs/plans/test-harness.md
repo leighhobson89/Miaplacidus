@@ -4,6 +4,10 @@ The F-35/F-36 harness is implemented for the M-01 Hydrogen slice. Playwright run
 
 The wider F-01–F-10 [source-derived acceptance matrix](../audit/foundation-test-plan.md) remains planning input for later phases. Current Hydrogen evidence does not close the full `resources`, `autobuyers`, `precision`, `localization`, or `ui-navigation` areas. Save behavior starts in M-02.
 
+The suite-wide functional-area ownership, missing-area coverage, catch-all folder split, and per-area regression work are tracked in the active [E2E functional-area plan](e2e-functional-area-coverage-and-refactor.md). Its baseline inventory is historical until specs have been moved and the dedicated area runs are recorded. Keep failures tied to source or owner-approved behavior; do not revise assertions only to get a green run.
+
+`tests/e2e/functional-areas.json` is the canonical area manifest. `scripts/run-e2e-areas.mjs` runs each area folder in a separate Playwright process, records an aggregate JSON report, and places reports, traces, and failure output in a timestamped directory under the OS Temp folder. `--populated` is useful during the refactor; the full `test:e2e` command fails if an in-scope area has no runnable specs.
+
 ## Current package commands
 
 | Command                                          | Purpose                                                                                |
@@ -18,12 +22,14 @@ The wider F-01–F-10 [source-derived acceptance matrix](../audit/foundation-tes
 | `npm run check:boundaries`                       | Enforce engine import restrictions.                                                    |
 | `npm run test:unit`                              | Run pure Vitest specs in `tests/unit/`.                                                |
 | `npm run test:unit:focused -- <file-or-pattern>` | Select focused Vitest specs.                                                           |
-| `npm run test:e2e`                               | Run the Playwright specs under `tests/e2e/`.                                           |
-| `npm run test:e2e:focused -- <area-or-spec>`     | Select focused specs. `MIAPLACIDUS_TEST_AREA=<area>` filters to a functional-area tag. |
+| `npm run test:e2e`                               | Run every canonical E2E area in isolation and write reports under the OS Temp folder. |
+| `npm run test:e2e:area -- <area>`                | Run one canonical folder, such as `npm run test:e2e:area -- resources`.               |
+| `npm run test:e2e:populated`                     | Run populated areas and list areas that still have no spec files.                     |
+| `npm run test:e2e:focused -- <area-or-spec>`     | Select focused specs directly with Playwright.                                       |
 
 The default browser project is Playwright Chromium. Set `MIAPLACIDUS_BROWSER_CHANNEL=chrome` to use an installed Chrome channel. Set `MIAPLACIDUS_DISABLE_VIDEO=1` only when the local machine lacks Playwright's video/ffmpeg support; screenshots and traces remain enabled on failure.
 
-For the recorded Windows run, Vite was started in a separate terminal with `npm run dev:test -- --host 127.0.0.1 --port 4173 --strictPort`; Playwright reused `http://127.0.0.1:4173` and exited cleanly after the focused run. When port 4173 is free, the checked-in Playwright config starts the same local server automatically.
+For the recorded Windows run, Vite was started in a separate terminal with `npm run dev:test -- --host 127.0.0.1 --port 4173 --strictPort`; Playwright reused `http://127.0.0.1:4173` and exited cleanly after the focused run. The current Playwright config defaults to port 4174 and starts its own test server; set `MIAPLACIDUS_TEST_PORT=4173` when reproducing the recorded run.
 
 ## Implemented M-01 fixture and scenario controls
 

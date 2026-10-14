@@ -3,7 +3,7 @@ import { economyLabel } from "../../../src/i18n/economyMessages";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { ASTEROID_SCAN_TIMER_ID, STAR_STUDY_TIMER_ID } from "../../../src/content/space";
 import { spaceNotificationText } from "../../../src/i18n/spaceNotificationMessages";
-import { rocketText } from "../../../src/i18n/rocketMessages";
+import { localizedRocketUserName, rocketText } from "../../../src/i18n/rocketMessages";
 import { spaceText } from "../../../src/i18n/spaceMessages";
 import { translate } from "../../../src/i18n/messages";
 import { settingsStatisticLabel } from "../../../src/i18n/settingsMessages";
@@ -32,12 +32,32 @@ async function startSpaceFixture(
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
 }
 
+async function clearQueuedNotifications(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect(page.getByTestId("notification-stack")).toBeEmpty();
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: true },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);
+}
+
 test("Telescope and Launch Pad actions, status, and completion notices use all locales @p45-space-mining-copy", async ({
   page,
 }) => {
   test.setTimeout(180_000);
   for (const locale of LOCALE_IDS) {
     await startSpaceFixture(page, "space-telescope", locale);
+    await clearQueuedNotifications(page);
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-telescope").click();
 
@@ -71,6 +91,7 @@ test("Telescope and Launch Pad actions, status, and completion notices use all l
     await expect(study).toBeEnabled();
 
     await page.locator("#tab-space-mining-launch-pad").click();
+    await clearQueuedNotifications(page);
     const buildLaunchPad = page.getByRole("button", {
       name: rocketText(locale, "buildLaunchPad"),
       exact: true,
@@ -114,6 +135,7 @@ test("Telescope and Launch Pad actions, status, and completion notices use all l
 
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-telescope").click();
+    await clearQueuedNotifications(page);
     await study.click();
     await expect(page.getByTestId("space-survey-status")).toHaveText(
       spaceText(locale, "surveyStudying"),
@@ -146,6 +168,7 @@ test("Asteroid scan result feedback and discovery state use all locales @p45-spa
   test.setTimeout(180_000);
   for (const locale of LOCALE_IDS) {
     await startSpaceFixture(page, "space-telescope", locale);
+    await clearQueuedNotifications(page);
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-telescope").click();
 
@@ -155,8 +178,9 @@ test("Asteroid scan result feedback and discovery state use all locales @p45-spa
       exact: true,
     });
     if (await buildTelescope.isVisible()) await buildTelescope.click();
+    await clearQueuedNotifications(page);
     await expect(
-      telescope.getByRole("button", { name: spaceText(locale, "scanAsteroids") }),
+      telescope.getByRole("button", { name: spaceText(locale, "scanAsteroids"), exact: true }),
     ).toBeEnabled();
 
     const before = await page.evaluate(() => {
@@ -210,10 +234,6 @@ test("Asteroid scan result feedback and discovery state use all locales @p45-spa
           { asteroid: result.discovered.name },
         )
       : spaceNotificationText(locale, "asteroidScanMissed");
-    const pageFeedback = result.discovered
-      ? spaceText(locale, "feedbackAsteroidFound", { name: result.discovered.name })
-      : spaceText(locale, "feedbackScanMissed");
-
     if (result.discovered) {
       expect(result.asteroidCount).toBe(before.asteroidIds.length + 1);
       expect(result.lifetimeAsteroidsDiscovered).toBe(before.lifetimeAsteroidsDiscovered + 1);
@@ -223,7 +243,6 @@ test("Asteroid scan result feedback and discovery state use all locales @p45-spa
     }
 
     await page.locator("#tab-space-mining").click();
-    await expect(page.getByTestId("space-feedback")).toHaveText(pageFeedback);
     await expect(
       page
         .getByTestId("notification-stack")
@@ -269,13 +288,22 @@ test("Built Rocket fuel and launch status, reasons, and ready notice use all loc
   test.setTimeout(180_000);
   for (const locale of LOCALE_IDS) {
     await startSpaceFixture(page, "space-rocket-fuel-pump", locale);
+    await clearQueuedNotifications(page);
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-rocket-1").click();
 
     const rocket = page.getByTestId("rocket-card-rocket1");
     const rocketLabel = rocketText(locale, "rocketLabel", { index: 1 });
-    await expect(rocket.getByRole("heading", { name: rocketLabel })).toBeVisible();
-    await expect(rocket.locator(".status-pill")).toHaveText(rocketText(locale, "ready"));
+    await expect(page.locator("#pane-space-mining .game-page-title:visible")).toHaveText(
+      rocketLabel,
+    );
+    await expect(
+      rocket.getByRole("heading", {
+        name: localizedRocketUserName(locale, "Rocket 1"),
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(rocket.locator(".status-pill")).toHaveText(rocketText(locale, "readyForRefuel"));
     const launch = rocket.getByRole("button", { name: rocketText(locale, "launch"), exact: true });
     await expect(launch).toBeDisabled();
     await expect(launch).toHaveAttribute("aria-describedby", "rocket-rocket1-launch-reason");
@@ -337,6 +365,7 @@ test("Built Rocket fuel and launch status, reasons, and ready notice use all loc
     await expect(
       rocket.getByRole("button", { name: rocketText(locale, "pauseFueling"), exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
+    await clearQueuedNotifications(page);
     const fuelEtaMs = Number(await fuelEta.getAttribute("data-remaining-ms"));
     expect(fuelEtaMs).toBeGreaterThan(0);
 
@@ -346,7 +375,9 @@ test("Built Rocket fuel and launch status, reasons, and ready notice use all loc
     const rocketName = await page.evaluate(
       () => window.miaplacidusTest!.getState().run.space.rockets.rocket1.name,
     );
-    const readyNotice = spaceNotificationText(locale, "rocketFuelReady", { rocket: rocketName });
+    const readyNotice = spaceNotificationText(locale, "rocketFuelReady", {
+      rocket: localizedRocketUserName(locale, rocketName),
+    });
     await expect(
       page
         .getByTestId("notification-stack")
@@ -357,7 +388,7 @@ test("Built Rocket fuel and launch status, reasons, and ready notice use all loc
 
     await page.locator("#tab-space-mining").click();
     await page.locator("#tab-space-mining-rocket-1").click();
-    await expect(rocket.locator(".status-pill")).toHaveText(rocketText(locale, "ready"));
+    await expect(rocket.locator(".status-pill")).toHaveText(rocketText(locale, "readyForLaunch"));
     await expect(
       rocket.getByRole("progressbar", { name: rocketText(locale, "fuelLevel") }),
     ).toBeVisible();

@@ -59,7 +59,7 @@ test("Black Hole research is a normal action and warp activation plays its dedic
   });
 
   const copy = blackHoleText("en");
-  await page.getByRole("button", { name: /Research Black Hole/ }).click();
+  await page.locator(".black-hole-research .space-action-help-group > .primary-button").click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -71,7 +71,10 @@ test("Black Hole research is a normal action and warp activation plays its dedic
   const chargeDurationMs = await page.evaluate(
     () => window.miaplacidusTest!.getState().run.timers["black-hole:charge"]!.durationMs,
   );
-  await page.evaluate((durationMs) => window.miaplacidusTest!.advanceBy(durationMs + 1), chargeDurationMs);
+  await page.evaluate(
+    (durationMs) => window.miaplacidusTest!.advanceBy(durationMs + 1),
+    chargeDurationMs,
+  );
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.blackHoleChargeReady))
     .toBe(true);

@@ -5,14 +5,19 @@ import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { THEME_IDS, type ThemeId } from "../../../src/content/themes";
 import { blackHoleText } from "../../../src/i18n/blackHoleMessages";
 import { casinoText } from "../../../src/i18n/casinoMessages";
-import { marketText, metaText, rebirthText } from "../../../src/i18n/metaMessages";
+import {
+  marketLockCountdownText,
+  marketText,
+  metaText,
+  rebirthText,
+} from "../../../src/i18n/metaMessages";
 import { megastructureText } from "../../../src/i18n/megastructureMessages";
 
 const galacticIdentityPages = [
   {
     id: "galactic-rebirth",
     sourceOptionId: "option1",
-    label: (locale: LocaleId) => metaText(locale, "rebirthAction"),
+    label: (locale: LocaleId) => metaText(locale, "rebirthTabLabel"),
     title: (locale: LocaleId) => rebirthText(locale, "title"),
     paneSelector: '[data-testid="rebirth-pane"]',
     artwork: "megastructure",
@@ -70,16 +75,22 @@ test("previews and settles an exact Galactic Market trade", async ({ page }, tes
   await page.getByRole("tab", { name: "Galactic" }).click();
   await page.getByRole("tab", { name: "Galactic Market" }).click();
   const market = page.getByRole("region", { name: "Galactic Market" });
-  await market.getByLabel("You give").selectOption("hydrogen");
-  await market.getByLabel("You receive").selectOption("helium");
-  await market.getByLabel("Quantity to trade").fill("10");
-  await expect(market.getByText(/You receive:\s*18 Helium/)).toBeVisible();
-  await market.getByRole("button", { name: "Confirm trade", exact: true }).click();
+  await market.getByLabel(marketText("en", "tradeRow")).selectOption("hydrogen");
+  await market.getByLabel(marketText("en", "tradeFor")).selectOption("helium");
+  await market.getByLabel(marketText("en", "quantity")).fill("10");
+  const quoteRows = market.locator(".upgrade-card").first().locator("p");
+  const outgoingSummary = `${marketText("en", "summaryOutgoing")} 10 Hydrogen`;
+  const incomingSummary = `${marketText("en", "summaryIncoming")} 18 Helium`;
+  await expect(quoteRows.getByText(outgoingSummary, { exact: true })).toBeVisible();
+  await expect(quoteRows.getByText(incomingSummary, { exact: true })).toBeVisible();
+  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 10_000 });
+  await market.getByRole("button", { name: marketText("en", "trade"), exact: true }).click();
   const tradeNotice = page.locator(
     '[data-testid="game-notification"][data-classification="special"]',
   );
   await expect(tradeNotice).toHaveText(
     "You have traded 9 Hydrogen for 18 Helium and paid 1 Hydrogen commission!",
+    { timeout: 1_000 },
   );
   await expect(market.locator(".live-feedback")).toHaveText("");
 
@@ -90,8 +101,8 @@ test("previews and settles an exact Galactic Market trade", async ({ page }, tes
   await expect(market.getByRole("listitem")).toContainText("10 Hydrogen");
 
   const apBeforeSale = state.permanent.ascendencyPoints;
-  await market.getByLabel("AP to sell").selectOption("10");
-  await market.getByRole("button", { name: "Sell AP for cash", exact: true }).click();
+  await market.getByLabel(marketText("en", "sellAp")).selectOption("10");
+  await market.getByRole("button", { name: marketText("en", "sellApAction"), exact: true }).click();
   let marketState = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(marketState.permanent.ascendencyPoints).toBe(apBeforeSale - 10 + 5);
   expect(marketState.permanent.achievements.unlockedIds).toContain("trade10APForCash");
@@ -103,26 +114,23 @@ test("previews and settles an exact Galactic Market trade", async ({ page }, tes
   await page.getByRole("tab", { name: "Rebirth" }).click();
   const rebirth = page.getByTestId("rebirth-pane");
   const liquidationButton = rebirth.getByRole("button", {
-    name: "Liquidate all assets",
+    name: marketText("en", "liquidate"),
     exact: true,
   });
   await liquidationButton.click();
   const dialog = page.getByRole("dialog", { name: "Confirm asset liquidation" });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "CONFIRM LIQUIDATION" }).click();
+  await dialog
+    .getByRole("button", { name: marketText("en", "confirmLiquidation"), exact: true })
+    .click();
   marketState = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(marketState.permanent.ascendencyPoints).toBe(apBeforeSale - 10 + 5 + 1);
   expect(marketState.run.cash).toBe(0);
   expect(marketState.run.goods.hydrogen.quantity).toBe(0);
   expect(marketState.run.marketLiquidatedThisRun).toBe(true);
   await expect(liquidationButton).toBeDisabled();
-  await expect(liquidationButton).toHaveAttribute(
-    "aria-describedby",
-    "asset-liquidation-reason",
-  );
-  await expect(page.locator("#asset-liquidation-reason")).toContainText(
-    "already been liquidated",
-  );
+  await expect(liquidationButton).toHaveAttribute("aria-describedby", "asset-liquidation-reason");
+  await expect(page.locator("#asset-liquidation-reason")).toContainText("already been liquidated");
   await expect(tradeNotice).toBeHidden();
 });
 
@@ -133,24 +141,31 @@ test("keeps a live trade notice behind the asset-liquidation decision @p08 @noti
   await page.getByRole("tab", { name: "Galactic" }).click();
   await page.getByRole("tab", { name: "Galactic Market" }).click();
   const market = page.getByRole("region", { name: "Galactic Market" });
-  await market.getByLabel("You give").selectOption("hydrogen");
-  await market.getByLabel("You receive").selectOption("helium");
-  await market.getByLabel("Quantity to trade").fill("10");
-  await market.getByRole("button", { name: "Confirm trade", exact: true }).click();
+  await market.getByLabel(marketText("en", "tradeRow")).selectOption("hydrogen");
+  await market.getByLabel(marketText("en", "tradeFor")).selectOption("helium");
+  await market.getByLabel(marketText("en", "quantity")).fill("10");
+  // Clear startup toasts so they cannot hold the trade result behind the two-card queue.
+  const notificationStack = page.getByTestId("notification-stack");
+  await expect(notificationStack).toBeEmpty({ timeout: 10_000 });
+  await market.getByRole("button", { name: marketText("en", "trade"), exact: true }).click();
 
   const notice = page.locator('[data-testid="game-notification"][data-classification="special"]');
-  await expect(notice).toContainText("You have traded 9 Hydrogen for 18 Helium");
-  const notificationStack = page.getByTestId("notification-stack");
-  await expect(notificationStack).toHaveCSS("position", "static");
-  await expect(notificationStack).toHaveCSS("z-index", "auto");
+  await expect(notice).toContainText("You have traded 9 Hydrogen for 18 Helium", {
+    timeout: 1_000,
+  });
+  await expect(notificationStack).toHaveCSS("position", "fixed");
+  await expect(notificationStack).toHaveCSS("z-index", "2147483647");
 
   await page.getByRole("tab", { name: "Rebirth" }).click();
   const rebirth = page.getByTestId("rebirth-pane");
-  const liquidationButton = rebirth.getByRole("button", { name: "Liquidate all assets" });
+  const liquidationButton = rebirth.getByRole("button", {
+    name: marketText("en", "liquidate"),
+    exact: true,
+  });
   await liquidationButton.click();
   const dialog = page.getByRole("dialog", { name: "Confirm asset liquidation" });
   await expect(dialog).toBeVisible();
-  await expect(notice).toBeVisible();
+  await expect(notice).toBeVisible({ timeout: 1_000 });
   const modalHitTest = await page.evaluate(() => {
     const modal = document.querySelector<HTMLDialogElement>(
       'dialog[aria-labelledby="asset-liquidation-title"]',
@@ -172,7 +187,7 @@ test("keeps a live trade notice behind the asset-liquidation decision @p08 @noti
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
-  await expect(notice).toBeVisible();
+  await expect(notice).toBeHidden({ timeout: 4_000 });
   await expect(liquidationButton).toBeFocused();
 
   await liquidationButton.click();
@@ -184,11 +199,32 @@ test("keeps a live trade notice behind the asset-liquidation decision @p08 @noti
 
 test("disabled Galactic Market actions describe live selector reasons", async ({ page }) => {
   await startMetaFixture(page, "meta-market-action-reasons-rebirth-ready");
+  await page.evaluate(() => window.miaplacidusTest!.advanceBy(3_001));
   await page.getByRole("tab", { name: "Galactic" }).click();
   await page.getByRole("tab", { name: "Galactic Market" }).click();
   const market = page.getByRole("region", { name: "Galactic Market" });
-  const tradeButton = market.getByRole("button", { name: "Confirm trade", exact: true });
-  const apButton = market.getByRole("button", { name: "Sell AP for cash", exact: true });
+  await market.getByLabel(marketText("en", "sellAp")).selectOption("10");
+  const lockdownAccepted = await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "random-event.force",
+      eventId: "galacticMarketLockdown",
+    }),
+  );
+  expect(lockdownAccepted).toBe(true);
+  const lockdownDialog = page.getByTestId("random-event-result-dialog");
+  await expect(lockdownDialog).toBeVisible();
+  await lockdownDialog.getByRole("button").click();
+  await expect(lockdownDialog).toBeHidden();
+  const lockDuration = await page.evaluate(
+    () => window.miaplacidusTest!.getState().run.marketLockdownRemainingMs,
+  );
+  expect(lockDuration).toBeGreaterThan(0);
+  const countdown = marketLockCountdownText("en", lockDuration);
+  const tradeButton = market.getByRole("button", { name: marketText("en", "trade"), exact: true });
+  const apButton = market.getByRole("button", {
+    name: marketText("en", "sellApAction"),
+    exact: true,
+  });
   for (const [button, reasonId] of [
     [tradeButton, "galactic-market-trade-reason"],
     [apButton, "galactic-market-ap-sale-reason"],
@@ -196,47 +232,68 @@ test("disabled Galactic Market actions describe live selector reasons", async ({
     await expect(button).toBeDisabled();
     await expect(button).toHaveAttribute("aria-describedby", reasonId);
     await expect(page.locator(`#${reasonId}`)).toContainText("in lockdown");
-    await expect(page.locator(`#${reasonId}`)).toContainText("reopens: 1 min");
+    await expect(page.locator(`#${reasonId}`)).toContainText(countdown);
   }
 
   await page.getByRole("tab", { name: "Rebirth" }).click();
   const rebirth = page.getByTestId("rebirth-pane");
   const liquidationButton = rebirth.getByRole("button", {
-    name: "Liquidate all assets",
+    name: marketText("en", "liquidate"),
     exact: true,
   });
   await expect(liquidationButton).toBeDisabled();
   await expect(liquidationButton).toHaveAttribute("aria-describedby", "asset-liquidation-reason");
   await expect(page.locator("#asset-liquidation-reason")).toContainText("in lockdown");
-  await expect(page.locator("#asset-liquidation-reason")).toContainText("reopens: 1 min");
+  await expect(page.locator("#asset-liquidation-reason")).toContainText(countdown);
 
-  await page.evaluate(() => window.miaplacidusTest!.advanceBy(3_001));
+  await page.evaluate((duration) => window.miaplacidusTest!.advanceBy(duration + 1), lockDuration);
+  let sawMarketRestoration = false;
+  for (let dialogIndex = 0; dialogIndex < 12; dialogIndex += 1) {
+    const nextDialogOpened = await page
+      .waitForFunction(
+        () =>
+          document.querySelector<HTMLDialogElement>(
+            '[data-testid="random-event-result-dialog"]',
+          )?.open ?? false,
+        undefined,
+        { timeout: dialogIndex === 0 ? 5_000 : 500 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!nextDialogOpened) break;
+
+    const heading = (await lockdownDialog.getByRole("heading").innerText()).trim();
+    sawMarketRestoration ||= heading === "GALACTIC MARKET RESTORED!";
+    await lockdownDialog.getByRole("button").click();
+    await expect(lockdownDialog).toBeHidden();
+  }
+  expect(sawMarketRestoration).toBe(true);
   await page.getByRole("tab", { name: "Galactic Market" }).click();
   await expect(page.getByText(/in lockdown/)).toHaveCount(0);
-  await market.getByLabel("You give").selectOption("hydrogen");
-  await market.getByLabel("You receive").selectOption("helium");
+  await market.getByLabel(marketText("en", "tradeRow")).selectOption("hydrogen");
+  await market.getByLabel(marketText("en", "tradeFor")).selectOption("helium");
 
-  await market.getByLabel("Quantity to trade").fill("101");
+  await market.getByLabel(marketText("en", "quantity")).fill("101");
   const tradeReason = page.locator("#galactic-market-trade-reason");
   await expect(tradeButton).toBeDisabled();
   await expect(tradeButton).toHaveAttribute("aria-describedby", "galactic-market-trade-reason");
   await expect(tradeReason).toContainText("101");
   await expect(tradeReason).toContainText("100 Hydrogen");
 
-  await market.getByLabel("Quantity to trade").fill("10");
+  await market.getByLabel(marketText("en", "quantity")).fill("10");
   await expect(tradeReason).toContainText("18 Helium");
   await expect(tradeReason).toContainText("1");
   await expect(tradeReason).toContainText("120");
-  await market.getByLabel("Quantity to trade").fill("1");
+  await market.getByLabel(marketText("en", "quantity")).fill("1");
   await expect(tradeReason).toContainText("2 Helium");
 
-  await market.getByLabel("AP to sell").selectOption("10");
+  await market.getByLabel(marketText("en", "sellAp")).selectOption("10");
   const apReason = page.locator("#galactic-market-ap-sale-reason");
   await expect(apButton).toBeDisabled();
   await expect(apButton).toHaveAttribute("aria-describedby", "galactic-market-ap-sale-reason");
   await expect(apReason).toContainText("10 AP");
   await expect(apReason).toContainText("3");
-  await market.getByLabel("AP to sell").selectOption("1");
+  await market.getByLabel(marketText("en", "sellAp")).selectOption("1");
   await expect(apButton).toBeEnabled();
   await expect(apReason).toHaveCount(0);
   await expect(apButton).not.toHaveAttribute("aria-describedby", /.+/);
@@ -244,7 +301,7 @@ test("disabled Galactic Market actions describe live selector reasons", async ({
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().permanent.ascendencyPoints))
     .toBe(2);
-  await market.getByLabel("AP to sell").selectOption("5");
+  await market.getByLabel(marketText("en", "sellAp")).selectOption("5");
   await expect(apButton).toBeDisabled();
   await expect(apReason).toContainText("5 AP");
   await expect(apReason).toContainText("2");
@@ -252,10 +309,7 @@ test("disabled Galactic Market actions describe live selector reasons", async ({
   await page.getByRole("tab", { name: "Rebirth" }).click();
   const liquidationReason = page.locator("#asset-liquidation-reason");
   await expect(liquidationButton).toBeDisabled();
-  await expect(liquidationButton).toHaveAttribute(
-    "aria-describedby",
-    "asset-liquidation-reason",
-  );
+  await expect(liquidationButton).toHaveAttribute("aria-describedby", "asset-liquidation-reason");
   await expect(liquidationReason).toContainText("Liquidation is worth");
   await expect(liquidationReason).toContainText("needed for 1 AP");
 });
@@ -270,7 +324,7 @@ test("Galactic child pages keep localized identity, artwork, and bounds across t
     await page.locator("#tab-settings").click();
     await page.locator("#tab-settings-visual").click();
     await page.locator("#settings-theme").selectOption(theme);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 
     for (const locale of LOCALE_IDS) {
       await page.locator("#tab-settings").click();
@@ -324,11 +378,40 @@ test("Galactic child pages keep localized identity, artwork, and bounds across t
 
           const geometry = await pane.evaluate((element) => {
             const bounds = element.getBoundingClientRect();
+            const overflowingFlowDescendants = Array.from(
+              element.querySelectorAll<HTMLElement>("*"),
+            )
+              .map((child) => {
+                const childBounds = child.getBoundingClientRect();
+                const style = getComputedStyle(child);
+                return {
+                  tag: child.tagName.toLowerCase(),
+                  className: typeof child.className === "string" ? child.className : "",
+                  text: (child.textContent ?? "").trim().slice(0, 60),
+                  right: Math.round(childBounds.right * 10) / 10,
+                  width: Math.round(childBounds.width * 10) / 10,
+                  position: style.position,
+                  minWidth: style.minWidth,
+                  scrollWidth: child.scrollWidth,
+                  clientWidth: child.clientWidth,
+                };
+              })
+              .filter(
+                (child) =>
+                  child.position !== "absolute" &&
+                  child.position !== "fixed" &&
+                  child.right > bounds.right + 1,
+              )
+              .slice(0, 8);
+            const flowContentRight = overflowingFlowDescendants.reduce(
+              (right, child) => Math.max(right, child.right),
+              bounds.right,
+            );
             return {
               left: bounds.left,
               right: bounds.right,
-              clientWidth: element.clientWidth,
-              scrollWidth: element.scrollWidth,
+              flowContentRight,
+              overflowingFlowDescendants,
               documentWidth: document.documentElement.scrollWidth,
               viewportWidth: document.documentElement.clientWidth,
             };
@@ -336,9 +419,10 @@ test("Galactic child pages keep localized identity, artwork, and bounds across t
           const context = `${theme}/${locale}/${viewport.width}px ${child.id}`;
           expect(geometry.left, `${context} pane left`).toBeGreaterThanOrEqual(-1);
           expect(geometry.right, `${context} pane right`).toBeLessThanOrEqual(viewport.width + 1);
-          expect(geometry.scrollWidth, `${context} pane horizontal overflow`).toBeLessThanOrEqual(
-            geometry.clientWidth + 1,
-          );
+          expect(
+            geometry.flowContentRight,
+            `${context} in-flow pane content horizontal overflow ${JSON.stringify(geometry.overflowingFlowDescendants)}`,
+          ).toBeLessThanOrEqual(geometry.right + 1);
           expect(
             geometry.documentWidth,
             `${context} document horizontal overflow`,
@@ -356,7 +440,7 @@ test("moves focus to the Rebirth liquidation heading after successful liquidatio
   await page.getByRole("tab", { name: "Galactic" }).click();
   await page.getByRole("tab", { name: "Rebirth" }).click();
   const rebirth = page.getByTestId("rebirth-pane");
-  const trigger = rebirth.getByRole("button", { name: "Liquidate all assets" });
+  const trigger = rebirth.getByRole("button", { name: marketText("en", "liquidate") });
   await trigger.click();
   await page
     .getByRole("dialog", { name: "Confirm asset liquidation" })

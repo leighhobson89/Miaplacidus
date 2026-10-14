@@ -1,22 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { LocaleId } from "../content/ids";
+import type { ThemeId } from "../content/themes";
 import { LOCALE_IDS } from "../content/ids";
 import type { SaveIndexEntry } from "../persistence/repository";
 import type { SaveMessageKey } from "../i18n/saveMessages";
 import { saveText } from "../i18n/saveMessages";
 import { translate } from "../i18n/messages";
+import { GameNotificationRegion } from "./NotificationStack";
 import startupScene from "../assets/miaplacidus-startup-scene.svg";
 
 interface Props {
   readonly locale: LocaleId;
+  readonly themeId: ThemeId;
   readonly setLocale: (locale: LocaleId) => void;
   readonly name: string;
   readonly setName: (name: string) => void;
   readonly slots: readonly SaveIndexEntry[];
   readonly selectedSlotId: string | null;
   readonly focusNameOnMount: boolean;
-  readonly error: string;
-  readonly notice: string;
   readonly storageAvailable: boolean;
   readonly starting: boolean;
   readonly onSelectSlot: (slotId: string, name: string) => void;
@@ -26,14 +27,13 @@ interface Props {
 
 export function SaveStartScreen({
   locale,
+  themeId,
   setLocale,
   name,
   setName,
   slots,
   selectedSlotId,
   focusNameOnMount,
-  error,
-  notice,
   storageAvailable,
   starting,
   onSelectSlot,
@@ -98,19 +98,24 @@ export function SaveStartScreen({
 
   return (
     <section className="welcome-panel save-start-panel" aria-labelledby="welcome-title">
-      <img className="startup-scene" src={startupScene} alt="" aria-hidden="true" />
+      <GameNotificationRegion
+        themeId={themeId}
+        reducedMotion={false}
+        customPointerEnabled={false}
+      />
+      <img
+        className="startup-scene"
+        src={startupScene}
+        alt=""
+        aria-hidden="true"
+        fetchPriority="high"
+      />
       <div className="wordmark" aria-hidden="true">
         ✦
       </div>
       <p className="eyebrow">{t("choose")}</p>
       <h1 id="welcome-title">MIAPLACIDUS</h1>
       {!storageAvailable && <output className="save-warning">{t("unsaved")}</output>}
-      {error && (
-        <p className="save-error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <output className="save-notice">{notice}</output>}
       <form
         className="welcome-form"
         onSubmit={(event) => {

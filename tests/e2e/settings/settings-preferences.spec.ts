@@ -168,7 +168,7 @@ async function startNativeAudioGame(page: Page): Promise<void> {
 test("visual and audio preferences affect the UI and persist with their save @settings @audio @visual", async ({
   freshGame,
 }) => {
-  const frame = freshGame.locator(".game-frame");
+  const frame = freshGame.locator(".game-frame:not(.notification-portal)");
   await freshGame.locator("#tab-settings").click();
   const settings = freshGame.getByTestId("settings-pane");
   await expect(settings.locator("#settings-notation")).toHaveValue("condensed");
@@ -539,7 +539,7 @@ test("audio and visual preferences restore independently for each local pioneer 
   const pioneerA = "Hydrogen Pioneer";
   const pioneerB = "Hydrogen Pioneer B";
   const settings = freshGame.getByTestId("settings-pane");
-  const frame = freshGame.locator(".game-frame");
+  const frame = freshGame.locator(".game-frame:not(.notification-portal)");
 
   await freshGame.locator("#tab-settings").click();
   await settings.locator("#tab-settings-visual").click();
@@ -576,6 +576,9 @@ test("audio and visual preferences restore independently for each local pioneer 
     .click();
   await resumeSavedPioneer(freshGame, pioneerA);
   await expect(freshGame.locator(".run-name")).toHaveText(pioneerA);
+  await expect
+    .poll(() => freshGame.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
   const settingsA = await freshGame.evaluate(() => {
     const {
       backgroundAudioEnabled,
@@ -617,6 +620,9 @@ test("audio and visual preferences restore independently for each local pioneer 
     .click();
   await resumeSavedPioneer(freshGame, pioneerB);
   await expect(freshGame.locator(".run-name")).toHaveText(pioneerB);
+  await expect
+    .poll(() => freshGame.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
+    .toBe(true);
   const settingsB = await freshGame.evaluate(() => {
     const {
       backgroundAudioEnabled,

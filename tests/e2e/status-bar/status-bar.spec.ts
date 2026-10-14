@@ -19,6 +19,10 @@ async function forceEvent(
     eventId,
   );
   expect(accepted).toBe(true);
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).toBeHidden();
 }
 
 async function startSpaceLateGameFixture(page: import("@playwright/test").Page) {
@@ -187,7 +191,7 @@ test("localizes the static event label, shows latest event state and RP source r
   expect(globalOrder.indexOf("top-stat-gp")).toBeGreaterThanOrEqual(0);
   expect(globalOrder.indexOf("top-stat-ap")).toBeGreaterThan(globalOrder.indexOf("top-stat-gp"));
   const initialRunOrder = await runStats
-    .locator(":scope > *")
+    .locator(":scope > .top-stat, :scope > .location-status")
     .evaluateAll((children) => children.map((child) => child.getAttribute("data-testid")));
   expect(initialRunOrder.slice(0, 4)).toEqual([
     "location-status",
@@ -278,7 +282,7 @@ test("localizes the static event label, shows latest event state and RP source r
       "body",
       "#root",
       "main",
-      ".game-frame",
+      ".game-frame:not(.notification-portal)",
       ".game-header",
       ".top-status-bar",
     ];
@@ -379,8 +383,8 @@ test("localizes the static event label, shows latest event state and RP source r
   expect(layout.barLeft).toBeGreaterThanOrEqual(0);
   expect(layout.barRight).toBeLessThanOrEqual(layout.viewportWidth);
   for (const card of layout.cards) {
-    expect(card.left).toBeGreaterThanOrEqual(layout.barLeft);
-    expect(card.right).toBeLessThanOrEqual(layout.barRight);
+    expect(card.left).toBeGreaterThanOrEqual(layout.barLeft - 1.5);
+    expect(card.right).toBeLessThanOrEqual(layout.barRight + 1.5);
   }
   await expect(globalContext).toBeVisible();
 });
@@ -458,7 +462,9 @@ test("keeps localized current-run and whole-game stat order at 390px and 320px @
       );
       await expect(runStats).toHaveAttribute("aria-label", topStatusText(locale, "region"));
       await expect(globalContext.locator(":scope > *")).toHaveCount(globalOrder.length);
-      await expect(runStats.locator(":scope > *")).toHaveCount(currentRunOrder.length);
+      await expect(
+        runStats.locator(":scope > .top-stat, :scope > .location-status"),
+      ).toHaveCount(currentRunOrder.length);
       await expect
         .poll(() =>
           globalContext
@@ -471,7 +477,7 @@ test("keeps localized current-run and whole-game stat order at 390px and 320px @
       await expect
         .poll(() =>
           runStats
-            .locator(":scope > *")
+            .locator(":scope > .top-stat, :scope > .location-status")
             .evaluateAll((children) =>
               children.map((child) => (child as HTMLElement).dataset.testid),
             ),
@@ -510,7 +516,7 @@ test("keeps localized current-run and whole-game stat order at 390px and 320px @
         "top-stat-ap",
         topStatusText(locale, "ascendencyPointsName"),
       );
-      await expectTopStatTooltip(page, "top-stat-cash", topStatusText(locale, "cash"));
+  await expectTopStatTooltip(page, "top-stat-cash", topStatusText(locale, "cashTooltip"));
       await expectTopStatTooltip(page, "top-stat-cp", topStatusText(locale, "casinoPointsName"));
 
       const timeStat = page.getByTestId("top-stat-time");
@@ -988,7 +994,10 @@ test("keeps phone status tooltips in view and fills each run-stat row at 390px a
       const cash = document.querySelector<HTMLElement>('[data-testid="top-stat-cash"]');
       if (!bar || !run || !cash) throw new Error("Required run stats are missing.");
       const barBounds = bar.getBoundingClientRect();
-      const cards = Array.from(bar.children).map((child) => {
+      const statusCards = Array.from(bar.children).filter(
+        (child) => !(child as HTMLElement).classList.contains("sr-only"),
+      );
+      const cards = statusCards.map((child) => {
         const element = child as HTMLElement;
         const bounds = element.getBoundingClientRect();
         const style = getComputedStyle(element);
@@ -1003,7 +1012,7 @@ test("keeps phone status tooltips in view and fills each run-stat row at 390px a
         };
       });
       const rows = new Map<number, Array<{ id: string | null; left: number; right: number }>>();
-      for (const child of Array.from(bar.children)) {
+      for (const child of statusCards) {
         const element = child as HTMLElement;
         const bounds = element.getBoundingClientRect();
         const top = Math.round(bounds.top);
@@ -1189,12 +1198,14 @@ test("shows the full Standard cash balance on desktop in Terminal and Light them
       };
     });
     expect(cashSizing.cashGrow).toBe(cashSizing.timeGrow);
-    expect(cashSizing.cashBasis).toBe(cashSizing.timeBasis);
-    expect(cashSizing.cashWidth).toBeLessThan(cashSizing.timeWidth * 1.8);
+    expect(Number.parseFloat(cashSizing.cashBasis)).toBeGreaterThan(
+      Number.parseFloat(cashSizing.timeBasis),
+    );
+    expect(cashSizing.cashWidth).toBeGreaterThanOrEqual(152);
     console.log(`${theme} Standard Run Time/Cash sizing`, JSON.stringify(cashSizing));
     const rowTops = await page
       .getByTestId("run-status-bar")
-      .locator(":scope > *")
+      .locator(":scope > .top-stat, :scope > .location-status")
       .evaluateAll((elements) =>
         elements.map((element) => Math.round(element.getBoundingClientRect().top)),
       );

@@ -30,7 +30,7 @@ Continue with:
 - Continue the P-56 presentation review matrix and remaining P-05/P-06/P-20 accessibility and interaction gaps.
 - Continue using independent project agents for parallel slices, as required by `IncrementalGame/AGENTS.md` and the owner's standing instruction.
 - Run focused checks for touched areas; do not run the full suite without owner approval.
-- Keep Phase 6 open until the checklist exit gate and owner translation review are satisfied.
+- Historical 7 October status: keep Phase 6 open pending its checklist and owner translation review. The owner superseded the translation-review condition on 13 October 2026; current acceptance is governed by the active checklist, required value presence, intended-route coverage, and reproduced layout defects.
 
 ## P-16 focus-route inventory (9 October 2026)
 

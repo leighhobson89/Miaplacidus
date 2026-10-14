@@ -177,7 +177,7 @@ test("Research and Energy dynamic cost rows fit all phone locales @e57-economy-c
       await expect(page.locator('dialog[open], [role="dialog"]:visible')).toHaveCount(0);
       for (const id of scienceIds) {
         const card = sciencePanel.locator(`[data-building-id="${id}"]`);
-        const price = card.locator(":scope > p").nth(2);
+        const price = card.locator(":scope > p").nth(3);
         await expect(card, `${locale} ${id} card`).toBeVisible();
         await expect(price, `${locale} ${id} cash price`).toHaveText(/\S/);
         await expectInsideViewport(card, viewport.width, `${locale} ${id} Research card`);
@@ -185,9 +185,7 @@ test("Research and Energy dynamic cost rows fit all phone locales @e57-economy-c
 
         if (viewport.width === 320 && locale === LOCALE_IDS[0] && id === scienceIds[0]) {
           const initialPrice = await price.textContent();
-          await card
-            .getByRole("button", { name: economyLabel(locale, "buy"), exact: true })
-            .click();
+          await card.locator(".economy-building-actions button").first().click();
           await expect(price).not.toHaveText(initialPrice ?? "");
         }
       }
@@ -200,7 +198,7 @@ test("Research and Energy dynamic cost rows fit all phone locales @e57-economy-c
       for (let index = 0; index < (await technologyCosts.count()); index += 1) {
         const cost = technologyCosts.nth(index);
         await expect(cost, `${locale} Tech Tree cost ${index + 1}`).toContainText(
-          economyLabel(locale, "points"),
+          economyLabel(locale, "researchCostSuffix"),
         );
         await expectNoHorizontalOverflow(cost, `${locale} Tech Tree cost ${index + 1}`);
       }
@@ -216,16 +214,14 @@ test("Research and Energy dynamic cost rows fit all phone locales @e57-economy-c
       await expect(page.locator('dialog[open], [role="dialog"]:visible')).toHaveCount(0);
       for (const [index, id] of batteryIds.entries()) {
         const card = page.locator(`#panel-energy [data-building-id="${id}"]`);
-        const price = card.locator(":scope > p").nth(1);
+        const price = card.locator(`#battery-${id}-cost`);
         await expect(card, `${locale} ${id} Battery card`).toBeVisible();
         await expect(price, `${locale} ${id} cash/material price`).toContainText(/\d/);
         await expectInsideViewport(card, viewport.width, `${locale} ${id} Battery card`);
         await expectNoHorizontalOverflow(card, `${locale} ${id} Battery card`);
         if (viewport.width === 320 && locale === LOCALE_IDS[0] && index === 0) {
           const initialPrice = await price.textContent();
-          await card
-            .getByRole("button", { name: economyLabel(locale, "buy"), exact: true })
-            .click();
+          await card.locator(".economy-building-actions button").first().click();
           await expect(price).not.toHaveText(initialPrice ?? "");
         }
       }
@@ -236,16 +232,14 @@ test("Research and Energy dynamic cost rows fit all phone locales @e57-economy-c
       await expect(page.locator('dialog[open], [role="dialog"]:visible')).toHaveCount(0);
       for (const [index, id] of plantIds.entries()) {
         const card = page.locator(`#panel-energy [data-building-id="${id}"]`);
-        const price = card.locator(":scope > p").nth(1);
+        const price = card.locator(`#energy-building-${id}-cost`);
         await expect(card, `${locale} ${id} Power card`).toBeVisible();
         await expect(price, `${locale} ${id} cash/material price`).toContainText(/\d/);
         await expectInsideViewport(card, viewport.width, `${locale} ${id} Power card`);
         await expectNoHorizontalOverflow(card, `${locale} ${id} Power card`);
         if (viewport.width === 320 && locale === LOCALE_IDS[0] && index === 0) {
           const initialPrice = await price.textContent();
-          await card
-            .getByRole("button", { name: economyLabel(locale, "buy"), exact: true })
-            .click();
+          await card.locator(".economy-building-actions button").first().click();
           await expect(price).not.toHaveText(initialPrice ?? "");
         }
       }
@@ -260,8 +254,8 @@ test("Philosophy choice and selected-path costs fit all phone locales @e57-philo
   await startEconomyFixture(page, "space-telescope", "E-57 Philosophy Modal Pioneer");
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope", exact: true }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  await page.getByRole("button", { name: "Study Stars", exact: true }).click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({
@@ -364,7 +358,7 @@ test("Philosophy choice and selected-path costs fit all phone locales @e57-philo
 
   const finalCopy = philosophyText(LOCALE_IDS.at(-1)!);
   const ability = page.locator("#panel-research-philosophy .philosophy-ability");
-  await ability.getByRole("button", { name: finalCopy.buy, exact: true }).click();
+  await ability.getByRole("button", { name: finalCopy.abilityAction, exact: true }).click();
   await expect(page.locator('dialog[open], [role="dialog"]:visible')).toHaveCount(0);
   await expect(ability).toContainText(finalCopy.active);
 });

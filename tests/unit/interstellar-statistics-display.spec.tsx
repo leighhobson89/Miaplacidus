@@ -160,7 +160,7 @@ describe("Interstellar Statistics display", () => {
       expect(rows).toEqual(interstellarRowIds);
 
       const sectionHeading = markup.indexOf(
-        `<h4>${settingsStatisticLabel(locale, "interstellarSection")}</h4>`,
+        `<h3>${settingsStatisticLabel(locale, "interstellarSection")}</h3>`,
       );
       const interstellarSection = markup.slice(
         sectionHeading,
@@ -275,12 +275,12 @@ describe("Interstellar Statistics display", () => {
       settingsStatisticLabel(locale, "yes"),
       notApplicable,
     ]);
-    expect(statisticValues(markup, "fleetAttackStrength")).toEqual([number(100), notApplicable]);
-    expect(statisticValues(markup, "envoy")).toEqual([number(1), notApplicable]);
-    expect(statisticValues(markup, "scout")).toEqual([number(2), notApplicable]);
-    expect(statisticValues(markup, "marauder")).toEqual([number(3), notApplicable]);
-    expect(statisticValues(markup, "landStalker")).toEqual([number(4), notApplicable]);
-    expect(statisticValues(markup, "navalStrafer")).toEqual([number(5), notApplicable]);
+    expect(statisticValues(markup, "fleetAttackStrength")).toEqual([number(100), number(100)]);
+    expect(statisticValues(markup, "envoy")).toEqual([number(1), number(1)]);
+    expect(statisticValues(markup, "scout")).toEqual([number(2), number(2)]);
+    expect(statisticValues(markup, "marauder")).toEqual([number(3), number(3)]);
+    expect(statisticValues(markup, "landStalker")).toEqual([number(4), number(4)]);
+    expect(statisticValues(markup, "navalStrafer")).toEqual([number(5), number(5)]);
     expect(statisticValues(markup, "enemy")).toEqual([encounter.raceName, notApplicable]);
     expect(statisticValues(markup, "enemyDefenceOvercome")).toEqual([notApplicable, notApplicable]);
     expect(statisticValues(markup, "enemyDefenceRemaining")).toEqual([
@@ -289,7 +289,7 @@ describe("Interstellar Statistics display", () => {
     ]);
     expect(statisticValues(markup, "apFromStarVoyage")).toEqual([
       number(selected.apFromStarVoyage),
-      notApplicable,
+      number(selected.apFromStarVoyage),
     ]);
     expect(statisticValues(markup, "blackHoleDiscovered")).toEqual([
       notApplicable,

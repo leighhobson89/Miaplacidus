@@ -18,7 +18,10 @@
     "test:unit": "vitest run --passWithNoTests tests/unit",
     "test:unit:focused": "vitest run --passWithNoTests",
     "check:localization": "npm run typecheck && vitest run tests/unit/localization-validation.spec.ts",
-    "test:e2e": "playwright test --pass-with-no-tests tests/e2e",
+    "test:e2e": "node scripts/run-e2e-areas.mjs --all",
+    "test:e2e:areas": "node scripts/run-e2e-areas.mjs --all",
+    "test:e2e:populated": "node scripts/run-e2e-areas.mjs --populated",
+    "test:e2e:area": "node scripts/run-e2e-areas.mjs",
     "test:e2e:focused": "playwright test --pass-with-no-tests"
   },
   "dependencies": {

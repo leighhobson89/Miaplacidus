@@ -5,6 +5,7 @@ import type { LocaleId } from "../../../src/content/ids";
 import type { ThemeId } from "../../../src/content/themes";
 import { economyLabel } from "../../../src/i18n/economyMessages";
 import { philosophyText } from "../../../src/i18n/philosophyMessages";
+import { spaceText } from "../../../src/i18n/spaceMessages";
 
 async function startResearchFixture(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -21,17 +22,24 @@ async function startResearchFixture(page: Page): Promise<void> {
   await expect
     .poll(() => page.evaluate(() => typeof window.miaplacidusTest?.dispatch === "function"))
     .toBe(true);
+  const tutorialDismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+  if (await tutorialDismissButton.isVisible()) await tutorialDismissButton.click();
   await page.evaluate(() =>
     window.miaplacidusTest!.dispatch({
       type: "settings.update",
       patch: { notificationsEnabled: false },
     }),
   );
+  await expect(page.getByTestId("notification-stack").getByTestId("game-notification")).toHaveCount(0);
 
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope", exact: true }).click();
-  await page.getByRole("button", { name: "Study stars", exact: true }).click();
+  await page
+    .getByRole("button", { name: spaceText("en", "telescopeBuild"), exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: spaceText("en", "studyStars"), exact: true })
+    .click();
   expect(
     await page.evaluate(() =>
       window.miaplacidusTest!.dispatch({
@@ -54,7 +62,7 @@ async function setPresentation(page: Page, locale: LocaleId, themeId: ThemeId): 
     { nextLocale: locale, nextTheme: themeId },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
 }
 
 test("Research destinations have reviewed desktop and phone visuals across themes and locales @p65-visual-review", async ({
@@ -69,7 +77,7 @@ test("Research destinations have reviewed desktop and phone visuals across theme
     {
       pageId: "tab-research-science-buildings",
       panelId: "panel-research-science-buildings",
-      titleSelector: ".economy-section-heading > .game-page-title",
+      titleSelector: ".economy-section-heading > .economy-page-title-row > .game-page-title",
       artworkSelector: ":scope > .page-artwork-row",
       expectedTitle: (locale: LocaleId) => economyLabel(locale, "research"),
       artwork: "laboratory",
@@ -81,7 +89,7 @@ test("Research destinations have reviewed desktop and phone visuals across theme
     {
       pageId: "tab-research-science-buildings",
       panelId: "panel-research-science-buildings",
-      titleSelector: ".economy-section-heading > .game-page-title",
+      titleSelector: ".economy-section-heading > .economy-page-title-row > .game-page-title",
       artworkSelector: ":scope > .page-artwork-row",
       expectedTitle: (locale: LocaleId) => economyLabel(locale, "research"),
       artwork: "laboratory",
@@ -93,7 +101,7 @@ test("Research destinations have reviewed desktop and phone visuals across theme
     {
       pageId: "tab-research-tech-tree",
       panelId: "panel-research-tech-tree",
-      titleSelector: ".economy-section-heading > .game-page-title",
+      titleSelector: ".economy-section-heading > .economy-page-title-row > .game-page-title",
       artworkSelector: ":scope > .page-artwork-row",
       expectedTitle: (locale: LocaleId) => economyLabel(locale, "technologyTree"),
       artwork: "technology",
@@ -105,7 +113,7 @@ test("Research destinations have reviewed desktop and phone visuals across theme
     {
       pageId: "tab-research-tech-tree",
       panelId: "panel-research-tech-tree",
-      titleSelector: ".economy-section-heading > .game-page-title",
+      titleSelector: ".economy-section-heading > .economy-page-title-row > .game-page-title",
       artworkSelector: ":scope > .page-artwork-row",
       expectedTitle: (locale: LocaleId) => economyLabel(locale, "technologyTree"),
       artwork: "technology",

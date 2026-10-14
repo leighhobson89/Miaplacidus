@@ -13,6 +13,8 @@ import {
   type MaterialDefinition,
 } from "../content/economy";
 import {
+  COMPOUND_IDS,
+  MATERIAL_IDS,
   autobuyerUpgradeId,
   type EconomicGoodId,
   type MaterialId,
@@ -64,10 +66,11 @@ import { InfoTooltip } from "./InfoTooltip";
 import { economyGoodName, economyGoodPageTitle } from "./economyDisplay";
 import { RESOURCE_PANE_ORDER } from "./presentationNavigation";
 import { useGameNotifications } from "./NotificationStack";
-import { dispatchEconomySale } from "./economySaleNotifications";
+import { dispatchEconomySale, dispatchEconomySellAll } from "./economySaleNotifications";
 import { dispatchManualCompoundCreation } from "./compoundCreatedNotifications";
 import {
   dispatchEconomyAutobuyerPurchase,
+  dispatchEconomyStorageIncreaseAll,
   dispatchEconomyStoragePurchase,
 } from "./economyActionNotifications";
 import { starshipText } from "../i18n/starshipMessages";
@@ -343,39 +346,94 @@ export function EconomyPanes({ tabId, activePane, state, store }: EconomyPanesPr
   return <p className="pane-intro">{economyLabel(state.settings.locale, "resources")}</p>;
 }
 
+function EconomyBulkActions({
+  category,
+  state,
+  store,
+}: {
+  readonly category: "resources" | "compounds";
+  readonly state: GameState;
+  readonly store: GameStore;
+}) {
+  const notify = useGameNotifications();
+  const locale = state.settings.locale;
+  const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
+  const storageCommand = { type: "economy.storage.increaseAllCategory", category } as const;
+  const storage = selectEconomyAction(state, storageCommand);
+  const enabled =
+    category === "resources"
+      ? MATERIAL_IDS.some(
+          (goodId) =>
+            state.run.unlockedResources.includes(goodId) &&
+            selectGoodSale(state, goodId, "all").enabled,
+        )
+      : COMPOUND_IDS.some(
+          (goodId) =>
+            state.run.economy.unlockedCompounds.includes(goodId) &&
+            selectGoodSale(state, goodId, "all").enabled,
+        );
+  return (
+    <div className="economy-page-actions">
+      <button
+        type="button"
+        className="secondary-button"
+        data-testid={`economy-sell-all-${category}`}
+        aria-label={`${t("sellAll")} ${t(category)}`}
+        disabled={!enabled}
+        onClick={() => dispatchEconomySellAll(state, store, category, notify)}
+      >
+        {t("sellAll")}
+      </button>
+      <button
+        type="button"
+        className="secondary-button"
+        data-testid={`economy-increase-all-storage-${category}`}
+        aria-label={`${t("increaseAllStorage")} ${t(category)}`}
+        disabled={!storage.enabled}
+        onClick={() => dispatchEconomyStorageIncreaseAll(store, category, notify)}
+      >
+        {t("increaseAllStorage")}
+      </button>
+    </div>
+  );
+}
+
 function ResourceCatalogue({ activePane, state, store }: Omit<EconomyPanesProps, "tabId">) {
   const locale = state.settings.locale;
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
   const economyTick = createEconomyTickPlan(state);
   return (
-    <section
-      className="economy-section"
-      aria-label={t("resources")}
-      data-testid="economy-resource-cards"
-      hidden={activePane === "resources-hydrogen"}
-    >
-      <div className="resource-subpanes">
-        {RESOURCE_PANE_ORDER.filter((id) => id !== "hydrogen").map((id) => (
-          <section
-            key={id}
-            id={`panel-resources-${id}`}
-            className="subpane-panel resource-subpane"
-            role="tabpanel"
-            aria-labelledby={`tab-resources-${id}`}
-            tabIndex={0}
-            hidden={activePane !== `resources-${id}`}
-          >
-            {state.run.unlockedResources.includes(id) ? (
-              <ResourceHeroCard id={id} state={state} store={store} economyTick={economyTick} />
-            ) : (
-              <div className="economy-card-grid">
-                <ResourceCard id={id} state={state} store={store} economyTick={economyTick} />
-              </div>
-            )}
-          </section>
-        ))}
-      </div>
-    </section>
+    <>
+      <EconomyBulkActions category="resources" state={state} store={store} />
+      <section
+        className="economy-section"
+        aria-label={t("resources")}
+        data-testid="economy-resource-cards"
+        hidden={activePane === "resources-hydrogen"}
+      >
+        <div className="resource-subpanes">
+          {RESOURCE_PANE_ORDER.filter((id) => id !== "hydrogen").map((id) => (
+            <section
+              key={id}
+              id={`panel-resources-${id}`}
+              className="subpane-panel resource-subpane"
+              role="tabpanel"
+              aria-labelledby={`tab-resources-${id}`}
+              tabIndex={0}
+              hidden={activePane !== `resources-${id}`}
+            >
+              {state.run.unlockedResources.includes(id) ? (
+                <ResourceHeroCard id={id} state={state} store={store} economyTick={economyTick} />
+              ) : (
+                <div className="economy-card-grid">
+                  <ResourceCard id={id} state={state} store={store} economyTick={economyTick} />
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -1551,10 +1609,15 @@ function LegacyCompoundPanel({ activePane, state, store }: Omit<EconomyPanesProp
 }
 
 function CompoundPanel(props: Omit<EconomyPanesProps, "tabId">) {
-  if (!props.state.run.economy.researchedTechnologies.includes("compounds")) {
-    return <LegacyCompoundPanel {...props} />;
+  if (props.state.run.economy.researchedTechnologies.includes("compounds")) {
+    return <CompoundCatalogue {...props} />;
   }
-  return <CompoundCatalogue {...props} />;
+  return (
+    <>
+      <EconomyBulkActions category="compounds" state={props.state} store={props.store} />
+      <LegacyCompoundPanel {...props} />
+    </>
+  );
 }
 
 function CompoundCatalogue({ activePane, state, store }: Omit<EconomyPanesProps, "tabId">) {
@@ -1654,6 +1717,7 @@ function CompoundGoodPane({
             </div>
           </div>
         </div>
+        <EconomyBulkActions category="compounds" state={state} store={store} />
         {unlocked ? (
           <>
             <EconomicGoodHero id={id} state={state} rate={rate} blocked={blocked}>
@@ -2006,7 +2070,7 @@ function TechnologyPrerequisiteTree({
   const [zoom, setZoom] = useState(1);
   const [focusedTechnologyId, setFocusedTechnologyId] = useState<TechId | null>(null);
   const [hoveredTechnologyId, setHoveredTechnologyId] = useState<TechId | null>(null);
-  const activeTechnologyId = hoveredTechnologyId ?? focusedTechnologyId;
+  const activeTechnologyId = focusedTechnologyId ?? hoveredTechnologyId;
   const visibleIds = useMemo(
     () => new Set(technologies.map((technology) => technology.id)),
     [technologies],

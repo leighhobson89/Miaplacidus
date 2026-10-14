@@ -1,5 +1,15 @@
 import { expect, test } from "../_harness/fixtures";
 
+async function confirmRandomEventResultIfPresent(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  const dialog = page.getByTestId("random-event-result-dialog");
+  if ((await dialog.count()) === 0) return;
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button").click();
+  await expect(dialog).toBeHidden();
+}
+
 async function mainTabIds(page: import("@playwright/test").Page): Promise<string[]> {
   return page
     .locator(".game-nav [role='tab']")
@@ -39,8 +49,10 @@ test("fresh natural progression unlocks Energy and Interstellar in source order 
   await game.locator("#tab-research").click();
   await game.locator("#tab-research-science-buildings").click();
   const scienceKit = game.locator('[data-building-id="scienceKit"]');
-  await scienceKit.getByRole("button", { name: "Buy", exact: true }).click();
-  await expect(scienceKit).toContainText("Owned: 1");
+  await scienceKit.locator(".economy-building-actions button").first().click();
+  await expect
+    .poll(() => game.evaluate(() => window.miaplacidusTest!.getState().run.upgrades.scienceKit))
+    .toBe(1);
 
   await game.locator("#tab-hydrogen").click();
   const hydrogen = game.locator('[data-resource-id="hydrogen"]');
@@ -58,6 +70,7 @@ test("fresh natural progression unlocks Energy and Interstellar in source order 
   const sellHydrogen = game.getByRole("button", { name: "Sell", exact: true });
   for (let cycle = 0; cycle < 40; cycle += 1) {
     await game.evaluate(() => window.miaplacidusTest!.advanceBy(150_000));
+    await confirmRandomEventResultIfPresent(game);
     await sellHydrogen.click();
   }
 
@@ -70,9 +83,12 @@ test("fresh natural progression unlocks Energy and Interstellar in source order 
 
   await game.locator("#tab-research-science-buildings").click();
   const scienceClub = game.locator('[data-building-id="scienceClub"]');
-  await expect(scienceClub.getByRole("button", { name: "Buy", exact: true })).toBeEnabled();
-  await scienceClub.getByRole("button", { name: "Buy", exact: true }).click();
-  await expect(scienceClub).toContainText("Owned: 1");
+  const buildScienceClub = scienceClub.locator(".economy-building-actions button").first();
+  await expect(buildScienceClub).toBeEnabled();
+  await buildScienceClub.click();
+  await expect
+    .poll(() => game.evaluate(() => window.miaplacidusTest!.getState().run.upgrades.scienceClub))
+    .toBe(1);
 
   await game.locator("#tab-research-tech-tree").click();
   await game.evaluate(() => window.miaplacidusTest!.advanceBy(3_200_000));

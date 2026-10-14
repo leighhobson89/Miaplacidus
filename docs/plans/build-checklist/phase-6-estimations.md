@@ -1,100 +1,48 @@
 # Phase 6 completion estimates
 
-Estimates last reviewed 11 October 2026. Checklist status reconciled 13 October: 12 open / 54 closed after P-28 was reopened for source-triggered ending review; all 66 Phase 6 checkboxes were counted, including the anchored P-55 item. Existing percentages, ticket time ranges, and the 1,665-2,410 minute aggregate for the eleven previously estimated tickets are unchanged; the P-28 follow-up is unestimated and excluded from that total.
+Estimates last reviewed 11 October 2026. Phase 6 closed on 14 October 2026 at **0 open / 66 closed / 66 total**. P-31 closed with its original **60% complete** and **90-150 mins** estimate retained; no estimate or percentage was recalculated. The 1,665-2,410 minute aggregate for the eleven previously estimated tickets is unchanged; the P-28 follow-up is unestimated and excluded from that total. Earlier 13 October status notes below are historical and superseded by the current closeout.
 
-Owner direction (13 October 2026): P-44/P-45 localization work and locale-specific P-51 review are on hold for Phase 7, [Localization audit and sweep](07-localization-audit-sweep.md). Their open sub-tasks remain listed here with their existing estimates and percentages; do not work them until the non-localization Phase 6 implementation is complete. P-56 remains active for its non-locale theme/viewport matrix; translated-text and locale-fit cases, including E-57, are held for Phase 7 L-07 without recalculating P-56 estimates or percentages.
+Owner scheduling update (13 October 2026; before manual-review closeout): Phase 7 localization coverage work is active after the same-day handoff, while M-06 remains open. P-44/P-45 and the locale-specific P-51/P-56 subtasks are now tracked in Phase 7; translation quality and linguistic sign-off are not gates. The original non-localization-first scheduling instruction is retained in the Phase 6 checklist history; no estimate or percentage changed.
 
-P-22 assumes access to a physical device for the soft-keyboard check; device wait time is excluded. P-20 still needs spoken assistive-technology verification. P-29 has a transient unit-level presentation that derives source-shaped visible-shot candidates and per-frame health crossings without changing combat damage or outcomes. After the owner's 13 October direction to match Cosmic Forge callbacks, explosion audio is attempted synchronously at each modeled zero-health crossing through the shared strict `>140 ms` cooldown; aggregate engine events continue to govern confirmed death visuals. The presentation model can diverge from pooled engine casualties, so a modeled crossing can sound without a corresponding confirmed loss, and a confirmed loss can lack a modeled cue. The inclusive `<= 0.2` shot threshold and roll-before-goal order match Cosmic Forge. Reached hunt points now receive a new no-target hunt point immediately in the same frame (game.js:15048-15058,15226-15229; SpaceBattlePresentation.tsx:605-695). Source/model correspondence and focused cadence evidence remain open; the earlier feasibility review found this would add at least four hours and may need a richer battle model. The existing percentage and ticket estimate are retained. P-31 remains parked until other non-performance Phase 6 work is complete. P-56 estimates the presentation matrix only; its performance follow-up remains parked. P-10 includes the natural unlock progression that seeded journeys cannot establish.
+Pre-owner-review subtask reconciliation (13 October 2026): the completed P-20 inactive-page and P-45 Star Map value-correction bullets had been removed. Static P-45 review confirmed the mapped random-event catalog values are non-empty in all six locales and the active journal/notice routes select the current locale. The remaining locale route/state scope is carried by Phase 7. The manual-review gates listed in this earlier checkpoint were subsequently accepted by the owner, as recorded below. Percentages and time estimates are unchanged.
 
-P-55 follow-up on 13 October: numeric Energy rate values now use Cosmic Forge's `kJ / s` suffix in six locales, and the v52→v53 migration no longer restores Dyson's run-only plant-rate effect for saves with a prior rebirth. The relevant source/code comparisons are recorded in archived audits; matched values, migration fixtures, and rendered review remain open. No estimate, percentage, or ticket time range changed.
+Pre-owner-review localization acceptance checkpoint (13 October 2026): no open Phase 6 or Phase 7 subtask uses translation fluency, grammar, or linguistic sign-off as acceptance evidence. P-45's confirmed Star Map value correction and bounded random-event catalog/value plus selected-locale routing review are complete; dynamic event-state routes and the remaining page/action families still require evidence. Other outstanding localization bullets require source-key disposition, non-empty six-locale values, intended-route availability, or reproduced layout evidence. Estimates, percentages, ticket states, and the then-current 12 open / 54 closed count remained unchanged.
 
-P-29 implementation update on 13 October: the interim confirmed-only mapping that waited for aggregate engine receipts was superseded after the owner selected Cosmic Forge's source-timed behavior. Audio now attempts at modeled per-unit zero-health crossings without waiting for casualty confirmation. The callback timing and cooldown are source-shaped, but the renderer's presentation simulation can diverge from pooled engine casualties; source/model correspondence and catch-up cadence remain open. P-29 remains open, and its estimate remains unchanged.
+Pre-owner-review technical/evidence checkpoint (13 October): P-22 assumes access to a physical device for the soft-keyboard check; device wait time is excluded. P-20 still needs spoken assistive-technology verification. P-29 renderer crossings reserve the same fleet-tail slot used by confirmed pooled-health death events. Audio matches exact system/round/side/fleet/slot first, then permits one-to-one pairing only when remaining events and candidates match within the same group and each event confirms one loss; every attempt uses a captured crossing time. Unmatched confirmed visuals may use receipt time, never for audio. Single-round playback waits for aggregate confirmation; a multi-round dispatch/batch advances cooldown without late playback. Pooled and transient per-unit health can disagree, leaving unmatched confirmed losses silent in audio; a matched synthetic visual slot may still animate at event-receipt time. Normal/catch-up cadence, audio-state, and source-timing evidence remain open. The visible-shot `<= 0.2` threshold and roll-before-goal order match Cosmic Forge. Reached hunt points receive a new no-target point immediately in the same frame (game.js:15048-15058,15226-15229; SpaceBattlePresentation.tsx:605-695). The earlier feasibility review estimated at least four hours for a richer battle model; no estimate or percentage changed. P-31 had remained parked until the non-performance Phase 6 work closed; that condition is now met and P-31 is unparked. P-56 estimates the presentation matrix only; the performance work is tracked separately under P-31, now unparked. P-10 includes natural unlock progression that seeded journeys cannot establish.
 
-## Open items
+Pre-owner-review P-55 technical note: P-55 follow-up on 13 October: numeric Energy rate values now use Cosmic Forge's `kJ / s` suffix in six locales, and the v52→v53 migration no longer restores Dyson's run-only plant-rate effect for saves with a prior rebirth. The relevant source/code comparisons are recorded in archived audits; matched values, migration fixtures, and rendered review remain open. No estimate, percentage, or ticket time range changed.
 
-Each ticket keeps its existing completion and time estimates; the bullets below break the remaining work into sign-off tasks.
+Pre-owner-review P-29 implementation checkpoint: P-29 implementation update (13 October 2026): a shared battleDeathUnitIndex helper assigns fleet-tail slots, and a shared battleFleetCountAtHealth helper applies the resolver survivor formula ceil(max(0, healthPool) / max(1, unitHealth)), capped by fleet size. The renderer reserves crossing candidates against that same count; crossings beyond the pool-confirmable count get no audio candidate. Global audio first matches exact system/round/side/fleet/slot events, then pairs remaining candidates only one-to-one within the same system/round/side/fleet group when counts match and each event confirms one loss. Attempts use captured crossing times, never receipt time; unmatched confirmed visuals may use receipt time. Single-round playback follows aggregate confirmation; multi-round catch-up consumes exact and safely paired matches through cooldown without playback. This reduces partial-health slot drift but cannot make pooled health authoritative per ship, so unmatched losses remain silent. No estimate bullet is removed: cadence, audio-state, and source-timing evidence has not been run. No tests, builds, typechecks, formatting, or browser checks were run. P-29 remains open and its estimate is unchanged.
 
-- P-28 — Remaining visual assets — **reopened; unestimated**.
-  - Review the confirm-triggered ending animation, skip path, and reduced-motion end card across the P-28 theme and desktop/phone matrix; attach rendered screenshots and record any fixes.
-- P-22 — Startup and import accessibility — **85% complete** — **15-25 mins**.
-  - On a physical Android device, open the new-game and save-import screens with the native keyboard and inspect the name field, preview, and primary action.
-  - Repeat on a physical iOS device and check the same controls with its native keyboard.
-  - At each device's narrowest practical viewport, verify the active field and primary action remain visible as the keyboard opens and closes.
-  - Verify keyboard focus follows the intended name-entry, filtered-save selection, import preview, and confirmation order.
-  - Import a save while the keyboard is open and confirm the preview, success/error feedback, and next action remain reachable.
-  - Fix only reproduced device-specific clipping, focus, scroll, or viewport-resize defects, then repeat the affected device journey and record device/browser/outcome.
-- P-29 — Sound and music coverage — **85% complete** — **45-60 mins**.
-  - Finish the per-unit battle presentation callback model. Visible-shot eligibility now comes from transient unit positions, visibility, and current goals; the renderer tracks source-style per-frame health crossings but can map them to confirmed engine deaths only when counts match per round and fleet. Make source-timed callbacks authoritative for every confirmed death without changing combat damage or outcomes. Event-receipt fallback and speculative presentation damage are not acceptance evidence.
-  - Exercise normal and catch-up battle ticks; verify one 20% roll per source-visible enemy candidate, and only a candidate matching the shooter's current goal invokes the laser callback; cooldown-suppressed attempts are dropped and no terminal shot is inferred.
-  - Verify laser attempts at the exact 80 ms boundary are suppressed, attempts after 80 ms are admitted, and no delayed cue plays after synchronous catch-up.
-  - Exercise casualties in normal and terminal rounds; verify each confirmed death makes an explosion attempt, the 140 ms boundary suppresses it, and no casualty cue is deferred after the result.
-  - With sound muted, at zero volume, unfocused, or audio locked, verify battle attempts still advance cooldown without playback; after restoring audio, verify source timing is preserved and no delayed cue plays. Dispose around battle events and confirm no callback remains.
-  - Run the focused battle cadence checks, fix missed or duplicated event-boundary attempts, and record evidence for the source-timed behavior and any remaining model limits.
-- P-20 — Assistive notification coverage — **85% complete** — **45-75 mins**.
-  - With a screen reader, trigger an unaffordable purchase and verify its localized reason is spoken once without moving focus.
-  - With a screen reader, trigger a save conflict and verify the conflict and available resolution are announced while the controls remain usable.
-  - With a screen reader, finish a timer after navigating away and verify its global completion announcement is still spoken at the correct time.
-  - Check Save Manager lock loss and other cross-tab status changes while their owning page is inactive.
-  - Correct any reproduced role, politeness, atomicity, focus, duplication, or wording defect; record screen reader/browser versions and spoken results.
-- P-36 — Onboarding tutorial flow — **85% complete** — **60-90 mins**.
-  - Start one fresh save and complete every tutorial step through the final Miaplaedia step using the visible game controls.
-  - At each step, verify its action, read-time gate, destination, unlock condition, and Continue availability against the intended sequence.
-  - Save and reload during an active gated step; verify the same step resumes and completed actions are not replayed.
-  - Exercise Skip and normal completion; verify the completion achievement is issued once and subsequent loads do not repeat it.
-  - Load a pre-existing save and verify the tutorial is not introduced retroactively.
-  - Review every tutorial announcement with a screen reader, fix unclear/missing/repeated guidance, and record journey, resume, skip, and accessibility evidence.
-- P-45 — Six-language playthrough completeness — **85% complete** — **180-240 mins**.
-  - Complete the remaining startup and core-game route review in en, es, pt, de, it, and fr, recording each page/action family checked.
-  - Review Settings, notifications, Save & Loading/import, and error outcomes in all six locales, including success, conflict, and unavailable states.
-  - Review remaining gameplay action results, dynamic event text, and both ending routes in all six locales.
-  - For each reviewed route, verify placeholders, names, formatted values, grammatical variants, punctuation, apostrophes, and character encoding.
-  - Correct confirmed missing, wrong-locale, malformed, or misleading strings in the typed six-locale catalogues without changing mechanics.
-  - Add focused locale assertions for each correction and inspect the rendered result in all six locales, including long-text cases.
-  - Update the localization audit with route coverage, corrections, and source copy intentionally adapted or excluded.
-- P-55 — Source screen coverage parity — **75% complete** — **180-270 mins**.
-  - Prepare matched source/remake states for each remaining row group and compare initial, triggered, saved/reloaded, and rebirth values.
-  - Verify each counter changes only on its accepted source-equivalent event and resets or persists at the same run boundary.
-  - Correct only confirmed value, label, unit, grouping, or scope mismatches; preserve rows already shown to match.
-  - Add focused selector/render assertions for each correction, covering Current Run and All Time where applicable.
-  - Update the parity audit with source references, comparison states, and any corrections for the remaining row groups.
-- P-51 — Translation and layout fit review — **70% complete** — **150-240 mins**.
-  - Review remaining menus and page families at 320, 390, 768, and 1280 CSS-pixel widths, including tables, tooltips, dialogs, and dynamic result cards.
-  - Repeat representative pages with enlarged text and the longest translations across en/es/pt/de/it/fr and all nine themes.
-  - Finish E-57 for every Resource and Compound price row, tooltip, purchase modal, and dynamic-cost state in all six locales.
-  - For each reviewed view, inspect focus visibility, wrapping, clipping, contrast, panel bounds, and horizontal overflow.
-  - Fix only defects reproduced with a recorded locale, theme, viewport, text size, and page state.
-  - Recapture each corrected case and check the adjacent target widths for regressions in clipping or overflow.
-  - Record tested combinations and unresolved findings separately from the P-56 screenshot inventory.
-- P-56 — Presentation screenshot matrix — **70% complete** — **180-300 mins**.
-  - List every major tab and child page, then track capture coverage across nine themes and desktop/narrow viewports; defer six-locale capture coverage to Phase 7 L-07.
-  - Inspect captures for title scale, artwork row, spacing, alignment, responsive stacking, clipping, and theme contrast.
-  - Defer comparison of long translated labels and page titles at narrow and desktop widths across representative locales to Phase 7 L-07.
-  - Fix only presentation defects demonstrated in the matrix, preserving page ownership, tab order, and unlock visibility.
-  - Recapture every affected matrix cell and compare the corrected result against the same viewport/theme/locale state.
-  - Record coverage and sign-off gaps; keep the separately parked performance follow-up out of P-56.
-- P-44 — Cosmicopedia message mapping — **70% complete** — **240-360 mins**.
-  - Finish the source catalogue inventory and give every remaining Cosmic Forge text key a mapped, intentionally replaced, or excluded disposition.
-  - For each mapped message, record its source key, target catalogue/key, placeholders, locale set, and page or control owner.
-  - Add missing typed strings in all six locales and preserve source placeholders, grammatical variants, and result distinctions.
-  - Inspect each changed family for correct rendered placement, substitution, active locale, and navigation ownership.
-  - Document every deliberate replacement/exclusion with its reason and update source/target references in the crosswalk.
-- P-31 — Asset loading optimization — **60% complete** — **90-150 mins**.
-  - Keep implementation parked until all other non-performance Phase 6 tickets are closed.
-  - Once unparked, measure production entry/chunk transfer sizes and inventory image/font formats and dimensions against the recorded baseline.
-  - Identify oversized assets and convert or resize only when the approved appearance is preserved.
-  - Preload only assets needed for startup and the first visible page; defer late-game-only assets until needed.
-  - Verify deferred artwork does not delay the active page, discard visited-pane state, or create a visible loading defect.
-  - Rebuild and compare entry and route transfer sizes, then inspect each changed asset in its owning page.
-  - Record before/after sizes, affected routes, visual result, and any remaining large asset.
-- P-10 — Representative unlock playthrough — **45% complete** — **480-600 mins**.
-  - Start one fresh canonical save and progress only through normal visible controls, with no debug commands or seeded late-game state.
-  - Follow natural research, manuscript/star study, starship construction, travel, scanning, and settlement until Galactic unlocks.
-  - At Galactic unlock, verify Galactic appears in order and its child pages—including Casino—remain gated until their actual prerequisites are met.
-  - Continue the same save through natural homecoming and story acknowledgement until Cosmic Rip unlocks.
-  - Verify Cosmic Rip and each child page appears only at its intended milestone and remains hidden beforehand.
-  - At each milestone, check locked top-level and child tabs are omitted while the relative order of visible pages remains stable.
-  - Check navigation attention markers appear for new destinations, clear when visited, and survive save/reload as specified.
-  - Record the canonical save, checkpoint after each unlock, any progression blocker, and evidence for the full natural progression route.
+P-45 Star Map value correction (13 October 2026): a static English-fallback scan found `starMap.unidentifiedStar` missing from es/pt/de/it/fr; those five locale entries now contain non-empty values. The registered-catalogue scan found no other locale-root, key, or empty-value issue in its scope; six additional player-facing modules were checked and had populated six-locale values. This completes the confirmed P-45 value-correction subtask removed from the estimate list; source-key inventory and route/state coverage remain open. No tests, builds, or typechecks were run; estimates and percentages are unchanged.
+
+P-36 source-action count crosscheck (13 October 2026): static review maps all 48 source spotlight/condition/timed entries to 28 persisted target steps, grouping navigation clicks with page-read prompts. No source action gap was found; the remaining P-36 estimate bullets are still needed for live flow, timing, save/resume, keyboard, Skip/completion, and spoken assistive-technology evidence. No sub-bullet was removed because none of those bounded live acceptance tasks is complete. Translation quality remains outside the acceptance criteria, and estimates and percentages are unchanged.
+
+P-44 Resources/Compounds bulk-sale implementation (13 October 2026): both source-owned Sell All actions now map to separate target controls, the existing sale command, and aggregate results with non-empty values in six locales. The bounded action/value mapping is recorded in the archived audit; P-44's source-wide inventory and interactive route review remain open. The separate source compound-overflow warning depends on mechanics the remake currently rejects, so it remains for mechanics review. No broad estimate sub-bullet, estimate, percentage, or ticket status changed.
+
+P-44 Resources/Compounds bulk-storage implementation (13 October 2026): separate source-owned Increase All Storage controls now dispatch category-scoped commands with source-ordered eligibility, shared-input reservations, Water/Concrete costs, one-second fuel allowances, and one aggregate result route. The label and result map to their source keys and have populated values in all six locales. See the [bulk-storage audit](../../archive/audits/p44-economy-bulk-storage-action-audit-2026-10-13.md). This completes only the bounded control/command/value mapping; the existing P-44 estimate bullets cover a wider source inventory and runtime route/state evidence, so none is wholly complete and no sub-bullet is removed. Estimates, percentages, and ticket status are unchanged.
+
+P-29 navigation implementation note (13 October): the active battle route is now locked against top-level and child-page changes, matching the source UI. Remaining P-29 acceptance is source-timing and cadence evidence across normal and browser-background catch-up, including the pooled-health and mixed-time-warp limits. No estimate or percentage changed.
+
+## Open Phase 6 items
+
+Every estimate subtask marked `MANUAL REVIEW REQUIRED` was checked and passed by the owner on 13 October 2026. P-31's 14 October production-build and asset-inventory evidence is recorded in the [P-31 audit](../../archive/audits/p31-asset-optimization-audit-2026-10-14.md). Test-failure fixes and focused assertions remain deferred to Phase 9; localization coverage and locale-fit work remain tracked in Phase 7.
+
+**No open Phase 6 items remain.**
+
+## Deferred work tracked outside Phase 6
+
+These Phase 6 tickets are closed as transferred scope. Their original estimates and percentages are retained unchanged; the destination phases still own their remaining work.
+
+- P-44 - Source message catalog mapping - **70% complete** - **240-360 mins** - Phase 7 L-01 through L-06 owns the remaining source-key disposition, required-value coverage, and intended-route sweep.
+
+- P-45 - Six-language playthrough completeness - **85% complete** - **180-240 mins** - Phase 7 L-01 through L-06 owns the remaining six-locale route and state coverage.
+
+- P-51 - Responsive layout and locale-fit review - **70% complete** - **150-240 mins** - Phase 7 L-07 owns the deferred longest-locale and E-57 economy layout cases; the owner passed the non-locale manual review.
+
+- P-55 - Source screen coverage parity - **75% complete** - **180-270 mins** - Phase 9 owns the deferred focused selector/render assertions and any test-failure fixes; the owner passed the manual source/remake comparison.
+
+- P-56 - Presentation screenshot matrix - **70% complete** - **180-300 mins** - Phase 7 L-07 owns translated-label and locale-fit captures; the owner passed the non-locale matrix review and the performance follow-up is separate under P-31.
 
 ## Closed items
 
@@ -109,6 +57,7 @@ Names only, for reference.
 - P-07 — Visible task and timer progress
 - P-08 — Notification and modal layering
 - P-09 — Save controls in Settings
+- P-10 — Representative unlock playthrough
 - P-11 — Responsive design targets
 - P-12 — Responsive layout and overflow
 - P-13 — Narrow-panel information visibility
@@ -118,17 +67,23 @@ Names only, for reference.
 - P-17 — Theme contrast and status cues
 - P-18 — Reduced-motion support
 - P-19 — Image alternatives
+- P-20 — Assistive notification coverage
 - P-21 — Keyboard and touch journey testing
+- P-22 — Startup and import accessibility
 - P-23 — Visual identity board
 - P-24 — Asset inventory
 - P-25 — Startup logo and artwork
 - P-26 — Core game illustrations and icons
 - P-27 — Space and endgame artwork
+- P-28 — Remaining visual assets
+- P-29 — Sound and music coverage
 - P-30 — Asset provenance manifest
+- P-31 — Asset loading optimization
 - P-32 — Release asset audit
 - P-33 — Nine-theme rebuild
 - P-34 — Theme layout review
 - P-35 — Save-aware start screen
+- P-36 — Onboarding tutorial flow
 - P-37 — Miaplaedia guide documents
 - P-38 — Objective and next-unlock guidance
 - P-39 — Statistics views
@@ -136,14 +91,19 @@ Names only, for reference.
 - P-41 — Number notation coverage
 - P-42 — Audio controls
 - P-43 — Settings persistence scope
+- P-44 — Source message catalog mapping (transferred to Phase 7)
+- P-45 — Six-language playthrough completeness (transferred to Phase 7)
 - P-46 — Save-flow localization
 - P-47 — Dynamic localized values and labels
 - P-48 — Localization validation
 - P-49 — Live locale-switch stability
 - P-50 — Locale-aware display formatting
+- P-51 — Responsive layout and locale-fit review (locale-fit scope transferred to Phase 7)
 - P-52 — Six-language review sample
-- P-53 — Translation review sign-off
+- P-53 — Historical six-language sample review
 - P-54 — Focused presentation verification
+- P-55 — Source screen coverage parity (focused assertions transferred to Phase 9)
+- P-56 — Presentation screenshot matrix (locale-fit scope transferred to Phase 7)
 - P-57 — Deliberate UX change record
 - P-58 — News Ticker presentation
 - P-59 — Status row presentation
@@ -154,3 +114,15 @@ Names only, for reference.
 - P-64 — Interstellar presentation follow-up
 - P-65 — Consistent page titles and artwork
 - P-66 — Owner-directed page identity and layout
+
+## Historical implementation notes (written before the 13 October owner-review closeout)
+
+P-29 catch-up implementation note (13 October 2026): matched renderer candidates in a system that settles multiple distinct rounds within one dispatch or batch now advance the explosion cooldown without playing late catch-up audio; single-round playback remains enabled. This is static implementation evidence only. The remaining P-29 bullets still require cadence, normal/terminal, audio-state, and source-timing evidence. No test was run, and estimates, percentages, and ticket status remain unchanged.
+
+P-36 source-step implementation update (13 October 2026): compared Cosmic Forge onboarding.js:1088-1091 with the current tutorial sequence and added the missing open-theme-selector interaction before the separate Dark selection step. Pointer and keyboard interaction advance the new step, and both new message keys have non-empty entries in all six locale records. Tutorial announcement dedupe now includes locale, so changing locale re-announces the active step with the selected-locale value. This is static implementation evidence only; no tests, build, typecheck, or spoken screen-reader review was run. No estimate bullet or ticket status changed.
+
+
+P-29/P-44 implementation evidence (13 October 2026): the shared laser callback timestamp now feeds both the laser visual and source-threshold audio guard; the Casino Void Seer displays reducer outcomes through the source-timed staggered reels; and Rocket orbit status follows destination selection while travel eligibility stays on the action precondition. Audits are linked from the Phase 6 checklist. The source outcome timing remains immediate in the remake, P-29 death/cadence evidence remains open, and P-44 source inventory/interactive route evidence remains open. No estimate subtask is wholly complete from these slices, so no sub-bullet was removed; estimates, percentages, and the 12 open / 54 closed count are unchanged. Translation quality is not a closure gate; these new values were checked for presence in all six locales only. No tests or builds were run.
+
+
+P-44 Market/Starship implementation update (13 October 2026): the Galactic Market AP-sale selector now matches the source initial selection and disabled state, and accepted Interstellar Starship scans now produce the source-style named notice. The placeholder and notice have non-empty values in all six locales; source and renderer evidence is recorded in the linked Phase 6 and Phase 7 audits. These implementation slices do not complete the broad P-44 source inventory or route/state review. No estimate sub-bullet was removed, and estimates, percentages, and the 12 open / 54 closed ticket count remain unchanged. Translation quality is not a closure gate. No tests or builds were run.

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AnimationEvent } from "react";
+import type { LocaleId } from "../content/ids";
 import type { NewsTickerEntry } from "../content/metaSignals";
 import {
   checkNewsPrizeClaim,
@@ -34,7 +35,11 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
   const latestKeyRef = useRef(tickerEntryKey(latestEntry));
   const [entry, setEntry] = useState<NewsTickerEntry | null>(latestEntry);
   const queuedEntriesRef = useRef<readonly NewsTickerEntry[]>([]);
-  const [copy, setCopy] = useState<LocaleNewsCopy | null>(null);
+  const [copyState, setCopyState] = useState<{
+    readonly locale: LocaleId;
+    readonly copy: LocaleNewsCopy;
+  } | null>(null);
+  const copy = copyState?.locale === locale ? copyState.copy : null;
   const [activatedMessage, setActivatedMessage] = useState("");
   const [wackyEffect, setWackyEffect] = useState("");
   const [systemReducedMotion, setSystemReducedMotion] = useState(false);
@@ -105,7 +110,7 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
     if (!entry || state.settings.newsTickerEnabled === false) return;
     let current = true;
     void import("../i18n/sourceNewsCopy").then((module) => {
-      if (current) setCopy(module.sourceNewsCopy(locale));
+      if (current) setCopyState({ locale, copy: module.sourceNewsCopy(locale) });
     });
     return () => {
       current = false;
@@ -185,7 +190,7 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
           );
         }
       }
-      return (
+      const renderWackyAction = (label: string) => (
         <button
           className={`news-ticker-action news-ticker-wacky${displayEntry.id === 1006 && activatedMessage !== entryKey ? " news-ticker-boo" : ""}`}
           type="button"
@@ -193,9 +198,23 @@ export function NewsTickerBar({ state, store }: NewsTickerBarProps) {
           aria-label={`${metaSignalText(locale, "activate")} ${text}`}
           onClick={() => activateWacky()}
         >
-          {text}
+          {label}
         </button>
       );
+      if (displayEntry.id === 1006) {
+        const linkWord = "Boo!";
+        const linkAt = text.indexOf(linkWord);
+        if (linkAt >= 0) {
+          return (
+            <span>
+              {text.slice(0, linkAt)}
+              {renderWackyAction(linkWord)}
+              {text.slice(linkAt + linkWord.length)}
+            </span>
+          );
+        }
+      }
+      return renderWackyAction(text);
     }
 
     if (displayEntry.category === "prize" || displayEntry.category === "oneOff") {

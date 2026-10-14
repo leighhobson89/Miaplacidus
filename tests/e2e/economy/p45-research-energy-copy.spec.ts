@@ -1,6 +1,7 @@
 import { expect, test } from "../_harness/fixtures";
 import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
+import { ENERGY_BUILDINGS } from "../../../src/content/economy";
 import { ECONOMY_BUILDING_NAMES } from "../../../src/content/economyBuildingNames";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { TECHNOLOGY_NAMES } from "../../../src/content/technologyNames";
@@ -63,11 +64,9 @@ test("Research actions and Tech Tree status stay localized in all six locales @p
       '#panel-research-science-buildings [data-building-id="scienceKit"]',
     );
     await expect(scienceKit.locator("h4")).toHaveText(ECONOMY_BUILDING_NAMES.scienceKit[locale]);
-    const buy = scienceKit.getByRole("button", {
-      name: economyLabel(locale, "buy"),
-      exact: true,
-    });
+    const buy = scienceKit.locator(".economy-building-actions button").first();
     await expect(buy).toBeEnabled();
+    await expect(buy).toHaveAccessibleName(/\S/);
 
     const buildingToggle = scienceKit.locator(":scope > .text-button");
     const startsEnabled = (await buildingToggle.getAttribute("aria-pressed")) === "true";
@@ -92,7 +91,7 @@ test("Research actions and Tech Tree status stay localized in all six locales @p
       2,
       beforePurchase.settings.notation,
     );
-    await expect(scienceKit.locator(":scope > p").nth(2)).toHaveText(formattedPrice);
+    await expect(scienceKit.locator(":scope > p").nth(3)).toHaveText(formattedPrice);
 
     await buy.click();
     const afterPurchase = (await page.evaluate(() =>
@@ -100,8 +99,8 @@ test("Research actions and Tech Tree status stay localized in all six locales @p
     )) as GameState;
     expect(afterPurchase.run.upgrades.scienceKit).toBe(startingOwned + 1);
     expect(beforePurchase.run.cash - afterPurchase.run.cash).toBe(price);
-    await expect(scienceKit.locator(":scope > p").nth(1)).toHaveText(
-      `${economyLabel(locale, "owned")}: ${formatNumber(
+    await expect(scienceKit.locator(":scope > p").nth(2)).toHaveText(
+      `${economyLabel(locale, "researchQuantity")}: ${formatNumber(
         locale,
         startingOwned + 1,
         0,
@@ -130,7 +129,7 @@ test("Research actions and Tech Tree status stay localized in all six locales @p
     await expect(page.locator("#research-building-scienceKit-reason")).toHaveText(
       insufficientCashReason(locale, state, "scienceKit"),
     );
-    await expect(buy).toHaveAttribute("aria-describedby", "research-building-scienceKit-reason");
+    await expect(buy).toHaveAttribute("aria-describedby", /research-building-scienceKit-reason/);
 
     const autobuyer = page.getByRole("checkbox", {
       name: economyLabel(locale, "researchAutobuyer"),
@@ -154,11 +153,11 @@ test("Research actions and Tech Tree status stay localized in all six locales @p
     await expect(knowledgeSharing).toHaveAttribute("aria-disabled", "false");
     await knowledgeSharing.click();
     await expect(knowledgeSharing.locator(".technology-map-researched")).toHaveText(
-      economyLabel(locale, "researched"),
+      economyLabel(locale, "researchTechResearched"),
     );
     await expect(knowledgeSharing).toHaveAttribute(
       "aria-label",
-      `${economyLabel(locale, "researched")}: ${knowledgeName}`,
+      `${economyLabel(locale, "researchTechResearched")}: ${knowledgeName}`,
     );
   }
 });
@@ -206,11 +205,13 @@ test("Energy Summary, Batteries, and Power status and actions stay localized in 
     await expect(powerButton).toHaveText(economyLabel(locale, "deactivatePower"));
 
     const plant = energyPanel.locator('[data-building-id="powerPlant1"]');
-    const plantBuy = plant.getByRole("button", {
-      name: economyLabel(locale, "buy"),
-      exact: true,
-    });
+    const plantBuy = plant.locator(".economy-building-actions button").first();
     await expect(plantBuy).toBeEnabled();
+    await expect(plantBuy).toHaveAccessibleName(
+      formatEconomyMessage(locale, "addPowerPlantRate", {
+        rate: String(ENERGY_BUILDINGS.powerPlant1.ratePerSecond),
+      }),
+    );
     let plantPurchases = 0;
     while (plantPurchases < 6 && (await plantBuy.isEnabled())) {
       await plantBuy.click();
@@ -226,28 +227,35 @@ test("Energy Summary, Batteries, and Power status and actions stay localized in 
     const plantToggleInput = plantToggle.locator("input");
     const plantStartsEnabled = await plantToggleInput.isChecked();
     await expect(plantToggle).toContainText(
-      economyLabel(locale, plantStartsEnabled ? "pause" : "resume"),
+      economyLabel(locale, plantStartsEnabled ? "deactivatePowerPlant" : "activatePowerPlant"),
     );
     await plantToggleInput.setChecked(!plantStartsEnabled);
     await expect(plantToggleInput).toHaveJSProperty("checked", !plantStartsEnabled);
     await expect(plantToggle).toContainText(
-      economyLabel(locale, plantStartsEnabled ? "resume" : "pause"),
+      economyLabel(locale, plantStartsEnabled ? "activatePowerPlant" : "deactivatePowerPlant"),
     );
 
     await page.locator("#tab-energy-batteries").click();
     const battery = energyPanel.locator('[data-building-id="battery1"]');
-    const batteryBuy = battery.getByRole("button", {
-      name: economyLabel(locale, "buy"),
-      exact: true,
-    });
-    await expect(battery.locator("h3")).toHaveText(ECONOMY_BUILDING_NAMES.battery1[locale]);
-    await expect(batteryBuy).toBeDisabled();
+    const batteryBuy = battery.locator(".economy-building-actions button").first();
+    await expect(battery.locator("h3")).toHaveText(`${ECONOMY_BUILDING_NAMES.battery1[locale]}:`);
     const batteryState = (await page.evaluate(() =>
       window.miaplacidusTest!.getState(),
     )) as GameState;
+    await expect(batteryBuy).toHaveAccessibleName(
+      formatEconomyMessage(locale, "addEnergyCapacity", {
+        capacity: formatNumber(
+          locale,
+          Math.floor(ENERGY_BUILDINGS.battery1.capacity / 1000),
+          2,
+          batteryState.settings.notation,
+        ),
+      }),
+    );
+    await expect(batteryBuy).toBeDisabled();
     await expect(page.locator("#battery-battery1-reason")).toHaveText(
       insufficientCashReason(locale, batteryState, "battery1"),
     );
-    await expect(batteryBuy).toHaveAttribute("aria-describedby", "battery-battery1-reason");
+    await expect(batteryBuy).toHaveAttribute("aria-describedby", /battery-battery1-reason/);
   }
 });

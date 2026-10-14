@@ -191,3 +191,9 @@ npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace
 npm.cmd run typecheck
 .\node_modules\.bin\oxfmt.cmd --check tests\e2e\status-bar\p56-status-bar-visual-matrix.spec.ts
 ```
+
+14 October 2026 focused regression refresh: the locale/event/rate presentation,
+localized status ordering at 390px and 320px, and full Standard Cash balance
+layout passed **3/3** on port 4205 without snapshot updates. The P-41 battery
+countdown, Cosmic Rip theme-surface, and economy theme-palette cases passed
+**3/3** in a separate focused run. Artifacts were redirected to system Temp.

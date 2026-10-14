@@ -3,11 +3,14 @@ import { expect, test } from "../_harness/fixtures";
 import { formatCurrency } from "../../../src/app/currencyFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import { COSMIC_RIP_TECHNOLOGIES } from "../../../src/content/cosmicRip";
-import { ENERGY_BUILDINGS } from "../../../src/content/economy";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { createEconomyTickPlan } from "../../../src/engine/economySimulation";
+import { selectStatisticsEnergyProduction } from "../../../src/engine/selectors";
 import { currentWeatherForSystem } from "../../../src/engine/weather";
-import { energyStatisticLabel } from "../../../src/i18n/energyStatisticsMessages";
+import {
+  energyStatisticLabel,
+  energyStatisticRateUnit,
+} from "../../../src/i18n/energyStatisticsMessages";
 import { settingsSectionName, settingsStatisticLabel } from "../../../src/i18n/settingsMessages";
 import {
   cosmicRipTrackingNote,
@@ -187,7 +190,7 @@ test("weather and star system sit beside cash and remain visible on mobile @pres
   await freshGame.locator("#tab-settings").click();
   const settings = freshGame.getByTestId("settings-pane");
   await settings.locator("#settings-weather-effects").uncheck();
-  await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-weather-effects", "off");
+  await expect(freshGame.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-weather-effects", "off");
   await freshGame.locator("#tab-hydrogen").click();
 
   const location = freshGame.getByTestId("location-status");
@@ -599,8 +602,9 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
   await expect(
     statistics.getByRole("heading", { name: "Events", level: 3, exact: true }),
   ).toBeVisible();
-  await expect(statistics.getByText("Power plant explosion", { exact: true })).toBeVisible();
-  await expect(statistics.getByText("Black hole instability", { exact: true })).toBeVisible();
+  for (const id of ["event-powerPlantExplosion", "event-blackHoleInstability"]) {
+    await expect(statistics.locator(`[data-statistic-id="${id}"] dt`)).toHaveText(/\S/u);
+  }
   await expect(
     statistics.getByText(/Saved runs restore up to 100 recent event records/),
   ).toBeVisible();
@@ -633,19 +637,19 @@ test("maps source Statistics groups, production totals, and Space Mining metrics
     "0",
   ]);
   await expect(
-    statisticCard(cosmicRip, "Cosmic Rip Chapter unlocked").locator(
-      ".settings-stat-pair-values strong",
-    ),
+    cosmicRip.locator('[data-statistic-id="cosmicRipChapterUnlocked"] .settings-stat-pair-values strong'),
   ).toHaveText([statisticsNotApplicableLabel("en"), "No"]);
   await expect(
-    statisticCard(cosmicRip, "Cosmic Rip stabilised").locator(".settings-stat-pair-values strong"),
+    cosmicRip.locator('[data-statistic-id="cosmicRipStabilised"] .settings-stat-pair-values strong'),
   ).toHaveText([statisticsNotApplicableLabel("en"), "No"]);
   const cosmicRipLive = statisticsSection("MIAPLACIDUS live status");
   await expect(statisticCard(cosmicRipLive, "Cosmic Rip closed").locator("dd")).toHaveText("No");
-  await expect(statistics.getByText("Double or Nothing played", { exact: true })).toBeVisible();
   await expect(
-    statistics.getByText("Near Space Scanner Array restored", { exact: true }),
-  ).toBeVisible();
+    statistics.locator('[data-statistic-id="doubleOrNothingPlayed"] dt'),
+  ).toHaveText(/\S/u);
+  await expect(
+    statistics.locator('[data-statistic-id="cosmicRipScannerRestored"] dt'),
+  ).toHaveText(/\S/u);
 
   await freshGame.setViewportSize({ width: 320, height: 900 });
   const interstellarLayout = await interstellar.evaluate((section) => {
@@ -788,7 +792,7 @@ test("Galactic Points Earned commits a newly settled system at rebirth @settings
   await page.locator("#tab-galactic-rebirth").click();
   await page
     .getByTestId("rebirth-pane")
-    .getByRole("button", { name: "Rebirth", exact: true })
+    .getByRole("button", { name: /^rebirth$/iu })
     .click();
   await page
     .getByRole("dialog", { name: "WARNING: REBIRTH!" })
@@ -887,10 +891,12 @@ test("shows live Energy values, source counters, links, and six localized labels
     "battery3",
   ] as const) {
     await page.locator(`#tab-${energyPaneForBuilding[buildingId]}`).click();
-    await page
-      .locator(`[data-building-id="${buildingId}"]`)
-      .getByRole("button", { name: "Buy", exact: true })
-      .click();
+    const purchaseButton = page
+      .locator(`[data-building-id="${buildingId}"] .economy-building-actions`)
+      .getByRole("button")
+      .first();
+    await expect(purchaseButton).toHaveAccessibleName(/\S/u);
+    await purchaseButton.click();
   }
   await page.locator("#tab-energy-power").click();
   for (const buildingId of ["powerPlant1", "powerPlant2", "powerPlant3"] as const) {
@@ -899,8 +905,8 @@ test("shows live Energy values, source counters, links, and six localized labels
   await page.getByRole("tab", { name: /Research/ }).click();
   await page.locator("#tab-research-science-buildings").click();
   await page
-    .locator('[data-building-id="scienceLab"]')
-    .getByRole("button", { name: "Buy", exact: true })
+    .locator('[data-building-id="scienceLab"] .economy-building-actions button')
+    .first()
     .click();
 
   const openStatistics = async () => {
@@ -963,11 +969,7 @@ test("shows live Energy values, source counters, links, and six localized labels
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     const power = state.run.economy.power;
     const energyPlan = createEconomyTickPlan(state);
-    const nominalProduction = Math.floor(
-      ENERGY_BUILDINGS.powerPlant1.ratePerSecond * (state.run.upgrades.powerPlant1 ?? 0) +
-        ENERGY_BUILDINGS.powerPlant2.ratePerSecond * (state.run.upgrades.powerPlant2 ?? 0) +
-        ENERGY_BUILDINGS.powerPlant3.ratePerSecond * (state.run.upgrades.powerPlant3 ?? 0),
-    );
+    const rateUnit = energyStatisticRateUnit(locale);
     expect(
       ["powerPlant1", "powerPlant2", "powerPlant3"].map(
         (id) =>
@@ -978,9 +980,15 @@ test("shows live Energy values, source counters, links, and six localized labels
     const n = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
     const expectedCurrentValues = [
       topStatusText(locale, power.tripped ? "trippedShort" : power.gridEnabled ? "on" : "off"),
-      `${n(power.quantity)} kJ`,
-      `${n(nominalProduction)} kJ/s`,
-      `${n(Math.floor(energyPlan.demandPerSecond))} kJ/s`,
+      power.infinitePower
+        ? "∞ DYSON ∞"
+        : `${n(
+            power.gridEnabled && !power.tripped
+              ? Math.floor(energyPlan.generationPerSecond - energyPlan.statisticsConsumptionPerSecond)
+              : 0,
+          )} ${rateUnit}`,
+      `${n(selectStatisticsEnergyProduction(state))} ${rateUnit}`,
+      `${n(Math.floor(energyPlan.statisticsConsumptionPerSecond))} ${rateUnit}`,
       `${n(Math.floor(power.capacity / 1000))} MJ`,
     ];
     for (let index = 0; index < currentRowIds.length; index += 1) {
@@ -1128,10 +1136,11 @@ test("Statistics links switch to material, compound, research, and Settings owne
   );
 
   statistics = await openStatistics();
-  await statistics
+  const powerPlantEventLink = statistics
     .locator('[data-statistic-id="event-powerPlantExplosion"]')
-    .getByRole("link", { name: "Power plant explosion" })
-    .click();
+    .getByRole("link");
+  await expect(powerPlantEventLink).toHaveAccessibleName(/\S/u);
+  await powerPlantEventLink.click();
   await expect(freshGame.locator("#tab-settings")).toHaveAttribute("aria-selected", "true");
   await expect(freshGame.locator("#tab-settings-events")).toHaveAttribute("aria-selected", "true");
 });
@@ -1235,7 +1244,10 @@ test("Galactic Casino Statistics separate current-run and lifetime counters @set
   await freshGame.locator("#tab-galactic-casino").click();
   const casino = freshGame.getByTestId("galactic-casino-pane");
 
-  await casino.getByLabel("Stake in CP").fill("1");
+  const casinoSpinbuttons = casino.getByRole("spinbutton");
+  await expect(casinoSpinbuttons).toHaveCount(2);
+  await expect(casinoSpinbuttons.nth(1)).toHaveAccessibleName(/\S/u);
+  await casinoSpinbuttons.nth(1).fill("1");
   await casino.getByTestId("casino-don-play").click();
   await expect
     .poll(() =>
@@ -1286,7 +1298,7 @@ test("Galactic Casino Statistics separate current-run and lifetime counters @set
   await freshGame.locator("#tab-galaxy").click();
   await freshGame.locator("#tab-galactic-rebirth").click();
   const rebirthPane = freshGame.getByTestId("rebirth-pane");
-  await rebirthPane.getByRole("button", { name: "Rebirth", exact: true }).click();
+  await rebirthPane.getByRole("button", { name: /^rebirth$/iu }).click();
   const confirmation = freshGame.getByRole("dialog", { name: "WARNING: REBIRTH!" });
   await confirmation
     .getByRole("button", { name: "RESET ALL PROGRESS AND KEEP AP", exact: true })

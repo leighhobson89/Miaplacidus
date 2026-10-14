@@ -1,10 +1,11 @@
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 export async function captureVisualCheckpoint(
   page: Page,
   testInfo: TestInfo,
   name: string,
   appMustBeReady = true,
+  masks: readonly Locator[] = [],
 ): Promise<void> {
   if (appMustBeReady) {
     await expect(page.locator("[data-app-ready]")).toBeVisible();
@@ -34,5 +35,7 @@ export async function captureVisualCheckpoint(
     fullPage: true,
     animations: "disabled",
     maxDiffPixelRatio: 0.05,
+    mask: [...masks],
+    maskColor: "#000000",
   });
 }

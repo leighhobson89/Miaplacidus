@@ -22,9 +22,43 @@ async function startEconomyFixture(page: Page, fixture: "research" | "power-buil
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await stabilizeCapture(page);
   await page.addStyleTag({
     content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
   });
+}
+
+async function stabilizeCapture(page: Page): Promise<void> {
+  const tutorialStatus = await page.evaluate(
+    () => window.miaplacidusTest!.getState().permanent.progressionTutorial.status,
+  );
+  if (tutorialStatus === "available") {
+    const dismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+    await expect(dismissButton).toBeVisible();
+    await dismissButton.click();
+  }
+  await expect(page.locator(".progression-tutorial")).toHaveCount(0);
+
+  const notifications = page.getByTestId("notification-stack").getByTestId("game-notification");
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(false);
+  await expect(notifications).toHaveCount(0);
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: true },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);
 }
 
 function formattedCash(state: Awaited<ReturnType<typeof getState>>): string {
@@ -75,12 +109,12 @@ test("Research live balances and priced Science Kit action fit at narrow widths 
 
   const researchPane = page.getByTestId("economy-research");
   const scienceKit = page.locator('[data-building-id="scienceKit"]');
-  const purchase = scienceKit.getByRole("button", { name: "Buy", exact: true });
+  const purchase = scienceKit.locator(".economy-building-actions button").first();
   const initial = await getState(page);
   const initialResearchPoints = initial.run.researchPoints;
   const initialCash = initial.run.cash;
   await expect(scienceKit).toBeVisible();
-  await expect(scienceKit.locator("p").nth(2)).toContainText("$");
+  await expect(scienceKit.locator(":scope > p").nth(3)).toContainText("$");
   await expect(purchase).toBeEnabled();
 
   for (const viewport of NARROW_VIEWPORTS) {
@@ -92,7 +126,7 @@ test("Research live balances and priced Science Kit action fit at narrow widths 
     );
     await expect(researchPane).toBeVisible();
     await expect(scienceKit).toBeVisible();
-    await expect(scienceKit.locator("p").nth(2)).toContainText("$");
+    await expect(scienceKit.locator(":scope > p").nth(3)).toContainText("$");
     await expect(purchase).toBeVisible();
     await expect(purchase).toBeEnabled();
     await expect(page.getByTestId("cash-balance")).toHaveText(formattedCash(initial));
@@ -107,7 +141,7 @@ test("Research live balances and priced Science Kit action fit at narrow widths 
     await expectNoHorizontalOverflow(page, viewport.width, [
       ["Research pane", "#pane-research"],
       ["Science Kit card", '[data-building-id="scienceKit"]'],
-      ["Science Kit price", '[data-building-id="scienceKit"] p:nth-of-type(3)'],
+      ["Science Kit price", '[data-building-id="scienceKit"] > p:nth-of-type(4)'],
       ["Science Kit purchase control", '[data-building-id="scienceKit"] .economy-building-actions'],
       ["Research Points balance", '[data-testid="top-stat-rp"]'],
       ["Cash balance", '[data-testid="top-stat-cash"]'],
@@ -149,7 +183,7 @@ test("Energy live balances and priced Battery I action fit at narrow widths @p13
 
   const energyPane = page.getByTestId("economy-energy");
   const battery = page.locator('[data-building-id="battery1"]');
-  const purchase = battery.getByRole("button", { name: "Buy", exact: true });
+  const purchase = battery.locator(".economy-building-actions button").first();
   const initial = await getState(page);
   const initialCash = initial.run.cash;
   const initialCapacity = initial.run.economy.power.capacity;

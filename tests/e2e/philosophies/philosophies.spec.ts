@@ -1,6 +1,7 @@
-import { expect, test } from "../_harness/fixtures";
+import { dismissTutorialOfferIfPresent, expect, test } from "../_harness/fixtures";
 import { saveNowFromSettings } from "../_harness/save-controls";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { philosophyText } from "../../../src/i18n/philosophyMessages";
 
 async function startSpaceFixture(page: import("@playwright/test").Page): Promise<void> {
   await page.addInitScript(() => {
@@ -17,6 +18,7 @@ async function startSpaceFixture(page: import("@playwright/test").Page): Promise
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await dismissTutorialOfferIfPresent(page);
 }
 
 test("chooses a path after first star study and restores its ability and repeatable after reload @philosophy", async ({
@@ -25,8 +27,8 @@ test("chooses a path after first star study and restores its ability and repeata
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  const studyStars = page.getByRole("button", { name: "Study stars", exact: true });
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  const studyStars = page.getByRole("button", { name: "Study Stars", exact: true });
   await studyStars.click();
   expect(
     await page.evaluate(() =>
@@ -60,7 +62,24 @@ test("chooses a path after first star study and restores its ability and repeata
     });
   }
   await captureVisualCheckpoint(page, testInfo, "philosophy-path-choice-artwork");
-  await page.getByTestId("philosophy-choice").getByRole("button", { name: "Expansionist" }).click();
+  const notificationSetting = (enabled: boolean) =>
+    page.evaluate((notificationsEnabled) =>
+      window.miaplacidusTest!.dispatch({
+        type: "settings.update",
+        patch: { notificationsEnabled },
+      }),
+    enabled);
+  expect(await notificationSetting(false)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(false);
+  await expect(
+    page.getByTestId("notification-stack").getByTestId("game-notification"),
+  ).toHaveCount(0);
+  expect(await notificationSetting(true)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);  await page.getByTestId("philosophy-choice").getByRole("button", { name: "Expansionist" }).click();
   const selectionNotice = page
     .getByTestId("game-notification")
     .filter({ hasText: "You are an EXPANSIONIST!" });
@@ -77,7 +96,7 @@ test("chooses a path after first star study and restores its ability and repeata
   await captureVisualCheckpoint(page, testInfo, "philosophy-selected-path-artwork");
   await philosophy
     .locator('[data-philosophy-ability="rapidExpansion"]')
-    .getByRole("button", { name: "Research" })
+    .getByRole("button", { name: philosophyText("en").abilityAction, exact: true })
     .click();
   const rapidExpansionNotice = page.getByTestId("game-notification").filter({
     hasText: "ABILITY: You now have a chance of capturing up to 3 nearby Systems for every 1!",
@@ -116,8 +135,8 @@ test("returns focus to the star-study action after the philosophy choice @p16-fo
   await startSpaceFixture(page);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope" }).click();
-  const studyStars = page.getByRole("button", { name: "Study stars", exact: true });
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  const studyStars = page.getByRole("button", { name: "Study Stars", exact: true });
   await studyStars.click();
   expect(
     await page.evaluate(() =>

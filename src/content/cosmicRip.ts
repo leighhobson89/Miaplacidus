@@ -21,12 +21,12 @@ export const COSMIC_RIP_UPGRADES = {
   sensorBuoy: {
     cash: 500_000,
     goods: { titanium: 100_000, silicon: 600_000 },
-    telemetryPerSecond: 4,
+    telemetryPerSecond: 0.04,
   },
   ripResearchOrbiter: {
     cash: 1_000_000,
     goods: { helium: 1_000_000, sodium: 1_000_000, steel: 500_000 },
-    telemetryPerSecond: 7,
+    telemetryPerSecond: 0.07,
   },
 } as const satisfies Record<
   string,

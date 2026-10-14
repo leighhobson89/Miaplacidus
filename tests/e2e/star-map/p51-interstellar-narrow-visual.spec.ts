@@ -33,7 +33,7 @@ async function startInterstellarFixture(page: Page): Promise<void> {
     }),
   );
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", "terminal");
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", "terminal");
 }
 
 async function expectDocumentFits(page: Page, width: number): Promise<void> {

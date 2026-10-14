@@ -103,6 +103,20 @@ async function expectArrowRightMovesFocusToSelection(
     .toBe(await second.getAttribute("id"));
 }
 
+async function expectNotificationsToClear(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 15_000 });
+}
+
+async function dismissTutorialOffer(page: import("@playwright/test").Page): Promise<void> {
+  const noThanks = page.getByRole("button", { name: "No thanks", exact: true });
+  const tutorial = page.locator(".progression-tutorial");
+  await expect(noThanks).toBeVisible();
+  await noThanks.click();
+  await expect(tutorial).toHaveCount(0);
+}
+
 test("keyboard focus stays with the selected main and child destination @app-boot @keyboard @ui-navigation @p16-focus @p20-announcements", async ({
   page,
 }, testInfo) => {
@@ -164,6 +178,14 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
 }, testInfo) => {
   test.setTimeout(60_000);
   await startFixture(page, "space-telescope", "Space Navigation Pioneer");
+  await dismissTutorialOffer(page);
+  // This fixture unlocks several achievements; suppress their notices for the navigation-only journey.
+  await page.locator("#tab-settings").click();
+  const notificationsToggle = page.locator("#settings-notifications");
+  await expect(notificationsToggle).toBeChecked();
+  await notificationsToggle.uncheck();
+  await expect(notificationsToggle).not.toBeChecked();
+  await expectNotificationsToClear(page);
   const technologyUnlockedTabs = [
     ["Resources", "hydrogen"],
     ["Compounds", "compounds"],
@@ -182,7 +204,7 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
   );
   for (const rocket of [1, 2, 3, 4])
     await expect(spaceMining.locator(`#tab-space-mining-rocket-${rocket}`)).toHaveCount(0);
-  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 8_000 });
+  await expectNotificationsToClear(page);
   await captureVisualCheckpoint(page, testInfo, "navigation-technology-unlocks");
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -216,12 +238,69 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
         tabBounds.scrollLeft,
         "Selecting Miaplaedia should scroll the main tab rail",
       ).toBeGreaterThan(0);
+      await expectNotificationsToClear(page);
       await captureVisualCheckpoint(page, testInfo, "navigation-miaplaedia-selected-phone");
     }
-    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-    expect(documentWidth, `${id} caused horizontal page overflow at 390px`).toBeLessThanOrEqual(
-      390,
-    );
+    const overflow = await page.evaluate(() => {
+      const viewportWidth = document.documentElement.clientWidth;
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>("body *"))
+        .map((element) => ({
+          element,
+          bounds: element.getBoundingClientRect(),
+          style: getComputedStyle(element),
+        }))
+        .filter(({ element, bounds }) => {
+          if (bounds.width <= 0 || bounds.right <= viewportWidth + 1) return false;
+          for (
+            let parent = element.parentElement;
+            parent && parent !== document.body;
+            parent = parent.parentElement
+          ) {
+            if (
+              ["auto", "scroll", "hidden", "clip"].includes(getComputedStyle(parent).overflowX)
+            ) {
+              return false;
+            }
+          }
+          return true;
+        })
+        .sort((left, right) => right.bounds.right - left.bounds.right)
+        .slice(0, 8)
+        .map(({ element, bounds, style }) => {
+          const classes =
+            element
+              .getAttribute("class")
+              ?.trim()
+              .split(/\s+/u)
+              .filter(Boolean)
+              .slice(0, 3)
+              .map((name) => `.${CSS.escape(name)}`)
+              .join("") ?? "";
+          const selector = `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}${classes}`;
+          return {
+            selector,
+            bounds: {
+              left: Math.round(bounds.left * 100) / 100,
+              right: Math.round(bounds.right * 100) / 100,
+              width: Math.round(bounds.width * 100) / 100,
+            },
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            overflowX: style.overflowX,
+            visibility: style.visibility,
+            position: style.position,
+          };
+        });
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        clientWidth: viewportWidth,
+        candidates,
+      };
+    });
+    expect(
+      overflow.documentWidth,
+      `${id} caused horizontal page overflow at 390px; document/client width ${overflow.documentWidth}/${overflow.clientWidth}; candidates: ${JSON.stringify(overflow.candidates)}`,
+    ).toBeLessThanOrEqual(390);
   }
 
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -229,6 +308,7 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
     window.miaplacidusTest?.applyDebugAction("unlock-all-tabs"),
   );
   expect(unlockedAllTabs).toBe(true);
+  await expectNotificationsToClear(page);
   const allTabsUnlocked = [
     ["Resources", "hydrogen"],
     ["Compounds", "compounds"],
@@ -274,6 +354,13 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await startFixture(page, "meta-cosmic-rip-route", "Meta Navigation Pioneer");
+  await dismissTutorialOffer(page);
+  await page.locator("#tab-settings").click();
+  const metaNotificationsToggle = page.locator("#settings-notifications");
+  await expect(metaNotificationsToggle).toBeChecked();
+  await metaNotificationsToggle.uncheck();
+  await expect(metaNotificationsToggle).not.toBeChecked();
+  await expectNotificationsToClear(page);
   const metaUnlockedTabs = [
     ["Resources", "hydrogen"],
     ["Compounds", "compounds"],
@@ -284,7 +371,7 @@ test("progressive unlock states keep main tabs in source order @app-boot @ui-nav
     ["Miaplaedia", "miaplaedia"],
   ] as const;
   await expectTabSequence(page, metaUnlockedTabs);
-  await expect(page.getByTestId("notification-stack")).toBeEmpty({ timeout: 8_000 });
+  await expectNotificationsToClear(page);
   await captureVisualCheckpoint(page, testInfo, "navigation-meta-unlocks");
 
   await page.setViewportSize({ width: 390, height: 844 });

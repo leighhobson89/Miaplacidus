@@ -40,7 +40,10 @@ type EconomyLabel =
   | "saleAmount"
   | "salePreview"
   | "saleNotification"
+  | "sellAllResourcesNotice"
+  | "sellAllCompoundsNotice"
   | "storageIncreasedNotice"
+  | "storageIncreasedAllNotice"
   | "storageFullNotice"
   | "autobuyerPurchaseNotice"
   | "hydrogenAdvancedCompressorHelp"
@@ -218,7 +221,10 @@ const en: Record<EconomyLabel, string> = {
   saleAmount: "Sale amount",
   salePreview: "Sale preview",
   saleNotification: "You sold {amount} {good} for {cash}!",
+  sellAllResourcesNotice: "You sold all resources for {cash}!",
+  sellAllCompoundsNotice: "You sold all compounds for {cash}!",
   storageIncreasedNotice: "Increased {good} storage capacity to {capacity}.",
+  storageIncreasedAllNotice: "Increased storage of {materials}.",
   storageFullNotice: "{good} storage is full.",
   autobuyerPurchaseNotice: "Autobuyers for {good} (tier {tier}): +{count}.",
   storage: "Storage",
@@ -338,7 +344,7 @@ const en: Record<EconomyLabel, string> = {
   energyBatteryBuyMax: "Max",
   disabled: "Disabled",
   initialHydrogen: "Hydrogen starts unlocked",
-  increaseAllStorage: "Increase affordable storage",
+  increaseAllStorage: "Storage All",
   researchAutobuyer: "Research AutoBuyer",
   notation: "Number notation",
   standardNotation: "Standard",
@@ -420,7 +426,10 @@ const es: Record<EconomyLabel, string> = {
   saleAmount: "Cantidad de venta",
   salePreview: "Vista previa de venta",
   saleNotification: "¡Has vendido {amount} de {good} por {cash}!",
+  sellAllResourcesNotice: "¡Has vendido todos los recursos por {cash}!",
+  sellAllCompoundsNotice: "¡Has vendido todos los compuestos por {cash}!",
   storageIncreasedNotice: "Se aumentó la capacidad de almacenamiento de {good} a {capacity}.",
+  storageIncreasedAllNotice: "Almacenamiento aumentado de {materials}.",
   storageFullNotice: "El almacenamiento de {good} está lleno.",
   autobuyerPurchaseNotice:
     "Compradores automáticos para {good} (nivel {tier}): +{count}.",
@@ -541,7 +550,7 @@ const es: Record<EconomyLabel, string> = {
   energyBatteryBuyMax: "Max",
   disabled: "Desactivado",
   initialHydrogen: "El hidrógeno empieza desbloqueado",
-  increaseAllStorage: "Ampliar almacenamiento asequible",
+  increaseAllStorage: "Almacén Todo",
   researchAutobuyer: "Autocomprador de Investigación",
   notation: "Notación numérica",
   standardNotation: "Estándar",
@@ -621,7 +630,10 @@ const pt: Record<EconomyLabel, string> = {
   saleAmount: "Quantidade da venda",
   salePreview: "Prévia da venda",
   saleNotification: "Vendeste {amount} de {good} por {cash}!",
+  sellAllResourcesNotice: "Vendeste todos os recursos por {cash}!",
+  sellAllCompoundsNotice: "Vendeste todos os compostos por {cash}!",
   storageIncreasedNotice: "A capacidade de armazenamento de {good} aumentou para {capacity}.",
+  storageIncreasedAllNotice: "Armazenamento aumentado de {materials}.",
   storageFullNotice: "O armazenamento de {good} está cheio.",
   autobuyerPurchaseNotice:
     "Compradores automáticos para {good} (nível {tier}): +{count}.",
@@ -742,7 +754,7 @@ const pt: Record<EconomyLabel, string> = {
   energyBatteryBuyMax: "Max",
   disabled: "Desativado",
   initialHydrogen: "O hidrogénio começa desbloqueado",
-  increaseAllStorage: "Aumentar armazenamento acessível",
+  increaseAllStorage: "Armazém Todo",
   researchAutobuyer: "AutoComprador de Investigação",
   notation: "Notação numérica",
   standardNotation: "Padrão",
@@ -828,7 +840,10 @@ const de: Record<EconomyLabel, string> = {
   saleAmount: "Verkaufsmenge",
   salePreview: "Verkaufswert",
   saleNotification: "Du hast {amount} {good} für {cash} verkauft!",
+  sellAllResourcesNotice: "Du hast alle Ressourcen für {cash} verkauft!",
+  sellAllCompoundsNotice: "Du hast alle Verbindungen für {cash} verkauft!",
   storageIncreasedNotice: "Der Speicherplatz für {good} wurde auf {capacity} erhöht.",
+  storageIncreasedAllNotice: "Lager erhöht für {materials}.",
   storageFullNotice: "Der Speicher für {good} ist voll.",
   autobuyerPurchaseNotice:
     "Automatische Käufer für {good} (Stufe {tier}): +{count}.",
@@ -949,7 +964,7 @@ const de: Record<EconomyLabel, string> = {
   energyBatteryBuyMax: "Max",
   disabled: "Deaktiviert",
   initialHydrogen: "Wasserstoff ist anfangs freigeschaltet",
-  increaseAllStorage: "Bezahlbare Lager erweitern",
+  increaseAllStorage: "Lager Alle",
   researchAutobuyer: "Forschungs-Autokäufer",
   notation: "Zahlennotation",
   standardNotation: "Standard",
@@ -1031,7 +1046,10 @@ const it: Record<EconomyLabel, string> = {
   saleAmount: "Quantità da vendere",
   salePreview: "Anteprima vendita",
   saleNotification: "Hai venduto {amount} di {good} per {cash}!",
+  sellAllResourcesNotice: "Hai venduto tutte le risorse per {cash}!",
+  sellAllCompoundsNotice: "Hai venduto tutti i composti per {cash}!",
   storageIncreasedNotice: "Lo spazio di stoccaggio di {good} è stato aumentato a {capacity}.",
+  storageIncreasedAllNotice: "Stoccaggio aumentato di {materials}.",
   storageFullNotice: "Lo stoccaggio di {good} è pieno.",
   autobuyerPurchaseNotice: "Automatismi per {good} (livello {tier}): +{count}.",
   storage: "Deposito",
@@ -1151,7 +1169,7 @@ const it: Record<EconomyLabel, string> = {
   energyBatteryBuyMax: "Max",
   disabled: "Disattivato",
   initialHydrogen: "L'idrogeno è sbloccato all'inizio",
-  increaseAllStorage: "Aumenta i depositi accessibili",
+  increaseAllStorage: "Deposito Tutto",
   researchAutobuyer: "Auto Acquirente di Ricerca",
   notation: "Notazione numerica",
   standardNotation: "Standard",
@@ -1236,7 +1254,10 @@ const fr: Record<EconomyLabel, string> = {
   saleAmount: "Quantité à vendre",
   salePreview: "Aperçu de vente",
   saleNotification: "Vous avez vendu {amount} de {good} pour {cash}!",
+  sellAllResourcesNotice: "Vous avez vendu toutes les ressources pour {cash}!",
+  sellAllCompoundsNotice: "Vous avez vendu tous les composés pour {cash}!",
   storageIncreasedNotice: "La capacité de stockage de {good} a été augmentée à {capacity}.",
+  storageIncreasedAllNotice: "Stockage augmenté pour {materials}.",
   storageFullNotice: "Le stockage de {good} est plein.",
   autobuyerPurchaseNotice: "Automatismes pour {good} (niveau {tier}) : +{count}.",
   storage: "Stockage",
@@ -1356,7 +1377,7 @@ const fr: Record<EconomyLabel, string> = {
   energyBatteryBuyMax: "Max",
   disabled: "Désactivé",
   initialHydrogen: "L'hydrogène est débloqué au départ",
-  increaseAllStorage: "Augmenter le stockage abordable",
+  increaseAllStorage: "Stockage Tout",
   researchAutobuyer: "Auto-Acheteur de Recherche",
   notation: "Notation numérique",
   standardNotation: "Standard",

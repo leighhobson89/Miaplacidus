@@ -17,8 +17,8 @@ test("locale switching preserves Galactic Market trade quotes and save identity 
   await page.locator("#tab-galactic-market").click();
 
   const market = page.getByRole("region", { name: "Galactic Market" });
-  await market.getByLabel(marketText("en", "outgoing")).selectOption("hydrogen");
-  await market.getByLabel(marketText("en", "incoming")).selectOption("helium");
+  await market.getByLabel(marketText("en", "tradeRow")).selectOption("hydrogen");
+  await market.getByLabel(marketText("en", "tradeFor")).selectOption("helium");
   await market.getByLabel(marketText("en", "quantity")).fill("10");
   await saveNowFromSettings(page);
 
@@ -92,13 +92,13 @@ test("locale switching preserves Galactic Market trade quotes and save identity 
     await expect(rates.nth(0)).toContainText(hydrogenPrice);
     await expect(rates.nth(1)).toContainText(heliumPrice);
 
-    const expectedOutgoing = `${marketText(locale, "outgoing")}: ${formatNumber(
+    const expectedOutgoing = `${marketText(locale, "summaryOutgoing")} ${formatNumber(
       locale,
       10,
       0,
       state.settings.notation,
     )} ${economyGoodName(locale, "hydrogen")}`;
-    const expectedIncoming = `${marketText(locale, "incoming")}: ${formatNumber(
+    const expectedIncoming = `${marketText(locale, "summaryIncoming")} ${formatNumber(
       locale,
       quote!.incomingQuantity,
       0,

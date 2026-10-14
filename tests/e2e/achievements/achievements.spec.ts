@@ -47,7 +47,7 @@ test("shows unlocked game tabs and permanently awards the all-themes achievement
   const themeSelector = page.getByTestId("theme-selector");
   for (const themeId of THEME_IDS.slice(1)) {
     await themeSelector.selectOption(themeId);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
   }
   await settings.locator("#tab-settings-achievements").click();
   await expect(settings.getByTestId("achievements-pane")).toBeVisible();
@@ -187,7 +187,7 @@ test("P-44 exposes source achievement descriptions by keyboard and hover in ever
     await expect(cards).toHaveCount(ACHIEVEMENT_IDS.length);
     const rendered = await page
       .getByTestId("achievements-pane")
-      .locator("[role='tooltip']")
+      .locator("[data-achievement-id] [role='tooltip']")
       .evaluateAll((tooltips) =>
         tooltips.map((tooltip) => [
           tooltip.closest("[data-achievement-id]")?.getAttribute("data-achievement-id"),

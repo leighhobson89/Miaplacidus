@@ -44,7 +44,7 @@ test("P-41 import preview formats Cash using the imported save notation @p41-imp
     await setNumberNotation(page, importedNotation);
     await openSaveManager(page);
     const manager = page.getByTestId("save-manager-inline");
-    const portableCode = await manager.getByLabel("Portable save code").inputValue();
+    const portableCode = await manager.locator("textarea[readonly]").inputValue();
     expect(portableCode).toMatch(/^MIA1:/);
 
     const activeNotation = activeNotations[importedNotation];
@@ -55,7 +55,7 @@ test("P-41 import preview formats Cash using the imported save notation @p41-imp
 
     await openSaveManager(page);
     const liveManager = page.getByTestId("save-manager-inline");
-    await liveManager.getByLabel("Paste a MIAPLACIDUS save code").fill(portableCode);
+    await liveManager.locator("#import-code").fill(portableCode);
     await liveManager.getByRole("button", { name: "Preview import" }).click();
     const preview = liveManager.getByTestId("import-preview");
     await expect(preview).toBeVisible();

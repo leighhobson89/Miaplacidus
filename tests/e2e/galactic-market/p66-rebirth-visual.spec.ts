@@ -19,7 +19,7 @@ test("Galactic Rebirth has a reviewed desktop and phone page capture @p66-visual
         patch: { locale: "en", themeId },
       });
     }, view.theme);
-    await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", view.theme);
+    await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", view.theme);
     await page.addStyleTag({
       content: ".weather-effects-overlay, .pointer-trail-layer { visibility: hidden !important; }",
     });

@@ -271,7 +271,7 @@ describe("audio store event forwarding", () => {
     ).toBe("megastructureCaptured");
   });
 
-  it("randomizes battle cues and applies their source playback cooldowns, including terminal rounds", () => {
+  it("uses explicit laser candidates and applies the source cooldown boundaries", () => {
     class MockAudio extends EventTarget {
       static instances: MockAudio[] = [];
       loop = false;
@@ -297,9 +297,9 @@ describe("audio store event forwarding", () => {
       }
     }
 
-    vi.useFakeTimers();
     MockAudio.instances = [];
     vi.stubGlobal("Audio", MockAudio);
+    vi.stubGlobal("performance", { now: () => 1_000 });
     const initial = createInitialGameState({ seed: 93 });
     const state: GameState = {
       ...initial,
@@ -317,15 +317,8 @@ describe("audio store event forwarding", () => {
       dispatch: (_command: GameCommand) => ({ accepted: true, state, events }),
       dispatchBatch: (commands) => commands.map(() => ({ accepted: true, state, events })),
     };
-    const random = vi
-      .fn()
-      .mockReturnValueOnce(0.2)
-      .mockReturnValueOnce(0.8)
-      .mockReturnValueOnce(0.2)
-      .mockReturnValueOnce(0.8)
-      .mockReturnValueOnce(0.2)
-      .mockReturnValueOnce(0.8)
-      .mockReturnValueOnce(0.2);
+    const random = vi.fn().mockReturnValueOnce(0.2).mockReturnValueOnce(0.8)
+      .mockReturnValueOnce(0.2).mockReturnValueOnce(0.8);
     const store = withGameAudio(eventStore, { now: () => now, random });
     const systemId = initial.run.space.currentSystemId;
     const clockAdvance: GameCommand = {
@@ -336,86 +329,55 @@ describe("audio store event forwarding", () => {
       MockAudio.instances
         .filter((audio) => audio.playCount > 0)
         .map((audio) => audio.source.split("/").at(-1));
+    const sourceTimeAt = (audioTimeMs: number) =>
+      1_000 + audioTimeMs - now;
 
     try {
       store.playUiCue("click");
       MockAudio.instances = [];
 
-      events = [1, 2, 3, 4].map((round) => ({ type: "space.battle.round", systemId, round }));
+      events = [
+        { type: "space.battle.round", systemId, round: 1 },
+        { type: "space.battle.round", systemId, round: 2 },
+        { type: "space.battle.round", systemId, round: 3 },
+        { type: "space.battle.finished", systemId, result: "victory", scannerBuilt: true },
+      ];
       store.dispatch(clockAdvance);
+      expect(playedFiles()).toEqual([]);
+      expect(random).not.toHaveBeenCalled();
+
+      store.playBattleLaserCandidate(sourceTimeAt(100));
       expect(playedFiles()).toEqual(["laserGun1.mp3"]);
 
       now = 180;
-      vi.advanceTimersByTime(81);
+      store.playBattleLaserCandidate(sourceTimeAt(180));
       expect(playedFiles()).toEqual(["laserGun1.mp3"]);
       expect(random).toHaveBeenCalledTimes(1);
 
       now = 181;
-      vi.advanceTimersByTime(1);
+      store.playBattleLaserCandidate(sourceTimeAt(181));
       expect(playedFiles()).toEqual(["laserGun1.mp3", "laserGun2.mp3"]);
-      expect(random).toHaveBeenCalledTimes(2);
 
       now = 262;
-      vi.advanceTimersByTime(81);
-      expect(playedFiles()).toEqual(["laserGun1.mp3", "laserGun2.mp3", "laserGun1.mp3"]);
-      expect(random).toHaveBeenCalledTimes(3);
+      store.playBattleLaserCandidate(sourceTimeAt(262));
+      expect(playedFiles().slice(-1)).toEqual(["laserGun1.mp3"]);
 
       now = 343;
-      vi.advanceTimersByTime(81);
-      expect(playedFiles()).toEqual([
-        "laserGun1.mp3",
-        "laserGun2.mp3",
-        "laserGun1.mp3",
-        "laserGun2.mp3",
-      ]);
+      store.playBattleLaserCandidate(sourceTimeAt(343));
+      expect(playedFiles().slice(-1)).toEqual(["laserGun2.mp3"]);
       expect(random).toHaveBeenCalledTimes(4);
-      expect(vi.getTimerCount()).toBe(0);
 
-      const casualties = (round: number) => ({
-        type: "space.battle.casualties" as const,
-        systemId,
-        round,
-        playerShipLosses: { scout: 1, marauder: 0, landStalker: 0, navalStrafer: 0 },
-        enemyShipLosses: { air: 0, land: 0, sea: 0 },
-      });
-      now = 500;
-      events = [casualties(5)];
+      events = [{ type: "space.battle.finished", systemId, result: "victory", scannerBuilt: true }];
       store.dispatch(clockAdvance);
-      expect(playedFiles()).toEqual([
-        "laserGun1.mp3",
-        "laserGun2.mp3",
-        "laserGun1.mp3",
-        "laserGun2.mp3",
-        "shipBattleExplode1.mp3",
-      ]);
-      expect(random).toHaveBeenCalledTimes(5);
-
-      now = 640;
-      events = [casualties(6)];
-      store.dispatch(clockAdvance);
-      expect(playedFiles()).toHaveLength(5);
-      expect(random).toHaveBeenCalledTimes(5);
-
-      now = 641;
-      vi.advanceTimersByTime(141);
-      expect(playedFiles().slice(-2)).toEqual(["shipBattleExplode1.mp3", "shipBattleExplode2.mp3"]);
-      expect(random).toHaveBeenCalledTimes(6);
-
-      now = 700;
-      events = [
-        { type: "space.battle.finished", systemId, result: "victory", scannerBuilt: true },
-      ];
-      store.dispatch(clockAdvance);
-      expect(playedFiles().at(-1)).toBe("laserGun1.mp3");
-      expect(random).toHaveBeenCalledTimes(7);
+      expect(playedFiles()).toHaveLength(4);
+      expect(random).toHaveBeenCalledTimes(4);
     } finally {
       store.dispose();
       vi.unstubAllGlobals();
-      vi.useRealTimers();
     }
   });
 
-  it("plays one explosion cue for round-boundary ship losses", () => {
+  it("plays explosions on source death callbacks with the strict cooldown boundary", () => {
     class MockAudio extends EventTarget {
       static instances: MockAudio[] = [];
       loop = false;
@@ -443,6 +405,7 @@ describe("audio store event forwarding", () => {
 
     MockAudio.instances = [];
     vi.stubGlobal("Audio", MockAudio);
+    vi.stubGlobal("performance", { now: () => 1_000 });
     const initial = createInitialGameState({ seed: 94 });
     const state: GameState = {
       ...initial,
@@ -452,69 +415,42 @@ describe("audio store event forwarding", () => {
         soundEffectsEnabled: true,
       },
     };
-    let events: readonly EngineEvent[] = [];
+    let now = 141;
     const engineStore = createGameStore(state, { clock: { now: () => 0 } });
-    const eventStore: GameStore = {
-      ...engineStore,
-      dispatch: (_command: GameCommand) => ({ accepted: true, state, events }),
-      dispatchBatch: (commands) => commands.map(() => ({ accepted: true, state, events })),
-    };
-    const store = withGameAudio(eventStore, { now: () => 100, random: () => 0.2 });
-    const systemId = initial.run.space.currentSystemId;
-    const clockAdvance: GameCommand = {
-      type: "clock.advance",
-      input: { wallNowMs: 1, foreground: true },
-    };
+    const random = vi.fn().mockReturnValueOnce(0.2).mockReturnValueOnce(0.8);
+    const store = withGameAudio(engineStore, { now: () => now, random });
     const playedFiles = () =>
       MockAudio.instances
         .filter((audio) => audio.playCount > 0)
         .map((audio) => audio.source.split("/").at(-1));
+    const sourceTimeAt = (audioTimeMs: number) =>
+      1_000 + audioTimeMs - now;
 
     try {
       store.playUiCue("click");
       MockAudio.instances = [];
-      events = [
-        {
-          type: "space.battle.casualties",
-          systemId,
-          round: 1,
-          playerShipLosses: {
-            scout: 0,
-            marauder: 0,
-            landStalker: 0,
-            navalStrafer: 0,
-          },
-          enemyShipLosses: { air: 0, land: 0, sea: 0 },
-        },
-      ];
-      store.dispatch(clockAdvance);
-      expect(playedFiles()).toEqual([]);
-
-      events = [
-        {
-          type: "space.battle.casualties",
-          systemId,
-          round: 2,
-          playerShipLosses: {
-            scout: 1,
-            marauder: 0,
-            landStalker: 0,
-            navalStrafer: 0,
-          },
-          enemyShipLosses: { air: 0, land: 0, sea: 0 },
-        },
-      ];
-      store.dispatch(clockAdvance);
+      store.playBattleExplosionCandidate(sourceTimeAt(141));
       expect(playedFiles()).toEqual(["shipBattleExplode1.mp3"]);
+      expect(random).toHaveBeenCalledTimes(1);
+
+      now = 281;
+      store.playBattleExplosionCandidate(sourceTimeAt(281));
+      expect(playedFiles()).toEqual(["shipBattleExplode1.mp3"]);
+      expect(random).toHaveBeenCalledTimes(1);
+
+      now = 282;
+      store.playBattleExplosionCandidate(sourceTimeAt(282));
+      expect(playedFiles()).toEqual(["shipBattleExplode1.mp3", "shipBattleExplode2.mp3"]);
+      expect(random).toHaveBeenCalledTimes(2);
     } finally {
       store.dispose();
       vi.unstubAllGlobals();
     }
   });
 
-  it.each(["muted", "zero-volume", "focus-loss", "disposal"])(
-    "cancels queued battle cues on %s",
-    (cancelMode) => {
+  it.each(["muted", "zero-volume", "focus-loss"])(
+    "drops suppressed laser attempts without replay on %s",
+    (suppressionMode) => {
       class MockAudio extends EventTarget {
         static instances: MockAudio[] = [];
         loop = false;
@@ -543,13 +479,12 @@ describe("audio store event forwarding", () => {
         visibilityState: DocumentVisibilityState = "visible";
       }
 
-      vi.useFakeTimers();
       MockAudio.instances = [];
       const mockWindow = new EventTarget();
-      const mockDocument = new MockDocument();
       vi.stubGlobal("Audio", MockAudio);
       vi.stubGlobal("window", mockWindow);
-      vi.stubGlobal("document", mockDocument);
+      vi.stubGlobal("document", new MockDocument());
+      vi.stubGlobal("performance", { now: () => 1_000 });
       const initial = createInitialGameState({ seed: 95 });
       let state: GameState = {
         ...initial,
@@ -575,59 +510,121 @@ describe("audio store event forwarding", () => {
         dispatch,
         dispatchBatch: (commands) => commands.map(dispatch),
       };
-      const store = withGameAudio(eventStore, { now: () => now, random: () => 0.2 });
-      const systemId = initial.run.space.currentSystemId;
+      const random = vi.fn().mockReturnValueOnce(0.2).mockReturnValueOnce(0.8)
+        .mockReturnValueOnce(0.2);
+      const store = withGameAudio(eventStore, { now: () => now, random });
       const playedFiles = () =>
         MockAudio.instances
           .filter((audio) => audio.playCount > 0)
           .map((audio) => audio.source.split("/").at(-1));
+      const playedLaserFiles = () => playedFiles().filter((file) => file?.startsWith("laserGun"));
+      const sourceTimeAt = (audioTimeMs: number) =>
+        1_000 + audioTimeMs - now;
 
       try {
         store.playUiCue("click");
-        events = [
-          { type: "space.battle.round", systemId, round: 1 },
-          { type: "space.battle.round", systemId, round: 2 },
-          {
-            type: "space.battle.casualties",
-            systemId,
-            round: 2,
-            playerShipLosses: { scout: 2, marauder: 0, landStalker: 0, navalStrafer: 0 },
-            enemyShipLosses: { air: 0, land: 0, sea: 0 },
-          },
-        ];
-        store.dispatch({
-          type: "clock.advance",
-          input: { wallNowMs: 1, foreground: true },
-        });
+        MockAudio.instances = [];
+        store.playBattleLaserCandidate(sourceTimeAt(now));
+        expect(playedLaserFiles()).toEqual(["laserGun1.mp3"]);
 
-        expect(playedFiles()).toContain("laserGun1.mp3");
-        expect(playedFiles()).toContain("shipBattleExplode1.mp3");
-        expect(vi.getTimerCount()).toBe(2);
-        events = [];
-
-        if (cancelMode === "muted") {
+        now = 181;
+        if (suppressionMode === "muted") {
           store.dispatch({ type: "settings.update", patch: { soundEffectsEnabled: false } });
-        } else if (cancelMode === "zero-volume") {
+        } else if (suppressionMode === "zero-volume") {
           store.dispatch({ type: "settings.update", patch: { soundEffectsVolume: 0 } });
-        } else if (cancelMode === "focus-loss") {
-          mockWindow.dispatchEvent(new Event("blur"));
         } else {
-          store.dispose();
+          mockWindow.dispatchEvent(new Event("blur"));
         }
+        store.playBattleLaserCandidate(sourceTimeAt(now));
+        expect(playedLaserFiles()).toEqual(["laserGun1.mp3"]);
+        expect(random).toHaveBeenCalledTimes(2);
 
-        expect(vi.getTimerCount()).toBe(0);
-        if (cancelMode === "focus-loss") mockWindow.dispatchEvent(new Event("focus"));
-        vi.advanceTimersByTime(1_000);
-        expect(playedFiles().filter((file) => file?.startsWith("laserGun"))).toHaveLength(1);
-        expect(playedFiles().filter((file) => file?.startsWith("shipBattleExplode"))).toHaveLength(1);
+        now = 220;
+        if (suppressionMode === "muted") {
+          store.dispatch({ type: "settings.update", patch: { soundEffectsEnabled: true } });
+        } else if (suppressionMode === "zero-volume") {
+          store.dispatch({ type: "settings.update", patch: { soundEffectsVolume: 0.5 } });
+        } else {
+          mockWindow.dispatchEvent(new Event("focus"));
+        }
+        store.playBattleLaserCandidate(sourceTimeAt(now));
+        expect(playedLaserFiles()).toEqual(["laserGun1.mp3"]);
+        expect(random).toHaveBeenCalledTimes(2);
+
+        now = 262;
+        store.playBattleLaserCandidate(sourceTimeAt(now));
+        expect(playedLaserFiles()).toEqual(["laserGun1.mp3", "laserGun1.mp3"]);
+        expect(random).toHaveBeenCalledTimes(3);
       } finally {
         store.dispose();
         vi.unstubAllGlobals();
-        vi.useRealTimers();
       }
     },
   );
 
+  it("does not schedule battle audio to replay after disposal", () => {
+    class MockAudio extends EventTarget {
+      static instances: MockAudio[] = [];
+      loop = false;
+      paused = true;
+      preload = "";
+      volume = 1;
+      currentTime = 0;
+      playCount = 0;
+
+      constructor(readonly source: string) {
+        super();
+        MockAudio.instances.push(this);
+      }
+
+      play() {
+        this.paused = false;
+        this.playCount += 1;
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.paused = true;
+      }
+    }
+
+    vi.useFakeTimers();
+    MockAudio.instances = [];
+    vi.stubGlobal("Audio", MockAudio);
+    const initial = createInitialGameState({ seed: 96 });
+    const state: GameState = {
+      ...initial,
+      settings: {
+        ...initial.settings,
+        backgroundAudioEnabled: false,
+        soundEffectsEnabled: true,
+      },
+    };
+    const store = withGameAudio(createGameStore(state, { clock: { now: () => 0 } }), {
+      now: () => 100,
+      random: () => 0.2,
+    });
+    const playedFiles = () =>
+      MockAudio.instances
+        .filter((audio) => audio.playCount > 0)
+        .map((audio) => audio.source.split("/").at(-1));
+
+    try {
+      store.playUiCue("click");
+      MockAudio.instances = [];
+      store.playBattleLaserCandidate();
+      expect(playedFiles()).toEqual(["laserGun1.mp3"]);
+      store.dispose();
+
+      vi.advanceTimersByTime(1_000);
+      expect(playedFiles()).toEqual(["laserGun1.mp3"]);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      store.dispose();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
   it("plays the source prize cue for News claims and generic clicks for Casino wins", () => {
     class MockAudio extends EventTarget {
       static instances: MockAudio[] = [];
@@ -952,7 +949,7 @@ describe("audio store event forwarding", () => {
       expect(paused.events).toContainEqual(
         expect.objectContaining({ type: "space.rocket.pump.changed", enabled: false }),
       );
-      expect(audioFiles()).toEqual(["fuelRocket.mp3", "clickSwitch.mp3"]);
+      expect(audioFiles()).toEqual(["clickButton.mp3", "fuelRocket.mp3", "clickSwitch.mp3"]);
 
       const resumed = store.dispatch({
         type: "space.rocket.pump.set-enabled",
@@ -962,7 +959,7 @@ describe("audio store event forwarding", () => {
       expect(resumed.events).toContainEqual(
         expect.objectContaining({ type: "space.rocket.pump.changed", enabled: true }),
       );
-      expect(audioFiles()).toEqual(["fuelRocket.mp3", "clickSwitch.mp3", "clickSwitch.mp3"]);
+      expect(audioFiles()).toEqual(["clickButton.mp3", "fuelRocket.mp3", "clickSwitch.mp3", "clickSwitch.mp3"]);
     } finally {
       store.dispose();
       vi.unstubAllGlobals();
@@ -2097,7 +2094,7 @@ describe("audio store event forwarding", () => {
         "powerOn.mp3",
       ]);
 
-      const activePowerOn = MockAudio.instances[0]!;
+      const activePowerOn = MockAudio.instances.find((audio) => audio.source.endsWith("powerOn.mp3"))!;
       const gridOff = store.dispatch({ type: "economy.power.toggle", enabled: false });
       expect(gridOff.accepted).toBe(true);
       expect(activePowerOn.paused).toBe(true);

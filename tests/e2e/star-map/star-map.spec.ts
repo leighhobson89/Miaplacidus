@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { expect, test } from "../_harness/fixtures";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
+import { stabilizeStarMapVisual } from "./visual-stability";
 import { starshipTravelPlan } from "../../../src/engine/spaceMechanics";
 import type { GameState } from "../../../src/engine/state";
 import { canonicalJson, makeEnvelope, type SaveEnvelopeV1 } from "../../../src/persistence/schema";
@@ -121,9 +122,14 @@ test("searches stars, enforces study and home gates, and keeps geometry stable t
     "Enter at least two characters",
   );
   await search.fill("miap");
-  await map.locator(".star-map-search-results button").filter({ hasText: "Miaplacidus" }).click();
+  const homeSearchResult = map
+    .locator(".star-map-search-results button")
+    .filter({ hasText: "Miaplacidus" });
+  await expect(homeSearchResult).toHaveAttribute("aria-disabled", "true");
+  const homeSearchReasonId = await homeSearchResult.getAttribute("aria-describedby");
+  expect(homeSearchReasonId).toBeTruthy();
+  await expect(map.locator(`[id="${homeSearchReasonId}"]`)).toContainText("fourth milestone");
   await expect(map.getByTestId("star-selection")).toContainText("Spica");
-  await expect(map.locator(".star-map-selection-feedback")).toContainText("fourth milestone");
   const lockedHome = map.locator(
     ".star-map-marker-overlay [data-testid^='star-marker-'][aria-label^='Miaplacidus']",
   );
@@ -133,8 +139,14 @@ test("searches stars, enforces study and home gates, and keeps geometry stable t
   await expect(map.locator(`[id="${homeReasonId}"]`)).toContainText("fourth milestone");
 
   await search.fill("sirius");
-  await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
-  await expect(map.locator(".star-map-selection-feedback")).toContainText("Study farther");
+  const distantSearchResult = map
+    .locator(".star-map-search-results button")
+    .filter({ hasText: "Sirius" });
+  await expect(distantSearchResult).toHaveAttribute("aria-disabled", "true");
+  const studyReasonId = await distantSearchResult.getAttribute("aria-describedby");
+  expect(studyReasonId).toBeTruthy();
+  await expect(map.locator(`[id="${studyReasonId}"]`)).toContainText("Study farther");
+  await expect(map.getByTestId("star-selection")).toContainText("Spica");
   await map.getByRole("button", { name: "Zoom in" }).click();
   await expect(map.getByTestId("star-map-canvas")).toHaveAttribute("data-zoom", "1.25");
   await expect(map.getByTestId("star-map-canvas")).not.toHaveAttribute("viewBox", initialViewBox!);
@@ -164,6 +176,7 @@ test("Star Map canvas has durable desktop and phone presentation captures @p66-v
   page,
 }, testInfo) => {
   await startStarMapFixture(page, "space-starship-ready");
+  await stabilizeStarMapVisual(page);
   await page.getByRole("tab", { name: "Interstellar" }).click();
   const map = page.getByTestId("star-map-pane");
   const canvas = map.getByTestId("star-map-canvas");
@@ -366,13 +379,23 @@ test("Star Data pairs each system's weather glyph with its chance @star-map", as
   const rows = page.getByTestId("star-data-table").locator("tbody tr");
   await expect(rows.first()).toBeVisible();
   const rowCount = await rows.count();
+  let rowsWithWeather = 0;
   for (let index = 0; index < rowCount; index += 1) {
-    const weather = rows.nth(index).locator("[data-testid^='star-data-weather-']");
+    const row = rows.nth(index);
+    const settledMarker = row.locator("[data-testid^='star-data-settled-']");
+    const weather = row.locator("[data-testid^='star-data-weather-']");
+    if ((await settledMarker.count()) > 0) {
+      await expect(weather).toHaveCount(0);
+      continue;
+    }
+
+    rowsWithWeather += 1;
     await expect(weather).toBeVisible();
     await expect(weather).toHaveAttribute("aria-label", /\d+%/);
     await expect(weather).toContainText(/\d+%/);
     await expect(weather.locator(".weather-symbol svg")).toBeVisible();
   }
+  expect(rowsWithWeather).toBeGreaterThan(0);
 });
 
 test("Star Map content is absent from every other Interstellar child @star-map @ui-navigation", async ({
@@ -537,7 +560,7 @@ test("keeps undisclosed factory systems out of search and direct targeting @star
 
   const search = map.getByRole("searchbox", { name: "Search stars" });
   await search.fill("Canopus");
-  await expect(map.getByText("No matching stars.")).toBeVisible();
+  await expect(map.locator(".star-map-search-status")).toHaveText("No matches");
   const factoryMarker = map.getByTestId(`star-marker-${factorySystemId}`);
   await expect(factoryMarker).toHaveAttribute("aria-disabled", "true");
   await expect(factoryMarker).toHaveAttribute("aria-label", /Unidentified star/);
@@ -564,6 +587,7 @@ test("filters and sorts Star Data, targets a discovered system, and focuses it o
   page,
 }, testInfo) => {
   await startStarMapFixture(page, "space-manuscript-hidden");
+  await stabilizeStarMapVisual(page);
   await page.getByRole("tab", { name: "Interstellar" }).click();
   const map = page.getByTestId("star-map-pane");
   const interstellar = page.getByRole("tabpanel", { name: /Interstellar/ });
@@ -642,7 +666,7 @@ test("filters and sorts Star Data, targets a discovered system, and focuses it o
   const expectedFuel = (await targetRow.locator("td:nth-child(6)").innerText()).trim();
   const expectedAp = (await targetRow.locator("td:nth-child(7)").innerText()).trim();
   await expect(targetRow.locator("td:nth-child(8) button")).toHaveAccessibleName(
-    `Show on map: ${targetName}`,
+    `Show this Star on the Star Map: ${targetName}`,
   );
   await expect(targetButton).toHaveAccessibleName(`Set as destination: ${targetName}`);
   await targetButton.click();

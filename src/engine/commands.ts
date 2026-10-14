@@ -94,6 +94,7 @@ import {
 } from "./metaProgression";
 import { advanceGalacticMarket } from "./galacticMarket";
 import { applyAchievementBoundary, type AchievementUnlockedEvent } from "./achievements";
+import { createEconomyTickPlan } from "./economySimulation";
 import { isThemeId } from "../content/themes";
 import { isCurrencyId } from "../content/currency";
 import {
@@ -173,6 +174,8 @@ export interface PurchaseCommand {
   readonly cost: PurchaseCost;
 }
 
+export type EconomyStorageCategory = "resources" | "compounds";
+
 export type GameCommand =
   | PurchaseCommand
   | { readonly type: "resource.collect"; readonly goodId: MaterialId }
@@ -183,6 +186,10 @@ export type GameCommand =
     }
   | { readonly type: "storage.purchase"; readonly goodId: EconomicGoodId }
   | { readonly type: "economy.storage.increaseAll" }
+  | {
+      readonly type: "economy.storage.increaseAllCategory";
+      readonly category: EconomyStorageCategory;
+    }
   | { readonly type: "hydrogen.autobuyer.purchase" }
   | { readonly type: "hydrogen.autobuyer.toggle"; readonly enabled: boolean }
   | {
@@ -605,6 +612,54 @@ function canBuyStorage(state: GameState, goodId: EconomicGoodId): boolean {
   );
 }
 
+/** Source-ordered storage candidates, reserving shared inputs and one second of fuel use. */
+function storageCandidatesForCategory(
+  state: GameState,
+  category: EconomyStorageCategory,
+): EconomicGoodId[] {
+  const order: readonly EconomicGoodId[] =
+    category === "resources"
+      ? MATERIAL_IDS
+      : ["water", ...COMPOUND_IDS.filter((goodId) => goodId !== "water")];
+  const fuelAllowance = new Map<EconomicGoodId, number>();
+  for (const demand of createEconomyTickPlan(state).tickPlan.fuel ?? []) {
+    fuelAllowance.set(
+      demand.goodId,
+      (fuelAllowance.get(demand.goodId) ?? 0) + demand.unitsPerSecond,
+    );
+  }
+  const committed = new Map<EconomicGoodId, number>();
+  const eligible: EconomicGoodId[] = [];
+
+  for (const goodId of order) {
+    const capacity = state.run.goods[goodId].storageCapacity;
+    if (!goodUnlocked(state, goodId) || !(capacity > 0)) continue;
+    const costs = storageCosts(state, goodId);
+    const affordable = costs.every(({ goodId: inputId, amount }) => {
+      const stockLeft = state.run.goods[inputId].quantity - (committed.get(inputId) ?? 0);
+      return canAfford(stockLeft + (fuelAllowance.get(inputId) ?? 0), amount);
+    });
+    if (!affordable) continue;
+
+    const nextCapacity = storageCapacityAfterPurchase(
+      capacity,
+      permanentPerkPurchaseCount(state.permanent.acquiredPerks, "efficientStorage"),
+      storageMultiplier(state, goodId),
+    );
+    const upgradeId = storageUpgradeId(goodId);
+    if (
+      !Number.isFinite(nextCapacity) ||
+      !Number.isSafeInteger((state.run.upgrades[upgradeId] ?? 0) + 1)
+    )
+      continue;
+
+    for (const cost of costs)
+      committed.set(cost.goodId, (committed.get(cost.goodId) ?? 0) + cost.amount);
+    eligible.push(goodId);
+  }
+  return eligible;
+}
+
 function buildingPurchaseFailure(state: GameState, buildingId: FixedUpgradeId): CommandFailure {
   const cost = buildingCost(state, buildingId);
   const missingMaterial = cost.materials.find(
@@ -939,6 +994,17 @@ function checkPreconditionsForValidState(
               messageKey: "engine.purchase.insufficient-material",
               goodId: "hydrogen",
               required: 0,
+            },
+          };
+    case "economy.storage.increaseAllCategory":
+      return (command.category === "resources" || command.category === "compounds") &&
+        storageCandidatesForCategory(state, command.category).length > 0
+        ? { ok: true }
+        : {
+            ok: false,
+            failure: {
+              code: "invalid-command",
+              messageKey: "engine.error.invalid-command",
             },
           };
     case "hydrogen.autobuyer.purchase": {
@@ -1882,6 +1948,37 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
           }
           const capacity = storageCapacityAfterPurchase(
             good.storageCapacity,
+            permanentPerkPurchaseCount(candidate.permanent.acquiredPerks, "efficientStorage"),
+            storageMultiplier(candidate, goodId),
+          );
+          goods[goodId] = { ...goods[goodId], storageCapacity: capacity };
+          const upgradeId = storageUpgradeId(goodId);
+          upgrades[upgradeId] = (upgrades[upgradeId] ?? 0) + 1;
+          events.push({ type: "storage.increased", goodId, capacity });
+          candidate = { ...candidate, run: { ...candidate.run, goods, upgrades } };
+        }
+        return success(incrementAccepted(candidate), events, state);
+      }
+      case "economy.storage.increaseAllCategory": {
+        const initialCandidates = storageCandidatesForCategory(state, command.category);
+        let candidate = state;
+        const events: EngineEvent[] = [];
+        for (const goodId of initialCandidates) {
+          if (!storageCandidatesForCategory(candidate, command.category).includes(goodId)) continue;
+
+          const goods: Record<EconomicGoodId, GoodState> = { ...candidate.run.goods };
+          const upgrades = { ...candidate.run.upgrades };
+          const currentGood = goods[goodId];
+          for (const cost of storageCosts(candidate, goodId)) {
+            const held = goods[cost.goodId].quantity;
+            const chargeable = Math.max(0, Math.min(cost.amount, held));
+            goods[cost.goodId] = {
+              ...goods[cost.goodId],
+              quantity: settleSpend(held, chargeable),
+            };
+          }
+          const capacity = storageCapacityAfterPurchase(
+            currentGood.storageCapacity,
             permanentPerkPurchaseCount(candidate.permanent.acquiredPerks, "efficientStorage"),
             storageMultiplier(candidate, goodId),
           );

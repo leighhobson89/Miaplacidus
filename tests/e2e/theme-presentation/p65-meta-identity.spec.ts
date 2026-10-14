@@ -98,7 +98,7 @@ async function setCosmicRipPresentation(
     { nextLocale: locale, nextTheme: theme },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 async function visibleTabName(page: Page, tabId: string): Promise<string> {
@@ -258,7 +258,14 @@ test("P-65 Cosmic Rip child pages keep localized identity across themes and widt
               `${locale}/${theme} ${cosmicRipPage.id} page heading`,
             ).toHaveText(expectedPageName);
           } else {
-            await expect(activePage).toHaveAttribute("aria-label", expectedPageName);
+            await expect(activePage).toHaveAttribute(
+              "aria-labelledby",
+              `tab-${cosmicRipPage.id}`,
+            );
+            const tabLabel = page.locator(`#tab-${cosmicRipPage.id}`);
+            await expect(activePage).toHaveAccessibleName(
+              (await tabLabel.getAttribute("aria-label")) ?? expectedPageName,
+            );
             await expect(
               pane.getByRole("heading", { name: expectedPageName, exact: true }),
               `${locale}/${theme} Cosmic Rip uses its shared page title once`,
@@ -289,7 +296,7 @@ test("P-65 Cosmic Rip child pages keep localized identity across themes and widt
               artworkRight: artworkBounds.right,
               documentWidth: document.documentElement.scrollWidth,
               viewportWidth: document.documentElement.clientWidth,
-              overflowers: Array.from(document.querySelectorAll<HTMLElement>(".game-frame *"))
+              overflowers: Array.from(document.querySelectorAll<HTMLElement>(".game-frame:not(.notification-portal) *"))
                 .map((child) => {
                   const rect = child.getBoundingClientRect();
                   return {

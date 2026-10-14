@@ -1,6 +1,6 @@
-# Six-language translation review sample
+# Historical six-language localization sample
 
-Prepared for the project owner's quick quality review. These are current player-facing strings selected to cover startup, the core loop, a save failure, travel, and the ending. The owner approved this sample as written on 9 October 2026, including the noted formality differences.
+This sample records the owner's 9 October 2026 review of player-facing strings covering startup, the core loop, a save failure, travel, and the ending. The 13 October owner clarification removed translation quality and linguistic sign-off as closure gates; this sample is retained as historical evidence and is not a required future sign-off artifact.
 
 The sample reads from `saveText(startNewGame)`, `settingsHelpText(early)`, `saveErrorText("quota")`, `starshipText(launch)`, and `miaplacidusStoryText(locale)`.
 

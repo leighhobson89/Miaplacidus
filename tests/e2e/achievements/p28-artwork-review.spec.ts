@@ -27,7 +27,7 @@ test("achievement badge artwork stays within its cards on desktop and phone @p28
           patch: { locale: "en", themeId: nextTheme },
         });
       }, themeId);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
 
       const bounds = await page.evaluate(() => {
         const paneElement = document.querySelector<HTMLElement>(
@@ -36,7 +36,7 @@ test("achievement badge artwork stays within its cards on desktop and phone @p28
         if (!paneElement) throw new Error("Achievement pane is missing.");
         const paneRect = paneElement.getBoundingClientRect();
         const background = getComputedStyle(
-          document.querySelector(".game-frame")!,
+          document.querySelector(".game-frame:not(.notification-portal)")!,
         ).getPropertyValue("--bg-color");
         const badges = Array.from(
           paneElement.querySelectorAll<SVGElement>("[data-achievement-badge]"),

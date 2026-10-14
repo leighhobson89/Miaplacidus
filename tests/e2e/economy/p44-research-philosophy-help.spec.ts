@@ -38,7 +38,7 @@ test("Research Philosophy information stays localized in its page content @p44-r
     const path = copy.paths.constructor;
     const ability = copy.abilities[PHILOSOPHY_PATHS.constructor.abilityId];
     await expect(panel.locator(".philosophy-path-heading .game-page-title")).toHaveText(path.name);
-    await expect(panel.locator(".philosophy-path-heading p:not(.eyebrow)")).toHaveText(
+    await expect(panel.locator(".philosophy-path-heading > div > p").nth(2)).toHaveText(
       path.summary,
     );
     await expect(panel.locator(".philosophy-ability h3")).toHaveText(

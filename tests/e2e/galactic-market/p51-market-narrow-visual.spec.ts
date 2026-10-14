@@ -27,7 +27,7 @@ test("P-51 Galactic Market quote, RP tooltip, and Rebirth confirmation fit on na
           patch: { locale: "fr", themeId },
         });
       }, theme);
-      await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+      await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
       await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe("fr");
 
       await page.locator("#tab-galaxy").click();
@@ -38,8 +38,8 @@ test("P-51 Galactic Market quote, RP tooltip, and Rebirth confirmation fit on na
         marketText("fr", "heading"),
       );
 
-      await market.getByLabel(marketText("fr", "outgoing")).selectOption("hydrogen");
-      await market.getByLabel(marketText("fr", "incoming")).selectOption("helium");
+      await market.getByLabel(marketText("fr", "tradeRow")).selectOption("hydrogen");
+      await market.getByLabel(marketText("fr", "tradeFor")).selectOption("helium");
       await market.getByLabel(marketText("fr", "quantity")).fill("10");
       await expect(market.getByRole("button", { name: marketText("fr", "trade") })).toBeVisible();
 

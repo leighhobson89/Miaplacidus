@@ -1,5 +1,4 @@
 import { expect, test } from "../_harness/fixtures";
-import { runTestLabAction } from "../_harness/test-lab";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { setGameLocale } from "../_harness/settings-controls";
 
@@ -15,7 +14,7 @@ test("manual collection sells Hydrogen and credits its catalogue value @resource
   await captureVisualCheckpoint(freshGame, testInfo, "hydrogen-ready-to-sell");
   await freshGame.getByRole("button", { name: "Sell", exact: true }).click();
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("0");
-  await expect(freshGame.getByText("$10.06")).toBeVisible();
+  await expect(freshGame.getByTestId("cash-balance")).toHaveText("$10.06");
   await captureVisualCheckpoint(freshGame, testInfo, "hydrogen-after-sale");
   await setGameLocale(freshGame, "es");
   await expect(freshGame.getByTestId("cash-balance")).toContainText("$");
@@ -25,7 +24,7 @@ test("manual collection sells Hydrogen and credits its catalogue value @resource
 test("the storage purchase charges 149 Hydrogen and doubles capacity @resources", async ({
   freshGame,
 }, testInfo) => {
-  await runTestLabAction(freshGame, "Hydrogen storage ready");
+  await freshGame.evaluate(() => window.miaplacidusTest!.runScenario("storage-ready"));
   await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("149");
   await freshGame.getByRole("button", { name: "Increase storage" }).click();
   await expect(freshGame.getByTestId("hydrogen-capacity")).toHaveText("300");

@@ -99,6 +99,7 @@ type EconomyFixtureKind =
   | "meta-cosmic-rip-route"
   | "meta-cosmic-rip-objective-scan"
   | "meta-cosmic-rip-restore-affordance"
+  | "meta-cosmic-rip-sector-action-affordances"
   | "meta-cosmic-rip-action-affordances"
   | "meta-cosmic-rip-close-affordance"
   | "meta-cosmic-rip-ending-ready"
@@ -845,6 +846,27 @@ export function createEconomyFixture(
           scannedSectorIndexes: [],
           ripFound: false,
           telemetryData: 0,
+        },
+      },
+    };
+  }
+  if (kind === "meta-cosmic-rip-sector-action-affordances") {
+    const route = createEconomyFixture("meta-cosmic-rip-route", locale);
+    return {
+      ...route,
+      permanent: {
+        ...route.permanent,
+        gloryPoints: 0,
+        cosmicRip: {
+          ...route.permanent.cosmicRip,
+          scannerRestored: true,
+          ripLocationSectorIndex: 4,
+          scannedSectorIndexes: [],
+          ripFound: false,
+          telemetryData: 200_000,
+          activeResearchTechnologyId: null,
+          researchElapsedMs: 0,
+          researchedTechnologyIds: [],
         },
       },
     };

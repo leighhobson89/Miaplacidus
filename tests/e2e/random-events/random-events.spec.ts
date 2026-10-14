@@ -22,6 +22,10 @@ test("records an event and guarded news prize across locale changes and reload",
     window.miaplacidusTest!.dispatch({ type: "random-event.force", eventId: "scienceTheft" });
     window.miaplacidusTest!.dispatch({ type: "news.ticker.force", category: "prize", id: 2000 });
   });
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
   await expect(journal.locator('[data-event-id="scienceTheft"]')).toBeVisible();
   const eventDetails = await page.evaluate(() => {
     const entry = window.miaplacidusTest!
@@ -98,6 +102,10 @@ test("P-41 formats the visible active-event count in every notation @p41-event-c
       eventId: "galacticMarketLockdown",
     }),
   );
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
   const activeCount = await page.evaluate(
     () => window.miaplacidusTest!.getState().run.randomEvents.activeEffects.length,
   );

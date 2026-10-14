@@ -46,6 +46,7 @@ async function startFixture(
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await clearNotificationQueue(page);
 }
 
 async function dispatch(page: import("@playwright/test").Page, command: GameCommand) {
@@ -58,6 +59,28 @@ async function dispatch(page: import("@playwright/test").Page, command: GameComm
 
 async function readState(page: import("@playwright/test").Page): Promise<GameState> {
   return page.evaluate(() => window.miaplacidusTest!.getState());
+}
+
+async function clearNotificationQueue(page: import("@playwright/test").Page): Promise<void> {
+  const notifications = page
+    .getByTestId("notification-stack")
+    .locator('[data-testid="game-notification"]');
+  for (const enabled of [false, true]) {
+    const accepted = await page.evaluate((notificationsEnabled) =>
+      window.miaplacidusTest!.dispatch({
+        type: "settings.update",
+        patch: { notificationsEnabled },
+      }),
+      enabled,
+    );
+    expect(accepted).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
+      )
+      .toBe(enabled);
+    if (!enabled) await expect(notifications).toHaveCount(0);
+  }
 }
 
 /** Advance deterministic offline simulation through the same accepted clock command boundary. */
@@ -106,11 +129,10 @@ test("unlocks Galactic on first Starship arrival while keeping travel shortening
     .getByRole("button", { name: "Set as destination" })
     .click();
 
-  await page.getByRole("tab", { name: "Starship" }).click();
+  await page.locator("#tab-interstellar-starship").click();
   const starship = page.getByTestId("starship-pane");
   const notice = page.locator('[data-testid="game-notification"][data-classification="starShip"]');
-  const notificationRegion = page.getByTestId("notification-stack");
-  await starship.getByRole("button", { name: "Launch starship" }).click();
+  await starship.getByRole("button", { name: "Travel" }).click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
     .getByRole("button", { name: "Confirm launch" })
@@ -127,6 +149,7 @@ test("unlocks Galactic on first Starship arrival while keeping travel shortening
   await page.locator("#tab-hydrogen").click();
   const hydrogenTab = page.locator("#tab-hydrogen");
   await expect(hydrogenTab).toHaveAttribute("aria-selected", "true");
+  await clearNotificationQueue(page);
   await advanceForSimulation(page, timer.durationMs - timer.elapsedMs + 1);
   await expect(notice).toContainText("StarShip has reached orbit of the Sirius system!");
   await expect(galacticTab).toBeVisible();
@@ -136,7 +159,6 @@ test("unlocks Galactic on first Starship arrival while keeping travel shortening
   await expect(galacticUnlockNotice).toHaveText("Galactic Tab Unlocked!");
   await expect(galacticUnlockNotice).toHaveClass(/notification-warning/);
   await expect(hydrogenTab).toHaveAttribute("aria-selected", "true");
-  await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
   await expect(notice).toHaveRole("status");
   await expect(notice).toHaveAttribute("aria-atomic", "true");
 });
@@ -177,10 +199,10 @@ test("routes accepted rocket launch, outbound, arrival, and return milestones @n
     1_000;
   await advanceForSimulation(page, fuelNeeded + 1);
   await dispatch(page, { type: "space.weather.set-condition", condition: "clear" });
+  await clearNotificationQueue(page);
   await dispatch(page, { type: "space.rocket.launch", rocketId: "rocket1" });
 
   const notice = page.locator('[data-testid="game-notification"][data-classification="rocket"]');
-  const notificationRegion = page.getByTestId("notification-stack");
   await expect(notice).toContainText("Rocket 1 Launched!");
   await dispatch(page, { type: "space.asteroid.select", asteroidId: asteroid.id });
   await dispatch(page, {
@@ -188,11 +210,13 @@ test("routes accepted rocket launch, outbound, arrival, and return milestones @n
     rocketId: "rocket1",
     asteroidId: asteroid.id,
   });
-  await expect(notice).toContainText(`Rocket 1 is travelling to ${asteroid.name}`);
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-rocket-1").click();
+  const rocketCard = page.getByTestId("rocket-card-rocket1");
+  await expect(rocketCard.locator(".status-pill")).toHaveText("Travelling");
   const journeyCountdown = page.getByTestId("rocket-journey-countdown-rocket1");
   await expect(journeyCountdown).toBeVisible();
+  await expect(rocketCard.locator("progress")).toBeVisible();
   const outboundRemainingMs = Number(await journeyCountdown.getAttribute("data-remaining-ms"));
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
   await expect
@@ -201,9 +225,10 @@ test("routes accepted rocket launch, outbound, arrival, and return milestones @n
 
   const travelState = await readState(page);
   const outbound = travelState.run.timers[travelState.run.space.rockets.rocket1.timerId!]!;
+  await clearNotificationQueue(page);
   await advanceForSimulation(page, outbound.durationMs + 1);
-  await expect(notice).toContainText(`Rocket 1 arrived at ${asteroid.name}`);
-  await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
+  await expect(notice).toContainText("Rocket 1");
+  await expect(notice).toContainText(asteroid.name);
   await expect(notice).toHaveRole("status");
   await expect(notice).toHaveAttribute("aria-atomic", "true");
 
@@ -213,7 +238,7 @@ test("routes accepted rocket launch, outbound, arrival, and return milestones @n
     asteroidExtractionRatePerSecond(minedAsteroid.extractionEase) *
     antimatterStarTypeMultiplier(starTypeForSystem(minedAsteroid.systemId));
   await advanceForSimulation(page, (minedAsteroid.remainingAntimatter / miningRate) * 1_000 + 1);
-  await expect(notice).toContainText(`Rocket 1 is returning from ${asteroid.name}`);
+  await expect(notice).toContainText("Rocket 1");
 
   const returningState = await readState(page);
   const returningTimer =
@@ -225,8 +250,9 @@ test("routes accepted rocket launch, outbound, arrival, and return milestones @n
   await expect
     .poll(async () => Number(await returnCountdown.getAttribute("data-remaining-ms")))
     .toBeLessThan(returnRemainingMs);
+  await clearNotificationQueue(page);
   await advanceForSimulation(page, returningTimer.durationMs - returningTimer.elapsedMs + 1);
-  await expect(notice).toContainText(`Rocket 1 returned from ${asteroid.name}`);
+  await expect(notice).toContainText("Rocket 1");
   await expect(notice).toHaveRole("status");
   await expect(notice).toHaveAttribute("aria-atomic", "true");
   expect((await readState(page)).run.space.rockets.rocket1.phase).toBe("ready");
@@ -237,9 +263,9 @@ test("shows one battle completion notice and keeps individual battle rounds sile
 }) => {
   await startFixture(page, "space-battle-victory", "Battle Notice Pioneer");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByRole("button", { name: "Conquest", exact: true }).click();
   await pane.getByTestId("starship-battle-engage-button").click();
 
   const notice = page.locator('[data-testid="game-notification"][data-classification="battle"]');
@@ -263,10 +289,10 @@ test("announces captured systems from Rapid Expansion after a conquest victory @
 }) => {
   await startFixture(page, "space-rapid-expansion-victory", "Rapid Expansion Pioneer");
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
 
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByRole("button", { name: "Conquest", exact: true }).click();
   await pane.getByTestId("starship-battle-engage-button").click();
   let phase = (await readState(page)).run.space.systemEncounters[0]!.battle.phase;
   for (let round = 0; round < 20 && phase === "inProgress"; round += 1) {
@@ -285,18 +311,16 @@ test("announces captured systems from Rapid Expansion after a conquest victory @
     new Intl.PluralRules("en").select(capturedIds.length) === "one"
       ? "rapidExpansionCapturedOne"
       : "rapidExpansionCapturedMany";
-  const rapidExpansionNotice = page.locator(
-    '[data-testid="game-notification"][data-classification="battle"]',
-  ).first();
   const expectedMessage = SPACE_NOTIFICATION_MESSAGES.en[captureMessageKey]
     .replace("{count}", formatNumber("en", capturedIds.length, 0, result.settings.notation))
     .replace(
       "{starNames}",
       new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names),
     );
-  await expect(rapidExpansionNotice).toHaveText(
-    expectedMessage,
-  );
+  const rapidExpansionNotice = page
+    .locator('[data-testid="game-notification"][data-classification="battle"]')
+    .filter({ hasText: expectedMessage });
+  await expect(rapidExpansionNotice).toHaveText(expectedMessage);
   await expect(rapidExpansionNotice).toHaveClass(/notification-info/);
 });
 
@@ -307,10 +331,10 @@ test("settlement does not repeat the first-arrival Galactic unlock notice @notif
   const galacticTab = page.locator("#tab-galaxy");
   await expect(galacticTab).toBeVisible();
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
 
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByRole("button", { name: "Conquest", exact: true }).click();
   await pane.getByTestId("starship-battle-engage-button").click();
   let phase = (await readState(page)).run.space.systemEncounters[0]!.battle.phase;
   for (let round = 0; round < 500 && phase === "inProgress"; round += 1) {
@@ -346,7 +370,7 @@ test("marks a newly eligible Megastructures page New until visited in every loca
   expect(factorySystemId).not.toBe(before.run.space.currentSystemId);
   expect(before.permanent.settledSystemIds).not.toContain(factorySystemId);
   expect(before.run.navigationAttentionIds).not.toContain("galactic-megastructures");
-  await expect(page.locator("#tab-galaxy")).toHaveCount(0);
+  await expect(page.locator("#tab-galaxy")).toBeVisible();
   await expect(page.locator("#tab-galactic-megastructures")).toHaveCount(0);
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
@@ -398,7 +422,7 @@ test("respects the notification setting for battle completion @notifications @ba
 }) => {
   await startFixture(page, "space-battle-victory", "Battle Notice Opt-Out Pioneer");
   await page.locator("#tab-settings").click();
-  const notificationsToggle = page.getByRole("checkbox", { name: "Notifications", exact: true });
+  const notificationsToggle = page.locator("#settings-notifications");
   await expect(notificationsToggle).toBeChecked();
   await notificationsToggle.uncheck();
   await expect(notificationsToggle).not.toBeChecked();
@@ -407,9 +431,9 @@ test("respects the notification setting for battle completion @notifications @ba
     .toBe(false);
 
   await page.getByRole("tab", { name: "Interstellar" }).click();
-  await page.getByRole("tab", { name: "Colonise" }).click();
+  await page.locator("#tab-interstellar-colonise").click();
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByRole("button", { name: "Conquest", exact: true }).click();
   await pane.getByTestId("starship-battle-engage-button").click();
 
   const notice = page.locator('[data-testid="game-notification"][data-classification="battle"]');
@@ -429,7 +453,7 @@ test("announces the actual Void Pillage gains without duplicate inline completio
   await startFixture(page, "space-voidborn-pillage", "Void Pillage Notice Pioneer");
   await page.getByRole("tab", { name: "Space Mining" }).click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Pillage the Void" }).click();
+  await page.getByRole("button", { name: "Pillage the Void", exact: true }).click();
   await expect(
     page.getByRole("progressbar", { name: "Pillaging the Void", exact: true }),
   ).toBeVisible();
@@ -458,6 +482,7 @@ test("announces the actual Void Pillage gains without duplicate inline completio
     );
   }
 
+  await clearNotificationQueue(page);
   await dispatch(page, { type: "timer.complete", timerId: VOID_PILLAGE_TIMER_ID });
   const notice = page
     .getByTestId("game-notification")

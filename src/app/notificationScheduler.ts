@@ -1,123 +1,40 @@
-export const MAX_VISIBLE_NOTIFICATION_CLASSIFICATIONS = 4;
-export const MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION = 4;
-
-export const MULTI_CARD_NOTIFICATION_CLASSIFICATIONS = new Set(["storage", "debug", "achievement"]);
+export const MAX_VISIBLE_GAME_NOTIFICATIONS = 2;
 
 export interface ScheduledNotification {
   readonly id: number;
   readonly classification: string;
 }
 
-/** Keeps each category's queue intact while limiting visible categories. */
+/** Keeps a FIFO queue while limiting the floating notification region to two cards. */
 export class NotificationScheduler<T extends ScheduledNotification> {
-  private readonly classificationOrder: string[] = [];
-  private readonly activeByClassification = new Map<string, T[]>();
-  private readonly pendingByClassification = new Map<string, T[]>();
-
-  constructor(
-    private readonly maxVisibleClassifications = MAX_VISIBLE_NOTIFICATION_CLASSIFICATIONS,
-    private readonly multiCardClassifications = MULTI_CARD_NOTIFICATION_CLASSIFICATIONS,
-  ) {}
+  private readonly active: T[] = [];
+  private readonly pending: T[] = [];
 
   enqueue(notification: T): readonly T[] {
-    const { classification } = notification;
-    if (!this.classificationOrder.includes(classification)) {
-      this.classificationOrder.push(classification);
+    if (this.active.length < MAX_VISIBLE_GAME_NOTIFICATIONS) {
+      this.active.push(notification);
+      return [notification];
     }
-
-    const active = this.activeByClassification.get(classification);
-    if (active && this.multiCardClassifications.has(classification)) {
-      if (active.length < MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION) {
-        this.activeByClassification.set(classification, [...active, notification]);
-        return [notification];
-      }
-      const pending = this.pendingByClassification.get(classification) ?? [];
-      this.pendingByClassification.set(classification, [...pending, notification]);
-      return [];
-    }
-
-    const pending = this.pendingByClassification.get(classification) ?? [];
-    this.pendingByClassification.set(classification, [...pending, notification]);
-    return this.promoteAvailable();
+    this.pending.push(notification);
+    return [];
   }
 
-  dismiss(classification: string, id: number): readonly T[] {
-    const active = this.activeByClassification.get(classification);
-    if (!active) return [];
+  dismiss(id: number): readonly T[] {
+    const index = this.active.findIndex((notification) => notification.id === id);
+    if (index < 0) return [];
 
-    const remaining = active.filter((notification) => notification.id !== id);
-    if (remaining.length > 0) {
-      this.activeByClassification.set(classification, remaining);
-    } else {
-      this.activeByClassification.delete(classification);
-    }
-
-    return this.promoteAvailable();
+    this.active.splice(index, 1);
+    const promoted = this.pending.splice(0, MAX_VISIBLE_GAME_NOTIFICATIONS - this.active.length);
+    this.active.push(...promoted);
+    return promoted;
   }
 
   snapshot(): readonly T[] {
-    return this.classificationOrder.flatMap(
-      (classification) => this.activeByClassification.get(classification) ?? [],
-    );
+    return [...this.active];
   }
 
   clear(): void {
-    this.classificationOrder.length = 0;
-    this.activeByClassification.clear();
-    this.pendingByClassification.clear();
-  }
-
-  private promoteAvailable(): readonly T[] {
-    const activated: T[] = [];
-
-    for (const classification of [...this.classificationOrder]) {
-      const pending = this.pendingByClassification.get(classification);
-      const active = this.activeByClassification.get(classification);
-
-      if (active) {
-        if (this.multiCardClassifications.has(classification) && pending?.length) {
-          const availableSlots = MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION - active.length;
-          const promoted = pending.slice(0, availableSlots);
-          if (promoted.length > 0) {
-            activated.push(...promoted);
-            this.activeByClassification.set(classification, [...active, ...promoted]);
-            if (promoted.length === pending.length) {
-              this.pendingByClassification.delete(classification);
-            } else {
-              this.pendingByClassification.set(classification, pending.slice(promoted.length));
-            }
-          }
-        }
-        continue;
-      }
-
-      if (this.activeByClassification.size >= this.maxVisibleClassifications || !pending?.length) {
-        continue;
-      }
-
-      const newlyActive = this.multiCardClassifications.has(classification)
-        ? pending.slice(0, MAX_VISIBLE_NOTIFICATION_CARDS_PER_CLASSIFICATION)
-        : pending.slice(0, 1);
-      activated.push(...newlyActive);
-      this.activeByClassification.set(classification, newlyActive);
-
-      if (newlyActive.length === pending.length) {
-        this.pendingByClassification.delete(classification);
-      } else {
-        this.pendingByClassification.set(classification, pending.slice(newlyActive.length));
-      }
-    }
-
-    this.removeEmptyClassifications();
-    return activated;
-  }
-
-  private removeEmptyClassifications(): void {
-    const retainedOrder = this.classificationOrder.filter(
-      (classification) =>
-        this.activeByClassification.has(classification) ||
-        (this.pendingByClassification.get(classification)?.length ?? 0) > 0,
-    );
-    this.classificationOrder.splice(0, this.classificationOrder.length, ...retainedOrder);
+    this.active.length = 0;
+    this.pending.length = 0;
   }
 }

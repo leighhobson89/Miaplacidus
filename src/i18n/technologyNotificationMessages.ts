@@ -619,11 +619,11 @@ const notices = {
 
 const fallback: Record<LocaleId, string> = {
   en: "{technology} Researched!",
-  es: "?{technology} investigado!",
+  es: "¡{technology} investigado!",
   pt: "{technology} pesquisado!",
   de: "{technology} erforscht!",
   it: "{technology} ricercato!",
-  fr: "{technology} recherch? !",
+  fr: "{technology} recherché!",
 };
 
 export function technologyNotificationText(

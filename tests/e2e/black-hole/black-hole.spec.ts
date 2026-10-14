@@ -15,6 +15,11 @@ const VIEWPORTS = [
   { width: 320, height: 740 },
 ] as const;
 
+async function dismissTutorialIfVisible(page: Page): Promise<void> {
+  const dismissButton = page.getByRole("button", { name: "No thanks", exact: true });
+  if (await dismissButton.isVisible()) await dismissButton.click();
+}
+
 async function selectBlackHoleLocale(page: Page, locale: LocaleId): Promise<void> {
   await page.locator("#tab-settings").click();
   await page.locator("#tab-settings-game-options").click();
@@ -64,7 +69,7 @@ async function setBlackHolePresentation(
     { nextLocale: locale, nextTheme: theme },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 test("shows the Black Hole power upgrade cost and applies its effect @p06-affordances", async ({
@@ -77,13 +82,11 @@ test("shows the Black Hole power upgrade cost and applies its effect @p06-afford
   const copy = blackHoleText("en");
   await page
     .getByTestId("black-hole-research")
-    .getByRole("button", {
-      name: new RegExp(copy.researchAction),
-    })
+    .locator(".space-action-help-group > .primary-button")
     .click();
 
   const powerUpgrade = page.getByRole("button", { name: new RegExp(copy.upgradeNames.power) });
-  await expect(powerUpgrade).toContainText(`${formatNumber("en", 850_000)} RP`);
+  await expect(powerUpgrade).toContainText(`${formatNumber("en", 850_000)} ${copy.researchPoints}`);
   await expect(powerUpgrade).toBeEnabled();
   await powerUpgrade.click();
 
@@ -92,7 +95,7 @@ test("shows the Black Hole power upgrade cost and applies its effect @p06-afford
     .filter({ has: page.getByText(copy.power, { exact: true }) })
     .locator("dd");
   await expect(powerStat).toHaveText("7×");
-  await expect(powerUpgrade).toContainText(`${formatNumber("en", 960_500)} RP`);
+  await expect(powerUpgrade).toContainText(`${formatNumber("en", 960_500)} ${copy.researchPoints}`);
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -119,7 +122,7 @@ test("shows an announced reason when Black Hole research is underfunded @black-h
   await expect(pane).toBeVisible();
   await expect(pane).toContainText(`${formatNumber("en", 999_999)} research points`);
 
-  const research = pane.getByRole("button", { name: new RegExp(copy.researchAction) });
+  const research = pane.locator(".space-action-help-group > .primary-button");
   await expect(research).toContainText(`${formatNumber("en", 1_000_000)} RP`);
   await expect(research).toBeDisabled();
   await expect(research).toHaveAttribute("aria-describedby", "black-hole-research-reason");
@@ -146,6 +149,7 @@ test("researches, charges, saves and activates the Black Hole through the player
 }, testInfo) => {
   const copy = blackHoleText("en");
   await startMetaFixture(page, "meta-black-hole-discovered");
+  await dismissTutorialIfVisible(page);
   await page.getByRole("tab", { name: "Galactic" }).click();
   const blackHoleTab = page.getByRole("tab", { name: "Black Hole" });
   await blackHoleTab.click();
@@ -166,7 +170,7 @@ test("researches, charges, saves and activates the Black Hole through the player
   await expect(warpAnnouncement).toBeEmpty();
   await expect(warpAnnouncement).toHaveAttribute("aria-live", "polite");
   await expect(warpAnnouncement).toHaveAttribute("aria-atomic", "true");
-  await pane.getByRole("button", { name: /Research Black Hole/ }).click();
+  await pane.locator(".space-action-help-group > .primary-button").click();
 
   const readProgress = () =>
     page.evaluate(() => {
@@ -261,9 +265,8 @@ test("researches, charges, saves and activates the Black Hole through the player
   const chargeNotice = page
     .getByTestId("game-notification")
     .filter({ hasText: copy.chargedNotification });
-  const notificationStack = page.getByTestId("notification-stack");
-  await expect(notificationStack).toHaveAttribute("aria-live", "polite");
   await expect(chargeNotice).toHaveCount(1);
+  await expect(chargeNotice).toHaveRole("status");
   await expect(chargeNotice).toHaveAttribute("aria-atomic", "true");
   await expect(chargeNotice).toHaveClass(/notification-info/);
   await expect(chargeNotice).toHaveAttribute("data-classification", "special");
@@ -342,7 +345,7 @@ test("switching locale preserves Black Hole IDs, prices, save slot, and active c
   await page.locator("#tab-galaxy").click();
   const blackHoleTab = page.locator("#tab-galactic-black-hole");
   await blackHoleTab.click();
-  await page.getByRole("button", { name: /Research Black Hole/ }).click();
+  await page.locator(".black-hole-research .space-action-help-group > .primary-button").click();
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
 
   await saveNowFromSettings(page);

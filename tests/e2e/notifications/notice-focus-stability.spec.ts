@@ -2,6 +2,7 @@ import { expect, test, type Page } from "../_harness/fixtures";
 import { OFFLINE_GAINS_RATE } from "../../../src/engine/clock";
 import type { GameCommand } from "../../../src/engine/commands";
 import type { GameState } from "../../../src/engine/state";
+import { spaceNotificationText } from "../../../src/i18n/spaceNotificationMessages";
 
 type FixtureId =
   | "research"
@@ -25,6 +26,7 @@ async function startFixture(page: Page, fixture: FixtureId, pioneerName: string)
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await clearNotificationQueue(page);
 }
 
 async function startFreshGame(page: Page, pioneerName: string): Promise<void> {
@@ -40,6 +42,29 @@ async function startFreshGame(page: Page, pioneerName: string): Promise<void> {
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await clearNotificationQueue(page);
+}
+
+async function clearNotificationQueue(page: Page): Promise<void> {
+  const notifications = page
+    .getByTestId("notification-stack")
+    .locator('[data-testid="game-notification"]');
+  for (const enabled of [false, true]) {
+    const accepted = await page.evaluate((notificationsEnabled) =>
+      window.miaplacidusTest!.dispatch({
+        type: "settings.update",
+        patch: { notificationsEnabled },
+      }),
+      enabled,
+    );
+    expect(accepted).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled),
+      )
+      .toBe(enabled);
+    if (!enabled) await expect(notifications).toHaveCount(0);
+  }
 }
 
 async function dispatch(page: Page, command: GameCommand): Promise<void> {
@@ -74,14 +99,20 @@ async function advanceForSimulation(page: Page, simulatedMs: number): Promise<vo
   });
 }
 
-async function expectNoticeLeavesFocus(
+async function expectNoticeVisibleWithoutTakingFocus(
   notice: ReturnType<Page["locator"]>,
   focusTarget: ReturnType<Page["locator"]>,
 ): Promise<void> {
-  await expect(notice).toBeVisible();
+  await expect(notice).toBeVisible({ timeout: 1_000 });
   await expect(notice).not.toBeFocused();
   await expect(focusTarget).toBeFocused();
-  await expect(notice).toHaveCount(0, { timeout: 5_000 });
+}
+
+async function expectNoticeExpiresWithoutTakingFocus(
+  notice: ReturnType<Page["locator"]>,
+  focusTarget: ReturnType<Page["locator"]>,
+): Promise<void> {
+  await expect(notice).toHaveCount(0, { timeout: 4_000 });
   await expect(focusTarget).toBeFocused();
 }
 
@@ -90,25 +121,26 @@ test("announces the Collect 50 Hydrogen achievement without taking focus @p08 @p
 }, testInfo) => {
   await startFreshGame(page, "Achievement Notice Pioneer");
   const collect = page.getByRole("button", { name: "Collect 1 Hydrogen", exact: true });
+  const notice = page
+    .locator('[data-testid="game-notification"][data-classification="achievement"]')
+    .filter({ hasText: "You have collected 50 Hydrogen!" });
   for (let count = 0; count < 50; count += 1) await collect.click();
+  await expectNoticeVisibleWithoutTakingFocus(notice, collect);
 
   const earned = await page.evaluate(() =>
     window.miaplacidusTest!.getState().run.achievements.unlockedIds.includes("collect50Hydrogen"),
   );
   expect(earned).toBe(true);
 
-  const notice = page
-    .locator('[data-testid="game-notification"][data-classification="achievement"]')
-    .filter({ hasText: "You have collected 50 Hydrogen!" });
   await expect(notice).toHaveCount(1);
   await expect(notice).toContainText("ACHIEVEMENT:");
-  await expect(notice).toContainText("REWARD: 10 Cash");
+  await expect(notice).toContainText("REWARD: $10");
   await expect(notice).toHaveCSS("border-left-color", "rgb(255, 204, 0)");
   await testInfo.attach("achievement-unlock-source-notice.png", {
     body: await notice.screenshot({ animations: "disabled" }),
     contentType: "image/png",
   });
-  await expectNoticeLeavesFocus(notice, collect);
+  await expectNoticeExpiresWithoutTakingFocus(notice, collect);
 });
 
 test("keeps the researched technology focused through its notification @p16-focus", async ({
@@ -119,12 +151,12 @@ test("keeps the researched technology focused through its notification @p16-focu
   await page.locator("#tab-research-tech-tree").click();
   const technology = page.locator('[data-technology-id="knowledgeSharing"]');
   await expect(technology).toHaveAttribute("aria-disabled", "false");
-  await technology.click();
-
   const notice = page
     .locator('[data-testid="game-notification"][data-classification="tech"]')
     .filter({ hasText: "Knowledge Sharing Researched" });
-  await expectNoticeLeavesFocus(notice, technology);
+  await technology.click();
+  await expectNoticeVisibleWithoutTakingFocus(notice, technology);
+  await expectNoticeExpiresWithoutTakingFocus(notice, technology);
 });
 
 test("moves focus to the next Telescope action when its build control is replaced @p16-focus", async ({
@@ -133,13 +165,13 @@ test("moves focus to the next Telescope action when its build control is replace
   await startFixture(page, "space-telescope", "Telescope Notice Pioneer");
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: "Build telescope", exact: true }).click();
-
-  const nextAction = page.getByRole("button", { name: "Scan for asteroids", exact: true });
+  const nextAction = page.locator("#space-scan-asteroids");
   const notice = page
     .locator('[data-testid="game-notification"][data-classification="special"]')
     .filter({ hasText: "Space Telescope Built!" });
-  await expectNoticeLeavesFocus(notice, nextAction);
+  await page.getByRole("button", { name: "Build Space Telescope", exact: true }).click();
+  await expectNoticeVisibleWithoutTakingFocus(notice, nextAction);
+  await expectNoticeExpiresWithoutTakingFocus(notice, nextAction);
 });
 
 test("keeps the active page focused through a hazardous-weather notice @p16-focus", async ({
@@ -155,13 +187,14 @@ test("keeps the active page focused through a hazardous-weather notice @p16-focu
     () => window.miaplacidusTest!.getState().run.space.currentSystemWeather,
   );
   const hazardousCondition = currentCondition === "rain" ? "heavyRain" : "rain";
+  const notice = page.locator('[data-testid="game-notification"][data-classification="weather"]');
+  await clearNotificationQueue(page);
   await dispatch(page, {
     type: "space.weather.set-condition",
     condition: hazardousCondition,
   });
-
-  const notice = page.locator('[data-testid="game-notification"][data-classification="weather"]');
-  await expectNoticeLeavesFocus(notice, telescopeTab);
+  await expectNoticeVisibleWithoutTakingFocus(notice, telescopeTab);
+  await expectNoticeExpiresWithoutTakingFocus(notice, telescopeTab);
 });
 
 test("keeps the Rocket page focused through a return notice @p16-focus", async ({ page }) => {
@@ -175,17 +208,24 @@ test("keeps the Rocket page focused through a return notice @p16-focus", async (
   const rocket = state.run.space.rockets.rocket1;
   const timer = state.run.timers[rocket.timerId!]!;
   const asteroid = state.run.space.asteroids.find(({ id }) => id === rocket.targetAsteroidId)!;
+  const notice = page
+    .locator('[data-testid="game-notification"][data-classification="rocket"]')
+    .filter({
+      hasText: spaceNotificationText("en", "rocketReturned", {
+        rocket: rocket.name,
+        asteroid: asteroid.name,
+      }),
+    });
+  await clearNotificationQueue(page);
   await advanceForSimulation(page, timer.durationMs - timer.elapsedMs + 1);
+  await expectNoticeVisibleWithoutTakingFocus(notice, rocketTab);
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.phase),
     )
     .toBe("ready");
 
-  const notice = page
-    .locator('[data-testid="game-notification"][data-classification="rocket"]')
-    .filter({ hasText: `Rocket 1 returned from ${asteroid.name}` });
-  await expectNoticeLeavesFocus(notice, rocketTab);
+  await expectNoticeExpiresWithoutTakingFocus(notice, rocketTab);
 });
 
 test("keeps the Starship page focused through an arrival notice @p16-focus", async ({ page }) => {
@@ -200,29 +240,37 @@ test("keeps the Starship page focused through an arrival notice @p16-focus", asy
     .click();
   await page.locator("#tab-interstellar-starship").click();
 
-  await page.getByRole("button", { name: "Launch starship", exact: true }).click();
+  const launchNotice = page
+    .locator('[data-testid="game-notification"][data-classification="starShip"]')
+    .filter({ hasText: "Travelling to Sirius" });
+  await page.getByRole("button", { name: "Travel", exact: true }).click();
   await page
     .getByRole("dialog", { name: "Warning: point of no return" })
     .getByRole("button", { name: "Confirm launch" })
     .click();
-  const launchNotice = page
-    .locator('[data-testid="game-notification"][data-classification="starShip"]')
-    .filter({ hasText: "Travelling to Sirius" });
-  await expect(launchNotice).toBeVisible();
-  await expect(launchNotice).toHaveCount(0, { timeout: 5_000 });
+  await expect(launchNotice).toBeVisible({ timeout: 1_000 });
+  await expect(launchNotice).toHaveCount(0, { timeout: 4_000 });
 
   const starshipTab = page.locator("#tab-interstellar-starship");
   await starshipTab.focus();
   const state = await readState(page);
   const timer = state.run.timers[state.run.space.starship.timerId!]!;
-  await advanceForSimulation(page, timer.durationMs - timer.elapsedMs + 1);
-  await expect
-    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.starship.phase))
-    .toBe("orbiting");
   const arrivalNotice = page
     .locator('[data-testid="game-notification"][data-classification="starShip"]')
     .filter({ hasText: "StarShip has reached orbit of the Sirius system!" });
-  await expectNoticeLeavesFocus(arrivalNotice, starshipTab);
+  await clearNotificationQueue(page);
+  await starshipTab.focus();
+  await expect(starshipTab).toBeFocused();
+  await advanceForSimulation(page, timer.durationMs - timer.elapsedMs + 1);
+  const randomEventDialog = page.getByTestId("random-event-result-dialog");
+  await expect(randomEventDialog).toBeVisible();
+  await randomEventDialog.getByRole("button").click();
+  await expect(randomEventDialog).toHaveCount(0);
+  await expectNoticeVisibleWithoutTakingFocus(arrivalNotice, starshipTab);
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.starship.phase))
+    .toBe("orbiting");
+  await expectNoticeExpiresWithoutTakingFocus(arrivalNotice, starshipTab);
 });
 
 test("keeps the Colonise page focused through a battle-result notice @p16-focus", async ({
@@ -232,21 +280,24 @@ test("keeps the Colonise page focused through a battle-result notice @p16-focus"
   await page.locator("#tab-interstellar").click();
   await page.locator("#tab-interstellar-colonise").click();
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByRole("button", { name: "Conquest", exact: true }).click();
   await pane.getByTestId("starship-battle-engage-button").click();
 
-  const coloniseTab = page.locator("#tab-interstellar-colonise");
-  await coloniseTab.focus();
+  const colonisePage = page.locator("#panel-interstellar-starship");
+  await colonisePage.focus();
+  await expect(colonisePage).toBeFocused();
   const notice = page
     .locator('[data-testid="game-notification"][data-classification="battle"]')
     .filter({ hasText: "Victory in Sirius: the enemy fleet was defeated." });
   let phase = (await readState(page)).run.space.systemEncounters[0]!.battle.phase;
+  await clearNotificationQueue(page);
   for (let round = 0; round < 500 && phase === "inProgress"; round += 1) {
     await advanceForeground(page, 250);
     phase = (await readState(page)).run.space.systemEncounters[0]!.battle.phase;
   }
   expect(phase).toBe("victory");
-  await expectNoticeLeavesFocus(notice, coloniseTab);
+  await expectNoticeVisibleWithoutTakingFocus(notice, colonisePage);
+  await expectNoticeExpiresWithoutTakingFocus(notice, colonisePage);
 });
 
 test("keeps the Colonise page focused through a battle-defeat notice @p16-focus", async ({
@@ -256,19 +307,22 @@ test("keeps the Colonise page focused through a battle-defeat notice @p16-focus"
   await page.locator("#tab-interstellar").click();
   await page.locator("#tab-interstellar-colonise").click();
   const pane = page.getByTestId("starship-pane");
-  await pane.getByRole("button", { name: "Enter war mode" }).click();
+  await pane.getByRole("button", { name: "Conquest", exact: true }).click();
   await pane.getByTestId("starship-battle-engage-button").click();
 
-  const coloniseTab = page.locator("#tab-interstellar-colonise");
-  await coloniseTab.focus();
+  const colonisePage = page.locator("#panel-interstellar-starship");
+  await colonisePage.focus();
+  await expect(colonisePage).toBeFocused();
   const notice = page
     .locator('[data-testid="game-notification"][data-classification="battle"]')
     .filter({ hasText: "Defeat at Sirius: your fleet was defeated." });
   let phase = (await readState(page)).run.space.systemEncounters[0]!.battle.phase;
+  await clearNotificationQueue(page);
   for (let round = 0; round < 500 && phase === "inProgress"; round += 1) {
     await advanceForeground(page, 250);
     phase = (await readState(page)).run.space.systemEncounters[0]!.battle.phase;
   }
   expect(phase).toBe("defeat");
-  await expectNoticeLeavesFocus(notice, coloniseTab);
+  await expectNoticeVisibleWithoutTakingFocus(notice, colonisePage);
+  await expectNoticeExpiresWithoutTakingFocus(notice, colonisePage);
 });

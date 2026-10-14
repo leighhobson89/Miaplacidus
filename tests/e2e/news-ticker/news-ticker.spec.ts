@@ -468,6 +468,7 @@ test("the prize ticker keeps its visual treatment across theme, locale and width
   freshGame,
 }) => {
   const ticker = freshGame.getByTestId("news-ticker");
+  const gameFrame = freshGame.locator(".game-frame:not(.notification-portal)");
   const captures = [
     { theme: "terminal", locale: "en", width: 1280, height: 900 },
     { theme: "terminal", locale: "fr", width: 390, height: 844 },
@@ -475,12 +476,15 @@ test("the prize ticker keeps its visual treatment across theme, locale and width
     { theme: "light", locale: "fr", width: 1280, height: 900 },
   ] as const;
 
-  await freshGame.evaluate(() =>
-    window.miaplacidusTest!.dispatch({
-      type: "settings.update",
-      patch: { reducedMotion: true },
-    }),
-  );
+  expect(
+    await freshGame.evaluate(() =>
+      window.miaplacidusTest!.dispatch({
+        type: "settings.update",
+        patch: { reducedMotion: true },
+      }),
+    ),
+  ).toBe(true);
+  await expect(gameFrame).toHaveAttribute("data-reduced-motion", "true");
 
   for (const [index, capture] of captures.entries()) {
     await freshGame.setViewportSize({ width: capture.width, height: capture.height });
@@ -488,7 +492,8 @@ test("the prize ticker keeps its visual treatment across theme, locale and width
     await freshGame.locator("#tab-settings").click();
     await freshGame.locator("#tab-settings-visual").click();
     await freshGame.locator("#settings-theme").selectOption(capture.theme);
-    await expect(freshGame.locator(".game-frame")).toHaveAttribute("data-theme", capture.theme);
+    await expect(gameFrame).toHaveAttribute("data-theme", capture.theme);
+    await expect(gameFrame).toHaveAttribute("data-reduced-motion", "true");
     await freshGame.locator("#tab-hydrogen").click();
     if (index > 0) await freshGame.evaluate(() => window.miaplacidusTest!.advanceBy(1));
 
@@ -503,6 +508,17 @@ test("the prize ticker keeps its visual treatment across theme, locale and width
     ).toBe(true);
     await expect(ticker).toHaveAttribute("data-news-id", "2000");
     await expect(ticker.locator(".news-ticker-claim")).toBeVisible();
+    const { entry, notation } = await freshGame.evaluate(() => {
+      const state = window.miaplacidusTest!.getState();
+      return { entry: state.run.newsTicker.entries.at(-1)!, notation: state.settings.notation };
+    });
+    const expectedCopy = newsEntryText(
+      capture.locale,
+      entry,
+      sourceNewsCopy(capture.locale),
+      (amount) => formatNumber(capture.locale, amount, 0, notation),
+    );
+    await expect(ticker.locator(".news-ticker-copy")).toContainText(expectedCopy);
     await freshGame.mouse.move(0, 0);
     await expect(ticker).toHaveScreenshot(
       `news-ticker-${capture.theme}-${capture.locale}-${capture.width}.png`,
@@ -1115,7 +1131,7 @@ test("reduced motion keeps full ticker messages readable and controls usable @ne
   await freshGame.locator("#tab-settings").click();
   await freshGame.locator("#tab-settings-visual").click();
   await freshGame.locator("#settings-motion").check();
-  expect(await freshGame.locator(".game-frame").getAttribute("data-reduced-motion")).toBe("true");
+  expect(await freshGame.locator(".game-frame:not(.notification-portal)").getAttribute("data-reduced-motion")).toBe("true");
   expect(await dispatch("headline", 0)).toBe(true);
   await expect(ticker).toHaveAttribute("data-news-id", "0");
   await expect(message).toHaveCSS("position", "static");

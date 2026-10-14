@@ -1,0 +1,9 @@
+# P-44 source-news copy and link ownership audit — 13 October 2026
+
+**Scope:** compare the source News Ticker data ordering, one confirmed English source-value defect, the wacky-effect click target, and locale changes while lazy-loaded copy is pending in the News Ticker and Meta Journal.
+
+Cosmic Forge assembles the no-prize list in `descriptions.js:2199` and attaches its event handling in `ui.js:11770, 12069`. The source `localization.json` key `newsNoPrizeAstronautHelmet` is missing the number and currency in English, while the Spanish, Portuguese, German, Italian, and French source values all state 3 million dollars. Based on those five source values, the English MIAPLACIDUS item now reads “An astronaut's helmet costs over 3 million dollars.” in [`sourceNewsCopy.ts`](../../../src/i18n/sourceNewsCopy.ts#L200).
+
+Cosmic Forge defines `newsWackyBoo` with the literal link word `Boo!` in `descriptions.js:1884–1888`. MIAPLACIDUS now makes only that word clickable inside the corresponding headline; the surrounding sentence remains ordinary text in [`NewsTickerBar.tsx`](../../../src/app/NewsTickerBar.tsx#L198). The source News Ticker data comparison found matching order and counts in all six locales: 200 headlines, 8 wacky effects, 14 prizes, 14 one-offs, and 10 manuscript clues. The owner's MIAPLACIDUS feedback-copy adaptation remains intentional. Both [`NewsTickerBar.tsx`](../../../src/app/NewsTickerBar.tsx#L38) and [`MetaJournalPane.tsx`](../../../src/app/MetaJournalPane.tsx#L51) tag asynchronously loaded source-news copy with its locale; while a new locale module is pending, each surface suppresses copy associated with the previous locale.
+
+Static source/data/renderer review only. No tests, builds, typechecks, formatting, or browser renders were run. This slice does not complete the Phase 7 route, dynamic-value, or layout review; P-44 remains open.

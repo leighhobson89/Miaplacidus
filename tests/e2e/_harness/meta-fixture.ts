@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect } from "./fixtures";
+import { dismissTutorialOfferIfPresent, expect } from "./fixtures";
 
 export async function startMetaFixture(
   page: Page,
@@ -54,4 +54,5 @@ export async function startMetaFixture(
   await expect
     .poll(() => page.evaluate(() => Boolean(window.miaplacidusTest?.getState())))
     .toBe(true);
+  await dismissTutorialOfferIfPresent(page);
 }

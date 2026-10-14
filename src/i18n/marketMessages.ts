@@ -55,10 +55,10 @@ const MARKET_BIAS_HELP: Record<LocaleId, MarketBiasHelpCopy> = {
     balanced: "O mercado está estável, sem fortes tendências de preços em nenhuma direção.",
   },
   de: {
-    outgoingTitle: "Ausgehender Bias",
+    outgoingTitle: "Ausgehende Tendenz",
     outgoingBody:
       "Positiv: Diese Ressource wird in Zukunft niedriger bewertet (du bekommst weniger beim Verkauf). Negativ: Diese Ressource wird in Zukunft höher bewertet (du bekommst mehr beim Verkauf).",
-    incomingTitle: "Eingehender Bias",
+    incomingTitle: "Eingehende Tendenz",
     incomingBody:
       "Positiv: Diese Ressource kostet weniger als die Basislinie zum jetzigen Kauf. Negativ: Diese Ressource kostet mehr als die Basislinie zum jetzigen Kauf.",
     outlookTitle: "Marktausblick",
@@ -69,10 +69,10 @@ const MARKET_BIAS_HELP: Record<LocaleId, MarketBiasHelpCopy> = {
     balanced: "Der Markt ist stabil ohne starke Preistrends in irgendeine Richtung.",
   },
   it: {
-    outgoingTitle: "Bias in Uscita",
+    outgoingTitle: "Tendenza in uscita",
     outgoingBody:
       "Positivo: questa risorsa avrà un prezzo più basso in futuro (otterrai meno quando vendi). Negativo: questa risorsa avrà un prezzo più alto in futuro (otterrai di più quando vendi).",
-    incomingTitle: "Bias in Entrata",
+    incomingTitle: "Tendenza in entrata",
     incomingBody:
       "Positivo: questa risorsa costa meno della linea di base da acquistare proprio ora. Negativo: questa risorsa costa più della linea di base da acquistare proprio ora.",
     outlookTitle: "Prospettiva di Mercato",
@@ -83,10 +83,10 @@ const MARKET_BIAS_HELP: Record<LocaleId, MarketBiasHelpCopy> = {
     balanced: "Il mercato è stabile senza forti tendenze dei prezzi in nessuna direzione.",
   },
   fr: {
-    outgoingTitle: "Bias Sortant",
+    outgoingTitle: "Tendance à la vente",
     outgoingBody:
       "Positif: cette ressource sera moins chère à l'avenir (tu obtiendras moins en vendant). Négatif: cette ressource sera plus chère à l'avenir (tu obtiendras plus en vendant).",
-    incomingTitle: "Bias Entrant",
+    incomingTitle: "Tendance à l'achat",
     incomingBody:
       "Positif: cette ressource coûte moins cher que la ligne de base pour acheter maintenant. Négatif: cette ressource coûte plus cher que la ligne de base pour acheter maintenant.",
     outlookTitle: "Perspective du Marché",

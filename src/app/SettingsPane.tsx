@@ -53,6 +53,7 @@ interface SettingsPaneProps {
   readonly onThemeSelectorInteraction: () => void;
   readonly onSaveNow: () => void;
   readonly activePane: SettingsPaneId;
+  readonly navigationDisabled?: boolean;
   readonly onSelectPane: (paneId: SettingsPaneId) => void;
   readonly saveManagerProps: SaveManagerProps;
 }
@@ -66,6 +67,7 @@ function settingsPanePropsAreEqual(previous: SettingsPaneProps, next: SettingsPa
   return (
     STATIC_SETTINGS_PANE_IDS.has(next.activePane) &&
     previous.activePane === next.activePane &&
+    previous.navigationDisabled === next.navigationDisabled &&
     previous.store === next.store &&
     previous.onSoundEffectsDisable === next.onSoundEffectsDisable &&
     previous.onBackgroundAudioToggle === next.onBackgroundAudioToggle &&
@@ -94,11 +96,11 @@ export const SettingsPane = memo(function SettingsPane({
   onThemeSelectorInteraction,
   onSaveNow,
   activePane,
+  navigationDisabled = false,
   onSelectPane,
   saveManagerProps,
 }: SettingsPaneProps) {
   const themeSelectorInteractionPending = useRef(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenFailed, setFullscreenFailed] = useState(false);
   const locale = state.settings.locale;
   const save = (key: Parameters<typeof saveText>[1]) => saveText(locale, key);
@@ -116,7 +118,6 @@ export const SettingsPane = memo(function SettingsPane({
 
   useEffect(() => {
     const syncFullscreenState = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
       setFullscreenFailed(false);
     };
     document.addEventListener("fullscreenchange", syncFullscreenState);
@@ -156,9 +157,11 @@ export const SettingsPane = memo(function SettingsPane({
         items={panes}
         selectedId={activePane}
         label={settingsText(locale, "sections")}
+        navigationDisabled={navigationDisabled}
         attentionIds={attentionIds}
         attentionLabel={attentionLabel}
         onSelect={(id) => {
+          if (navigationDisabled) return;
           onPaneVisit(id);
           onSelectPane(id as SettingsPaneId);
         }}
@@ -188,6 +191,7 @@ export const SettingsPane = memo(function SettingsPane({
                     value={state.settings.themeId}
                     onPointerDown={() => {
                       themeSelectorInteractionPending.current = true;
+                      onThemeSelectorInteraction();
                     }}
                     onKeyDown={(event) => {
                       if (
@@ -199,6 +203,7 @@ export const SettingsPane = memo(function SettingsPane({
                         event.key.length === 1
                       ) {
                         themeSelectorInteractionPending.current = true;
+                        onThemeSelectorInteraction();
                       }
                     }}
                     onChange={(event) => {

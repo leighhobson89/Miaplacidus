@@ -5,7 +5,7 @@ import { setGameLocale } from "../_harness/settings-controls";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import { economyGoodName } from "../../../src/app/economyDisplay";
 import { ECONOMIC_GOOD_IDS, LOCALE_IDS } from "../../../src/content/ids";
-import { casinoText } from "../../../src/i18n/casinoMessages";
+import { casinoText, casinoVoidSeerCurrency } from "../../../src/i18n/casinoMessages";
 import { selectCasinoEntryCost, selectCasinoPointPurchase } from "../../../src/engine/selectors";
 
 test("live locale changes preserve Casino payment and game entry quotes @locale @p49", async ({
@@ -71,7 +71,9 @@ test("live locale changes preserve Casino payment and game entry quotes @locale 
     const state = await page.evaluate(() => window.miaplacidusTest!.getState());
     const number = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
     const preview = (key: "entryCostPreview" | "currentStakePreview" | "doubledWinPreview", value: number) =>
-      casinoText(locale, key).replace("{amount}", number(value));
+      casinoText(locale, key)
+        .replace("{amount}", number(value))
+        .replace(" CP", ` ${casinoText(locale, "wheelCurrencyCp")}`);
     await casino.getByLabel(casinoText(locale, "stake")).fill("10");
     await expect(casino.getByTestId("casino-don-stake-preview")).toHaveText(
       preview("currentStakePreview", 10),
@@ -91,7 +93,9 @@ test("live locale changes preserve Casino payment and game entry quotes @locale 
     for (const tier of [1, 2, 3] as const) {
       await voidTier.selectOption(String(tier));
       const cost = selectCasinoEntryCost({ type: "casino.void-seer.play", tier })!;
-      await expect(reveal).toHaveText(`${casinoText(locale, "reveal")} \u00b7 ${number(cost)} CP`);
+      await expect(reveal).toHaveText(
+        `${casinoText(locale, "voidSeerSpin")} \u00b7 ${number(cost)} ${casinoVoidSeerCurrency(locale)}`,
+      );
     }
 
     const currentIdentity = await readIdentity();

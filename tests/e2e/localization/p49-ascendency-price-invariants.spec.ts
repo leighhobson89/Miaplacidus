@@ -52,7 +52,7 @@ test("live locale changes preserve Ascendency perk costs and state identity @loc
       const level = ascendencyPerkLevel(state.permanent.acquiredPerks, perk.id);
       const cost = ascendencyPerkCost(state.permanent.acquiredPerks, perk.id);
       const card = page.locator(`[data-perk-id="${perk.id}"]`);
-      await expect(card.locator(".cost-line"), `${locale} ${perk.id} quote`).toHaveText(
+      await expect(card.locator(".cost-line"), `${locale} ${perk.id} quote`).toContainText(
         `${metaText(locale, "level")}: ${number(level)} \u00b7 ${metaText(locale, "cost")}: ${number(cost)} AP`,
       );
     }

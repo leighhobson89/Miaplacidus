@@ -1,4 +1,4 @@
-import type { EconomicGoodId } from "../content/ids";
+import { COMPOUND_IDS, MATERIAL_IDS, type EconomicGoodId } from "../content/ids";
 import type { SaleSelection } from "../content/economyRules";
 import { COMPOUND_CATALOG } from "../content/economy";
 import { displayCurrency } from "../engine/precision";
@@ -43,4 +43,54 @@ export function dispatchEconomySale(
     type: "info",
     durationMs: 3000,
   });
+}
+
+/** Sells every unlocked resource or compound through the regular sale command. */
+export function dispatchEconomySellAll(
+  state: GameState,
+  store: GameStore,
+  category: "resources" | "compounds",
+  notify: Notify,
+): void {
+  let totalAmount = 0;
+  let totalCash = 0;
+
+  const sell = (goodId: EconomicGoodId) => {
+    const result = store.dispatch({ type: "resource.sell", goodId, amount: "all" });
+    const sold = result.events.find((event) => event.type === "resource.sold");
+    if (!result.accepted || !sold || sold.type !== "resource.sold") return;
+    totalAmount += sold.amount;
+    totalCash += sold.cash;
+  };
+
+  if (category === "resources") {
+    for (const goodId of MATERIAL_IDS) {
+      if (state.run.unlockedResources.includes(goodId)) sell(goodId);
+    }
+  } else {
+    for (const goodId of COMPOUND_IDS) {
+      if (state.run.economy.unlockedCompounds.includes(goodId)) sell(goodId);
+    }
+  }
+
+  if (totalAmount <= 0 || state.settings.notificationsEnabled === false) return;
+  const locale = state.settings.locale;
+  const messageKey =
+    category === "resources" ? "sellAllResourcesNotice" : "sellAllCompoundsNotice";
+  notify(
+    formatEconomyMessage(locale, messageKey, {
+      cash: formatCurrency(
+        locale,
+        Number(displayCurrency(totalCash)),
+        state.settings.currencyId ?? "usd",
+        2,
+        state.settings.notation,
+      ),
+    }),
+    {
+      classification: category === "resources" ? "sold" : "special",
+      type: "info",
+      durationMs: 3000,
+    },
+  );
 }

@@ -23,7 +23,7 @@ for (const locale of LOCALE_IDS) {
     const copy = blackHoleText(locale);
     await page
       .getByTestId("black-hole-research")
-      .getByRole("button", { name: new RegExp(copy.researchAction) })
+      .locator(".space-action-help-group > .primary-button")
       .click();
     await page.evaluate(() => window.miaplacidusTest!.advanceBy(300_001));
 

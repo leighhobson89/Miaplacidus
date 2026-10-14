@@ -44,7 +44,9 @@ test("active Cosmic Rip research keeps RP, costs, action, and progress visible a
   expect(active.permanent.gloryPoints).toBe(initialGp - 1);
   expect(active.run.researchPoints).toBe(initialResearchPoints);
 
-  const researchProgress = card.getByRole("progressbar", { name: `${copy.researching}: ${copy.technologyNames[technology.id]}` });
+  const researchProgress = card.getByRole("progressbar", {
+    name: `${copy.researching}: ${copy.technologyNames[technology.id]}`,
+  });
   const remaining = card.getByTestId("cosmic-rip-research-remaining");
   const expectedCost = `${formatNumber("en", technology.telemetryCost, 0, active.settings.notation)} ${copy.telemetry} · ${formatNumber("en", technology.durationMs / 1000, 0, active.settings.notation)} s · 1 ${copy.gpShort}`;
   const expectedCash = formatCurrency(
@@ -65,11 +67,17 @@ test("active Cosmic Rip research keeps RP, costs, action, and progress visible a
     await expect(card).toContainText(copy.researching);
     await expect(researchProgress).toBeVisible();
     await expect(researchProgress).toHaveAttribute("max", String(technology.durationMs));
-    expect(await researchProgress.evaluate((element) => (element as HTMLProgressElement).value)).toBe(15_000);
+    expect(
+      await researchProgress.evaluate((element) => (element as HTMLProgressElement).value),
+    ).toBe(15_000);
     await expect(remaining).toHaveText(
       copy.remaining.replace(
         "{time}",
-        formatCountdown("en", technology.durationMs - active.permanent.cosmicRip.researchElapsedMs, active.settings.notation),
+        formatCountdown(
+          "en",
+          technology.durationMs - active.permanent.cosmicRip.researchElapsedMs,
+          active.settings.notation,
+        ),
       ),
     );
 
@@ -97,7 +105,10 @@ test("active Cosmic Rip research keeps RP, costs, action, and progress visible a
           ["Cosmic Rip pane", rect(".cosmic-rip-pane")],
           ["Cosmic Rip wallet", rect(".cosmic-rip-wallet")],
           ["Technology card", rect('[data-testid="cosmic-rip-technology-stabilizerArray"]')],
-          ["Research progress", rect('[data-testid="cosmic-rip-technology-stabilizerArray"] progress')],
+          [
+            "Research progress",
+            rect('[data-testid="cosmic-rip-technology-stabilizerArray"] progress'),
+          ],
           ["Research Points balance", rect('[data-testid="top-stat-rp"]')],
           ["Cash balance", rect('[data-testid="top-stat-cash"]')],
         ] as const,

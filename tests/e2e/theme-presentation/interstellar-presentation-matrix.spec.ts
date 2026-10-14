@@ -45,7 +45,7 @@ async function setPresentation(page: Page, locale: LocaleId, theme: ThemeId): Pr
     { nextLocale: locale, nextTheme: theme },
   );
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", theme);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
 }
 
 async function visibleTabName(page: Page, tabId: string): Promise<string> {
@@ -113,9 +113,13 @@ test("Interstellar child page identity fits every locale, theme, and viewport @p
 
         for (const route of routes) {
           const expectedTitle = route.expectedTitle;
+          const expectedTabName =
+            route.id === "interstellar-colonise"
+              ? starshipText(locale, "coloniseTabLabel")
+              : expectedTitle;
           const tab = page.locator(`#tab-${route.id}`);
           await expect(tab, `${locale} ${theme} ${route.id} is available`).toBeVisible();
-          await expect.poll(() => visibleTabName(page, `tab-${route.id}`)).toBe(expectedTitle);
+          await expect.poll(() => visibleTabName(page, `tab-${route.id}`)).toBe(expectedTabName);
           await tab.click();
 
           const panel = page.locator(route.panelSelector);

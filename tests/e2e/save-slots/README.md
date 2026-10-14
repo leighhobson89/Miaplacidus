@@ -490,3 +490,13 @@ tests/unit/save-message-crosswalk.spec.ts` passed **18/18**. Focused Oxfmt and
 the sandbox launch first returned `spawn EPERM`, and the elevated retry started
 the app/browser but timed out before deletion at the obsolete dialog locator.
 It is not counted as browser behavior evidence for the Hard Reset replacement.
+
+## Focused failure recovery (14 October 2026)
+
+Five current-worktree Save and Loading cases passed in focused Chromium runs:
+P-46 import conflict copy, P-50 saved-at date formatting, P-45 startup duplicate
+name validation, inline Save Manager keyboard navigation, and the P-51 six-locale
+320px Save and Loading layout. The first four passed together **4/4** on port
+4192; the P-51 layout passed **1/1** on port 4193. Artifacts were redirected to
+system Temp. These targeted results supersede the corresponding failures in the
+14 October full-run list; no full suite was rerun.

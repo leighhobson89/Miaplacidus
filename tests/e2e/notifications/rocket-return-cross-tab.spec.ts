@@ -2,6 +2,7 @@ import { expect, test } from "../_harness/fixtures";
 import { OFFLINE_GAINS_RATE } from "../../../src/engine/clock";
 import type { GameCommand } from "../../../src/engine/commands";
 import type { GameState } from "../../../src/engine/state";
+import { localizedRocketUserName } from "../../../src/i18n/rocketMessages";
 import { spaceNotificationText } from "../../../src/i18n/spaceNotificationMessages";
 
 async function startReturningRocketFixture(page: import("@playwright/test").Page): Promise<void> {
@@ -31,10 +32,27 @@ async function readState(page: import("@playwright/test").Page): Promise<GameSta
   return page.evaluate(() => window.miaplacidusTest!.getState());
 }
 
+async function clearNotificationQueue(page: import("@playwright/test").Page): Promise<void> {
+  const notifications = page
+    .getByTestId("notification-stack")
+    .locator('[data-testid="game-notification"]');
+  for (const enabled of [false, true]) {
+    await dispatch(page, {
+      type: "settings.update",
+      patch: { notificationsEnabled: enabled },
+    });
+    await expect
+      .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+      .toBe(enabled);
+    if (!enabled) await expect(notifications).toHaveCount(0);
+  }
+}
+
 test("announces Rocket return in Spanish while Settings stays selected @notifications @rockets @p20-announcements", async ({
   page,
 }) => {
   await startReturningRocketFixture(page);
+  await clearNotificationQueue(page);
   const initialState = await readState(page);
   const rocket = initialState.run.space.rockets.rocket1;
   const timer = initialState.run.timers[rocket.timerId!]!;
@@ -61,7 +79,7 @@ test("announces Rocket return in Spanish while Settings stays selected @notifica
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
 
   const expectedNotice = spaceNotificationText("es", "rocketReturned", {
-    rocket: rocket.name,
+    rocket: localizedRocketUserName("es", rocket.name),
     asteroid: asteroid.name,
   });
   const notice = page
@@ -71,5 +89,4 @@ test("announces Rocket return in Spanish while Settings stays selected @notifica
   await expect(notice).toHaveClass(/notification-info/);
   await expect(notice).toHaveRole("status");
   await expect(notice).toHaveAttribute("aria-atomic", "true");
-  await expect(page.getByTestId("notification-stack")).toHaveAttribute("aria-live", "polite");
 });

@@ -197,7 +197,7 @@ const SOURCE_NEWS_COPY = {
       "In ancient Rome, urine was used as a mouthwash.",
       "You can't breathe and swallow at the same time.",
       "The first known contraceptive was used in ancient Egypt and involved crocodile dung.",
-      "An astronaut's helmet costs over  million.",
+      "An astronaut's helmet costs over 3 million dollars.",
       "Pressing - on the numpad doesn't do anything. No, now it really doesn't :)",
       "Apparently there are Ancient Manuscripts dotted around the Galaxy that point to Ancient Megastructures...",
       "If you are playing in the United States, there is an 87% chance you are American, but only a 66% chance that at least one of your parents is.",

@@ -41,6 +41,7 @@ function interstellarFixture(): GameState {
         ...initial.run.space,
         starStudyRange: 123.45,
         starshipDistanceTravelledThisRun: 42.75,
+        apAnticipatedThisRun: 19,
         systemProfiles: [
           ...initial.run.space.systemProfiles.filter(({ systemId }) => systemId !== destination.id),
           profile,
@@ -473,8 +474,8 @@ describe("Interstellar Statistics save migration", () => {
         statistics: { ...initial.statistics, lifetimeStarshipDistanceTravelled: 54 },
       }),
     );
-    expect(migrated.schemaVersion).toBe(45);
-    expect(migrated.state.schemaVersion).toBe(45);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run).toMatchObject({ cash: 765, researchPoints: 123 });
     expect(migrated.state.run.space).toMatchObject({
       starStudyRange: 75,
@@ -502,7 +503,7 @@ describe("Interstellar Statistics save migration", () => {
     const timerId = launched.state.run.space.starship.timerId!;
 
     const migrated = decodePortable(encodeAsV42PortableSave(launched.state));
-    expect(migrated.schemaVersion).toBe(45);
+    expect(migrated.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(migrated.state.run.space.starship).toMatchObject({
       phase: "travelling",
       destinationSystemId: destination.id,

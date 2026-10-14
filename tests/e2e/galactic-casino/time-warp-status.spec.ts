@@ -3,6 +3,7 @@ import { startMetaFixture } from "../_harness/meta-fixture";
 import { LOCALE_IDS } from "../../../src/content/ids";
 import { formatCountdown } from "../../../src/app/timeFormatting";
 import { formatNumber } from "../../../src/app/numberFormatting";
+import { casinoText } from "../../../src/i18n/casinoMessages";
 import { topStatusText } from "../../../src/i18n/topStatusMessages";
 
 test("Hilo time warp stays visible globally through countdown and expires @galactic-casino @timers", async ({
@@ -19,7 +20,7 @@ test("Hilo time warp stays visible globally through countdown and expires @galac
     "hilo_timewarp_100_12000",
   );
   await expect(page.getByTestId("top-stat-time-warp")).toHaveCount(0);
-  await casino.getByRole("button", { name: "Cash out", exact: true }).click();
+  await casino.getByRole("button", { name: casinoText("en", "cashOut"), exact: true }).click();
 
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.timeWarp.remainingMs))

@@ -2,12 +2,22 @@ import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { setNumberNotation } from "../_harness/settings-controls";
 import { formatNumber } from "../../../src/app/numberFormatting";
-import { marketFailureText, marketLockCountdownText } from "../../../src/i18n/metaMessages";
+import {
+  marketFailureText,
+  marketLockCountdownText,
+  marketText,
+} from "../../../src/i18n/metaMessages";
 
 test("P-41 formats live Galactic Market lockdown reasons in every notation @p41-market-lockdown", async ({
   page,
 }) => {
   await startMetaFixture(page, "meta-market-ready");
+  await page.getByRole("tab", { name: "Galactic" }).click();
+  await page.getByRole("tab", { name: "Galactic Market" }).click();
+  await page
+    .getByRole("region", { name: "Galactic Market" })
+    .getByLabel(marketText("en", "sellAp"))
+    .selectOption("1");
   const accepted = await page.evaluate(() =>
     window.miaplacidusTest!.dispatch({
       type: "random-event.force",
@@ -15,6 +25,10 @@ test("P-41 formats live Galactic Market lockdown reasons in every notation @p41-
     }),
   );
   expect(accepted).toBe(true);
+  const resultDialog = page.getByTestId("random-event-result-dialog");
+  await expect(resultDialog).toBeVisible();
+  await resultDialog.getByRole("button").click();
+  await expect(resultDialog).not.toBeVisible();
 
   const renderedCountdowns: Record<"condensed" | "standard" | "scientific", string> = {
     condensed: "",
@@ -31,8 +45,14 @@ test("P-41 formats live Galactic Market lockdown reasons in every notation @p41-
     expect(state.settings.notation).toBe(notation);
     expect(state.run.marketLockdownRemainingMs).toBeGreaterThan(0);
     const market = page.getByRole("region", { name: "Galactic Market" });
-    const tradeButton = market.getByRole("button", { name: "Confirm trade", exact: true });
-    const apButton = market.getByRole("button", { name: "Sell AP for cash", exact: true });
+    const tradeButton = market.getByRole("button", {
+      name: marketText("en", "trade"),
+      exact: true,
+    });
+    const apButton = market.getByRole("button", {
+      name: marketText("en", "sellApAction"),
+      exact: true,
+    });
     const tradeReason = page.locator("#galactic-market-trade-reason");
     const apReason = page.locator("#galactic-market-ap-sale-reason");
     const expectedReason = `${marketFailureText("en", "market-locked")} ${marketLockCountdownText(

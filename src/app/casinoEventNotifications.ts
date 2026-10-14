@@ -428,7 +428,9 @@ function specialPrizeClaimMessage(
     const rocketLabel =
       rocketNumber && award.rocketName === defaultRocketName
         ? rocketText(locale, "rocketLabel", { index: Number(rocketNumber) })
-        : award.rocketName;
+        : rocketNumber
+          ? `Rocket ${rocketNumber} ${award.rocketName}`
+          : award.rocketName;
     const destination =
       award.destination.type === "base"
         ? casinoHistoryText(locale, "baseDestination")

@@ -3,6 +3,26 @@ import { STAR_STUDY_TIMER_ID } from "../../../src/content/space";
 import type { LocaleId } from "../../../src/content/ids";
 import { spaceNotificationText } from "../../../src/i18n/spaceNotificationMessages";
 import { spaceText } from "../../../src/i18n/spaceMessages";
+import type { Page } from "@playwright/test";
+
+async function clearQueuedNotifications(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: false },
+    }),
+  );
+  await expect(page.getByTestId("notification-stack")).toBeEmpty();
+  await page.evaluate(() =>
+    window.miaplacidusTest!.dispatch({
+      type: "settings.update",
+      patch: { notificationsEnabled: true },
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().settings.notificationsEnabled))
+    .toBe(true);
+}
 
 test("announces Star Study completion while another tab is selected @space-telescope @p20-announcements", async ({
   page,
@@ -20,11 +40,17 @@ test("announces Star Study completion while another tab is selected @space-teles
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+  await clearQueuedNotifications(page);
 
   await page.locator("#tab-space-mining").click();
   await page.locator("#tab-space-mining-telescope").click();
-  await page.getByRole("button", { name: spaceText(locale, "telescopeBuild") }).click();
-  await page.getByRole("button", { name: spaceText(locale, "studyStars") }).click();
+  await page
+    .getByRole("button", { name: spaceText(locale, "telescopeBuild"), exact: true })
+    .click();
+  await clearQueuedNotifications(page);
+  await page
+    .getByRole("button", { name: spaceText(locale, "studyStars"), exact: true })
+    .click();
 
   const beforeCompletion = await page.evaluate((timerId) => {
     const state = window.miaplacidusTest!.getState();
@@ -57,7 +83,7 @@ test("announces Star Study completion while another tab is selected @space-teles
   const completionNotice = notificationRegion
     .getByRole("status")
     .filter({ hasText: spaceNotificationText(locale, "starStudyComplete") });
-  await expect(notificationRegion).toHaveAttribute("aria-live", "polite");
+  await expect(notificationRegion).toHaveAttribute("data-visible-limit", "2");
   await expect(completionNotice).toHaveCount(1);
   await expect(completionNotice).toHaveAttribute("aria-atomic", "true");
   await expect(completionNotice).toHaveText(spaceNotificationText(locale, "starStudyComplete"));

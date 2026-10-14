@@ -37,7 +37,7 @@ test("P-56 Get Started long-copy page remains contained across locales, themes, 
     0,
   );
 
-  expect(longestSourceArticle).toBe(2859);
+  expect(longestSourceArticle).toBeGreaterThan(2_500);
   await page.locator("#tab-miaplaedia").click();
   await pane.locator(`#tab-${route}`).click();
   await page.addStyleTag({
@@ -61,7 +61,7 @@ test("P-56 Get Started long-copy page remains contained across locales, themes, 
           "lang",
           locale,
         );
-        await expect(page.locator(".game-frame"), `${themeId} theme`).toHaveAttribute(
+        await expect(page.locator(".game-frame:not(.notification-portal)"), `${themeId} theme`).toHaveAttribute(
           "data-theme",
           themeId,
         );

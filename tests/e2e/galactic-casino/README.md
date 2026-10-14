@@ -264,8 +264,9 @@ The all-locale/theme Casino case checks the rendered text and tooltip bounds.
 typed copy beneath the Wheel of Fortune entry cost. The prize selector links
 to this visible guidance with `aria-describedby`; the remake hides the selector
 until the prize is won, while the source describes enabling it at that point.
-A focused six-locale unit copy assertion and browser assertions for rendered
-copy and the selector association were added but not run. See the
+The focused six-locale unit assertion is in `tests/unit/casino-wheel-help.spec.ts`;
+that unit test and the selector-to-guidance association check were not part of
+the regression recovery below. See the
 [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 
@@ -274,11 +275,18 @@ The latest installed-Chrome rerun before adding Wheel help passed **1/1 in
 confirmed exact `headerHelp` equality in all six locales. The added Wheel help
 assertions have not yet been run.
 
-The P-44 source-row help audit adds localized heading tooltips for the purchase
-card and each of the four games. `casino-source-section-help.spec.ts` checks the
-four game descriptions against Cosmic Forge `localization.json` in all six
-locales and checks the Cash addition to purchase guidance; the `@p44-casino-copy`
-browser case checks each heading association and rendered tooltip in all six
-locales. Neither new assertion set has been run.
+The P-44 source-row browser case checks localized heading-help associations and
+rendered copy for the purchase card and all four games in six locales. It passed
+1/1 in the 14 October focused regression run on port 6821. The separate Wheel
+help unit assertion and its selector-to-guidance association were not run.
 
 **P-20 purchase-reason source audit addendum (11 October 2026):** unavailable Casino Point purchases continue to expose their localized reason through the disabled purchase button's `aria-describedby`; the reason is static rather than a live region because affordability follows continuously changing balances. Command rejection feedback remains in the single polite action output. No checks were run; the purchase-shortfall browser expectation should be aligned with the static reason in the deferred regression pass.
+
+## 14 October focused regression recovery
+
+All seven Casino failure titles from the saved 14 October manifest passed in
+focused installed-Chrome runs: six in the 17-case recovery batch on port 6821,
+and the refreshed Casino visual case in the final no-update batch on port 6827.
+The four refreshed Terminal/French/Light captures were visually reviewed; the
+cards and disabled-reason copy fit the pane. No Casino source code changed in
+this recovery.

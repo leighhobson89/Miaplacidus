@@ -32,7 +32,7 @@ async function setPresentation(
     { locale, themeId },
   );
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame")).toHaveAttribute("data-theme", themeId);
+  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", themeId);
 }
 
 async function expectMarketContained(page: Page, label: string): Promise<void> {
@@ -117,7 +117,7 @@ async function expectMarketContained(page: Page, label: string): Promise<void> {
   expect(bounds.grid.scrollWidth, `${label} action grid internal width`).toBeLessThanOrEqual(
     bounds.grid.clientWidth + 1,
   );
-  expect(bounds.cards, `${label} three Market cards`).toHaveLength(3);
+  expect(bounds.cards, `${label} trade and AP sale cards`).toHaveLength(2);
 
   for (const [index, card] of bounds.cards.entries()) {
     const cardLabel = `${label} card ${index + 1}`;
@@ -183,10 +183,10 @@ test("P-56 Galactic Market quote content fits every locale, theme, and viewport 
         await expect(
           market.locator(".page-artwork-row [data-celestial-illustration='asteroid']"),
         ).toBeVisible();
-        await expect(market.locator(".action-grid > .upgrade-card")).toHaveCount(3);
+        await expect(market.locator(".action-grid > .upgrade-card")).toHaveCount(2);
 
-        const outgoing = market.getByLabel(marketText(locale, "outgoing"));
-        const incoming = market.getByLabel(marketText(locale, "incoming"));
+        const outgoing = market.getByLabel(marketText(locale, "tradeRow"));
+        const incoming = market.getByLabel(marketText(locale, "tradeFor"));
         const quantity = market.getByLabel(marketText(locale, "quantity"));
         await outgoing.selectOption("hydrogen");
         await incoming.selectOption("helium");

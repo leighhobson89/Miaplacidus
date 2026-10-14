@@ -46,8 +46,20 @@ export const test = base.extend<HydrogenFixtures>({
     await expect
       .poll(async () => page.evaluate(() => window.miaplacidusTest?.getState().run.clock.wallNowMs))
       .not.toBeNull();
+    await dismissTutorialOfferIfPresent(page);
     await use(page);
   },
 });
+
+export async function dismissTutorialOfferIfPresent(page: Page): Promise<void> {
+  const tutorialOffer = page.locator(".progression-tutorial");
+  if ((await tutorialOffer.count()) === 0) return;
+
+  const dismissButton = tutorialOffer.getByRole("button", { name: "No thanks", exact: true });
+  if (!(await dismissButton.isVisible())) return;
+
+  await dismissButton.click();
+  await expect(tutorialOffer).toHaveCount(0);
+}
 
 export { expect };

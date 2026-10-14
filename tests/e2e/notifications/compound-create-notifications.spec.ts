@@ -15,7 +15,7 @@ test("manual Compound creation shows one accepted-action notice and updates its 
 
   const notices = page.getByTestId("notification-stack").getByTestId("game-notification");
   await page.locator("#tab-settings").click();
-  const notificationsToggle = page.getByRole("checkbox", { name: "Notifications", exact: true });
+  const notificationsToggle = page.locator("#settings-notifications");
   await expect(notificationsToggle).toBeChecked();
   await notificationsToggle.uncheck();
   await expect(notices).toHaveCount(0);
