@@ -63,9 +63,7 @@ export function RebirthPane({ state, store }: Props) {
         | "rebirth-current-destination"
         | "rebirth-busy")
     : undefined;
-  const cosmicRipUnlocked = state.run.economy.researchedTechnologies.some(
-    (technologyId) => String(technologyId) === "cosmicRip",
-  );
+  const cosmicRipUnlocked = state.permanent.cosmicRip.unlocked;
   const isMegastructureRun = state.permanent.megastructures.ancientManuscripts.some(
     (record) => record.factorySystemId === state.run.space.currentSystemId,
   );
@@ -119,16 +117,24 @@ export function RebirthPane({ state, store }: Props) {
             <p>{number(state, state.permanent.rebirthCount)}</p>
           </div>
           <div className="card-controls">
-            <button
-              ref={rebirthTrigger}
-              className="secondary-button"
-              type="button"
-              disabled={!rebirthCheck.ok}
-              aria-describedby="rebirth-availability"
-              onClick={() => setConfirmingRebirth(true)}
-            >
-              {metaText(locale, "rebirthAction")}
-            </button>
+            <div className="rebirth-action-with-help">
+              <button
+                ref={rebirthTrigger}
+                className="secondary-button"
+                type="button"
+                disabled={!rebirthCheck.ok}
+                aria-describedby="rebirth-availability"
+                onClick={() => setConfirmingRebirth(true)}
+              >
+                {metaText(locale, "rebirthAction")}
+              </button>
+              <InfoTooltip
+                id="rebirth-action-source-help"
+                label={`${metaText(locale, "rebirthAction")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                content={metaText(locale, "rebirthSourceHelp")}
+                testId="rebirth-action-source-help"
+              />
+            </div>
             <span id="rebirth-availability" className="control-reason">
               {rebirthLockText(locale, rebirthLockReason)}
             </span>
@@ -149,6 +155,7 @@ export function RebirthPane({ state, store }: Props) {
         >
           <h2 id="rebirth-confirm-title">{rebirthText(locale, "title")}</h2>
           <p className="rebirth-confirm-prompt">{rebirthText(locale, "prompt")}</p>
+          <p className="rebirth-confirm-body">{metaText(locale, "rebirthBody")}</p>
           <p className={carryClass}>
             {rebirthCarryText(locale, number(state, state.permanent.ascendencyPoints))}
           </p>

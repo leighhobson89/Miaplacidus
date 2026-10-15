@@ -489,6 +489,42 @@ legacy locator needs a separate test correction before this browser journey
 can serve as current evidence. No app behavior or new user copy was added for
 this documentation/crosswalk slice.
 
+## Phase 7: Hard Reset adaptation locale coverage (AUTHORED, NOT RUN)
+
+[`p7-active-slot-delete-locales.spec.ts`](p7-active-slot-delete-locales.spec.ts)
+checks the owner-approved Cosmic Forge Hard Reset adaptation in all six
+locales. In each locale it saves the active Pioneer, opens Settings → Saving
+and Loading, checks the localized active-slot Delete action and inline
+confirmation description, verifies the export-first acknowledgement gates the
+confirmation button, then checks the localized delete-success notification and
+return to Pioneer selection. The visible values come from `delete`,
+`deletePrompt`, `confirmDelete`, `exportFirst`, and `saveDeleted` in
+`saveMessages.ts`, which have values in all six locales.
+
+Cosmic Forge `drawTab9Content.js` routes `tab9HardResetRowLabel` and
+`tab9HardResetRowDescription` to `saveLoadGame.js`. The source reset selects
+only `getSaveName()`, archives that Pioneer row, and nulls its payload; it does
+not delete every Pioneer. The current target is `SaveManager.tsx`'s active-slot
+deletion flow, which removes the local slot and returns to Pioneer selection so
+a fresh run can start under that name. The inline target adds an export-first
+confirmation. This is the established per-Pioneer adaptation documented in the
+[P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-hard-reset-source-key-disposition-updated-10-october-2026).
+
+The source warning says the reset erases all progress and achievements. The
+target warning scopes that consequence to the selected Pioneer: each local save
+envelope contains that Pioneer’s full `GameState`, including run and permanent
+achievement progress, and `repository.remove(activeSlotId)` deletes only that
+slot’s head and payload keys plus its Hydrogen briefing. Other slot payloads
+remain intact; deleting the active slot may update the last-started slot and
+last-confirmed Pioneer preferences. The localized inline warning now names the
+selected Pioneer’s saved progress and achievements, says other Pioneer saves
+on this device are unaffected, and retains the export-first reminder and
+required acknowledgement checkbox.
+
+The six-locale crosswalk already checks key presence and target-message
+availability. This focused E2E coverage is **AUTHORED, NOT RUN**; no tests,
+browser, build, typecheck, or formatter were run for it.
+
 Validation on 10 October: `npm.cmd run test:unit:focused --
 tests/unit/save-message-crosswalk.spec.ts` passed **18/18**. Focused Oxfmt and
 `git diff --check` passed. The browser attempt used installed Chrome on port
@@ -506,3 +542,39 @@ name validation, inline Save Manager keyboard navigation, and the P-51 six-local
 4192; the P-51 layout passed **1/1** on port 4193. Artifacts were redirected to
 system Temp. These targeted results supersede the corresponding failures in the
 14 October full-run list; no full suite was rerun.
+
+## Phase 7 Save Manager import failure and recovery locale slice (NOT RUN; Phase 8)
+
+`p7-save-import-recovery-locales.spec.ts` exercises the inline Save Manager
+through the visible Settings language and Saving and Loading controls in
+`en`, `es`, `pt`, `de`, `it`, and `fr`. For each selected locale it submits a
+malformed portable code, checks the localized error notification, then previews
+the active pioneer's valid portable save, confirms the localized conflict
+warning, and replaces the active slot with that same saved state. It checks the
+localized load-success notice and that the import preview closes. This records
+a failed import followed by a successful recovery through the actual UI.
+
+The source route is Cosmic Forge `drawTab9Content.js`'s Import row and button,
+which call `loadGame()` in `saveLoadGame.js`. Its `tab9ImportSaveRowLabel`,
+`placeholderImportSaveArea`, and `buttonImport` keys map to the visible
+MIAPLACIDUS Save Manager heading (`import`), field label (`importText`), and
+preview action (`preview`). The preview step validates the code before the
+player confirms replacement. Cosmic Forge maps empty or unrecognized import
+strings to `notificationInvalidSaveString`; MIAPLACIDUS handles the analogous
+malformed `MIA1:` code in `SaveManager.previewImport()` and renders
+`errInvalidSaveString` through the selected locale's `saveMessages.ts`
+catalogue. Replacing the matching active slot checks the source
+`notificationGameLoadedSuccessfully` result against target key `loaded` after
+a corrected code is accepted. The spec checks the heading, field label, error,
+conflict warning, and success notice in all six locales. All six target values
+are populated; no production localization or error-rendering fix was required.
+
+This new Phase 7 browser case is **NOT RUN** and is deferred to the Phase 8
+regression/localization sweep.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+$env:MIAPLACIDUS_TEST_PORT='4351'
+node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/save-slots/p7-save-import-recovery-locales.spec.ts
+```

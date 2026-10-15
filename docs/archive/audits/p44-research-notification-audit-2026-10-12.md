@@ -12,9 +12,9 @@ Compared each source value from `localization.json` with its target value in en,
 
 ## Philosophy action results and selection
 
-Cosmic Forge's Research Philosophy controls emit the 19 `notificationPhilosophy*` ability and repeatable-upgrade results as `info` / `tech` notices for 3000 ms. Its four path-selection results are `warning` / `special` notices for 3000 ms. MIAPLACIDUS routes the corresponding typed `philosophy.ability.activated`, `philosophy.repeatable.purchased`, and `philosophy.selected` events through `philosophyEventNotifications.ts` with the same classifications, types, and duration.
+Cosmic Forge's Research Philosophy controls emit the 20 `notificationPhilosophy*` ability and repeatable-upgrade results as `info` / `tech` notices for 3000 ms. Its four path-selection results are `warning` / `special` notices for 3000 ms. MIAPLACIDUS routes the corresponding typed `philosophy.ability.activated`, `philosophy.repeatable.purchased`, and `philosophy.selected` events through `philosophyEventNotifications.ts` with the same classifications, types, and duration. The 20 action-result count is confirmed by the source `showNotification` callsites in `drawTab3Content.js`; the combined total is 24 messages across six locales (144 locale/message pairs).
 
-Compared the 19 upgrade/ability messages and four selection messages in all six locales (144 locale/message pairs). All match the corresponding Cosmic Forge `localization.json` values exactly, including the Rapid Expansion action notice. These messages contain no dynamic placeholders.
+Compared the 20 upgrade/ability messages and four selection messages in all six locales (144 locale/message pairs). All match the corresponding Cosmic Forge `localization.json` values exactly, including the Rapid Expansion action notice. These messages contain no dynamic placeholders.
 
 ## Outcome
 

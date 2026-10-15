@@ -6,7 +6,11 @@
 } from "../../content/ids";
 import { COSMIC_RIP_TECHNOLOGIES } from "../../content/cosmicRip";
 import { COMPOUND_CATALOG, MATERIAL_CATALOG } from "../../content/economy";
-import { BLACK_HOLE_RESEARCH_PRICE } from "../../content/blackHole";
+import {
+  BLACK_HOLE_BASE_CHARGE_MS,
+  BLACK_HOLE_MINIMUM_CHARGE_MS,
+  BLACK_HOLE_RESEARCH_PRICE,
+} from "../../content/blackHole";
 import {
   ROCKET_IDS,
   ROCKET_FUEL_CAPACITY,
@@ -76,10 +80,12 @@ type EconomyFixtureKind =
   | "space-diplomacy-aggressive"
   | "space-bully-scared"
   | "space-bully-surrender"
+  | "space-battle-victory-blind"
   | "space-unoccupied"
   | "space-megastructure-attention"
   | "space-manuscript-hidden"
   | "meta-rebirth-ready"
+  | "meta-o-type-rebirth-ready"
   | "meta-market-ready"
   | "meta-market-rebirth-ready"
   | "meta-market-action-reasons"
@@ -87,9 +93,14 @@ type EconomyFixtureKind =
   | "meta-casino-ready"
   | "meta-casino-timewarp"
   | "meta-casino-finish-rocket-journey"
+  | "meta-casino-telescope-asteroid-prize"
+  | "meta-casino-telescope-star-study-prize"
+  | "meta-casino-telescope-void-pillage-prize"
   | "meta-post-rebirth-casino-access"
   | "meta-black-hole-discovered"
   | "meta-black-hole-underfunded"
+  | "meta-black-hole-final-upgrade"
+  | "meta-black-hole-always-on"
   | "meta-galactic-identity-matrix"
   | "meta-megastructure-route"
   | "meta-megastructure-audio"
@@ -326,6 +337,33 @@ export function createEconomyFixture(
       },
     };
   }
+  if (kind === "meta-o-type-rebirth-ready") {
+    const ready = createEconomyFixture("meta-rebirth-ready", locale);
+    const destination = createStarCatalogue().find(
+      (star) => star.starType === "O" && !star.initiallySettled,
+    )!;
+    return {
+      ...ready,
+      run: {
+        ...ready.run,
+        space: {
+          ...ready.run.space,
+          systemEncounters: [generateStarSystemEncounter(destination, false)],
+        },
+      },
+      permanent: {
+        ...ready.permanent,
+        settledSystemIds: [
+          ...ready.permanent.settledSystemIds.slice(0, -1),
+          destination.id,
+        ],
+        oTypePowerPlantAssignments: {
+          ...ready.permanent.oTypePowerPlantAssignments,
+          powerPlant1: destination.id,
+        },
+      },
+    };
+  }
   if (kind === "meta-market-ready") {
     return {
       ...base,
@@ -394,6 +432,46 @@ export function createEconomyFixture(
           ...market.run.space,
           systemEncounters: [generateStarSystemEncounter(destination, false)],
         },
+      },
+    };
+  }
+  if (
+    kind === "meta-casino-telescope-asteroid-prize" ||
+    kind === "meta-casino-telescope-star-study-prize" ||
+    kind === "meta-casino-telescope-void-pillage-prize"
+  ) {
+    const casinoReady = createEconomyFixture("meta-casino-ready", locale);
+    const survey =
+      kind === "meta-casino-telescope-asteroid-prize"
+        ? "asteroids"
+        : kind === "meta-casino-telescope-star-study-prize"
+          ? "stars"
+          : "pillageVoid";
+    const timerId = createTimerId(
+      "survey",
+      survey === "asteroids"
+        ? "asteroid-scan"
+        : survey === "stars"
+          ? "star-study"
+          : "void-pillage",
+    );
+    return {
+      ...casinoReady,
+      run: {
+        ...casinoReady.run,
+        timers: {
+          ...casinoReady.run.timers,
+          [timerId]: createTimer({ id: timerId, domain: "survey", durationMs: 86_400_000 }),
+        },
+        space: {
+          ...casinoReady.run.space,
+          telescopeBuilt: true,
+          activeSurvey: survey,
+        },
+      },
+      permanent: {
+        ...casinoReady.permanent,
+        philosophyId: survey === "pillageVoid" ? "voidborn" : casinoReady.permanent.philosophyId,
       },
     };
   }
@@ -565,6 +643,31 @@ export function createEconomyFixture(
           ...base.permanent.blackHole,
           discovered: true,
           discoveryProbability: 3,
+        },
+      },
+    };
+  }
+  if (kind === "meta-black-hole-final-upgrade" || kind === "meta-black-hole-always-on") {
+    const alwaysOn = kind === "meta-black-hole-always-on";
+    return {
+      ...base,
+      run: {
+        ...base.run,
+        researchPoints: 3_000_000,
+        space: { ...base.run.space, ascendencyAwardedThisRun: true },
+      },
+      permanent: {
+        ...base.permanent,
+        rebirthCount: 1,
+        blackHole: {
+          ...base.permanent.blackHole,
+          discovered: true,
+          discoveryProbability: 3,
+          researched: true,
+          rechargeMultiplier: alwaysOn
+            ? BLACK_HOLE_MINIMUM_CHARGE_MS / BLACK_HOLE_BASE_CHARGE_MS
+            : 0.11,
+          alwaysOn,
         },
       },
     };
@@ -1172,6 +1275,7 @@ export function createEconomyFixture(
     kind === "space-starship-scanning-blind" ||
     kind === "space-diplomacy" ||
     kind === "space-battle-victory" ||
+    kind === "space-battle-victory-blind" ||
     kind === "space-rapid-expansion-victory" ||
     kind === "space-battle-defeat" ||
     kind === "space-diplomacy-power" ||
@@ -1191,7 +1295,10 @@ export function createEconomyFixture(
       kind !== "space-rocket-part-shortfall" &&
       kind !== "space-rocket-part-exact";
     const rapidExpansionFixture = kind === "space-rapid-expansion-victory";
-    const battleVictoryFixture = kind === "space-battle-victory" || rapidExpansionFixture;
+    const battleVictoryFixture =
+      kind === "space-battle-victory" ||
+      kind === "space-battle-victory-blind" ||
+      rapidExpansionFixture;
     const battleDefeatFixture = kind === "space-battle-defeat";
     const poweredDiplomacyFixture = [
       "space-diplomacy-power",
@@ -1245,6 +1352,7 @@ export function createEconomyFixture(
             STARSHIP_MODULES[moduleId].requiredForTravel ||
             (scanningFixture &&
               kind !== "space-starship-scanning-blind" &&
+              kind !== "space-battle-victory-blind" &&
               moduleId === "stellarScanner")
               ? STARSHIP_MODULES[moduleId].parts
               : 0,

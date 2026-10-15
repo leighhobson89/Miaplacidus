@@ -11,6 +11,7 @@ interface MetaCopy {
   readonly rebirthTitle: string;
   readonly rebirthBody: string;
   readonly rebirthOverview: string;
+  readonly rebirthSourceHelp: string;
   readonly rebirthMegastructureWarning: string;
   readonly rebirthAction: string;
   readonly rebirthTabLabel: string;
@@ -63,6 +64,8 @@ const PACKS: Record<
     rebirths: "Rebirths",
     rebirthTitle: "Begin a new run?",
     rebirthOverview: "Here you can reset the run at your new system, once settled!",
+    rebirthSourceHelp:
+      "Rebirth to start over at the new System. This will reset all progress, but you will keep unspent AP and any permanent buffs purchased with it",
     rebirthMegastructureWarning:
       "MEGASTRUCTURE STARS: It's Mandatory to Disconnect the MegaStructure before Rebirth!",
     rebirthBody:
@@ -126,6 +129,8 @@ const PACKS: Record<
     rebirths: "Renacimientos",
     rebirthTitle: "¿Comenzar una nueva partida?",
     rebirthOverview: "¡Aquí puedes reiniciar la run en tu nuevo sistema, una vez establecido!",
+    rebirthSourceHelp:
+      "Renace para comenzar de nuevo en el nuevo Sistema. Esto reiniciará todo el progreso, pero conservarás los AP no gastados y cualquier mejora permanente comprada con ellos",
     rebirthMegastructureWarning:
       "ESTRELLAS MEGAESTRUCTURA: ¡Es obligatorio desconectar la MegaEstructura antes del Renacimiento!",
     rebirthBody:
@@ -189,6 +194,8 @@ const PACKS: Record<
     rebirths: "Renascimentos",
     rebirthTitle: "Começar uma nova jornada?",
     rebirthOverview: "Aqui podes reiniciar a run no teu novo sistema, uma vez estabelecido!",
+    rebirthSourceHelp:
+      "Renasça para começar de novo no novo Sistema. Isso reiniciará todo o progresso, mas você manterá os AP não gastos e quaisquer melhorias permanentes compradas com eles",
     rebirthMegastructureWarning:
       "ESTRELAS MEGAESTRUTURA: É obrigatório desligar a MegaEstrutura antes do Renascimento!",
     rebirthBody:
@@ -254,6 +261,8 @@ const PACKS: Record<
     rebirthTitle: "Einen neuen Durchlauf beginnen?",
     rebirthOverview:
       "Hier kannst du den Run in deinem neuen System zurücksetzen, sobald es besiedelt ist!",
+    rebirthSourceHelp:
+      "Wiedergeburt, um im neuen System neu zu beginnen. Dies setzt den gesamten Fortschritt zurück, aber du behältst unausgegebene AP und alle damit gekauften permanenten Verbesserungen",
     rebirthMegastructureWarning:
       "MEGASTRUKTUR-STERNE: Es ist zwingend erforderlich, die MegaStruktur vor der Wiedergeburt zu trennen!",
     rebirthBody:
@@ -317,6 +326,8 @@ const PACKS: Record<
     rebirths: "Rinascite",
     rebirthTitle: "Iniziare una nuova partita?",
     rebirthOverview: "Qui puoi resettare la run al tuo nuovo sistema, una volta stabilito!",
+    rebirthSourceHelp:
+      "Rinascere per ricominciare nel nuovo Sistema. Questo azzererà tutti i progressi, ma manterrai gli AP non spesi e qualsiasi potenziamento permanente acquistato con essi",
     rebirthMegastructureWarning:
       "STELLE MEGASTRUTTURA: È obbligatorio disconnettere la MegaStruttura prima della Rinascita!",
     rebirthBody:
@@ -380,6 +391,8 @@ const PACKS: Record<
     rebirths: "Renaissances",
     rebirthTitle: "Commencer une nouvelle partie ?",
     rebirthOverview: "Ici tu peux réinitialiser la run à ton nouveau système, une fois installé!",
+    rebirthSourceHelp:
+      "Renaître pour recommencer dans le nouveau Système. Cela réinitialisera toute la progression, mais vous conserverez les PA non dépensés et tous les buffs permanents achetés avec",
     rebirthMegastructureWarning:
       "ÉTOILES MÉGASTRUCTURE: Il est obligatoire de déconnecter la MégaStructure avant la Renaissance!",
     rebirthBody:

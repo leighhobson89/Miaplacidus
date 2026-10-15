@@ -216,3 +216,34 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='6520'
 npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-status-bar-recovery-final-6520-20261014" tests/e2e/status-bar
 ```
+
+## Phase 7: Cosmic Forge HUD stat-label routes
+
+Cosmic Forge `index.html` owns the Cash, Energy, Powered, and Battery HUD
+labels through `data-loc="statLabelCash"`, `statLabelEnergy`,
+`statLabelPowered`, and `statLabelBattery`. `game.js#updateAP` supplies
+`statLabelAscendencyPoints` at the AP cell, while `game.js#updateAntimatterStat`
+supplies `statLabelAntimatter` after its visibility gate. `game.js#updateStats`
+updates those values; the Powered control and Battery indicator are enhanced
+by `ui.js#setupPoweredStatToggleButton` and `ui.js#buildBatteryTooltipContent`.
+
+MIAPLACIDUS routes those labels to the matching active status destinations:
+
+| Cosmic Forge key | MIAPLACIDUS destination |
+| --- | --- |
+| `statLabelCash` | `topStatusMessages.ts#cash` on `TopStatusBar`'s Cash card. |
+| `statLabelEnergy` | `topStatusMessages.ts#energy` on the net Energy card. |
+| `statLabelPowered` | `topStatusMessages.ts#powered` on the grid status/toggle card. |
+| `statLabelBattery` | `topStatusMessages.ts#battery` as the Battery heading for the stored-energy, capacity, charge, and rate details inside the Power tooltip. |
+| `statLabelAntimatter` | `topStatusMessages.ts#antimatter` on the conditional Antimatter card. |
+| `statLabelAscendencyPoints` | `topStatusMessages.ts#ascendencyPointsShortLabel` on the whole-game AP balance; the target keeps its no-colon card-label style. |
+
+The target uses its compact card-label style and omits the source's trailing
+colon from the localized HUD labels.
+
+The focused `p7-source-stat-label-routes.spec.ts` starts the deterministic
+space-late-game fixture in each of the six locales and checks every visible
+label, including the Battery heading within the focused Power tooltip. Existing
+Cash, Energy, Antimatter, Battery, and full AP-name locale values were reused;
+the missing Powered label and AP abbreviation route were added to the shared
+top-status messages. **AUTHORED, NOT RUN**; execution is deferred to Phase 8.

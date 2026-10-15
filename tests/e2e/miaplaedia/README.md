@@ -1,5 +1,19 @@
 # Miaplaedia browser tests
 
+## Phase 7 locale route coverage — Phase 8 execution: NOT RUN
+
+`p7-document-locale-content.spec.ts` maps the seven Cosmic Forge Cosmicopedia
+source options to the seven separate MIAPLACIDUS Miaplaedia child pages. For
+each of `en`, `es`, `pt`, `de`, `it`, and `fr`, it checks the source-option
+identity, localized document heading, first article heading, and non-empty
+article body. It also checks the owner-directed Miaplacidus/Miaplaedia and
+Mia'Plac identities and rejects the former Cosmic Forge/Cosmicopedia names.
+The source keys are read from `../cosmicForge/cosmicForge/localization.json`;
+the current renderer and route IDs are `MiaplaediaPane.tsx` and
+`presentationNavigation.ts`. The seven source document options and the
+locale catalogue/renderer mapping were compared statically. This focused spec
+is **NOT RUN** and is reserved for Phase 8 regression execution.
+
 `miaplaedia.spec.ts` checks that Settings keeps its six preference/save/statistics/achievement/event destinations and that the seven source guide documents appear under Miaplaedia in source order. It opens every option and checks the section heading, first article heading, correct Mia'Plac player naming, and removal of the old Cosmic Forge game/player names. It captures the full Early Concepts page as a visual checkpoint.
 
 The same browser area sweeps all seven stable Miaplaedia document IDs in all six locales at 1280px, 390px, and 320px. It checks each locale's section and first article heading against the matching source document, checks the old game/player names stay absent, verifies each document container fills its available game content width and stays inside the viewport, and asserts that neither the article nor page overflows horizontally.

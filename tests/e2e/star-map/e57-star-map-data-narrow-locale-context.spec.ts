@@ -4,13 +4,93 @@ import { createStarCatalogue } from "../../../src/content/starCatalogue";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { selectStarDestination } from "../../../src/engine/starMapSelectors";
 import { starshipTravelPlan } from "../../../src/engine/spaceMechanics";
-import { starMapText } from "../../../src/i18n/starMapMessages";
-import { starshipText } from "../../../src/i18n/starshipMessages";
+import {
+  LOCALIZATION_VALIDATION_DATA as starMapLocaleData,
+  starMapText,
+  type StarMapMessageKey,
+} from "../../../src/i18n/starMapMessages";
+import {
+  LOCALIZATION_VALIDATION_DATA as starshipLocaleData,
+  starshipText,
+} from "../../../src/i18n/starshipMessages";
 
 const NARROW_VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 320, height: 740 },
 ] as const;
+
+const INTERSTELLAR_VISIBLE_COPY_KEYS = [
+  "title",
+  "mapHeaderHelp",
+  "description",
+  "searchLabel",
+  "searchPlaceholder",
+  "searchTooShort",
+  "noMatches",
+  "mapModesLabel",
+  "mapModeNormal",
+  "mapModeDistance",
+  "mapModeStudied",
+  "mapModeInRange",
+  "mapModesHelp",
+  "searchUnavailableInMode",
+  "dataView",
+  "dataHeaderHelp",
+  "starDataDescription",
+  "starDataNameHelp",
+  "starDataWeatherHelp",
+  "tableScrollHint",
+  "sortBy",
+  "sortName",
+  "sortDistance",
+  "distance",
+  "dataType",
+  "sortType",
+  "weather",
+  "sortWeather",
+  "precipitation",
+  "sortPrecipitation",
+  "fuel",
+  "sortFuel",
+  "ascendency",
+  "sortAscendency",
+  "mapColumn",
+  "mapTarget",
+  "settled",
+  "filterName",
+  "filterType",
+  "allTypes",
+  "reverseSort",
+  "sortAscending",
+  "sortDescending",
+  "noData",
+  "factorySystem",
+  "sunny",
+  "cloudy",
+  "rain",
+  "volcano",
+] as const satisfies readonly StarMapMessageKey[];
+
+const INTERSTELLAR_DESTINATION_COPY_KEYS = ["setDestination", "scanMoreInfoLabel"] as const;
+
+function expectExplicitInterstellarCopy(locale: LocaleId): void {
+  const primary = starMapLocaleData.messages[locale];
+  const additional = starMapLocaleData.additionalMessages[locale];
+  for (const key of INTERSTELLAR_VISIBLE_COPY_KEYS) {
+    const value = primary[key] ?? additional[key];
+    expect(
+      value?.trim(),
+      `${locale} Interstellar copy ${key} is explicitly populated`,
+    ).toBeTruthy();
+  }
+  for (const key of INTERSTELLAR_DESTINATION_COPY_KEYS) {
+    const value = starshipLocaleData.messages[locale][key];
+    expect(
+      value?.trim(),
+      `${locale} Interstellar action copy ${key} is explicitly populated`,
+    ).toBeTruthy();
+  }
+}
 
 async function startFixture(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -60,6 +140,7 @@ test("Star Map route cost and Star Data rows, weather tooltip, and table control
   await startFixture(page);
 
   for (const locale of LOCALE_IDS) {
+    expectExplicitInterstellarCopy(locale);
     await selectLocale(page, locale);
     for (const viewport of NARROW_VIEWPORTS) {
       await page.setViewportSize(viewport);
@@ -69,6 +150,16 @@ test("Star Map route cost and Star Data rows, weather tooltip, and table control
       await expect(
         map.getByRole("heading", { name: starMapText(locale, "title"), exact: true }),
       ).toBeVisible();
+      const mapHeaderHelp = map.getByTestId("star-map-page-help-trigger");
+      await expect(mapHeaderHelp).toHaveAttribute(
+        "aria-label",
+        `${starMapText(locale, "title")} — ${starshipText(locale, "scanMoreInfoLabel")}`,
+      );
+      await mapHeaderHelp.focus();
+      await expect(page.getByTestId("star-map-page-help")).toBeVisible();
+      await expect(page.getByTestId("star-map-page-help")).toHaveText(
+        starMapText(locale, "mapHeaderHelp"),
+      );
       const search = map.getByRole("searchbox", { name: starMapText(locale, "searchLabel") });
       await search.fill("Sirius");
       await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
@@ -119,6 +210,16 @@ test("Star Map route cost and Star Data rows, weather tooltip, and table control
       await expect(page.locator("#panel-interstellar-star-data .pane-heading h2")).toHaveText(
         starMapText(locale, "dataView"),
       );
+      const dataHeaderHelp = data.getByTestId("star-data-page-help-trigger");
+      await expect(dataHeaderHelp).toHaveAttribute(
+        "aria-label",
+        `${starMapText(locale, "dataView")} — ${starshipText(locale, "scanMoreInfoLabel")}`,
+      );
+      await dataHeaderHelp.focus();
+      await expect(page.getByTestId("star-data-page-help")).toBeVisible();
+      await expect(page.getByTestId("star-data-page-help")).toHaveText(
+        starMapText(locale, "dataHeaderHelp"),
+      );
       const table = data.getByTestId("star-data-table");
       const expectedHeaders = [
         starMapText(locale, "sortName"),
@@ -141,6 +242,16 @@ test("Star Map route cost and Star Data rows, weather tooltip, and table control
         }),
       );
       expect(actualHeaders).toEqual(expectedHeaders);
+      const nameHelp = data.getByTestId("star-data-name-help-trigger");
+      await expect(nameHelp).toHaveAttribute(
+        "aria-label",
+        `${starMapText(locale, "sortName")} — ${starshipText(locale, "scanMoreInfoLabel")}`,
+      );
+      await nameHelp.focus();
+      await expect(page.getByTestId("star-data-name-help")).toBeVisible();
+      await expect(page.getByTestId("star-data-name-help")).toHaveText(
+        starMapText(locale, "starDataNameHelp"),
+      );
       await expect(data.getByLabel(starMapText(locale, "filterName"))).toBeVisible();
       await expect(data.getByLabel(starMapText(locale, "filterType"))).toBeVisible();
       await expect(data.getByLabel(starMapText(locale, "sortDescending"))).toBeVisible();

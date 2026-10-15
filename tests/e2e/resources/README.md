@@ -68,3 +68,28 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='6430'
 npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/resources
 ```
+
+## Phase 7 production-rate allocation breakdown locale route
+
+[`p7-production-allocation-breakdown-locales.spec.ts`](p7-production-allocation-breakdown-locales.spec.ts)
+routes Cosmic Forge `ui.js#buildAllocationLines` through a separate production-
+rate information tooltip in Hydrogen and all seven other Resource pages. It
+checks the six-locale allocatable, cash, compound ceiling and per-compound
+diversion, storage, and auto-sell income rows, including a compound share left
+unused when Oxygen allocation limits an ingredient. This production breakdown
+uses the active one-second simulation preview and remains separate from the
+allocation slider instructions. `tooltipAllocationHeading`,
+`tooltipAllocationAllocatable`, `tooltipAllocationToCash`,
+`tooltipAllocationCeiling`, `tooltipResourcesDivertedToCreate`,
+`tooltipAllocationToStorage`, and `tooltipAutoSellIncome` are routed through
+`resourceAllocationBreakdownMessages.ts`. The spec is **AUTHORED, NOT RUN**;
+execution is deferred to Phase 8. Compound-rate breakdown remains open and is
+documented in the [Economy evidence](../economy/README.md#phase-7-resource-production-rate-allocation-breakdown).
+
+## Phase 7 allocation slider guidance
+
+The Resource allocation slider uses the source handle names, conditional
+compound-off and compound-throttled guidance, and the hint to open the separate
+production breakdown. The six-locale authored coverage and exact source-key
+mapping are documented in the [Economy evidence](../economy/README.md#phase-7-resource-allocation-tooltip-locale-route).
+The locale spec is **AUTHORED, NOT RUN**.

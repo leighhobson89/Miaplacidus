@@ -52,6 +52,8 @@ const messages: Record<
     notifications: string;
     reducedMotion: string;
     achievements: string;
+    achievementsAndStatsSection: string;
+    optionsSection: string;
     sections: string;
     preferencesSection: string;
     savingSection: string;
@@ -108,6 +110,8 @@ const messages: Record<
     notifications: "Toggle Notifications:",
     reducedMotion: "Reduce motion",
     achievements: "Achievements",
+    achievementsAndStatsSection: "Achievements & Stats",
+    optionsSection: "Options",
     sections: "Settings sections",
     preferencesSection: "Preferences",
     savingSection: "Saving / Loading",
@@ -173,6 +177,8 @@ const messages: Record<
     notifications: "Alternar Notificaciones:",
     reducedMotion: "Reducir movimiento",
     achievements: "Logros",
+    achievementsAndStatsSection: "Logros y Estadísticas",
+    optionsSection: "Opciones",
     sections: "Secciones de ajustes",
     preferencesSection: "Preferencias",
     savingSection: "Guardar / Cargar",
@@ -238,6 +244,8 @@ const messages: Record<
     notifications: "Alternar Notificações:",
     reducedMotion: "Reduzir movimento",
     achievements: "Conquistas",
+    achievementsAndStatsSection: "Conquistas e Estatísticas",
+    optionsSection: "Opções",
     sections: "Secções das definições",
     preferencesSection: "Preferências",
     savingSection: "Guardar / Carregar",
@@ -303,6 +311,8 @@ const messages: Record<
     notifications: "Benachrichtigungen Umschalten:",
     reducedMotion: "Bewegung reduzieren",
     achievements: "Erfolge",
+    achievementsAndStatsSection: "Erfolge & Statistiken",
+    optionsSection: "Optionen",
     sections: "Einstellungsbereiche",
     preferencesSection: "Einstellungen",
     savingSection: "Speichern / Laden",
@@ -368,6 +378,8 @@ const messages: Record<
     notifications: "Attiva/Disattiva Notifiche:",
     reducedMotion: "Riduci animazioni",
     achievements: "Traguardi",
+    achievementsAndStatsSection: "Obiettivi e Statistiche",
+    optionsSection: "Opzioni",
     sections: "Sezioni delle impostazioni",
     preferencesSection: "Preferenze",
     savingSection: "Salvataggio / Caricamento",
@@ -433,6 +445,8 @@ const messages: Record<
     notifications: "Basculer les Notifications:",
     reducedMotion: "Réduire les animations",
     achievements: "Succès",
+    achievementsAndStatsSection: "Succès et Statistiques",
+    optionsSection: "Options",
     sections: "Sections des paramètres",
     preferencesSection: "Préférences",
     savingSection: "Sauvegarde / Chargement",

@@ -44,6 +44,7 @@ import {
   starshipText,
   type StarshipMessageKey,
 } from "../i18n/starshipMessages";
+import { warModeText } from "../i18n/warModeMessages";
 import { CelestialIllustration } from "./CelestialIllustration";
 
 const MODULE_LABELS: Readonly<Record<StarshipModuleId, StarshipModuleId>> = {
@@ -234,6 +235,8 @@ export function StarshipPane({
   }
   const [showLaunchWarning, setShowLaunchWarning] = useState(false);
   const launchDialogRef = useRef<HTMLDialogElement>(null);
+  const [showWarModeConfirmation, setShowWarModeConfirmation] = useState(false);
+  const warModeDialogRef = useRef<HTMLDialogElement>(null);
   const fleetHelpTooltipRef = useRef<HTMLSpanElement>(null);
   const fleetHelpTooltipOffset = useRef(0);
   const [fleetHelpTooltipLayout, setFleetHelpTooltipLayout] = useState({
@@ -441,6 +444,13 @@ export function StarshipPane({
     }
   }
 
+  function confirmWarModeEntry(): void {
+    const result = store.dispatch(enterWarCommand);
+    setShowWarModeConfirmation(false);
+    if (result.accepted) setFeedbackText(null);
+    else setFeedbackText({ kind: "starship", key: "warUnavailable" });
+  }
+
   function scanDestinationSystem(): void {
     const result = store.dispatch(scanCommand);
     if (!result.accepted) {
@@ -470,6 +480,13 @@ export function StarshipPane({
     if (showLaunchWarning && !dialog.open) dialog.showModal();
     else if (!showLaunchWarning && dialog.open) dialog.close();
   }, [showLaunchWarning]);
+
+  useEffect(() => {
+    const dialog = warModeDialogRef.current;
+    if (!dialog) return;
+    if (showWarModeConfirmation && !dialog.open) dialog.showModal();
+    else if (!showWarModeConfirmation && dialog.open) dialog.close();
+  }, [showWarModeConfirmation]);
 
   useEffect(() => {
     const resize = () => fitFleetHelpTooltip();
@@ -664,9 +681,16 @@ export function StarshipPane({
         </div>
       )}
       {coloniseDescription && (
-        <p className="starship-colonise-description" data-testid="starship-colonise-description">
-          {coloniseDescription}
-        </p>
+        <>
+          {view === "colonise" && coloniseHasNoResistance && !systemIsSettled && (
+            <h3 data-testid="starship-colonise-no-resistance-title">
+              {starshipText(state.settings.locale, "coloniseNoResistanceTitle")}
+            </h3>
+          )}
+          <p className="starship-colonise-description" data-testid="starship-colonise-description">
+            {coloniseDescription}
+          </p>
+        </>
       )}
       {view === "starship" && <p>{starshipText(state.settings.locale, "description")}</p>}
       {view === "fleet-hangar" && (
@@ -1209,7 +1233,7 @@ export function StarshipPane({
                 disabled={!enterWarCheck.ok}
                 aria-describedby={!enterWarCheck.ok ? "starship-enter-war-reason" : undefined}
                 data-testid="starship-enter-war-button"
-                onClick={() => store.dispatch(enterWarCommand)}
+                onClick={() => setShowWarModeConfirmation(true)}
               >
                 {starshipText(state.settings.locale, "enterWar")}
               </button>
@@ -1232,7 +1256,11 @@ export function StarshipPane({
           data-testid="starship-battle"
           hidden={view !== "colonise"}
         >
-          <h3>{starshipText(state.settings.locale, "battleTitle")}</h3>
+          <h3>
+            {encounter.battle.phase === "victory" || encounter.battle.phase === "defeat"
+              ? starshipText(state.settings.locale, "battleResultTitle")
+              : starshipText(state.settings.locale, "battleTitle")}
+          </h3>
           <p data-testid="starship-battle-status">
             <span role="status" aria-live="polite" aria-atomic="true">
               {starshipText(
@@ -1403,6 +1431,58 @@ export function StarshipPane({
           </button>
           <button className="primary-button" type="button" onClick={confirmLaunch}>
             {starshipText(state.settings.locale, "confirmLaunch")}
+          </button>
+        </div>
+      </dialog>
+      <dialog
+        ref={warModeDialogRef}
+        className="starship-launch-dialog starship-war-confirmation-dialog"
+        aria-labelledby="starship-war-confirmation-title"
+        aria-describedby="starship-war-confirmation-copy"
+        data-testid="starship-war-confirmation-dialog"
+        onCancel={(event) => {
+          event.preventDefault();
+          if (scannerComplete) setShowWarModeConfirmation(false);
+        }}
+      >
+        <h3 id="starship-war-confirmation-title" data-testid="starship-war-confirmation-title">
+          {warModeText(state.settings.locale, "enterWarModeModalHeader")}
+        </h3>
+        <p
+          id="starship-war-confirmation-copy"
+          className="starship-war-confirmation-copy"
+          data-testid="starship-war-confirmation-copy"
+        >
+          {warModeText(
+            state.settings.locale,
+            scannerComplete
+              ? "enterwarModeModalBackOutText"
+              : "enterwarModeModalNoBackOutText",
+          ).replace(/<br\s*\/?\s*>/gi, "\n")}
+          {!scannerComplete && (
+            <>
+              {"\n"}
+              {warModeText(state.settings.locale, "attackingBlind")}
+            </>
+          )}
+        </p>
+        <div className="starship-launch-actions">
+          {scannerComplete && (
+            <button
+              type="button"
+              data-testid="starship-war-confirmation-cancel"
+              onClick={() => setShowWarModeConfirmation(false)}
+            >
+              {warModeText(state.settings.locale, "cancelWar")}
+            </button>
+          )}
+          <button
+            className="primary-button"
+            type="button"
+            data-testid="starship-war-confirmation-confirm"
+            onClick={confirmWarModeEntry}
+          >
+            {warModeText(state.settings.locale, "confirmWar")}
           </button>
         </div>
       </dialog>

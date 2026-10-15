@@ -10,8 +10,87 @@ This area owns browser specs for the Space Mining section's Telescope, Asteroids
 - `e57-space-mining-narrow-locale-context.spec.ts` checks the Telescope quote and Rocket part/travel contexts in six locales at 390px and 320px. Its reviewed French Telescope capture is `e57-space-telescope-cost-fr-320.png`.
 - `p13-space-mining-narrow-context.spec.ts` checks Rocket fueling and Telescope survey controls at 320px.
 - `p45-space-mining-copy.spec.ts` checks Telescope, Launch Pad, Asteroid, Mining, and Rocket notices and status copy in all locales.
+- `p7-space-mining-source-label-locales.spec.ts` checks the Telescope and Auto Telescope labels, all four Telescope help routes, Launch Pad page label/help and build-row help, Rocket fuel-pump heading/description, and in-orbit destination label on their owning routes in all six locales. It also checks each default Rocket Miner name on the Launch Pad assembly cards. **AUTHORED, NOT RUN** for Phase 8 V-59.
+- `p7-space-mining-source-tooltip-locales.spec.ts` checks Mining, Asteroids, and Launch Pad page-header help, the Mining rate help, and Rocket fuel/travel row help on their owning routes in all six locales. **AUTHORED, NOT RUN** for Phase 8 V-59.
 - `p51-space-mining-visual.spec.ts` checks the Telescope quote and location tooltip at 320px and 390px in French.
 - `space-mining-presentation.spec.ts` owns the Space Mining locale/theme/content matrix and presentation captures, including its reviewed snapshots.
+
+### Phase 7 source labels
+
+Cosmic Forge `drawTab6Content.js` routes `tab6SpaceTelescopeRowLabel` to the Telescope row, `tab6AutoSpaceTelescopeName` and `tab6AutoSpaceTelescopeRowLabel` to the conditional Auto Telescope row, and `tab6LaunchPadRowLabel` to the Launch Pad page. MIAPLACIDUS resolves these through `spaceMessages.ts#telescopeTitle/autoTitle/autoRowLabel` and `rocketMessages.ts#launchPadTitle` on the corresponding child pages. Rocket `tab6FuelRowLabel`, `tab6TravelToRowLabel`, and `tab6RocketDescriptionWithPower` resolve to the localized `pumpTitle`, `destination`, and `rocketPageDescription` fields in `rocketMessages.ts`; the active Rocket renderer owns all three routes. The four source keys `rocketMinerName1`–`rocketMinerName4` appear as separate Launch Pad assembly-card headings. MIAPLACIDUS routes each to the populated `rocketMessages.ts#rocketMinerLabel` template with its matching slot index; the remake uses one indexed template for the four source-specific names. Values are populated for all six locales. The row-to-page/heading changes and indexed-name adaptation are recorded in the Phase 7 crosswalk.
+
+The source `tab6SortByRowLabel` remains open: Cosmic Forge attaches rarity, distance, complexity, and Antimatter sort actions to its Asteroids list, while the current remake has no matching sort control. It is not classified as a label-only adaptation. The source-key inventory keeps it unreviewed until the route/behavior has an explicit disposition.
+
+[`p7-space-mining-source-label-locales.spec.ts`](p7-space-mining-source-label-locales.spec.ts) checks Telescope, Auto Telescope, Launch Pad, and Rocket page copy, including the direct Launch Pad build-row help and all four indexed Rocket Miner headings, in all six locales. **AUTHORED, NOT RUN** for Phase 8 V-59.
+
+The same six-locale spec now checks Cosmic Forge's `spaceBuildTelescopeContent1`,
+`spaceTelescopeSearchAsteroidContent1`, `spaceTelescopeInvestigateStarContent1`,
+and `spaceTelescopePhilosophyBoostContent1` against the visible Build Telescope,
+Search Asteroid, Investigate Star, and Philosophy Boost help tooltips. The target
+routes are `spaceMessages.ts#telescopeBuildHelp`, `telescopeScanHelp`,
+`telescopeStudyHelp`, and `telescopePillageHelp` in `SpaceMiningPane.tsx`. Build
+help is checked before constructing the Telescope; Search Asteroid and
+Investigate Star help are checked after the visible build action; Philosophy
+Boost help is checked with the existing `space-voidborn-pillage` fixture, where
+the target conditionally exposes that route. The three power placeholders use
+the locale-formatted target rates (0.4, 0.7, and 1.1 kJ/s). All four source keys
+and target help entries are populated in en/es/pt/de/it/fr. This coverage is
+**AUTHORED, NOT RUN**; no tests, build, typecheck, formatter, or browser checks
+were run for the addition.
+
+### Phase 7 Rocket and Antimatter row tooltips
+
+Cosmic Forge `drawTab6Content.js` creates the `antimatterSvgRow` Mining row;
+`descriptions.js` supplies its `antimatterSvgContent1` text, which tells the
+player to hold the Antimatter rate bar to raise production. MIAPLACIDUS keeps
+the help on the Mining rate readout and adapts the instruction to its separate
+hold-to-boost button through `spaceMessages.ts#antimatterBoostHelp` in
+`SpaceMiningPane.tsx`.
+
+For each Rocket, Cosmic Forge's `drawTab6Content.js#createRocketUI` creates
+distinct `spaceRocket*AutoBuyerRow` and `spaceRocket*TravelRow` rows;
+`descriptions.js` routes their copy through `spaceRocketAutoBuyerContent1` and
+`spaceRocketTravelContent1`. MIAPLACIDUS preserves those row owners on each
+Rocket child page: `rocketMessages.ts#rocketFuelHelp` is shown beside the fuel
+pump heading while the Rocket is ready, with the selected locale's formatted
+per-Rocket power, and `rocketMessages.ts#rocketTravelHelp` is shown beside the
+destination row while it is in orbit. The existing page intro remains separate
+page-level workflow guidance.
+
+`p7-space-mining-source-tooltip-locales.spec.ts` checks all three row help
+routes in en/es/pt/de/it/fr, including the Rocket 1 power placeholder and the
+visible pump-to-launch transition before the travel row appears. Target copy is
+populated for all six locales. This is **AUTHORED, NOT RUN**; no tests, builds,
+typechecks, formatting, or validation were run.
+
+Cosmic Forge `rocketDescription` is attached to Rocket child pages by `descriptions.js` and `ui.js`; its owner-approved adaptation is MIAPLACIDUS `rocketMessages.ts#rocketPageDescription`, rendered as the visible `.pane-intro` by `SpaceMiningPane.tsx`. The P7 spec asserts that target text in all six locales on Rocket 1. This is an adaptation: the source says to build the Launch Pad, while the target Rocket page is available after construction and explains the live fueling, launch, and travel workflow.
+
+Cosmic Forge `spaceBuildLaunchPadContent1` is routed through `descriptions.js#spaceBuildLaunchPadRow` and `game.js#getRowMainDescriptionLabel` to the Launch Pad construction row. MIAPLACIDUS now routes it directly to `spaceMessages.ts#launchPadBuildHelp`, rendered by the accessible `InfoTooltip` beside the visible Build Launch Pad action in `SpaceMiningPane.tsx`. The six-locale P7 spec focuses the help trigger and checks the tooltip text before construction. Values are populated in en/es/pt/de/it/fr. This direct source-to-target route is **AUTHORED, NOT RUN**; no tests, build, typecheck, formatter, or browser checks were run for this addition. The page-level `rocketMessages.ts#launchPadHeaderHelp/launchPadHelp` remains separate page help.
+
+### Phase 7 source header-tooltip routes
+
+Cosmic Forge `drawTab6Content.js` places `info_miningHeader`,
+`info_launchPadHeader`, and `info_asteroidsHeader` beside the Mining, Launch Pad,
+and Asteroids headings; `descriptions.js` resolves those IDs from
+`infoTooltipMiningHeader`, `infoTooltipLaunchPadHeader`, and
+`infoTooltipAsteroidsHeader`. MIAPLACIDUS keeps each help trigger on that same
+Space Mining child page. Mining help is composed from
+`spaceMessages.ts#miningHeaderHelp`, `#miningLayoutHelp`, and `#miningHelp`:
+the remake displays combined Antimatter production, then explains that holding
+the visible boost action affects Rocket mining only. Launch Pad help uses
+`rocketMessages.ts#launchPadHeaderHelp` and `#launchPadHelp` to explain complete
+Rocket assembly and the current Asteroids-to-Rocket destination workflow.
+Asteroids help uses `spaceMessages.ts#asteroidsHeaderHelp`, `#asteroidsTableHelp`,
+`#asteroidDistanceHelp`, `#asteroidComplexityHelp`, `#asteroidAntimatterHelp`,
+and `#asteroidsHelp`. Complexity and available Antimatter guidance are retained;
+distance is recalculated for the remake's 0.5-seconds-per-100 one-way travel
+rule, and the old separate Destroyed status is omitted because the remake has no
+matching state. These sections stay distinct within the active child-page help.
+
+`p7-space-mining-source-tooltip-locales.spec.ts` checks each active route, all
+populated target help fragments, and the visible Mining/Asteroids data owners in
+en/es/pt/de/it/fr. It was authored for Phase 7; no tests, build, typecheck,
+formatter, or browser checks were run for this addition.
 
 ## Recorded focused evidence
 
@@ -77,3 +156,27 @@ $env:MIAPLACIDUS_TEST_PORT='6743'; npm.cmd run test:e2e:focused -- tests/e2e/spa
 
 $env:MIAPLACIDUS_TEST_PORT='6745'; npm.cmd run test:e2e:focused -- tests/e2e/space-mining/e57-space-mining-narrow-locale-context.spec.ts tests/e2e/space-mining/p13-space-mining-narrow-context.spec.ts tests/e2e/space-mining/p45-space-mining-copy.spec.ts tests/e2e/space-mining/space-mining-presentation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'Space Telescope quote and one-material shortfall stay translated and readable at 390/320px|Rocket fuel cost, balance, ETA, progress, and pause action fit at 320px|Asteroid selection and zero-rate Mining warning use all locales|Mining content, identity, and bounds fit all locales and themes when antimatter is unlocked|built Rocket 1-4 identity and bounds fit all locales and themes' --output="$env:TEMP\miaplacidus-space-mining-migrated-coverage-6745"
 ```
+
+## Phase 7 Telescope and Launch Pad source actions
+
+Cosmic Forge `drawTab6Content.js` routes `buttonBuildSpaceTelescope` to the
+Telescope build action and `notificationSpaceTelescopeBuilt` through the build
+notice. MIAPLACIDUS uses `spaceMessages.ts#telescopeBuild` and the existing
+`spaceEventNotifications.ts` → `spaceNotificationMessages.ts#telescopeBuilt`
+route. The Space Telescope action rows retain Cosmic Forge's separate
+`buttonScanAsteroids`, Study Stars, and conditional Void Pillage controls.
+`dropdownTelescopeStudyAsteroid`, `dropdownTelescopeStudyStars`, and
+`dropdownTelescopePillageVoid` each remain distinct options in the Auto
+Telescope selector, with Pillage shown only for the eligible Voidborn state.
+The three `textReadyTo*` source labels now appear below their matching action
+while no survey is running; the active survey continues to use the remake's
+shared progress display.
+
+`buttonBuildLaunchPad` routes to `rocketMessages.ts#buildLaunchPad`, and
+`notificationLaunchPadBuilt` routes through the same event-notice adapter to
+`spaceNotificationMessages.ts#launchPadBuilt`. All target messages are
+populated in en/es/pt/de/it/fr. The existing
+`p7-space-mining-source-label-locales.spec.ts` now covers the action names,
+Auto Telescope options, idle labels, and both build notices across those six
+locales. It is **AUTHORED, NOT RUN**; no tests, build, typecheck, formatter, or
+browser checks were run for this addition.

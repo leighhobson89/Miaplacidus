@@ -2,6 +2,10 @@ import { expect, test, type Page } from "../_harness/fixtures";
 import { createStarCatalogue } from "../../../src/content/starCatalogue";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { translate } from "../../../src/i18n/messages";
+import {
+  galacticTabUnlockDialog,
+  oTypeStarReachedDialog,
+} from "../../../src/i18n/spaceProgressionDialogMessages";
 
 type ArrivalFixture = "space-starship-o-arrival" | "space-starship-factory-arrival";
 
@@ -66,6 +70,26 @@ test("shows the source-backed O-type and factory-star narratives at arrival in a
       await expect(notice).toHaveText(/\S/u);
       await expect(notice).toContainText(destination.name);
       await expect(notice).toHaveAttribute("aria-atomic", "true");
+      const dialog = page.getByTestId("random-event-result-dialog");
+      await expect(dialog).toBeVisible();
+      const unlockCopy = galacticTabUnlockDialog(locale);
+      await expect(dialog.getByRole("heading")).toHaveText(unlockCopy.title);
+      await expect(dialog.locator(".random-event-result-copy p")).toHaveText([
+        unlockCopy.summary,
+        ...unlockCopy.lines.map((line) => line.text),
+      ]);
+      await dialog.getByRole("button", { name: unlockCopy.confirmLabel }).click();
+
+      const dialogCopy = oTypeStarReachedDialog(locale, destination.name);
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("heading")).toHaveText(dialogCopy.title);
+      await expect(dialog.locator(".random-event-result-copy p")).toHaveText([
+        dialogCopy.summary,
+        ...dialogCopy.lines.map((line) => line.text),
+      ]);
+      await expect(dialog.getByRole("button", { name: dialogCopy.confirmLabel })).toBeVisible();
+      await dialog.getByRole("button", { name: dialogCopy.confirmLabel }).click();
+      await expect(dialog).not.toBeVisible();
       const scrollState = await notice.evaluate((element) => ({
         scrollHeight: element.scrollHeight,
         clientHeight: element.clientHeight,

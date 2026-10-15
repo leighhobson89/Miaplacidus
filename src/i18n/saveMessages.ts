@@ -114,7 +114,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     newName: "New pioneer name",
     delete: "Delete this save",
     deletePrompt:
-      "Deleting removes this pioneer from this device. Export it first if you may need it later.",
+      "Deleting this save removes this pioneer's saved progress and achievements from this device. Other Pioneer saves on this device are unaffected. Export this save first if you may need it later.",
     confirmDelete: "Confirm delete",
     exportFirst: "I exported this save or do not need it",
     export: "Export Save:",
@@ -207,7 +207,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     newName: "Nombre del nuevo pionero",
     delete: "Eliminar esta partida",
     deletePrompt:
-      "Al eliminarla, esta partida desaparecerá del dispositivo. Expórtala si podrías necesitarla.",
+      "Eliminar esta partida borrará el progreso y los logros guardados de este pionero en este dispositivo. Las demás partidas de otros pioneros no se verán afectadas. Exporta esta partida primero por si la necesitas más adelante.",
     confirmDelete: "Confirmar eliminación",
     exportFirst: "He exportado esta partida o no la necesito",
     export: "Exportar Partida:",
@@ -306,7 +306,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     newName: "Nome do novo pioneiro",
     delete: "Eliminar esta partida",
     deletePrompt:
-      "A eliminação remove este pioneiro do dispositivo. Exporta a partida primeiro se precisares dela mais tarde.",
+      "Eliminar esta gravação irá remover o progresso e as conquistas guardados deste pioneiro deste dispositivo. As gravações dos outros pioneiros não serão afetadas. Exporta esta gravação primeiro, caso precises dela mais tarde.",
     confirmDelete: "Confirmar eliminação",
     exportFirst: "Já exportei esta partida ou não preciso dela",
     export: "Exportar Partida:",
@@ -406,7 +406,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     newName: "Name des neuen Pioniers",
     delete: "Spielstand löschen",
     deletePrompt:
-      "Beim Löschen wird dieser Pionier vom Gerät entfernt. Exportiere ihn vorher, falls du ihn später brauchst.",
+      "Wenn du diesen Spielstand löschst, werden der gespeicherte Fortschritt und die Erfolge dieses Pioniers von diesem Gerät entfernt. Andere gespeicherte Pioniere sind davon nicht betroffen. Exportiere diesen Spielstand vorher, falls du ihn später noch brauchst.",
     confirmDelete: "Löschen bestätigen",
     exportFirst: "Ich habe diesen Spielstand exportiert oder brauche ihn nicht",
     export: "Spielstand Exportieren:",
@@ -508,7 +508,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     newName: "Nome del nuovo pioniere",
     delete: "Elimina salvataggio",
     deletePrompt:
-      "L'eliminazione rimuove il pioniere dal dispositivo. Esportalo prima se potrebbe servirti.",
+      "Eliminando questo salvataggio, rimuoverai da questo dispositivo i progressi salvati e gli obiettivi di questo pioniere. Gli altri salvataggi dei pionieri non saranno interessati. Esporta prima questo salvataggio se potrebbe servirti in seguito.",
     confirmDelete: "Conferma eliminazione",
     exportFirst: "Ho esportato questo salvataggio o non mi serve",
     export: "Esporta Salvataggio:",
@@ -608,7 +608,7 @@ const messages: Record<LocaleId, Record<SaveMessageKey, string>> = {
     newName: "Nom du nouveau pionnier",
     delete: "Supprimer cette sauvegarde",
     deletePrompt:
-      "La suppression retire ce pionnier de l'appareil. Exportez-le avant si vous pouvez en avoir besoin.",
+      "La suppression de cette sauvegarde effacera de cet appareil la progression enregistrée et les succès de ce pionnier. Les autres sauvegardes de pionniers ne seront pas concernées. Exportez d’abord cette sauvegarde si vous pourriez en avoir besoin plus tard.",
     confirmDelete: "Confirmer la suppression",
     exportFirst: "J'ai exporté cette sauvegarde ou je n'en ai pas besoin",
     export: "Exporter la Sauvegarde:",

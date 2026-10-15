@@ -7,11 +7,16 @@ export interface CosmicRipMessages {
   readonly ripPaneTitle: string;
   readonly situationTitle: string;
   readonly scannerArrayTitle: string;
+  readonly sectorsMapTitle: string;
   readonly requiresRestoration: string;
   readonly status: string;
+  readonly statusRowLabel: string;
   readonly stabilityLabel: string;
   readonly stabilityPercentage: string;
   readonly introduction: string;
+  readonly situationIntroduction: string;
+  readonly scannerArrayIntroduction: string;
+  readonly ripIntroduction: string;
   readonly headerHelp: string;
   readonly situationHelp: string;
   readonly scannerArrayHelp: string;
@@ -360,11 +365,18 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Cosmic Rip",
     situationTitle: "Situation",
     scannerArrayTitle: "Near Space Scanner Array",
+    sectorsMapTitle: "Miaplacidus Sectors Map:",
     requiresRestoration: "Requires Restoration",
     status: "Endgame",
+    statusRowLabel: "Cosmic Rip Status:",
     stabilityLabel: "Cosmic Rip:",
     stabilityPercentage: "{percentage}% Stabilised",
     introduction: "I don't know how you got here, Mia'Plac, but we are going to settle this...",
+    situationIntroduction: "Cosmic Rip operations and progression",
+    scannerArrayIntroduction:
+      "Commission the Near Space Scanner Array, scan sectors to locate distortions, and pinpoint the Cosmic Rip.",
+    ripIntroduction:
+      "Investigate and Research how to stabilise and secure the Cosmic Rip once located.",
     headerHelp: "Once located, you undertake a set of studies, and constructions around the Cosmic Rip to Stabilise it ready for Manipulation and Closure, to secure the future for your people.  Here is where you do those studies, and they are costly, and take time.",
     situationHelp:
       "This is where you gain current insight in to the progress of Stabilising and Securing the Cosmic Rip.  Also when the time is right, this is where you will end the game!",
@@ -430,11 +442,18 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Ras Cósmico",
     situationTitle: "Situación",
     scannerArrayTitle: "Matriz de Escáner del Espacio Cercano",
+    sectorsMapTitle: "Mapa de Sectores de Miaplacidus:",
     requiresRestoration: "Requiere Restauración",
     status: "Final",
+    statusRowLabel: "Estado del Ras Cósmico:",
     stabilityLabel: "Ras Cósmico:",
     stabilityPercentage: "{percentage}% Estabilizado",
     introduction: "No sé cómo llegaste aquí, Mia'Plac, pero vamos a resolver esto...",
+    situationIntroduction: "Operaciones y progresión del Desgarro Cósmico",
+    scannerArrayIntroduction:
+      "Encarga el Arreglo de Escáner de Espacio Cercano, escanea sectores para localizar distorsiones, y precisar el Desgarro Cósmico.",
+    ripIntroduction:
+      "Investiga e investiga cómo estabilizar y asegurar el Desgarro Cósmico una vez localizado.",
     headerHelp: "Una vez localizado, emprendes un conjunto de estudios y construcciones alrededor del Desgarro Cósmico para Estabilizarlo listo para Manipulación y Cierre, para asegurar el futuro de tu pueblo. Aquí es donde haces esos estudios, y son costosos, y toman tiempo.",
     situationHelp:
       "Aquí es donde obtienes una visión actual del progreso de Estabilizar y Asegurar el Desgarro Cósmico. También cuando llegue el momento, ¡aquí es donde terminarás el juego!",
@@ -506,11 +525,18 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Rutura Cósmica",
     situationTitle: "Situação",
     scannerArrayTitle: "Matriz de Scanners do Espaço Próximo",
+    sectorsMapTitle: "Mapa de Setores de Miaplacidus:",
     requiresRestoration: "Requer Restauração",
     status: "Fim de jogo",
+    statusRowLabel: "Estado da Rutura Cósmica:",
     stabilityLabel: "Rutura Cósmica:",
     stabilityPercentage: "{percentage}% Estabilizado",
     introduction: "Não sei como chegaste aqui, Mia'Plac, mas vamos resolver isto...",
+    situationIntroduction: "Operações e progressão do Rasgo Cósmico",
+    scannerArrayIntroduction:
+      "Encomenda o Conjunto de Scanners do Espaço Próximo, explora setores para localizar distorções e determinar a localização do Rasgo Cósmico.",
+    ripIntroduction:
+      "Investiga e descobre como estabilizar e assegurar o Rasgo Cósmico depois de o localizar.",
     headerHelp: "Uma vez localizado, você inicia uma série de estudos e construções ao redor do Desgarro Cósmico para Estabilizá-lo, preparando-o para Manipulação e Fechamento, a fim de garantir o futuro do seu povo. É aqui que você realiza esses estudos, que são caros e levam tempo.",
     situationHelp:
       "É aqui que você obtém uma visão atual do progresso para Estabilizar e Assegurar o Desgarro Cósmico. E, quando chegar a hora, é aqui que você terminará o jogo!",
@@ -580,12 +606,19 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Kosmischer Riss",
     situationTitle: "Situation",
     scannerArrayTitle: "Nahbereichs-Scanner-Array",
+    sectorsMapTitle: "Sektorkarte von Miaplacidus:",
     requiresRestoration: "Wiederherstellung Erforderlich",
     status: "Endspiel",
+    statusRowLabel: "Status des Kosmischen Risses:",
     stabilityLabel: "Kosmischer Riss:",
     stabilityPercentage: "{percentage}% Stabilisiert",
     introduction:
       "Ich weiß nicht, wie du hierher gekommen bist, Mia'Plac, aber wir werden das klären...",
+    situationIntroduction: "Kosmische Riss-Operationen und Fortschritt",
+    scannerArrayIntroduction:
+      "Beauftrage das Nahraum-Scanner-Array, scanne Sektoren, um Verzerrungen zu lokalisieren und den Kosmischen Riss zu präzisieren.",
+    ripIntroduction:
+      "Untersuche und erforsche, wie der Kosmische Riss einmal lokalisiert stabilisiert und gesichert werden kann.",
     headerHelp: "Einmal lokalisiert, unternimmst du eine Reihe von Studien und Konstruktionen um den Kosmischen Riss herum, um ihn zu Stabilisieren, bereit für Manipulation und Schließung, um die Zukunft deines Volkes zu sichern. Hier ist, wo du diese Studien durchführst, und sie sind kostspielig und brauchen Zeit.",
     situationHelp:
       "Hier erhältst du aktuelle Einblicke in den Fortschritt des Stabilisierens und Sicherns des Kosmischen Risses. Außerdem ist hier, wenn die Zeit reif ist, wo du das Spiel beenden wirst!",
@@ -653,11 +686,18 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Strappo Cosmico",
     situationTitle: "Situazione",
     scannerArrayTitle: "Array Scanner Spazio Vicino",
+    sectorsMapTitle: "Mappa dei Settori di Miaplacidus:",
     requiresRestoration: "Richiede Ripristino",
     status: "Finale",
+    statusRowLabel: "Stato dello Strappo Cosmico:",
     stabilityLabel: "Strappo Cosmico:",
     stabilityPercentage: "{percentage}% Stabilizzato",
     introduction: "Non so come sei arrivato qui, Mia'Plac, ma risolveremo questa faccenda...",
+    situationIntroduction: "Operazioni e progresso dello Squarcio Cosmico",
+    scannerArrayIntroduction:
+      "Commissiona l'Array di Scanner Spazio Vicino, scansiona settori per localizzare distorsioni, e precisare lo Squarcio Cosmico.",
+    ripIntroduction:
+      "Investiga e ricerca come stabilizzare e assicurare lo Squarcio Cosmico una volta localizzato.",
     headerHelp: "Una volta localizzato, intraprendi una serie di studi e costruzioni intorno allo Squarcio Cosmico per Stabilizzarlo pronto per Manipolazione e Chiusura, per assicurare il futuro del tuo popolo. Qui è dove fai quegli studi, e sono costosi, e richiedono tempo.",
     situationHelp:
       "Qui è dove ottieni informazioni attuali sul progresso dello Stabilizzare e Assicurare lo Squarcio Cosmico. Anche quando è il momento giusto, qui è dove finirai il gioco!",
@@ -728,12 +768,19 @@ const MESSAGES: Record<LocaleId, CosmicRipMessages> = {
     ripPaneTitle: "Déchirure Cosmique",
     situationTitle: "Situation",
     scannerArrayTitle: "Réseau de Scanners du Secteur Proche",
+    sectorsMapTitle: "Carte des Secteurs de Miaplacidus:",
     requiresRestoration: "Restauration Requise",
     status: "Fin de partie",
+    statusRowLabel: "État de la Déchirure Cosmique:",
     stabilityLabel: "Déchirure Cosmique:",
     stabilityPercentage: "{percentage}% Stabilisée",
     introduction:
       "Je ne sais pas comment tu es arrivé ici, Mia'Plac, mais nous allons régler ça...",
+    situationIntroduction: "Opérations et progression de la Déchirure Cosmique",
+    scannerArrayIntroduction:
+      "Commissionne le Réseau de Scanners de l'Espace Proche, scanne les secteurs pour localiser les distorsions, et préciser la Déchirure Cosmique.",
+    ripIntroduction:
+      "Enquête et recherche comment stabiliser et sécuriser la Déchirure Cosmique une fois localisée.",
     headerHelp: "Une fois localisé, tu entreprends un ensemble d'études et de constructions autour du Déchirure Cosmique pour la Stabiliser prête pour Manipulation et Fermeture, pour sécuriser l'avenir de ton peuple. C'est ici que tu fais ces études, et elles sont coûteuses, et prennent du temps.",
     situationHelp:
       "C'est ici que tu obtiens des informations actuelles sur le progrès de Stabiliser et Sécuriser le Déchirure Cosmique. Aussi quand le moment est venu, c'est ici que tu finiras le jeu!",

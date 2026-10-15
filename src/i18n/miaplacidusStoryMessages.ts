@@ -1,15 +1,21 @@
 import type { LocaleId } from "../content/ids";
 
 export interface MiaplacidusStoryMessages {
-  readonly title: string;
+  readonly pageTitles: readonly [string, string, string, string];
   readonly pages: readonly [string, string, string, string];
   readonly continue: string;
+  readonly finish: string;
   readonly page: string;
 }
 
+// Source-order mapping to Cosmic Forge descriptions.js:
+// 0 storyHeaderMiaplacidus / storyContentMiaplacidus
+// 1 storyHeaderReclamation / storyContentReclamation
+// 2 storyHeaderHuntBegins / storyContentHuntBegins
+// 3 storyHeaderOneLastThing / storyContentOneLastThing
 const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
   en: {
-    title: "Miaplacidus Reclaimed",
+    pageTitles: ["MIAPLACIDUS", "RECLAMATION", "THE HUNT BEGINS", "ONE LAST THING..."],
     pages: [
       "The Wardens' defeat breaks their hold over Miaplacidus. The sealed sky opens, and your people can return to the world they carried in memory.",
       "Your civilization has reclaimed its home. A journey that began in exile reaches its promised shore.",
@@ -17,10 +23,11 @@ const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
       "Scouts call the anomaly the Cosmic Rip. Find it, restore the Near Space Scanner Array, and stabilize the rupture to secure the galaxy.",
     ],
     continue: "Continue",
+    finish: "LETS FINISH THIS",
     page: "Chapter {current} of {total}",
   },
   es: {
-    title: "Miaplacidus recuperado",
+    pageTitles: ["MIAPLACIDUS", "RECUPERACIÓN", "COMIENZA LA CAZA", "UNA ÚLTIMA COSA..."],
     pages: [
       "La derrota de los Guardianes termina su dominio sobre Miaplacidus. El cielo sellado se abre y tu pueblo puede regresar al mundo que conservó en su memoria.",
       "Tu civilización ha recuperado su hogar. El viaje que comenzó en el exilio alcanza la costa prometida.",
@@ -28,10 +35,11 @@ const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
       "Los exploradores llaman a la anomalía el Desgarro Cósmico. Encuéntralo, restaura el conjunto de escáneres del espacio cercano y estabiliza la ruptura para proteger la galaxia.",
     ],
     continue: "Continuar",
+    finish: "TERMINEÁMOSLO",
     page: "Capítulo {current} de {total}",
   },
   pt: {
-    title: "Miaplacidus recuperado",
+    pageTitles: ["MIAPLACIDUS", "RECUPERAÇÃO", "COMEÇA A CAÇA", "UMA ÚLTIMA COISA..."],
     pages: [
       "A derrota dos Guardiões encerra o domínio deles sobre Miaplacidus. O céu selado se abre, e seu povo pode voltar ao mundo que guardou na memória.",
       "Sua civilização recuperou seu lar. A jornada iniciada no exílio alcança a costa prometida.",
@@ -39,10 +47,11 @@ const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
       "Os exploradores chamam a anomalia de Rasgo Cósmico. Encontre-o, restaure o conjunto de sensores do espaço próximo e estabilize a ruptura para proteger a galáxia.",
     ],
     continue: "Continuar",
+    finish: "VAMOS TERMINAR ISTO",
     page: "Capítulo {current} de {total}",
   },
   de: {
-    title: "Miaplacidus zurückerobert",
+    pageTitles: ["MIAPLACIDUS", "RÜCKEROBERUNG", "DIE JAGD BEGINNT", "EINE LETZTE SACHE..."],
     pages: [
       "Mit der Niederlage der Wächter endet ihre Herrschaft über Miaplacidus. Der versiegelte Himmel öffnet sich, und dein Volk kann in die Welt zurückkehren, die es in Erinnerung bewahrt hat.",
       "Deine Zivilisation hat ihre Heimat zurückgewonnen. Die Reise aus dem Exil erreicht ihr versprochenes Ziel.",
@@ -50,10 +59,11 @@ const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
       "Die Kundschafter nennen die Anomalie den Kosmischen Riss. Finde ihn, stelle das Nahraum-Scannerfeld wieder her und stabilisiere den Riss, um die Galaxie zu schützen.",
     ],
     continue: "Weiter",
+    finish: "BEENDEN WIR DIESES",
     page: "Kapitel {current} von {total}",
   },
   it: {
-    title: "Miaplacidus riconquistato",
+    pageTitles: ["MIAPLACIDUS", "RICONQUISTA", "INIZIA LA CACCIA", "UN'ULTIMA COSA..."],
     pages: [
       "La sconfitta dei Guardiani pone fine al loro dominio su Miaplacidus. Il cielo sigillato si apre e il tuo popolo può tornare al mondo custodito nei suoi ricordi.",
       "La tua civiltà ha riconquistato la propria casa. Il viaggio iniziato in esilio raggiunge la riva promessa.",
@@ -61,10 +71,11 @@ const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
       "Gli esploratori chiamano l'anomalia Squarcio Cosmico. Trovalo, ripristina la rete di scanner dello spazio vicino e stabilizza la frattura per proteggere la galassia.",
     ],
     continue: "Continua",
+    finish: "FINIAMOLA",
     page: "Capitolo {current} di {total}",
   },
   fr: {
-    title: "Miaplacidus reconquise",
+    pageTitles: ["MIAPLACIDUS", "RÉCUPÉRATION", "LA CHASSE COMMENCE", "UNE DERNIÈRE CHOSE..."],
     pages: [
       "La défaite des Gardiens met fin à leur emprise sur Miaplacidus. Le ciel scellé s'ouvre, et ton peuple peut retrouver le monde qu'il a gardé en mémoire.",
       "Ta civilisation a repris son foyer. Le voyage commencé dans l'exil atteint enfin sa terre promise.",
@@ -72,6 +83,7 @@ const STORY: Record<LocaleId, MiaplacidusStoryMessages> = {
       "Les éclaireurs nomment l'anomalie la Déchirure Cosmique. Trouve-la, rétablis le réseau de scanners de l'espace proche et stabilise la brèche pour protéger la galaxie.",
     ],
     continue: "Continuer",
+    finish: "FINISSONS-EN",
     page: "Chapitre {current} sur {total}",
   },
 };

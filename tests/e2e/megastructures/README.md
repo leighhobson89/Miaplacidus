@@ -33,6 +33,14 @@ test restores English after the locale loop so the saved visual checkpoint
 remains readable as one language. Its final child-page assertion uses the
 stable `#pane-cosmic-rip` ID, independent of the selected locale.
 
+**Phase 7 source story headings and action (15 October 2026):** the homecoming
+renderer now gives each of the four source story pages its own localized
+heading and uses a localized final action for the source `confirmLabelLetsFinish`
+instead of repeating Continue. The existing locale journey checks each page's
+heading, body, counter, and correct action in all six locales. This assertion
+update is authored and **NOT RUN**; the 9 October pass above predates it. Test,
+build, typecheck, and browser checks were not run for this change.
+
 **P-45 homecoming feedback follow-up (10 October 2026):** while the homecoming
 dialog is open, the same six-locale loop also checks the underlying Starship
 settlement confirmation. This exposed that the confirmation stored its first
@@ -239,3 +247,213 @@ fixture failure was corrected and passed in its own rerun. Outputs are under
 
 ## Economy catchall migration (14 October 2026)
 The Dyson-stage research case formerly in the Economy catchall now lives in [`economy-megastructures.spec.ts`](economy-megastructures.spec.ts).
+
+## Phase 7 Galactic Memory Archive result locale route (15 October 2026)
+
+`p7-galactic-memory-archive-result-locales.spec.ts` authors six locale-specific
+browser cases for researching Galactic Memory Archive Stage 3. Cosmic Forge's
+`drawTab3Content.js` uses the visible research action for
+`galacticMemoryArchiveDisconnect` to show its research notice and result modal.
+The notice is sourced from `techNotifyGalacticMemoryArchiveDisconnect`; the
+modal reads `modalMegaStructureTechGalacticMemoryArchive3Header` and
+`modalMegaStructureTechGalacticMemoryArchive3Text` from `localization.json`,
+all initialized by `descriptions.js`.
+
+The remake route is the visible Research button in
+`src/app/MegastructurePane.tsx`. `src/app/App.tsx` observes the researched
+technology, uses `technologyNotificationMessages.ts#galacticMemoryArchiveDisconnect`
+for the tech notice, and uses
+`megastructureResearchResultMessages.ts#galacticMemoryArchiveDisconnect` for
+the result modal. Each case selects its locale, clicks `#tab-galaxy` then
+`#tab-galactic-megastructures`, and researches through
+`[data-testid="megastructure-track-galacticMemoryArchive"]`. It checks the
+researched state, visible tech notice, localized modal title/body/confirm
+label, and dialog dismissal. The deterministic `meta-megastructure-route`
+fixture settles and starts the player at Rigel, carries Archive Stages 1 and 2,
+and supplies 300K RP for the visible Stage 3 action.
+
+**NOT RUN:** authored for Phase 7; no browser, test, build, typecheck, or
+formatter command was run for this case.
+
+## Phase 7 Megastructure stage summaries (16 October 2026; AUTHORED, NOT RUN)
+
+Cosmic Forge's 20 Megastructure `tech…Content1` keys provide each stage's
+short row summary; its matching `tech…Content2` key supplies the longer detail.
+The short values map by stage ID to `TECHNOLOGY_SUMMARIES.<id>[locale]` and now
+render above the existing detail on the corresponding revealed stage in
+`MegastructurePane.tsx`. The detail and summary retain the same stage reveal
+condition.
+
+[`p7-megastructure-stage-descriptions-locales.spec.ts`](p7-megastructure-stage-descriptions-locales.spec.ts)
+now checks both selected-locale fields for all 20 stages across all six
+locales. Coverage is **AUTHORED; NOT RUN** for Phase 8.
+
+## Phase 7 Megastructure stage descriptions (15 October 2026)
+
+`p7-megastructure-stage-descriptions-locales.spec.ts` checks the visible
+description for each revealed or researched Megastructure stage in all six
+selected locales, using the existing deterministic `meta-megastructure-route`
+fixture. The fixture supplies the four reported tracks and reveals the stages;
+the spec checks that every selected-locale target value is populated and that
+the rendered description follows the current locale.
+
+In Cosmic Forge, `drawTab3Content.js` assigns each stage its `tech*Row` key and
+`descriptions.js` supplies the row's `content2` from the localization key below.
+`ui.js#getTechTreeDataAndDraw` displays that localized content only after the
+node is unlocked or revealed; otherwise it shows `???`. MIAPLACIDUS keeps the
+existing localized stage labels and gates the description paragraph on either
+`state.run.economy.revealedTechnologies` or the permanent researched-stage IDs.
+The paragraph renders inside the corresponding stage `<li>` in the separate
+Galactic / Megastructures route (`MegastructurePane`) as
+`.megastructure-stage-description`. Its `/ /` separators become line breaks,
+matching the text formatting used by the standard Tech Tree renderer.
+
+| Technology ID | Source row's `content2` localization key | MIAPLACIDUS field |
+| --- | --- | --- |
+| `dysonSphereUnderstanding` | `techDysonSphereUnderstandingContent2` | `TECHNOLOGY_DESCRIPTIONS.dysonSphereUnderstanding[locale]` |
+| `dysonSphereCapabilities` | `techDysonSphereCapabilitiesContent2` | `TECHNOLOGY_DESCRIPTIONS.dysonSphereCapabilities[locale]` |
+| `dysonSphereDisconnect` | `techDysonSphereDisconnectContent2` | `TECHNOLOGY_DESCRIPTIONS.dysonSphereDisconnect[locale]` |
+| `dysonSpherePower` | `techDysonSpherePowerContent2` | `TECHNOLOGY_DESCRIPTIONS.dysonSpherePower[locale]` |
+| `dysonSphereConnect` | `techDysonSphereConnectContent2` | `TECHNOLOGY_DESCRIPTIONS.dysonSphereConnect[locale]` |
+| `celestialProcessingCoreUnderstanding` | `techCelestialProcessingCoreUnderstandingContent2` | `TECHNOLOGY_DESCRIPTIONS.celestialProcessingCoreUnderstanding[locale]` |
+| `celestialProcessingCoreCapabilities` | `techCelestialProcessingCoreCapabilitiesContent2` | `TECHNOLOGY_DESCRIPTIONS.celestialProcessingCoreCapabilities[locale]` |
+| `celestialProcessingCoreDisconnect` | `techCelestialProcessingCoreDisconnectContent2` | `TECHNOLOGY_DESCRIPTIONS.celestialProcessingCoreDisconnect[locale]` |
+| `celestialProcessingCorePower` | `techCelestialProcessingCorePowerContent2` | `TECHNOLOGY_DESCRIPTIONS.celestialProcessingCorePower[locale]` |
+| `celestialProcessingCoreConnect` | `techCelestialProcessingCoreConnectContent2` | `TECHNOLOGY_DESCRIPTIONS.celestialProcessingCoreConnect[locale]` |
+| `plasmaForgeUnderstanding` | `techPlasmaForgeUnderstandingContent2` | `TECHNOLOGY_DESCRIPTIONS.plasmaForgeUnderstanding[locale]` |
+| `plasmaForgeCapabilities` | `techPlasmaForgeCapabilitiesContent2` | `TECHNOLOGY_DESCRIPTIONS.plasmaForgeCapabilities[locale]` |
+| `plasmaForgeDisconnect` | `techPlasmaForgeDisconnectContent2` | `TECHNOLOGY_DESCRIPTIONS.plasmaForgeDisconnect[locale]` |
+| `plasmaForgePower` | `techPlasmaForgePowerContent2` | `TECHNOLOGY_DESCRIPTIONS.plasmaForgePower[locale]` |
+| `plasmaForgeConnect` | `techPlasmaForgeConnectContent2` | `TECHNOLOGY_DESCRIPTIONS.plasmaForgeConnect[locale]` |
+| `galacticMemoryArchiveUnderstanding` | `techGalacticMemoryArchiveUnderstandingContent2` | `TECHNOLOGY_DESCRIPTIONS.galacticMemoryArchiveUnderstanding[locale]` |
+| `galacticMemoryArchiveCapabilities` | `techGalacticMemoryArchiveCapabilitiesContent2` | `TECHNOLOGY_DESCRIPTIONS.galacticMemoryArchiveCapabilities[locale]` |
+| `galacticMemoryArchiveDisconnect` | `techGalacticMemoryArchiveDisconnectContent2` | `TECHNOLOGY_DESCRIPTIONS.galacticMemoryArchiveDisconnect[locale]` |
+| `galacticMemoryArchivePower` | `techGalacticMemoryArchivePowerContent2` | `TECHNOLOGY_DESCRIPTIONS.galacticMemoryArchivePower[locale]` |
+| `galacticMemoryArchiveConnect` | `techGalacticMemoryArchiveConnectContent2` | `TECHNOLOGY_DESCRIPTIONS.galacticMemoryArchiveConnect[locale]` |
+
+**NOT RUN:** authored for Phase 7; the deterministic route reveals all
+Megastructure stages, so the six-locale spec covers their rendered copy while
+the component's conditional omits descriptions whenever a stage is neither
+revealed nor researched. No test, build, typecheck, formatter, or browser check
+was run for this change.
+
+## Phase 7 Galactic Megastructures help-copy routes (15 October 2026)
+
+`p7-megastructure-help-locales.spec.ts` covers the localized help surfaces on
+the dedicated Galactic / Megastructures child. In Cosmic Forge,
+`index.html#megastructuresOption` owns the child option;
+`drawTab7Content.js` mounts the diagram and table, and
+`descriptions.js#headerDescriptions.megastructures` routes
+`headerDescMegastructures` to the child help tooltip. MIAPLACIDUS keeps this as
+the separate `#tab-galactic-megastructures` destination and renders the
+corresponding content in `src/app/MegastructurePane.tsx`.
+
+| Cosmic Forge localization key | MIAPLACIDUS catalogue field | Renderer route |
+| --- | --- | --- |
+| `headerDescMegastructures` | `megastructureMessages.ts#headerHelp` | `MegastructurePane` / `megastructure-header-help` |
+| `textForceFieldStrength` | `megastructureMessages.ts#forceFieldStrength` | `MegastructurePane` / `megastructure-force-field-help` |
+| `textForceFieldDown` | `megastructureMessages.ts#forceFieldDown` | `MegastructurePane` force-field tooltip at level 4 |
+| `textKeepWeakeningForceField` | `megastructureMessages.ts#forceFieldKeepWeakening` | `MegastructurePane` force-field tooltip below level 4 |
+| `textCanMoveToMiaplacidus` | `megastructureMessages.ts#forceFieldCanMove` | `MegastructurePane` force-field tooltip at level 4 |
+
+The spec opens both help tooltips in all six locales and checks the weakened
+and cleared force-field branches through the visible Archive Stage 3 research
+action. The source diagram labels are drawn graphics, while the source table
+is populated with localized structure names, research-stage labels, and effect captions through
+`game.js#drawMegaStructureTableText`. The corresponding remake structure and
+technology names already use the selected-locale catalogues in its track
+cards. The Phase 7 effect-copy route below records the table's 20 effect
+captions.
+
+**NOT RUN:** authored for Phase 7; no browser, test, build, typecheck, or
+formatter command was run for this case.
+
+## Phase 7 Megastructure effect captions (15 October 2026)
+
+Cosmic Forge `drawTab7Content.js` mounts its MegaStructures diagram and table
+on the distinct Tab 7 / Megastructures destination. `ui.js#createMegaStructureTable`
+creates the four structure rows and five effect cells per structure;
+`descriptions.js#getMegaStructureTableText` resolves the labels, and
+`game.js#drawMegaStructureTableText` fills those cells and applies the source
+unlock colors. `localization.json` contains every listed effect key with a
+non-empty value in `en`, `es`, `pt`, `de`, `it`, and `fr`.
+
+The remake route is Galactic > Megastructures (`#tab-galaxy` then
+`#tab-galactic-megastructures`), rendered by `src/app/MegastructurePane.tsx`.
+Its stage headings use `megastructureMessages.ts#stage` plus
+`TECHNOLOGY_NAMES.<technologyId>[locale]`; structure headings use
+`megastructureMessages.ts#structureNames`. The 20 source effect captions map
+by stage order to `MEGASTRUCTURE_EFFECTS.<structureId>[stageIndex][locale]` in
+`src/content/megastructureEffects.ts` and render in each stage row as
+`megastructure-stage-effect-<technologyId>`. Effect captions stay visible on
+the route, as in the source table; the longer technology descriptions remain
+gated by the existing revealed/researched state rule.
+
+| Cosmic Forge effect key | MIAPLACIDUS technology ID and selected-locale field |
+| --- | --- |
+| `megaStructureTTEffectDysonSphere1` | `dysonSphereUnderstanding` → `MEGASTRUCTURE_EFFECTS.dysonSphere[0][locale]` |
+| `megaStructureTTEffectDysonSphere2` | `dysonSphereCapabilities` → `MEGASTRUCTURE_EFFECTS.dysonSphere[1][locale]` |
+| `megaStructureTTEffectDysonSphere3` | `dysonSphereDisconnect` → `MEGASTRUCTURE_EFFECTS.dysonSphere[2][locale]` |
+| `megaStructureTTEffectDysonSphere4` | `dysonSpherePower` → `MEGASTRUCTURE_EFFECTS.dysonSphere[3][locale]` |
+| `megaStructureTTEffectDysonSphere5` | `dysonSphereConnect` → `MEGASTRUCTURE_EFFECTS.dysonSphere[4][locale]` |
+| `megaStructureTTEffectCelestialProcessingCore1` | `celestialProcessingCoreUnderstanding` → `MEGASTRUCTURE_EFFECTS.celestialProcessingCore[0][locale]` |
+| `megaStructureTTEffectCelestialProcessingCore2` | `celestialProcessingCoreCapabilities` → `MEGASTRUCTURE_EFFECTS.celestialProcessingCore[1][locale]` |
+| `megaStructureTTEffectCelestialProcessingCore3` | `celestialProcessingCoreDisconnect` → `MEGASTRUCTURE_EFFECTS.celestialProcessingCore[2][locale]` |
+| `megaStructureTTEffectCelestialProcessingCore4` | `celestialProcessingCorePower` → `MEGASTRUCTURE_EFFECTS.celestialProcessingCore[3][locale]` |
+| `megaStructureTTEffectCelestialProcessingCore5` | `celestialProcessingCoreConnect` → `MEGASTRUCTURE_EFFECTS.celestialProcessingCore[4][locale]` |
+| `megaStructureTTEffectPlasmaForge1` | `plasmaForgeUnderstanding` → `MEGASTRUCTURE_EFFECTS.plasmaForge[0][locale]` |
+| `megaStructureTTEffectPlasmaForge2` | `plasmaForgeCapabilities` → `MEGASTRUCTURE_EFFECTS.plasmaForge[1][locale]` |
+| `megaStructureTTEffectPlasmaForge3` | `plasmaForgeDisconnect` → `MEGASTRUCTURE_EFFECTS.plasmaForge[2][locale]` |
+| `megaStructureTTEffectPlasmaForge4` | `plasmaForgePower` → `MEGASTRUCTURE_EFFECTS.plasmaForge[3][locale]` |
+| `megaStructureTTEffectPlasmaForge5` | `plasmaForgeConnect` → `MEGASTRUCTURE_EFFECTS.plasmaForge[4][locale]` |
+| `megaStructureTTEffectGalacticMemoryArchive1` | `galacticMemoryArchiveUnderstanding` → `MEGASTRUCTURE_EFFECTS.galacticMemoryArchive[0][locale]` |
+| `megaStructureTTEffectGalacticMemoryArchive2` | `galacticMemoryArchiveCapabilities` → `MEGASTRUCTURE_EFFECTS.galacticMemoryArchive[1][locale]` |
+| `megaStructureTTEffectGalacticMemoryArchive3` | `galacticMemoryArchiveDisconnect` → `MEGASTRUCTURE_EFFECTS.galacticMemoryArchive[2][locale]` |
+| `megaStructureTTEffectGalacticMemoryArchive4` | `galacticMemoryArchivePower` → `MEGASTRUCTURE_EFFECTS.galacticMemoryArchive[3][locale]` |
+| `megaStructureTTEffectGalacticMemoryArchive5` | `galacticMemoryArchiveConnect` → `MEGASTRUCTURE_EFFECTS.galacticMemoryArchive[4][locale]` |
+
+The source table's associated structure and research-stage labels are also
+localized in all six source locales. Their active target catalogues already
+contain all six locale values:
+
+| Cosmic Forge label key | MIAPLACIDUS catalogue field rendered in the stage cards |
+| --- | --- |
+| `megaStructureTTNameDysonSphere` | `megastructureMessages.structureNames.dysonSphere[locale]` |
+| `megaStructureTTNameCelestialProcessingCore` | `megastructureMessages.structureNames.celestialProcessingCore[locale]` |
+| `megaStructureTTNamePlasmaForge` | `megastructureMessages.structureNames.plasmaForge[locale]` |
+| `megaStructureTTNameGalacticMemoryArchive` | `megastructureMessages.structureNames.galacticMemoryArchive[locale]` |
+| `megaStructureTTResearchDysonSphere1` | `TECHNOLOGY_NAMES.dysonSphereUnderstanding[locale]` |
+| `megaStructureTTResearchDysonSphere2` | `TECHNOLOGY_NAMES.dysonSphereCapabilities[locale]` |
+| `megaStructureTTResearchDysonSphere3` | `TECHNOLOGY_NAMES.dysonSphereDisconnect[locale]` |
+| `megaStructureTTResearchDysonSphere4` | `TECHNOLOGY_NAMES.dysonSpherePower[locale]` |
+| `megaStructureTTResearchDysonSphere5` | `TECHNOLOGY_NAMES.dysonSphereConnect[locale]` |
+| `megaStructureTTResearchCelestialProcessingCore1` | `TECHNOLOGY_NAMES.celestialProcessingCoreUnderstanding[locale]` |
+| `megaStructureTTResearchCelestialProcessingCore2` | `TECHNOLOGY_NAMES.celestialProcessingCoreCapabilities[locale]` |
+| `megaStructureTTResearchCelestialProcessingCore3` | `TECHNOLOGY_NAMES.celestialProcessingCoreDisconnect[locale]` |
+| `megaStructureTTResearchCelestialProcessingCore4` | `TECHNOLOGY_NAMES.celestialProcessingCorePower[locale]` |
+| `megaStructureTTResearchCelestialProcessingCore5` | `TECHNOLOGY_NAMES.celestialProcessingCoreConnect[locale]` |
+| `megaStructureTTResearchPlasmaForge1` | `TECHNOLOGY_NAMES.plasmaForgeUnderstanding[locale]` |
+| `megaStructureTTResearchPlasmaForge2` | `TECHNOLOGY_NAMES.plasmaForgeCapabilities[locale]` |
+| `megaStructureTTResearchPlasmaForge3` | `TECHNOLOGY_NAMES.plasmaForgeDisconnect[locale]` |
+| `megaStructureTTResearchPlasmaForge4` | `TECHNOLOGY_NAMES.plasmaForgePower[locale]` |
+| `megaStructureTTResearchPlasmaForge5` | `TECHNOLOGY_NAMES.plasmaForgeConnect[locale]` |
+| `megaStructureTTResearchGalacticMemoryArchive1` | `TECHNOLOGY_NAMES.galacticMemoryArchiveUnderstanding[locale]` |
+| `megaStructureTTResearchGalacticMemoryArchive2` | `TECHNOLOGY_NAMES.galacticMemoryArchiveCapabilities[locale]` |
+| `megaStructureTTResearchGalacticMemoryArchive3` | `TECHNOLOGY_NAMES.galacticMemoryArchiveDisconnect[locale]` |
+| `megaStructureTTResearchGalacticMemoryArchive4` | `TECHNOLOGY_NAMES.galacticMemoryArchivePower[locale]` |
+| `megaStructureTTResearchGalacticMemoryArchive5` | `TECHNOLOGY_NAMES.galacticMemoryArchiveConnect[locale]` |
+
+The track cards prepend the selected-locale `megastructureMessages.ts#stage`
+label to each corresponding `TECHNOLOGY_NAMES` value. Existing P-45
+Megastructure page-copy coverage checks the structure labels;
+`p7-megastructure-stage-descriptions-locales.spec.ts` covers the stage names
+and revealed detail paragraphs.
+
+`p7-megastructure-effects-locales.spec.ts` checks all 20 selected-locale
+effect captions render in the corresponding stage row in each of the six
+locales. Source effects are static table copy and remain visible regardless of
+stage reveal state; only the longer detail description follows the source
+hidden-detail behavior.
+
+**NOT RUN:** authored for Phase 7; no browser, test, build, typecheck, or
+formatter command was run for this case.

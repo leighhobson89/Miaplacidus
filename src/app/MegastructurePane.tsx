@@ -1,5 +1,9 @@
 import { createStarCatalogue, GALAXY_SEED_DEFAULT } from "../content";
+import { MEGASTRUCTURE_EFFECTS } from "../content/megastructureEffects";
 import { MEGASTRUCTURE_TRACKS, TECHNOLOGY_BY_ID } from "../content/technology";
+import { TECHNOLOGY_DESCRIPTIONS } from "../content/technologyDescriptions";
+import { technologySummary } from "../content/technologySummaries";
+import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { checkPreconditions } from "../engine/commands";
 import {
   megastructureResearchAvailable,
@@ -7,7 +11,6 @@ import {
 } from "../engine/megastructures";
 import type { GameState } from "../engine/state";
 import type { GameStore } from "../engine/store";
-import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { megastructureStageProgress, megastructureText } from "../i18n/megastructureMessages";
 import { starshipText } from "../i18n/starshipMessages";
 import { formatNumber } from "./numberFormatting";
@@ -174,6 +177,14 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
                 <ol>
                   {track.map((technologyId, index) => {
                     const done = progress.researchedTechnologyIds.includes(technologyId);
+                    const detailsRevealed =
+                      done ||
+                      state.run.economy.researchedTechnologies.includes(technologyId) ||
+                      state.run.economy.revealedTechnologies.includes(technologyId);
+                    const description = TECHNOLOGY_DESCRIPTIONS[technologyId][locale]
+                      .replace(/\s*\/\s*\/\s*/g, "\n")
+                      .trim();
+                    const summary = technologySummary(locale, technologyId);
                     return (
                       <li key={technologyId}>
                         <span>
@@ -181,6 +192,28 @@ export function MegastructurePane({ state, store }: MegastructurePaneProps) {
                           {TECHNOLOGY_NAMES[technologyId][locale]}
                         </span>
                         {done && <span className="status-pill">{text.researched}</span>}
+                        <p
+                          className="megastructure-stage-effect"
+                          data-testid={`megastructure-stage-effect-${technologyId}`}
+                        >
+                          {MEGASTRUCTURE_EFFECTS[record.megastructureId][index]![locale]}
+                        </p>
+                        {detailsRevealed && (
+                          <p
+                            className="megastructure-stage-summary"
+                            data-testid={`megastructure-stage-summary-${technologyId}`}
+                          >
+                            {summary}
+                          </p>
+                        )}
+                        {detailsRevealed && (
+                          <p
+                            className="megastructure-stage-description technology-map-tooltip-description"
+                            data-testid={`megastructure-stage-description-${technologyId}`}
+                          >
+                            {description}
+                          </p>
+                        )}
                       </li>
                     );
                   })}

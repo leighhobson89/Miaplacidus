@@ -19,3 +19,7 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $
 
 ## Economy catchall migration (14 October 2026)
 The P-41 Statistics notation case formerly in the Economy catchall now lives in [`economy-statistics.spec.ts`](economy-statistics.spec.ts).
+
+## Phase 7 selected-locale routing
+
+[`p7-statistics-locale-routing.spec.ts`](p7-statistics-locale-routing.spec.ts) covers `headerMainStatistics`/`headerDescStatistics`, all 13 Overview labels (`statsOverviewSubHeading1`–`statsOverviewSubHeading13`), all six Run labels (`statsRunSubHeading1`–`statsRunSubHeading6`), and all 13 event labels (`statsEventsSubHeading1`–`statsEventsSubHeading13`) in `en`, `es`, `pt`, `de`, `it`, and `fr`. It also checks This Run/Lifetime column labels and the selected locale's event tracking note. The source categories are assembled in [Cosmic Forge `descriptions.js#statisticsContent`](../../../../cosmicForge/cosmicForge/descriptions.js#L2402) and displayed by [`ui.js#createHtmlTableStatistics`](../../../../cosmicForge/cosmicForge/ui.js#L5098); target expectations come from `src/i18n/statisticsMessages.ts`, `src/i18n/settingsMessages.ts`, and the active `src/app/SettingsStatisticsPane.tsx` renderer. **NOT RUN**; Phase 8 owns test execution.

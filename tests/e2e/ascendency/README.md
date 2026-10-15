@@ -6,6 +6,20 @@ The browser area verifies ordinary UI access to the permanent AP balance, exact-
 
 Focused commands: `npm run test:unit:focused -- tests/unit/meta-progression.spec.ts` and `npm run test:e2e:focused -- tests/e2e/ascendency/ascendency.spec.ts`.
 
+## Phase 7 source perk descriptions (16 October 2026)
+
+`p7-ascendency-perk-source-descriptions-locales.spec.ts` covers the sixteen
+Cosmic Forge `buff*Content1` perk descriptions in all six locales. Source
+ownership is the Galactic > Ascendency Perks page: `descriptions.js` defines
+each `buff*Row.content1`, `resourceDataObject.js` assigns each row key to its
+stable Ascendency buff ID, and `drawTab7Content.js` renders those buff rows.
+The remake keeps this as the distinct Ascendency Perks child page; `ASCENDENCY_PERKS`
+provides the stable IDs, `AscendencyPane.tsx` renders the card description from
+`metaPerkCopy(locale, perk.id)`, and `metaMessages.ts` provides all six locale
+values. The spec checks the full source-key/ID list and each visible card
+description. It is **AUTHORED, NOT RUN**; Phase 7 work intentionally leaves
+test execution for the later regression phase.
+
 Verification: meta-progression unit area passed (15/15). On 5 October 2026, the focused Chrome Ascendency suite passed 2/2: exact-cost perk purchase and disabled AP-shortfall reasons verified in all six locales, with the disabled control linked to its localized explanation. Source cost ladders and all sixteen IDs are checked against docs/audit/foundation-meta.md; G-14 cross-system effects are covered by the portable-save and post-rebirth assertions in tests/unit/meta-progression.spec.ts. G-16 source totals include ordinary and Expansionist rebirth awards, casino and Miaplacidus achievement refunds, AP trades, and each Cosmic Rip GP sink.
 
 ## P-54 E-57 Ascendency and Rebirth localized context (10 October 2026)

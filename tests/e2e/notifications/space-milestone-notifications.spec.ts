@@ -17,10 +17,15 @@ import {
   LOCALE_IDS,
   MATERIAL_IDS,
   type EconomicGoodId,
+  type LocaleId,
 } from "../../../src/content/ids";
 import { translate } from "../../../src/i18n/messages";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import { SPACE_NOTIFICATION_MESSAGES } from "../../../src/i18n/spaceNotificationMessages";
+import { galacticTabUnlockDialog } from "../../../src/i18n/spaceProgressionDialogMessages";
+import { spaceNotificationText } from "../../../src/i18n/spaceNotificationMessages";
+import { starMapText } from "../../../src/i18n/starMapMessages";
+import { starshipText } from "../../../src/i18n/starshipMessages";
 import { economyGoodName } from "../../../src/app/economyDisplay";
 
 async function startFixture(
@@ -33,6 +38,7 @@ async function startFixture(
     | "space-megastructure-attention"
     | "space-voidborn-pillage",
   pioneerName: string,
+  locale: LocaleId = "en",
 ): Promise<void> {
   await page.addInitScript(() => {
     const prefix = "miaplacidus:v1:";
@@ -41,8 +47,8 @@ async function startFixture(
     ).filter((key): key is string => key?.startsWith(prefix) ?? false);
     for (const key of keys) localStorage.removeItem(key);
   });
-  await page.goto(`/?testSeed=20261003&testLocale=en&economyFixture=${fixture}`);
-  await page.getByLabel("Pioneer name").fill(pioneerName);
+  await page.goto(`/?testSeed=20261003&testLocale=${locale}&economyFixture=${fixture}`);
+  await page.getByLabel(translate(locale, "app.pioneer")).fill(pioneerName);
   await page.getByTestId("start-game").click();
   await expect(page.locator("[data-app-ready]")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
@@ -153,14 +159,86 @@ test("unlocks Galactic on first Starship arrival while keeping travel shortening
   await advanceForSimulation(page, timer.durationMs - timer.elapsedMs + 1);
   await expect(notice).toContainText("StarShip has reached orbit of the Sirius system!");
   await expect(galacticTab).toBeVisible();
+  const unlockDialogCopy = galacticTabUnlockDialog("en");
+  const unlockDialog = page.getByTestId("random-event-result-dialog");
+  await expect(unlockDialog).toBeVisible();
+  await expect(unlockDialog.getByRole("heading")).toHaveText(unlockDialogCopy.title);
+  await expect(unlockDialog.locator(".random-event-result-copy p")).toHaveText([
+    unlockDialogCopy.summary,
+    ...unlockDialogCopy.lines.map((line) => line.text),
+  ]);
   const galacticUnlockNotice = page.locator(
     '[data-testid="game-notification"][data-classification="special"]',
   );
+  await expect(galacticUnlockNotice).toHaveCount(0);
+  await unlockDialog.getByRole("button", { name: unlockDialogCopy.confirmLabel }).click();
+  await expect(unlockDialog).not.toBeVisible();
   await expect(galacticUnlockNotice).toHaveText("Galactic Tab Unlocked!");
   await expect(galacticUnlockNotice).toHaveClass(/notification-warning/);
   await expect(hydrogenTab).toHaveAttribute("aria-selected", "true");
   await expect(notice).toHaveRole("status");
   await expect(notice).toHaveAttribute("aria-atomic", "true");
+});
+
+test("P7 Galactic unlock dialog and follow-up notice follow all locales @phase8-p7-galactic-unlock-dialog", async ({
+  page,
+}) => {
+  for (const locale of LOCALE_IDS) {
+    await test.step(`${locale}: first arrival unlock`, async () => {
+      await startFixture(page, "space-starship-ready", `Unlock ${locale}`, locale);
+      await page.locator("#tab-interstellar").click();
+      const galacticTab = page.locator("#tab-galaxy");
+      await expect(galacticTab).toHaveCount(0);
+
+      const map = page.getByTestId("star-map-pane");
+      await map.getByRole("searchbox", { name: starMapText(locale, "searchLabel") }).fill("Sirius");
+      await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
+      await map
+        .getByTestId("star-selection")
+        .getByRole("button", { name: starshipText(locale, "setDestination") })
+        .click();
+
+      await page.locator("#tab-interstellar-starship").click();
+      const starship = page.getByTestId("starship-pane");
+      const travelNotice = page.locator(
+        '[data-testid="game-notification"][data-classification="starShip"]',
+      );
+      await starship.getByRole("button", { name: starshipText(locale, "launch") }).click();
+      await page
+        .getByRole("dialog", { name: starshipText(locale, "pointOfNoReturnTitle") })
+        .getByRole("button", { name: starshipText(locale, "confirmLaunch") })
+        .click();
+      await expect(travelNotice).toContainText(starshipText(locale, "travellingTo", { name: "Sirius" }));
+
+      await dispatch(page, { type: "space.starship.travel.warp" });
+      const travelling = await readState(page);
+      const timer = travelling.run.timers[travelling.run.space.starship.timerId!]!;
+      await page.locator("#tab-hydrogen").click();
+      await clearNotificationQueue(page);
+      await advanceForSimulation(page, timer.durationMs - timer.elapsedMs + 1);
+
+      const arrival = spaceNotificationText(locale, "starshipArrived", { star: "Sirius" });
+      await expect(travelNotice).toContainText(arrival);
+      await expect(galacticTab).toBeVisible();
+      const dialogCopy = galacticTabUnlockDialog(locale);
+      const dialog = page.getByTestId("random-event-result-dialog");
+      await expect(dialog).toBeVisible();
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(dialog.getByRole("heading")).toHaveText(dialogCopy.title);
+      await expect(dialog.locator(".random-event-result-copy p")).toHaveText([
+        dialogCopy.summary,
+        ...dialogCopy.lines.map((line) => line.text),
+      ]);
+      await expect(dialog.getByRole("button", { name: dialogCopy.confirmLabel })).toBeVisible();
+      const unlockNotice = page.locator(
+        '[data-testid="game-notification"][data-classification="special"]',
+      );
+      await expect(unlockNotice).toHaveCount(0);
+      await dialog.getByRole("button", { name: dialogCopy.confirmLabel }).click();
+      await expect(dialog).not.toBeVisible();
+      await expect(unlockNotice).toHaveText(spaceNotificationText(locale, "galacticTabUnlocked"));
+    });
+  }
 });
 
 test("routes accepted rocket launch, outbound, arrival, and return milestones @notifications @rockets @p20-announcements", async ({

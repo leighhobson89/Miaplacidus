@@ -229,7 +229,7 @@ function StarDataTable({
                       <InfoTooltip
                         id="star-data-weather-help"
                         label={`${starMapText(locale, "weather")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
-                        content={starshipText(locale, "scanWeatherHelp")}
+                        content={starMapText(locale, "starDataWeatherHelp")}
                         testId="star-data-weather-help"
                       />
                     </span>

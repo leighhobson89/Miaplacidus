@@ -247,6 +247,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
             testId="cosmic-rip-situation-help"
           />
         </div>
+        <p data-testid="cosmic-rip-situation-introduction">{copy.situationIntroduction}</p>
         {progress.closed ? (
           <div className="cosmic-rip-closed-state">
             <CosmicRipEndingArtwork />
@@ -261,7 +262,8 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
           </div>
         ) : null}
         {!progress.closed && (
-          <p>
+          <p data-testid="cosmic-rip-status-row">
+            <strong>{copy.statusRowLabel}</strong>{" "}
             {progress.ripFound
               ? ripResearchStatus
               : progress.scannerRestored
@@ -342,6 +344,9 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
             testId="cosmic-rip-scanner-array-help"
           />
         </div>
+        <p data-testid="cosmic-rip-scanner-array-introduction">
+          {copy.scannerArrayIntroduction}
+        </p>
         {progress.scannerRestored ? (
           <>
             <h4 className="cosmic-rip-closed-title">{copy.scannerRestoredTitle}</h4>
@@ -355,6 +360,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
               </div>
             ) : (
               <>
+                <h4 data-testid="cosmic-rip-sectors-title">{copy.sectorsMapTitle}</h4>
                 <p>{copy.scanInstruction}</p>
                 <div className="cosmic-rip-sectors">
                   {Array.from({ length: COSMIC_RIP_SECTOR_COUNT }, (_, sectorIndex) => {
@@ -469,6 +475,7 @@ export function CosmicRipPane({ state, store, activePane }: CosmicRipPaneProps) 
         tabIndex={0}
         hidden={activePane !== "cosmic-rip-rip"}
       >
+        <p data-testid="cosmic-rip-rip-introduction">{copy.ripIntroduction}</p>
         {progress.scannerRestored && progress.ripFound ? (
           <>
             <div className="cosmic-rip-stability" data-testid="cosmic-rip-stability">

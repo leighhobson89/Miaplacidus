@@ -2,7 +2,12 @@ import { expect, test } from "../_harness/fixtures";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { formatNumber } from "../../../src/app/numberFormatting";
 import { LOCALE_IDS } from "../../../src/content/ids";
-import { metaText, rebirthCarryText, rebirthText } from "../../../src/i18n/metaMessages";
+import {
+  marketText,
+  metaText,
+  rebirthCarryText,
+  rebirthText,
+} from "../../../src/i18n/metaMessages";
 
 test("Rebirth confirmation and accepted transition localize across all locales @p45-rebirth-copy", async ({
   page,
@@ -41,11 +46,20 @@ test("Rebirth confirmation and accepted transition localize across all locales @
     const confirmation = page.getByRole("dialog", { name: copy });
     await expect(confirmation).toBeVisible();
     await expect(
+      pane.getByRole("heading", { name: metaText(locale, "rebirths"), exact: true }),
+    ).toBeVisible();
+    await expect(pane.locator(".rebirth-liquidation-card h3")).toHaveText(
+      marketText(locale, "liquidation"),
+    );
+    await expect(
       pane.getByRole("button", { name: metaText(locale, "rebirthAction"), exact: true }),
     ).toBeVisible();
     await expect(confirmation.getByRole("heading", { name: copy, exact: true })).toBeVisible();
     await expect(confirmation.locator(".rebirth-confirm-prompt")).toHaveText(
       rebirthText(locale, "prompt"),
+    );
+    await expect(confirmation.locator(".rebirth-confirm-body")).toHaveText(
+      metaText(locale, "rebirthBody"),
     );
     await expect(
       confirmation.getByText(
@@ -76,4 +90,39 @@ test("Rebirth confirmation and accepted transition localize across all locales @
   expect(reborn.run.space.currentSystemId).toBe(destination);
   expect(reborn.permanent.ascendencyPoints).toBe(before.permanent.ascendencyPoints);
   expect(reborn.permanent.galacticCasino.casinoPoints).toBe(0);
+});
+
+test("Rebirth confirmation localizes Galactic Points carryover after Cosmic Rip unlock", async ({
+  page,
+}) => {
+  await startMetaFixture(page, "meta-rebirth-ready");
+  expect(
+    await page.evaluate(() => window.miaplacidusTest!.applyDebugAction("unlock-all-tabs")),
+  ).toBe(true);
+  await page.locator("#tab-galaxy").click();
+  await page.locator("#tab-galactic-rebirth").click();
+
+  const pane = page.getByTestId("rebirth-pane");
+  await pane
+    .getByRole("button", { name: metaText("en", "rebirthAction"), exact: true })
+    .click();
+
+  for (const locale of LOCALE_IDS) {
+    await page.evaluate(
+      (nextLocale) =>
+        window.miaplacidusTest!.dispatch({
+          type: "settings.update",
+          patch: { locale: nextLocale },
+        }),
+      locale,
+    );
+    const confirmation = page.getByRole("dialog", { name: rebirthText(locale, "title") });
+    await expect(confirmation).toBeVisible();
+    await expect(
+      confirmation.getByText(rebirthText(locale, "gp"), { exact: true }),
+    ).toBeVisible();
+    await expect(confirmation.locator(".rebirth-confirm-body")).toHaveText(
+      metaText(locale, "rebirthBody"),
+    );
+  }
 });

@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { type Page } from "@playwright/test";
 import { expect, test } from "../_harness/fixtures";
+import { confirmStarshipWarEntry } from "../_harness/war-mode";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import type { GameState } from "../../../src/engine/state";
@@ -233,7 +234,7 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
   const coloniseTab = page.locator("#tab-interstellar-colonise");
   await expect(coloniseTab).toBeVisible();
   await coloniseTab.click();
-  await starship.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(starship);
   await starship.getByTestId("starship-battle-engage-button").click();
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -279,7 +280,10 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
         starshipText(locale, "settlementComplete"),
       );
       await expect(
-        story.getByRole("heading", { name: localizedStory.title, exact: true }),
+        story.getByRole("heading", {
+          name: localizedStory.pageTitles[pageNumber],
+          exact: true,
+        }),
       ).toBeVisible();
       await expect(
         story.getByText(
@@ -290,8 +294,12 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
         ),
       ).toBeVisible();
       await expect(story.locator("#miaplacidus-story-page")).toHaveText(chapterText);
+      const pageAction =
+        pageNumber === localizedStory.pages.length - 1
+          ? localizedStory.finish
+          : localizedStory.continue;
       await expect(
-        story.getByRole("button", { name: localizedStory.continue, exact: true }),
+        story.getByRole("button", { name: pageAction, exact: true }),
       ).toBeVisible();
     }
     for (const themeId of THEME_IDS) {
@@ -357,7 +365,7 @@ test("late-game continuation fixture: homecoming unlocks Cosmic Rip and gated ta
       }
     }
     await story
-      .getByRole("button", { name: miaplacidusStoryText("en").continue, exact: true })
+      .getByRole("button", { name: miaplacidusStoryText("en").finish, exact: true })
       .click();
   }
   await expect(story).toHaveCount(0);

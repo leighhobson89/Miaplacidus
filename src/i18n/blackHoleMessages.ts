@@ -1,6 +1,7 @@
 import type { LocaleId } from "../content/ids";
 import type { BlackHoleUpgradeId } from "../content/blackHole";
 import type { BlackHoleFailure } from "../engine/blackHole";
+import type { RandomEventDialogCopy } from "./randomEventDialogTypes";
 
 export interface BlackHoleMessages {
   readonly title: string;
@@ -13,6 +14,8 @@ export interface BlackHoleMessages {
   readonly researched: string;
   readonly researchAction: string;
   readonly researchHelp: string;
+  readonly interactionHelp: string;
+  readonly statsHelp: string;
   readonly power: string;
   readonly duration: string;
   readonly recharge: string;
@@ -50,6 +53,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     power: "Power",
     duration: "Warp duration",
     recharge: "Recharge time",
+    interactionHelp:
+      "Here you can research and upgrade your interaction power with the Black Hole",
+    statsHelp: "Here you can see the Black Hole charge and power stats",
     activate: "ACTIVATE",
     startCharge: "Start charging",
     chargeAction: "Charge",
@@ -98,6 +104,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     power: "Potencia",
     duration: "Duración de la distorsión",
     recharge: "Tiempo de recarga",
+    interactionHelp:
+      "Aquí puedes investigar y mejorar tu poder de interacción con el Agujero Negro",
+    statsHelp: "Aquí puedes ver las estadísticas de carga y poder del Agujero Negro",
     activate: "ACTIVAR",
     startCharge: "Iniciar carga",
     chargeAction: "Cargar",
@@ -144,6 +153,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     power: "Potência",
     duration: "Duração da distorção",
     recharge: "Tempo de recarga",
+    interactionHelp:
+      "Aqui podes pesquisar e melhorar o teu poder de interação com o Buraco Negro",
+    statsHelp: "Aqui podes ver as estatísticas de carga e poder do Buraco Negro",
     activate: "ATIVAR",
     startCharge: "Iniciar recarga",
     chargeAction: "Carregar",
@@ -192,6 +204,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     power: "Leistung",
     duration: "Warpdauer",
     recharge: "Aufladezeit",
+    interactionHelp:
+      "Hier kannst du deine Interaktionskraft mit dem Schwarzen Loch erforschen und aufrüsten",
+    statsHelp: "Hier kannst du die Lade- und Kraftstatistiken des Schwarzen Lochs sehen",
     activate: "AKTIVIEREN",
     startCharge: "Aufladung starten",
     chargeAction: "Laden",
@@ -240,6 +255,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     power: "Potenza",
     duration: "Durata della distorsione",
     recharge: "Tempo di ricarica",
+    interactionHelp:
+      "Qui puoi ricercare e potenziare il tuo potere di interazione con il Buco Nero",
+    statsHelp: "Qui puoi vedere le statistiche di carica e potere del Buco Nero",
     activate: "ATTIVA",
     startCharge: "Avvia la ricarica",
     chargeAction: "Carica",
@@ -288,6 +306,9 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
     power: "Puissance",
     duration: "Durée de distorsion",
     recharge: "Temps de recharge",
+    interactionHelp:
+      "Ici tu peux rechercher et améliorer ton pouvoir d'interaction avec le Trou Noir",
+    statsHelp: "Ici tu peux voir les statistiques de charge et de puissance du Trou Noir",
     activate: "ACTIVER",
     startCharge: "Démarrer la charge",
     chargeAction: "Charger",
@@ -320,8 +341,99 @@ const MESSAGES: Record<LocaleId, BlackHoleMessages> = {
   },
 };
 
+const DISCOVERY_DIALOGS: Readonly<Record<LocaleId, RandomEventDialogCopy>> = {
+  en: {
+    title: "Black Hole Discovered!",
+    summary:
+      "While studying the stars with the Space Telescope, you stumbled upon a Black Hole!",
+    lines: [
+      {
+        text: "Time Dilation is a feature of these objects, and maybe we can harness its power for our own uses!",
+      },
+      { text: "Take a look in the Galactic tab to interact with it.", tone: "green-ready-text" },
+    ],
+    confirmLabel: "This should be interesting!",
+  },
+  es: {
+    title: "¡Agujero Negro Descubierto!",
+    summary:
+      "¡Mientras estudiabas las estrellas con el Telescopio Espacial, te topaste con un Agujero Negro!",
+    lines: [
+      {
+        text: "La Dilatación Temporal es una característica de estos objetos, ¡y tal vez podamos aprovechar su poder para nuestros propios usos!",
+      },
+      {
+        text: "Echa un vistazo en la pestaña Galáctica para interactuar con él.",
+        tone: "green-ready-text",
+      },
+    ],
+    confirmLabel: "¡Esto va a ser interesante!",
+  },
+  pt: {
+    title: "BURACO NEGRO DESCOBERTO!",
+    summary:
+      "Enquanto estudavas as estrelas com o Telescópio Espacial, deparaste-te com um Buraco Negro!",
+    lines: [
+      {
+        text: "A Dilatação Temporal é uma característica destes objetos e talvez possamos aproveitar o seu poder para os nossos próprios fins!",
+      },
+      { text: "Vê o separador Galáctico para interagir com ele.", tone: "green-ready-text" },
+    ],
+    confirmLabel: "Isto vai ser interessante!",
+  },
+  de: {
+    title: "Schwarzloch Entdeckt!",
+    summary:
+      "Während du mit dem Weltraumteleskop die Sterne studiert hast, bist du auf ein Schwarzloch gestoßen!",
+    lines: [
+      {
+        text: "Zeitdilatation ist ein Merkmal dieser Objekte, und vielleicht können wir seine Kraft für unsere eigenen Zwecke nutzen!",
+      },
+      {
+        text: "Sieh dir den Galaktischen Tab an, um damit zu interagieren.",
+        tone: "green-ready-text",
+      },
+    ],
+    confirmLabel: "Das dürfte interessant werden!",
+  },
+  it: {
+    title: "Buco Nero Scoperto!",
+    summary:
+      "Mentre studiavi le stelle con il Telescopio Spaziale, ti sei imbattuto in un Buco Nero!",
+    lines: [
+      {
+        text: "La Dilatazione Temporale è una caratteristica di questi oggetti, e forse possiamo sfruttare il loro potere per i nostri scopi!",
+      },
+      {
+        text: "Dai un'occhiata alla scheda Galattica per interagirci.",
+        tone: "green-ready-text",
+      },
+    ],
+    confirmLabel: "Questo sarà interessante!",
+  },
+  fr: {
+    title: "Trou Noir Découvert!",
+    summary:
+      "En étudiant les étoiles avec le Télescope Spatial, tu es tombé sur un Trou Noir!",
+    lines: [
+      {
+        text: "La Dilatation Temporelle est une caractéristique de ces objets, et peut-être pouvons-nous exploiter leur pouvoir pour nos propres usages!",
+      },
+      {
+        text: "Jette un œil à l'onglet Galactique pour interagir avec lui.",
+        tone: "green-ready-text",
+      },
+    ],
+    confirmLabel: "Cela devrait être intéressant!",
+  },
+};
+
 export function blackHoleText(locale: LocaleId): BlackHoleMessages {
   return MESSAGES[locale];
+}
+
+export function blackHoleDiscoveryDialog(locale: LocaleId): RandomEventDialogCopy {
+  return DISCOVERY_DIALOGS[locale];
 }
 
 const WARP_END_MESSAGES: Record<LocaleId, string> = {
@@ -337,4 +449,8 @@ export function blackHoleWarpEndedNotification(locale: LocaleId): string {
   return WARP_END_MESSAGES[locale];
 }
 
-export const LOCALIZATION_VALIDATION_DATA = { MESSAGES, WARP_END_MESSAGES } as const;
+export const LOCALIZATION_VALIDATION_DATA = {
+  MESSAGES,
+  WARP_END_MESSAGES,
+  DISCOVERY_DIALOGS,
+} as const;

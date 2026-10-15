@@ -198,19 +198,20 @@ node .\node_modules\playwright\cli.js test tests/e2e/star-map/p44-star-scan-info
 
 ## P-44 Star Data help inventory (10 October 2026)
 
-`infoTooltipStarLegendWeather` shares the target Star Data Weather help path
-(`starshipMessages.scanWeatherHelp`) with the already mapped source scan
-weather description. Static comparison confirmed the target message exactly
-matches source `infoTooltipStarShipScanPrecipitation` in all six locales; it
-contains the same prevailing-weather interpretation plus the precipitation
-compound detail. `p44-star-scan-info-tooltips.spec.ts` asserts its rendered text
-and bounds in all six locales. `infoTooltipStarLegendName` is adapted to the
-target's explicit sort selector and per-row Show on map buttons, which
+The 10 October consolidation note was superseded by the 11 October correction:
+the Star Data Weather column uses the distinct
+`starMapMessages.starDataWeatherHelp` mapped from
+`infoTooltipStarLegendWeather`; `starshipMessages.scanWeatherHelp` stays with
+the separate Starship scan help. The current Phase 7 recheck is recorded
+below. `infoTooltipStarLegendName` is adapted to the target's explicit sort
+selector and per-row Show on map buttons, which
 `e57-star-map-data-narrow-locale-context.spec.ts` checks in all six locales at
-320px and 390px. The remake has no map-mode selector corresponding to
-`infoTooltipStarMapModes`; type filtering
-and search are not equivalent to the source's Normal/Distance/Studied/In Range
-modes. The full dispositions are in the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+320px and 390px. The 10 October note recorded that the then-current remake
+lacked the source map modes. The active `StarMapPane` now has separate Normal,
+Distance, Studied, and In Range controls plus the localized `mapModesHelp`
+tooltip. The six-locale `interstellar-localization.spec.ts` now asserts these
+labels and help copy; the updated assertion is **NOT RUN** for Phase 7. The
+full source-key dispositions are in the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 
 The latest installed-Chrome rerun of `p44-star-scan-info-tooltips.spec.ts`
@@ -251,3 +252,87 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4884'
 node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-star-map-focused-verify-20261014 tests/e2e/star-map/e57-star-map-data-narrow-locale-context.spec.ts tests/e2e/star-map/p56-star-map-visual-matrix.spec.ts tests/e2e/star-map/p65-star-data-visual-review.spec.ts tests/e2e/star-map/star-map.spec.ts --grep "@e57-star-map|@p56-visual-matrix|@p65-visual-review|@p66-visual-review|Star Data pairs each system's weather glyph|filters and sorts Star Data, targets a discovered system, and focuses it on the map"
 ```
+
+## Phase 7 Star Data weather-help route correction (15 October 2026)
+
+The current renderer had drifted from the 11 October P-44 correction: the Star
+Data Weather tooltip called `starshipText(locale, "scanWeatherHelp")`, which
+belongs to the distinct Starship scan surface, even though
+`starMapMessages.starDataWeatherHelp` is populated in all six locales and has a
+source-parity unit assertion. `StarMapPane.tsx` now renders the Star Data
+message, and `p44-star-scan-info-tooltips.spec.ts` expects that exact selected-
+locale value while retaining the Starship scan tooltip mapping. The route spec
+is **NOT RUN** for Phase 7; Phase 8 V-59 owns execution. No test, build, or
+typecheck was run for this correction.
+
+The same static recheck confirmed that the active Star Map has four distinct
+source-matched mode buttons and a `mapModesHelp` message. The all-locale
+`interstellar-localization.spec.ts` now checks the selected-locale labels and
+help text; it is also **NOT RUN** for Phase 7.
+
+## Phase 7 Interstellar and Star Data locale coverage (15 October 2026)
+
+Compared Cosmic Forge `index.html`, `drawTab5Content.js`, and `descriptions.js`
+with `presentationNavigation.ts`, `StarMapPane.tsx`, and `StarshipPane.tsx`.
+The source `tabHeaderInterstellar` label maps to the top-level
+`messages.ts` `tab.interstellar` value. Interstellar menu keys
+`headerMainStarMap` and `headerMainStarData` map to `starMapText("title")` and
+`starMapText("dataView")`; they remain separate `option1` and `option2` routes
+in `interstellarPaneItems()`. Their source header descriptions
+`headerDescStarMap` and `headerDescStarData` map to `mapHeaderHelp` and
+`dataHeaderHelp`. On Star Map, `starMapModeNormal`, `starMapModeDistance`,
+`starMapModeStudied`, `starMapModeInRange`, and `infoTooltipStarMapModes` map to
+`mapModeNormal`, `mapModeDistance`, `mapModeStudied`, `mapModeInRange`, and
+`mapModesHelp`; `placeholderSearchStar` maps to `searchPlaceholder`.
+
+For Star Data, source table keys `textStarName`, `textAsteroidDistance`,
+`textStarType`, `textStarWeather`, `textStarPrecipitation`, `textStarFuel`,
+`textStarAscendencyPoints`, and `textSettled` map to `sortName`, `distance`,
+`dataType`, `weather`, `precipitation`, `fuel`, `ascendency`, and `settled` in
+`starMapMessages.ts`. Sorting, filters, and row actions use the target keys
+`sort*`, `filter*`, `mapColumn`, and `mapTarget`; source
+`tooltipShowStarOnMap` maps to the localized per-row `mapTarget` action.
+Source help keys `infoTooltipStarLegendName` and
+`infoTooltipStarLegendWeather` map to `starDataNameHelp` and
+`starDataWeatherHelp` on the Star Data renderer. `StarMapPane.tsx` renders the
+row destination action with `starshipText("setDestination")` from
+`starshipMessages.ts`; Starship and its other Interstellar children use the
+same catalog in `StarshipPane.tsx`.
+
+The focused `e57-star-map-data-narrow-locale-context.spec.ts` now checks that
+the map search/mode copy and Star Data route label, header help, table heading,
+name/weather tooltips, filter/sort control, row action, weather label, and help
+values have explicit nonempty values in that selected locale's `messages` or
+`additionalMessages` entry before asserting the rendered routes in `en`, `es`,
+`pt`, `de`, `it`, and `fr` at 390px and 320px. It also checks that the
+Starship-owned `setDestination` and `scanMoreInfoLabel` values are populated in
+that locale.
+Static inspection found the required keys already populated across all six
+locales, so no application copy change was needed. The existing
+`interstellar-localization.spec.ts` checks that map modes and their help render
+in each locale; the selected-locale
+[navigation case](../localization/p7-navigation-label-routing.spec.ts) covers
+Interstellar's top-level and five child labels and is **NOT RUN**. The added
+assertions and this Phase 7 coverage are **NOT RUN**; no browser, build, or
+typecheck was run for this update.
+
+### Phase 7 source tooltip route sweep (AUTHORED; NOT RUN)
+
+The Phase 7 extension to `p44-star-scan-info-tooltips.spec.ts` now checks the
+complete source help family against the active target routes in all six
+locales, and first verifies each target catalog has an explicit nonempty value.
+`descriptions.js` binds `infoTooltipStarMapModes` on the Star Map and
+`infoTooltipStarLegendName` / `infoTooltipStarLegendWeather` on Star Data;
+`StarMapPane.tsx` renders these as `mapModesHelp`, `starDataNameHelp`, and
+`starDataWeatherHelp`. On the Colonise scan report, the six
+`infoTooltipStarShipScan*` source keys map to `scanApHelp`, `scanWeatherHelp`,
+`scanCivilizationHelp`, `scanDefenseHelp`, `scanEnemyFleetsHelp`, and
+`scanThreatHelp` on their respective report fields in `StarshipPane.tsx`.
+The spec opens every tooltip by keyboard focus and checks its selected-locale
+label/content at 320px. The Star Data AP tooltip remains covered separately in
+its table heading. The source route distinctions are retained: map modes on
+Star Map, legend/name/weather on Star Data, and scan details on Colonise.
+
+This extended assertion set is **AUTHORED; NOT RUN** for Phase 7 and belongs to
+Phase 8 V-59. Its earlier P-44 execution predates the added route checks. No
+test, build, typecheck, or browser run was performed for this update.

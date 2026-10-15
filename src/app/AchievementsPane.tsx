@@ -8,6 +8,7 @@ import { economyGoodName } from "./economyDisplay";
 import { formatCurrency } from "./currencyFormatting";
 import { InfoTooltip } from "./InfoTooltip";
 import { formatNumber } from "./numberFormatting";
+import { formatDuration } from "./timeFormatting";
 
 function rewardText(
   state: GameState,
@@ -82,7 +83,6 @@ export function AchievementsPane({ state }: { readonly state: GameState }) {
       <div className="achievement-grid">
         {ACHIEVEMENT_CATALOGUE.map((definition) => {
           const earned = unlocked.has(definition.id);
-          const permanent = !definition.resetOnRebirth;
           return (
             <article
               className={`achievement-card${earned ? " is-earned" : " is-locked"}`}
@@ -116,16 +116,28 @@ export function AchievementsPane({ state }: { readonly state: GameState }) {
                   {rewardText(state, definition.reward)}
                 </p>
                 <small>
-                  {permanent
-                    ? achievementText(locale, "permanent")
-                    : achievementText(locale, "thisRun")}
+                  {achievementText(locale, "resetOnRebirth")}: {" "}
+                  {achievementText(locale, definition.resetOnRebirth ? "yes" : "no")} · {" "}
+                  {achievementText(locale, "status")}: {" "}
+                  {achievementText(locale, earned ? "achieved" : "notAchieved")}
                 </small>
+                {definition.id === "have50HoursWithOnePioneer" && (
+                  <small className="achievement-logged-time">
+                    {achievementText(locale, "logged")}: {" "}
+                    {formatDuration(
+                      locale,
+                      state.statistics.lifetimeActiveMs,
+                      state.settings.notation,
+                    )}
+                  </small>
+                )}
               </div>
               <span
                 className="achievement-status"
-                aria-label={
-                  earned ? achievementText(locale, "unlocked") : achievementText(locale, "progress")
-                }
+                aria-label={`${achievementText(locale, "status")}: ${achievementText(
+                  locale,
+                  earned ? "achieved" : "notAchieved",
+                )}`}
               >
                 {earned ? "✓" : "·"}
               </span>

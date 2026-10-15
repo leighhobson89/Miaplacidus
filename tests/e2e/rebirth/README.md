@@ -39,3 +39,46 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5650'
 npm.cmd run test:e2e:focused -- tests/e2e/rebirth/p45-rebirth-confirmation-locales.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-rebirth-locales-5650
 ```
+
+## Phase 7 Rebirth confirmation and O-type technology dialogs (AUTHORED; NOT RUN)
+
+Cosmic Forge `drawTab7Content.js` routes `modalRebirthHeader` and
+`modalRebirthText` to the Rebirth confirmation. The target maps those to
+`metaMessages.ts#REBIRTH_TEXT.title` and `.prompt`. Source
+`modalRebirthCarryOverAp` maps to `.carry`, and `modalRebirthConfirmLabel` maps
+to `.confirm`. The source replaces its body placeholder with the AP line and,
+after Cosmic Rip unlock, appends `modalRebirthGainGp`; the target renders the
+six-locale `.gp` line when `permanent.cosmicRip.unlocked` is true. This follows
+the active permanent unlock flag and does not change meta progression.
+
+The source `tab7RebirthRowLabel` maps to the target `PACKS.rebirths` count-card
+heading. `tab7LiquidateRowLabel` maps to `MARKET_COPY.liquidation` on the
+separate asset-liquidation card. Source `tab7RebirthRowDescription` explains
+the reset and retained Ascendency Points; it is adapted to `PACKS.rebirthBody`
+inside the confirmation, which gives the player the target's fuller list of
+reset and retained meta state. `rebirthOverview` remains separate in the
+Rebirth page tooltip.
+
+`p45-rebirth-confirmation-locales.spec.ts` now checks these page headings,
+confirmation details, and the unlocked Galactic Points line across all six
+locales, in addition to the earlier prompt, AP carryover, actions and accepted
+transition. This Phase 7 extension is **AUTHORED, NOT RUN**. The P-45 result
+above records the earlier version of the spec only; it does not verify these
+new assertions or the added body/GP rendering.
+
+Cosmic Forge `game.js` also displays `modalOTypeStarTechAcquiredHeader` and
+`modalOTypeStarTechAcquiredText` during rebirth into an O-type system. The
+remake now routes the six-locale result through
+`spaceProgressionDialogMessages.ts#oTypeStarTechAcquiredDialog` after its
+`meta.rebirth.completed` transition in `App.tsx`, using the settled system's
+assigned plant name and the shared ×8 power multiplier. The authored
+`p7-o-type-technology-dialog-locales.spec.ts` uses an O-type rebirth fixture to
+check each locale's title, copy and confirm action. It is **AUTHORED, NOT RUN**.
+
+The source localization keys `newGame` and `menuTitle` have no live source
+rendering path: their only JavaScript references are unused DOM lookups in
+`constantsAndGlobalVars.js`, and no matching elements or localization calls
+exist in the current `index.html`/source scripts. The remake's `saveMessages.ts#startNewGame`
+and `debugScenarioMessages.ts#menuTitle` remain routed to their own startup and
+debug UI contexts; they are not claimed as mappings of those orphaned source
+keys.

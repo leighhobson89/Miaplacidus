@@ -93,12 +93,13 @@ advances the simulation and confirms no replay. It passed 1/1 as part of the
 2/2 installed-Chrome achievement/random-event audio batch on port 4174.
 Focused audio/achievement notice units passed 28/28; typecheck passed.
 
-The remake currently has no `random-event.triggered` subscriber that creates a
-`GameNotification`; therefore there is no random-event toast whose dismissal
-can be verified in this slice. The source event alarm is still verified, and
-achievement-notification auto-dismiss is covered in the
-[Achievements README](../achievements/README.md). Notification copy and flow
-were left unchanged here.
+At the time of this P-29 audio slice, the remake did not yet create a
+`GameNotification` for `random-event.triggered`, so this audio case had no
+random-event toast to verify. The trigger notification route was added later
+through `randomEventTriggeredNotifications.ts` and is covered across locales
+by the NOT RUN Phase 7 case below. The source event alarm is still verified,
+and achievement-notification auto-dismiss is covered in the
+[Achievements README](../achievements/README.md).
 
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/random-events/audio-cues.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
@@ -200,3 +201,54 @@ No app behavior or locale values were changed for these recoveries.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6507'; npm.cmd run test:e2e:focused -- tests/e2e/random-events/p45-event-catalogue-locale.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-random-events-p45-6507"
 $env:MIAPLACIDUS_TEST_PORT='6508'; npm.cmd run test:e2e:focused -- tests/e2e/random-events/random-events.spec.ts --project=chrome --grep 'records an event and guarded news prize across locale changes and reload' --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-random-events-journal-6508"
 ```
+
+## Phase 7 Random Event start-result locale state — NOT RUN
+
+`p7-random-event-start-locales.spec.ts` adds one focused case for each of the
+six locales. Each case starts the `meta-market-ready` fixture, selects the
+locale, and forces Galactic Market Lockdown through the real test-mode event
+dispatch. It checks the localized visible start-result dialog (title, summary,
+effect line, and confirmation action), confirms it, then checks the exact
+localized event notification and its visible info/default presentation.
+
+Cosmic Forge's `events.js` starts the 30-minute lockdown and routes its
+localized `modalEventGalacticMarketLockdown*` result plus
+`notificationRandomEventMarketOffline`. The source's six notification values
+match the dedicated six-locale `galacticMarketLockdown` entry in
+`randomEventTriggerNotificationMessages.ts` and selected through
+`randomEventMarketLockdownTriggerNotificationText`; the generic trigger
+dispatcher routes only this event through that message. The P7 spec checks the
+visible notice against that dedicated selected-locale entry while the actual
+event subscriber runs through `randomEventTriggeredNotifications.ts`. This
+coverage is authored and **NOT RUN** for Phase 8; no tests, build, browser,
+typecheck, or formatting command was run.
+
+## Phase 7 Random-event expiry result and journal locale state — NOT RUN
+
+`p7-random-event-expiry-locales.spec.ts` adds six selected-locale browser cases
+for Black Hole Instability expiry. Each case uses the `meta-black-hole-discovered`
+fixture, researches the Black Hole, and forces the event through the test-mode
+command boundary. It keeps notifications disabled while the deterministic
+15–25 minute effect advances to its final second, then selects the target
+locale, enables notifications, and advances through expiry. The case checks
+the visible expiry result dialog and restoration notice, confirms the effect
+has ended, and verifies the retained journal row's localized event name and
+history description.
+
+Cosmic Forge `events.js` runs the `blackHoleInstability.onExpire` route in this
+order: `notificationBlackHoleInstabilityStabilised`, then the
+`blackHoleInstabilityEnded` event modal using
+`modalEventBlackHoleInstabilityEndedHeader` and
+`modalEventBlackHoleInstabilityEndedText`. Its journal uses
+`eventNameBlackHoleInstability` and `eventDescBlackHoleShifting`. MIAPLACIDUS
+routes expiry through `randomEventEndNotifications.ts` and the
+`randomEventEndDialogMessages.ts` / `randomEventEndNotificationMessages.ts`
+catalogues; the journal renders through `MetaJournalPane.tsx`,
+`randomEventDescription.ts`, `metaSignalMessages.ts`, and
+`randomEventDescriptionMessages.ts`. The expiry catalogues select the target
+`blackHoleInstability` entry through `randomEventEndDialogText` and
+`randomEventEndNotificationText`; journal copy selects it through
+`randomEventName` and `eventDescBlackHoleShifting`. See the [Random-event copy families
+crosswalk section](../../../docs/plans/phase-7-localization-crosswalk.md#random-event-copy-families--15-october-2026)
+for the source-to-target route inventory. This spec is authored and **NOT RUN**
+for Phase 8; no test, build, browser, or typecheck command was run.

@@ -1,7 +1,13 @@
 import { expect, test, type Page } from "../_harness/fixtures";
 import { LOCALE_IDS } from "../../../src/content/ids";
-import { starshipText } from "../../../src/i18n/starshipMessages";
-import { starMapText } from "../../../src/i18n/starMapMessages";
+import {
+  LOCALIZATION_VALIDATION_DATA as starshipLocaleData,
+  starshipText,
+} from "../../../src/i18n/starshipMessages";
+import {
+  LOCALIZATION_VALIDATION_DATA as starMapLocaleData,
+  starMapText,
+} from "../../../src/i18n/starMapMessages";
 import { setGameLocale } from "../_harness/settings-controls";
 
 const SCAN_HELP_KEYS = [
@@ -13,6 +19,22 @@ const SCAN_HELP_KEYS = [
   "scanEnemyFleetsHelp",
   "scanThreatHelp",
 ] as const;
+
+const STAR_MAP_HELP_KEYS = ["mapModesHelp", "starDataNameHelp", "starDataWeatherHelp"] as const;
+
+function expectExplicitTooltipCopy(locale: (typeof LOCALE_IDS)[number]): void {
+  for (const key of SCAN_HELP_KEYS) {
+    expect(
+      starshipLocaleData.messages[locale][key]?.trim(),
+      `${locale} must explicitly populate Starship ${key}`,
+    ).toBeTruthy();
+  }
+  for (const key of STAR_MAP_HELP_KEYS) {
+    const value =
+      starMapLocaleData.messages[locale][key] ?? starMapLocaleData.additionalMessages[locale][key];
+    expect(value?.trim(), `${locale} must explicitly populate Star Map ${key}`).toBeTruthy();
+  }
+}
 
 async function expectContainedTooltip(
   page: Page,
@@ -35,7 +57,7 @@ async function expectContainedTooltip(
   expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(900);
 }
 
-test("shows source-matched Star Map and scan report help in all locales @p44-star-scan-info", async ({
+test("renders Interstellar source tooltips in all locales @p44-star-scan-info @p7-tooltip-locales", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 900 });
@@ -53,13 +75,16 @@ test("shows source-matched Star Map and scan report help in all locales @p44-sta
 
   for (const locale of LOCALE_IDS) {
     await setGameLocale(page, locale);
-    if (locale !== "en") {
-      for (const key of SCAN_HELP_KEYS) {
-        expect(starshipText(locale, key), `${locale} must provide ${key}`).not.toBe(
-          starshipText("en", key),
-        );
-      }
-    }
+    expectExplicitTooltipCopy(locale);
+    await page.locator("#tab-interstellar").click();
+    await page.locator("#tab-interstellar-star-map").click();
+    await expectContainedTooltip(
+      page,
+      "star-map-modes-help",
+      `${starMapText(locale, "mapModesLabel")} \u2014 ${starshipText(locale, "scanMoreInfoLabel")}`,
+      starMapText(locale, "mapModesHelp"),
+    );
+
     await page.locator("#tab-interstellar").click();
     await page.locator("#tab-interstellar-star-data").click();
 
@@ -69,9 +94,15 @@ test("shows source-matched Star Map and scan report help in all locales @p44-sta
     });
     await expectContainedTooltip(
       page,
+      "star-data-name-help",
+      `${starMapText(locale, "sortName")} \u2014 ${starshipText(locale, "scanMoreInfoLabel")}`,
+      starMapText(locale, "starDataNameHelp"),
+    );
+    await expectContainedTooltip(
+      page,
       "star-data-weather-help",
       `${starMapText(locale, "weather")} — ${starshipText(locale, "scanMoreInfoLabel")}`,
-      starshipText(locale, "scanWeatherHelp"),
+      starMapText(locale, "starDataWeatherHelp"),
     );
     await starDataScroll.evaluate((element) => {
       element.scrollLeft = element.scrollWidth;
@@ -89,16 +120,17 @@ test("shows source-matched Star Map and scan report help in all locales @p44-sta
     await expect(report).toBeVisible();
 
     const reportKeys = [
-      ["civilization", "scanCivilizationHelp"],
-      ["threat", "scanThreatHelp"],
-      ["defense", "scanDefenseHelp"],
-      ["enemyFleets", "scanEnemyFleetsHelp"],
+      ["ap", starMapText(locale, "ascendency"), "scanApHelp"],
+      ["weather", starMapText(locale, "weather"), "scanWeatherHelp"],
+      ["civilization", starshipText(locale, "civilization"), "scanCivilizationHelp"],
+      ["threat", starshipText(locale, "threat"), "scanThreatHelp"],
+      ["defense", starshipText(locale, "defense"), "scanDefenseHelp"],
+      ["enemy-fleets", starshipText(locale, "enemyFleets"), "scanEnemyFleetsHelp"],
     ] as const;
-    for (const [field, message] of reportKeys) {
-      const label = starshipText(locale, field);
+    for (const [field, label, message] of reportKeys) {
       await expectContainedTooltip(
         page,
-        `starship-scan-${field === "enemyFleets" ? "enemy-fleets" : field}-help`,
+        `starship-scan-${field}-help`,
         `${label} — ${starshipText(locale, "scanMoreInfoLabel")}`,
         starshipText(locale, message),
       );

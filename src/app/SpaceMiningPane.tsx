@@ -340,7 +340,17 @@ function RocketAssemblyCard({
         <>
           {rocket.phase === "ready" && (
             <>
-              <p className="space-rocket-parts">{rocketText(locale, "pumpTitle")}</p>
+              <div className="space-action-help-group">
+                <p className="space-rocket-parts">{rocketText(locale, "pumpTitle")}</p>
+                <InfoTooltip
+                  id={`rocket-${rocketId}-fuel-help`}
+                  label={`${rocketText(locale, "pumpTitle")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  content={rocketText(locale, "rocketFuelHelp", {
+                    power: decimal(state, ROCKET_FUEL_PUMP_POWER[rocketId]),
+                  })}
+                  testId={`rocket-${rocketId}-fuel-help`}
+                />
+              </div>
               <p className="space-rocket-power">
                 {decimal(state, rocketFuelRatePerSecond(state))}/s ·{" "}
                 {decimal(state, ROCKET_FUEL_PUMP_POWER[rocketId])} {economyLabel(locale, "energy")}
@@ -455,9 +465,17 @@ function RocketAssemblyCard({
           )}
           {rocket.phase === "orbit" && (
             <>
-              <p className="space-rocket-parts">
-                {rocketText(locale, "destination")}: {targetAsteroid?.name ?? "—"}
-              </p>
+              <div className="space-action-help-group">
+                <p className="space-rocket-parts">
+                  {rocketText(locale, "destination")}: {targetAsteroid?.name ?? "—"}
+                </p>
+                <InfoTooltip
+                  id={`rocket-${rocketId}-travel-help`}
+                  label={`${rocketText(locale, "destination")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  content={rocketText(locale, "rocketTravelHelp")}
+                  testId={`rocket-${rocketId}-travel-help`}
+                />
+              </div>
               <button
                 className="primary-button"
                 type="button"
@@ -866,65 +884,86 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
               </>
             )}
             <div className="space-action-row">
-              <div className="space-action-help-group">
-                <button
-                  id="space-scan-asteroids"
-                  className="secondary-button"
-                  type="button"
-                  disabled={!scan.ok}
-                  aria-describedby={scanReason ? "telescope-scan-reason" : undefined}
-                  onClick={() => dispatch({ type: "space.telescope.scan.start" })}
-                >
-                  {spaceText(locale, "scanAsteroids")}
-                </button>
-                <InfoTooltip
-                  id="space-telescope-scan-help"
-                  label={`${spaceText(locale, "scanAsteroids")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
-                  content={spaceText(locale, "telescopeScanHelp", {
-                    power: formatNumber(locale, 0.4, 1, state.settings.notation),
-                  })}
-                  testId="space-telescope-scan-help"
-                />
-              </div>
-              <div className="space-action-help-group">
-                <button
-                  id="telescope-study-stars"
-                  className="secondary-button"
-                  type="button"
-                  disabled={!study.ok}
-                  aria-describedby={studyReason ? "telescope-study-reason" : undefined}
-                  onClick={() => dispatch({ type: "space.telescope.study.start" })}
-                >
-                  {spaceText(locale, "studyStars")}
-                </button>
-                <InfoTooltip
-                  id="space-telescope-study-help"
-                  label={`${spaceText(locale, "studyStars")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
-                  content={spaceText(locale, "telescopeStudyHelp", {
-                    power: formatNumber(locale, 0.7, 1, state.settings.notation),
-                  })}
-                  testId="space-telescope-study-help"
-                />
-              </div>
-              {voidPillageAvailable && (
+              <div className="space-survey-action">
                 <div className="space-action-help-group">
                   <button
+                    id="space-scan-asteroids"
                     className="secondary-button"
                     type="button"
-                    disabled={!pillage.ok}
-                    aria-describedby={pillageReason ? "telescope-pillage-reason" : undefined}
-                    onClick={() => dispatch({ type: "space.telescope.pillage.start" })}
+                    disabled={!scan.ok}
+                    aria-describedby={scanReason ? "telescope-scan-reason" : undefined}
+                    onClick={() => dispatch({ type: "space.telescope.scan.start" })}
                   >
-                    {spaceText(locale, "pillageVoid")}
+                    {spaceText(locale, "scanAsteroids")}
                   </button>
                   <InfoTooltip
-                    id="space-telescope-pillage-help"
-                    label={`${spaceText(locale, "pillageVoid")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
-                    content={spaceText(locale, "telescopePillageHelp", {
-                      power: formatNumber(locale, VOID_PILLAGE_POWER_PER_SECOND, 1, state.settings.notation),
+                    id="space-telescope-scan-help"
+                    label={`${spaceText(locale, "scanAsteroids")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                    content={spaceText(locale, "telescopeScanHelp", {
+                      power: formatNumber(locale, 0.4, 1, state.settings.notation),
                     })}
-                    testId="space-telescope-pillage-help"
+                    testId="space-telescope-scan-help"
                   />
+                </div>
+                {!surveyTimer && (
+                  <span className="space-survey-ready" data-testid="survey-ready-search">
+                    {spaceText(locale, "surveyReadySearch")}
+                  </span>
+                )}
+              </div>
+              <div className="space-survey-action">
+                <div className="space-action-help-group">
+                  <button
+                    id="telescope-study-stars"
+                    className="secondary-button"
+                    type="button"
+                    disabled={!study.ok}
+                    aria-describedby={studyReason ? "telescope-study-reason" : undefined}
+                    onClick={() => dispatch({ type: "space.telescope.study.start" })}
+                  >
+                    {spaceText(locale, "studyStars")}
+                  </button>
+                  <InfoTooltip
+                    id="space-telescope-study-help"
+                    label={`${spaceText(locale, "studyStars")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                    content={spaceText(locale, "telescopeStudyHelp", {
+                      power: formatNumber(locale, 0.7, 1, state.settings.notation),
+                    })}
+                    testId="space-telescope-study-help"
+                  />
+                </div>
+                {!surveyTimer && (
+                  <span className="space-survey-ready" data-testid="survey-ready-study">
+                    {spaceText(locale, "surveyReadyStudy")}
+                  </span>
+                )}
+              </div>
+              {voidPillageAvailable && (
+                <div className="space-survey-action">
+                  <div className="space-action-help-group">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      disabled={!pillage.ok}
+                      aria-describedby={pillageReason ? "telescope-pillage-reason" : undefined}
+                      onClick={() => dispatch({ type: "space.telescope.pillage.start" })}
+                    >
+                      {spaceText(locale, "pillageVoid")}
+                    </button>
+                    <InfoTooltip
+                      id="space-telescope-pillage-help"
+                      label={`${spaceText(locale, "pillageVoid")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                      content={spaceText(locale, "telescopePillageHelp", {
+                        power: formatNumber(locale, VOID_PILLAGE_POWER_PER_SECOND, 1, state.settings.notation),
+                      })}
+                      testId="space-telescope-pillage-help"
+                    />
+                  </div>
+                  {!surveyTimer && (
+                    <span className="space-survey-ready" data-testid="survey-ready-pillage">
+                      {spaceText(locale, "surveyReadyPillage")}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -1034,6 +1073,12 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
               <p className="space-range-readout" data-testid="antimatter-rate">
                 {spaceText(locale, "miningRate")}:{" "}
                 <strong>{decimal(state, antimatterRate)} /s</strong>
+                <InfoTooltip
+                  id="space-mining-antimatter-rate-help"
+                  label={`${spaceText(locale, "miningRate")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                  content={spaceText(locale, "antimatterBoostHelp")}
+                  testId="space-mining-antimatter-rate-help"
+                />
               </p>
               <p className="space-range-readout">
                 {spaceText(locale, "runMined")}:{" "}
@@ -1168,18 +1213,26 @@ export function SpaceMiningPane({ state, store, activePane }: SpaceMiningPanePro
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <button
-              className="primary-button"
-              type="button"
-              disabled={!launchPadBuildCheck.ok}
-              aria-describedby={[
-                "launch-pad-build-cost",
-                ...(launchPadBuildReason ? ["launch-pad-build-reason"] : []),
-              ].join(" ")}
-              onClick={() => dispatch({ type: "space.launch-pad.build" })}
-            >
-              {rocketText(locale, "buildLaunchPad")}
-            </button>
+            <div className="space-action-help-group">
+              <button
+                className="primary-button"
+                type="button"
+                disabled={!launchPadBuildCheck.ok}
+                aria-describedby={[
+                  "launch-pad-build-cost",
+                  ...(launchPadBuildReason ? ["launch-pad-build-reason"] : []),
+                ].join(" ")}
+                onClick={() => dispatch({ type: "space.launch-pad.build" })}
+              >
+                {rocketText(locale, "buildLaunchPad")}
+              </button>
+              <InfoTooltip
+                id="space-mining-launch-pad-build-help"
+                label={`${rocketText(locale, "buildLaunchPad")} — ${starshipText(locale, "scanMoreInfoLabel")}`}
+                content={spaceText(locale, "launchPadBuildHelp")}
+                testId="space-mining-launch-pad-build-help"
+              />
+            </div>
             {launchPadBuildReason && (
               <p className="control-reason" id="launch-pad-build-reason">
                 {launchPadBuildReason}

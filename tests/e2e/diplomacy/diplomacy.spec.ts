@@ -1,4 +1,5 @@
 import { expect, test } from "../_harness/fixtures";
+import { confirmStarshipWarEntry } from "../_harness/war-mode";
 
 type DiplomacyFixture =
   | "space-diplomacy-power"
@@ -113,7 +114,7 @@ test("covers both bully outcomes and forced war through the envoy controls @dipl
   state = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(state.run.space.systemEncounters[0]?.lastDiplomacyMessage).toBe("bullyAttack");
   expect(state.run.space.systemEncounters[0]?.warReady).toBe(true);
-  await hostilePane.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(hostilePane);
   await hostilePane.getByTestId("starship-battle-engage-button").click();
   expect(
     (await page.evaluate(() => window.miaplacidusTest!.getState())).run.space.systemEncounters[0]

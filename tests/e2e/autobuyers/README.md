@@ -1,5 +1,33 @@
 # Autobuyers: Hydrogen compressor slice
 
+## Phase 7 localized source Autobuyer routes
+
+`p7-source-autobuyer-locales.spec.ts` checks the source-named Autobuyer rows and
+their descriptions in all six locales using the full economy fixture. The
+Cosmic Forge uses each Material or Compound tier's `nameUpgrade` key from
+`resourceDataObject.js` for row labels in `drawTab1Content.js` and
+`drawTab4Content.js`. In MIAPLACIDUS, Resource summaries on their active
+Resource pages and Compound summaries on their active Compound pages render
+the localized Autobuyer name followed by the localized `buyTier` label and
+tier number. Hydrogen Tier 1 is the exception: its dedicated heading is
+`#hydrogen-autobuyer-title`, populated by the localized Hydrogen Compressor
+name, and the current remake does not show a visible tier numeral in that
+heading. The spec checks this heading separately. `descriptions.js` routes the matching
+`optionDesc{Good}AutoBuyer{Tier}Content1` values for eight Materials and six
+Compounds, plus `optionDescResearchAutoBuyerContent1`. The Hydrogen tier 1
+label and help use `#hydrogen-autobuyer-title` and `#hydrogen-autobuyer-help`;
+other Material and Compound rows use their `*-autobuyer-{tier}-summary` and
+`*-autobuyer-{tier}-help` IDs. Research help is checked at
+`data-testid="research-autobuyer-help"` in the Science Buildings pane.
+
+The source `localization.json` values for every active key are present in all
+six locales. The all-locale row-name assertions are **AUTHORED, NOT RUN** for
+Phase 8 V-59. `autoBuyerNameSolarAB1` through `autoBuyerNameSolarAB4` are omitted
+because the inspected source UI has no rendered Autobuyer route for those
+keys. The shared full fixture pre-unlocks Materials, Compounds, and Nano
+Brokers III, so the spec can inspect each row without gameplay progression.
+Execution is deferred to Phase 8.
+
 ## Rule matrix
 
 | Rule                      | Normal path                                                                                                       | Failure/boundary path                                                            | Evidence                                           |

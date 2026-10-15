@@ -5,6 +5,7 @@ export async function startMetaFixture(
   page: Page,
   fixture:
     | "meta-rebirth-ready"
+    | "meta-o-type-rebirth-ready"
     | "meta-market-ready"
     | "meta-market-rebirth-ready"
     | "meta-market-action-reasons"
@@ -12,9 +13,14 @@ export async function startMetaFixture(
     | "meta-casino-ready"
     | "meta-casino-timewarp"
     | "meta-casino-finish-rocket-journey"
+    | "meta-casino-telescope-asteroid-prize"
+    | "meta-casino-telescope-star-study-prize"
+    | "meta-casino-telescope-void-pillage-prize"
     | "meta-post-rebirth-casino-access"
     | "meta-black-hole-discovered"
     | "meta-black-hole-underfunded"
+    | "meta-black-hole-final-upgrade"
+    | "meta-black-hole-always-on"
     | "meta-galactic-identity-matrix"
     | "meta-megastructure-route"
     | "meta-megastructure-audio"

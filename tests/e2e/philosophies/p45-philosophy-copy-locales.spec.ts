@@ -25,7 +25,7 @@ async function startSpaceFixture(page: import("@playwright/test").Page): Promise
   await dismissTutorialOfferIfPresent(page);
 }
 
-test("P-45 Philosophy choice and research copy render in all locales @p45-philosophy-copy", async ({
+test("P-45 Philosophy choice and research copy render in all locales @p45-philosophy-copy @p7-player-leader-intro @localization", async ({
   page,
 }) => {
   await startSpaceFixture(page);
@@ -44,6 +44,9 @@ test("P-45 Philosophy choice and research copy render in all locales @p45-philos
 
   const choice = page.getByTestId("philosophy-choice");
   await expect(choice).toBeVisible();
+  // Phase 7 adapts the source's later leader-intro modal into this first-study choice route:
+  // its header maps to choiceTitle, and each source path body maps to the card name, summary,
+  // ability name, and effect shown together before the permanent selection.
   for (const locale of LOCALE_IDS) {
     await page.evaluate(
       (nextLocale) =>
@@ -90,6 +93,8 @@ test("P-45 Philosophy choice and research copy render in all locales @p45-philos
   const pane = page.getByTestId("philosophy-pane");
   const state = await page.evaluate(() => window.miaplacidusTest!.getState());
   const path = PHILOSOPHY_PATHS.expansionist;
+  const helpTooltip = pane.getByTestId("philosophy-page-help");
+  await pane.getByTestId("philosophy-page-help-trigger").focus();
 
   for (const locale of LOCALE_IDS) {
     await page.evaluate(
@@ -102,6 +107,11 @@ test("P-45 Philosophy choice and research copy render in all locales @p45-philos
     );
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     const copy = philosophyText(locale);
+    await expect(helpTooltip).toBeVisible();
+    await expect(helpTooltip.locator("span")).toHaveCount(copy.headerHelp.length);
+    for (const [index, paragraph] of copy.headerHelp.entries()) {
+      await expect(helpTooltip.locator("span").nth(index)).toHaveText(paragraph);
+    }
     await expect(pane.getByRole("heading", { level: 2 })).toHaveText(copy.paths.expansionist.name);
     await expect(
       pane.locator(".philosophy-path-heading > div > p:not(.eyebrow):last-of-type"),

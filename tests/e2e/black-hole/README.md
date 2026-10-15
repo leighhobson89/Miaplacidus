@@ -274,3 +274,158 @@ were checked, and no test or baseline changes were needed. Artifacts are under
 ```powershell
 npm.cmd run test:e2e:focused -- tests/e2e/black-hole --project=chrome --workers=1 --retries=0 --update-snapshots=none --trace=retain-on-failure --reporter=line
 ```
+
+## Phase 7 Black Hole Instability dynamic locale state (AUTHORED, NOT RUN; Phase 8)
+
+`p7-instability-trigger-locale.spec.ts` covers the triggered Black Hole
+Instability state in all six locales. After the visible Black Hole research
+action, the test forces the eligible source event and checks its localized
+start dialog, minute-bearing trigger notice, and initial strength/duration
+shift notice against the active event state.
+
+Cosmic Forge `events.js` triggers Black Hole Instability and creates the
+duration-bearing `notificationRandomEventBlackHoleInstability` notice; its
+event dialog uses `modalEventBlackHoleInstabilityHeader` and
+`modalEventBlackHoleInstabilityText` from `localization.json`. The initial
+strength/duration message comes from `notificationBlackHoleInstabilityShift`
+or `notificationBlackHoleInstabilityShiftWithDuration` and the
+`textInstability*` values. MIAPLACIDUS routes these to
+`randomEventStartDialogMessages.ts` (`blackHoleInstability`),
+`randomEventTriggerNotificationMessages.ts` (`blackHoleInstability`), and
+`randomEventInstabilityNotificationMessages.ts` (`withDuration`, `powerOnly`,
+and the localized delta terms). The app route is
+`randomEventTriggeredNotifications.ts` plus
+`randomEventInstabilityNotifications.ts`. These catalogues contain values for
+`en`, `es`, `pt`, `de`, `it`, and `fr`; static review found no missing value or
+broken route, so no production correction was needed.
+
+The authored case is **NOT RUN** and is scheduled for the Phase 8 locale sweep.
+
+## Phase 7 Black Hole help and timed-status locale routes (AUTHORED, NOT RUN; Phase 8)
+
+`p7-research-help-locales.spec.ts` opens the visible header and research
+InfoTooltips, researches through the Black Hole control, advances its charge,
+and activates the ready warp. In `en`, `es`, `pt`, `de`, `it`, and `fr`, it checks
+both tooltip routes and the rendered charge/warp countdowns against the
+selected locale and current timer state. Cosmic Forge routes
+`headerDescBlackHole` from the Galactic Black Hole child header and
+`blackHoleValueHint` from `drawTab7Content.js`; the remake renders them as
+`blackHoleMessages.ts#headerHelp` and `#researchHelp` in `BlackHolePane.tsx`.
+The dynamic source strings `textBlackHoleChargingWithTime` and
+`textBlackHoleActivatedWithPower` correspond to the remake's localized
+`charging`/`warping` status plus locale-formatted remaining seconds. Existing
+P-45 and P-54 cases cover the source research/upgrade action family, visible
+prices, charge-ready state, and fixed status copy.
+
+This focused browser spec is **AUTHORED, NOT RUN**; execution is deferred to
+Phase 8.
+
+### Source Tab 7 disposition notes
+
+Cosmic Forge `index.html#blackholeOption` is option 5 (`tab7.option5`) and
+selects the `heading === 'Black Hole'` branch in `drawTab7Content.js`. The
+unreviewed keys with a literal `tab7` prefix belong to Rebirth
+(`tab7RebirthRowLabel`, `tab7RebirthRowDescription`, `tab7LiquidateRowLabel`),
+Galactic Market (`tab7TradeRowLabel`, `tab7QuantityRowLabel`,
+`tab7ConfirmRowLabel`, `tab7SellApRowLabel`), and Galactic Casino
+(`tab7PurchaseCpRowLabel`, `tab7DoubleOrNothingRowLabel`,
+`tab7WheelOfFortuneRowLabel`, `tab7VisitingVoidSeerRowLabel`,
+`tab7HigherOrLowerRowLabel`) branches; none is a Black Hole row label. The
+Black Hole branch instead uses `buttonResearchBlackHole`,
+`buttonBlackHolePower`, `buttonBlackHoleDuration`, `buttonBlackHoleRecharge`,
+`buttonBlackHoleCharge`, and `textBlackHoleCharging`, which the existing
+P-45/P-54 browser cases exercise through the active Galactic child renderer.
+
+Cosmic Forge's `modalBlackHoleDiscoveredHeader` and
+`modalBlackHoleDiscoveredText` are passed to `callPopupModal` on discovery in
+`game.js`, followed by `notificationBlackHoleDiscovered`. MIAPLACIDUS now maps
+the same discovery event through `blackHoleEventNotifications.ts` to the
+localized `blackHoleDiscoveryDialog` and the existing three-second
+`discoveredNotification` toast. The six `blackHole*Content1` description
+entries are declared in `descriptions.js`. The source Black Hole branch
+creates the interaction and charge/time-warp progress rows, whose description
+blocks are not carried over as separate blocks in `BlackHolePane.tsx`; the
+remake instead shows its help tooltips, status, stats, and progress controls.
+The source also declares `blackHoleFeedRow`, `blackHoleStatsRow`, and
+`blackHoleActivationRow` descriptions, but does not create those row IDs in the
+Black Hole branch. These remaining source/target presentation differences are
+documented for Phase 7 disposition.
+
+### Phase 7 Black Hole source row descriptions (AUTHORED, NOT RUN; Phase 8)
+
+`p7-research-help-locales.spec.ts` now covers the source row-description family
+in all six locales. `blackHoleChargeProgressContent1` and
+`blackHoleTimeWarpProgressContent1` belong to active source progress rows, but
+`game.js#blackHoleUIChecks` replaces their initial description text with the
+current charge/warp status and timer. MIAPLACIDUS presents those state labels
+as the charge and warp progress-bar accessible names and in the Black Hole
+status statistic; the focused spec checks both routes.
+
+`blackHoleInteractionContent1` is replaced in the source with the live Research
+Points label. In MIAPLACIDUS, its six-locale `interactionHelp` copy is shown
+with the research action and the researched upgrade controls. The declared
+`blackHoleStatsRow` is not instantiated by the source renderer, but its purpose
+has an active remake context, so `blackHoleStatsContent1` is shown directly
+above the researched Black Hole statistics. `blackHoleActivationContent1` is
+also not instantiated as a source row; its action is represented by the active
+localized `activate` button, which the spec checks in every locale once charge
+is ready.
+
+`blackHoleFeedContent1` has no active source row and Cosmic Forge has no feed
+action in this page. MIAPLACIDUS also has no feed mechanic, so there is no
+justified active destination for this key; it remains open for disposition.
+The focused locale spec is **AUTHORED, NOT RUN** and is deferred to Phase 8.
+
+## Phase 7 Black Hole discovery dialog and toast (AUTHORED, NOT RUN; Phase 8)
+
+`p7-black-hole-discovery-dialog-locales.spec.ts` drives the visible Telescope
+Study Stars control from the existing `space-voidborn-pillage` fixture. It
+repeats deterministic star studies until the accumulated Black Hole discovery
+chance reaches 100%, then checks the source modal title, body paragraphs,
+green prompt, confirmation label, and retained discovery toast in all six
+locales. The test uses the real study command and timer completion and is
+**AUTHORED, NOT RUN**; execution is deferred to Phase 8.
+
+Cosmic Forge `game.js` opens `modalBlackHoleDiscoveredHeader` and
+`modalBlackHoleDiscoveredText` with the localized
+`notificationThisShouldBeInteresting` confirm label, then independently shows
+`notificationBlackHoleDiscovered` for three seconds. MIAPLACIDUS routes the
+same `black-hole.discovery-checked` event to
+`blackHoleMessages.ts#DISCOVERY_DIALOGS` through the
+`App.tsx#enqueueRandomEventResultDialog` callback, while preserving the
+existing toast route in `blackHoleEventNotifications.ts`.
+
+## Phase 7 Black Hole control and status routes (AUTHORED, NOT RUN; Phase 8)
+
+`p7-research-help-locales.spec.ts` also verifies the Research Points balance,
+research action, visible Power/Duration/Recharge/Status labels, and the Power
+multiplier value while checking the charging and active-warp countdowns in all
+six locales. `p7-control-status-locales.spec.ts` exercises two explicit
+researched states: the final Recharge upgrade (`rechargeMultiplier: 0.11`) and
+the always-on/maxed state (`rechargeMultiplier: 0.1`, `alwaysOn: true`). It
+checks the localized final-upgrade action, maxed Duration and Recharge labels,
+always-on status, and separately displayed Power value. Both specs are
+**AUTHORED, NOT RUN**.
+
+Cosmic Forge `game.js` routes `blackHoleInteractionResearchPointsLabel` and
+`buttonResearchBlackHoleWithPrice` to the pre-research panel; the remake adapts
+these to the current Research Points balance and the `researchAction` plus
+visible price in `BlackHolePane.tsx`. Source `buttonBlackHolePower`,
+`buttonBlackHoleDuration`, `buttonBlackHoleRecharge`,
+`buttonBlackHolePowerUpgrade`, `buttonBlackHoleDurationUpgrade`,
+`buttonBlackHoleRechargeUpgrade`, `buttonBlackHoleDurationAlwaysActive`,
+`buttonBlackHoleRechargeMaxed`, and `buttonBlackHoleRechargeFinalUpgrade` map
+to the pane's `power`, `duration`, `recharge`, `upgradeNames`, `upgradeMaxed`,
+and `rechargeFinalUpgrade` catalogue entries. The standard, final-upgrade, and
+maxed branches have separate visible UI states.
+
+Source `textBlackHoleChargingWithTime` and `textBlackHoleActivatedWithPower`
+map to the localized Charging/Time warp status plus the independently shown
+remaining-seconds value. `textBlackHoleAlwaysActiveWithPower` maps to the
+always-on status sentence; its multiplier is represented in the separate
+Power statistic. Likewise, `textTimeWarpMultiplier` has no separate target
+caption: its current multiplier is the value shown beside the Power label.
+These are target presentation adaptations, not literal string matches. The
+specs assert the localized status and Power value separately. The source's
+long explanatory interaction label is not rendered verbatim as a paragraph;
+the target shows the Research Points balance and accessible action instead.

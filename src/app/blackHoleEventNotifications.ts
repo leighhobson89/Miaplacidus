@@ -1,6 +1,11 @@
 import type { LocaleId } from "../content/ids";
 import type { EngineEvent } from "../engine/commands";
-import { blackHoleText, blackHoleWarpEndedNotification } from "../i18n/blackHoleMessages";
+import {
+  blackHoleDiscoveryDialog,
+  blackHoleText,
+  blackHoleWarpEndedNotification,
+} from "../i18n/blackHoleMessages";
+import type { RandomEventDialogCopy } from "../i18n/randomEventDialogTypes";
 import type { GameNotificationType } from "./NotificationStack";
 
 export type BlackHoleEventNotice =
@@ -10,6 +15,7 @@ export type BlackHoleEventNotice =
       readonly classification: "special";
       readonly type: GameNotificationType;
       readonly durationMs: number;
+      readonly resultDialog?: RandomEventDialogCopy;
     }
   | { readonly route: "screen-reader"; readonly message: string };
 
@@ -27,6 +33,7 @@ export function blackHoleEventNotice(
             classification: "special",
             type: "info",
             durationMs: 3000,
+            resultDialog: blackHoleDiscoveryDialog(locale),
           }
         : null;
     case "black-hole.charge-completed":

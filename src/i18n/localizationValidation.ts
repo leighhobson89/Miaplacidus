@@ -4,9 +4,11 @@ import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import { LOCALE_IDS, type LocaleId } from "../content/ids";
 import { TECHNOLOGY_DESCRIPTIONS } from "../content/technologyDescriptions";
 import { TECHNOLOGY_NAMES } from "../content/technologyNames";
+import { TECHNOLOGY_SUMMARIES } from "../content/technologySummaries";
 import { LOCALIZATION_VALIDATION_DATA as achievement } from "./achievementMessages";
 import { LOCALIZATION_VALIDATION_DATA as achievementReward } from "./achievementRewardMessages";
 import { ACHIEVEMENT_NOTIFICATION_COPY } from "./achievementNotificationCopy.generated";
+import { LOCALIZATION_VALIDATION_DATA as allocationTooltip } from "./allocationTooltipMessages";
 import { LOCALIZATION_VALIDATION_DATA as blackHole } from "./blackHoleMessages";
 import { LOCALIZATION_VALIDATION_DATA as casino } from "./casinoMessages";
 import {
@@ -20,6 +22,7 @@ import { LOCALIZATION_VALIDATION_DATA as cosmicRipResearchResultDialogs } from "
 import { LOCALIZATION_VALIDATION_DATA as debugScenario } from "./debugScenarioMessages";
 import { LOCALIZATION_VALIDATION_DATA as economy } from "./economyMessages";
 import { LOCALIZATION_VALIDATION_DATA as economyActionHelp } from "./economyActionHelpMessages";
+import { LOCALIZATION_VALIDATION_DATA as economyAutobuyerNames } from "./economyAutobuyerNameMessages";
 import { LOCALIZATION_VALIDATION_DATA as researchActionHelp } from "./researchActionHelpMessages";
 import { LOCALIZATION_VALIDATION_DATA as energyStatistics } from "./energyStatisticsMessages";
 import { LOCALIZATION_VALIDATION_DATA as interstellarStatistics } from "./interstellarStatisticsMessages";
@@ -28,6 +31,8 @@ import { LOCALIZATION_VALIDATION_DATA as megastructureResearchResults } from "./
 import { LOCALIZATION_VALIDATION_DATA as meta } from "./metaMessages";
 import { LOCALIZATION_VALIDATION_DATA as market } from "./marketMessages";
 import { LOCALIZATION_VALIDATION_DATA as metaSignal } from "./metaSignalMessages";
+import { LOCALIZATION_VALIDATION_DATA as researchUnlockDialogs } from "./researchUnlockResultDialogMessages";
+import { LOCALIZATION_VALIDATION_DATA as resourceAllocationBreakdown } from "./resourceAllocationBreakdownMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventDescription } from "./randomEventDescriptionMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventEndDialogs } from "./randomEventEndDialogMessages";
 import { LOCALIZATION_VALIDATION_DATA as randomEventEndDetails } from "./randomEventEndDetailMessages";
@@ -122,6 +127,8 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
   toLocaleRoot("guides.cosmicopediaDescriptions", cosmicopediaSectionDescriptions),
   ...groupedCatalogues("achievement", achievement),
   ...groupedCatalogues("achievementReward", achievementReward),
+  ...groupedCatalogues("allocationTooltip", allocationTooltip),
+  ...groupedCatalogues("resourceAllocationBreakdown", resourceAllocationBreakdown),
   ...groupedCatalogues("blackHole", blackHole),
   ...groupedCatalogues("casino", casino),
   ...groupedCatalogues("cosmicRip", cosmicRip),
@@ -131,6 +138,7 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
   ...groupedCatalogues("debugScenario", debugScenario),
   ...groupedCatalogues("economy", economy),
   ...groupedCatalogues("economyActionHelp", economyActionHelp),
+  ...groupedCatalogues("economyAutobuyerNames", economyAutobuyerNames),
   ...groupedCatalogues("researchActionHelp", researchActionHelp),
   ...groupedCatalogues("energyStatistics", energyStatistics),
   ...groupedCatalogues("interstellarStatistics", interstellarStatistics),
@@ -146,6 +154,10 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
   ...groupedCatalogues("randomEventInstabilityNotifications", randomEventInstabilityNotifications),
   ...groupedCatalogues("randomEventStartDialogs", randomEventStartDialogs),
   ...groupedCatalogues("randomEventTriggerNotifications", randomEventTriggerNotifications),
+  withPolicy(
+    toLocaleRoot("researchUnlockDialogs", researchUnlockDialogs.SOURCE_DIALOGS),
+    { allowedRichTextTags: ["br", "span"] },
+  ),
   ...groupedCatalogues("story", story),
   ...groupedCatalogues("philosophy", philosophy),
   ...groupedCatalogues("rocket", rocket),
@@ -181,6 +193,7 @@ export const LOCALIZATION_CATALOGUES: readonly LocalizationCatalogue[] = [
   toLocaleRoot("economyBuildingNames", ECONOMY_BUILDING_NAMES),
   toLocaleRoot("technologyNames", TECHNOLOGY_NAMES),
   toLocaleRoot("technologyDescriptions", TECHNOLOGY_DESCRIPTIONS),
+  toLocaleRoot("technologySummaries", TECHNOLOGY_SUMMARIES),
 ];
 
 function flattenStringLeaves(

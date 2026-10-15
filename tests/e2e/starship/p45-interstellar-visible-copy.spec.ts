@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "../_harness/fixtures";
+import { confirmStarshipWarEntry } from "../_harness/war-mode";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { starMapText } from "../../../src/i18n/starMapMessages";
 import { starshipText } from "../../../src/i18n/starshipMessages";
@@ -136,7 +137,7 @@ test("Colonise battle and settlement actions and statuses localize through victo
   }
 
   await selectLocale(page, "en");
-  await starship.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(starship);
   for (const locale of LOCALE_IDS) {
     await selectLocale(page, locale);
     await expect(starship.getByTestId("starship-war-mode")).toHaveText(
@@ -213,7 +214,7 @@ test("Colonise defeat and settlement-block reason localize across all locales @p
   await selectInterstellarPage(page, "colonise");
   const starship = page.getByTestId("starship-pane");
 
-  await starship.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(starship);
   await starship.getByTestId("starship-battle-engage-button").click();
   await advanceBattle(page);
   await expect

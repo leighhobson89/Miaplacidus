@@ -1,6 +1,8 @@
 import type { LocaleId } from "../content/ids";
 
 const en = {
+  rocketFuelHelp: "Fuel and launch this mining vessel to start mining valuable Antimatter. Power: {power} kJ/s.",
+  rocketTravelHelp: "Select an available Asteroid to travel there and begin mining Antimatter.",
   launchPadHeaderHelp: "Build vessels to mine asteroids for valuable Antimatter.",
   launchPadHelp:
     "Build every required part to complete a rocket. Select an available asteroid on the Asteroids page, then open the completed Rocket page to fuel it, launch into orbit, and travel there.",
@@ -66,6 +68,8 @@ export type RocketMessageKey = keyof typeof en;
 const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, string>>>> = {
   en,
   es: {
+    rocketFuelHelp: "Reposta y lanza esta nave minera para empezar a extraer antimateria valiosa. Potencia: {power} kJ/s.",
+    rocketTravelHelp: "Selecciona un asteroide disponible y viaja hasta allí para empezar a extraer antimateria.",
     launchPadHeaderHelp: "Construye naves para minar asteroides en busca de valiosa Antimateria.",
     launchPadHelp:
       "Construye todas las piezas necesarias para completar un cohete. Selecciona un asteroide disponible en la página Asteroides y después abre la página del cohete completado para repostarlo, lanzarlo a la órbita y viajar allí.",
@@ -126,6 +130,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "El cohete regresó de {name}; el depósito está vacío.",
   },
   pt: {
+    rocketFuelHelp: "Abastece e lança esta nave mineira para começar a extrair antimatéria valiosa. Potência: {power} kJ/s.",
+    rocketTravelHelp: "Seleciona um asteroide disponível e viaja até ele para começar a extrair antimatéria.",
     launchPadHeaderHelp: "Constrói naves para minerar asteroides em busca de valiosa Antimatéria.",
     launchPadHelp:
       "Constrói todas as peças necessárias para concluir um foguete. Seleciona um asteroide disponível na página Asteroides e depois abre a página do foguete concluído para o abastecer, lançá-lo para a órbita e viajar até lá.",
@@ -186,6 +192,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "O foguete regressou de {name}; o depósito está vazio.",
   },
   de: {
+    rocketFuelHelp: "Betanke und starte dieses Bergbauschiff, um wertvolle Antimaterie abzubauen. Leistung: {power} kJ/s.",
+    rocketTravelHelp: "Wähle einen verfügbaren Asteroiden und reise dorthin, um mit dem Antimaterieabbau zu beginnen.",
     launchPadHeaderHelp: "Baue Schiffe, um Asteroiden nach wertvoller Antimaterie abzubauen.",
     launchPadHelp:
       "Baue alle erforderlichen Teile, um eine Rakete fertigzustellen. Wähle auf der Asteroidenseite einen verfügbaren Asteroiden aus und öffne dann die Seite der fertigen Rakete, um sie zu betanken, in den Orbit zu bringen und dorthin zu fliegen.",
@@ -247,6 +255,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "Die Rakete kehrte von {name} zurück; der Tank ist leer.",
   },
   it: {
+    rocketFuelHelp: "Rifornisci e lancia questa nave mineraria per iniziare a estrarre preziosa Antimateria. Potenza: {power} kJ/s.",
+    rocketTravelHelp: "Seleziona un asteroide disponibile e raggiungilo per iniziare a estrarre Antimateria.",
     launchPadHeaderHelp: "Costruisci navi per estrarre asteroidi in cerca di preziosa Antimateria.",
     launchPadHelp:
       "Costruisci tutte le parti necessarie per completare un razzo. Seleziona un asteroide disponibile nella pagina Asteroidi, poi apri la pagina del razzo completo per rifornirlo, lanciarlo in orbita e viaggiare fino a lì.",
@@ -307,6 +317,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<RocketMessageKey, stri
     returned: "Il razzo è tornato da {name}; il serbatoio è vuoto.",
   },
   fr: {
+    rocketFuelHelp: "Ravitaille et lance ce vaisseau minier pour commencer à extraire de l'Antimatière. Puissance : {power} kJ/s.",
+    rocketTravelHelp: "Sélectionne un astéroïde disponible et rejoins-le pour commencer à extraire de l'Antimatière.",
     launchPadHeaderHelp:
       "Construis des vaisseaux pour extraire des astéroïdes en quête d'Antimatière précieuse.",
     launchPadHelp:

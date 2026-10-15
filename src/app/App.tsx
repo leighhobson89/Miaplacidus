@@ -24,6 +24,8 @@ import { MAX_FOREGROUND_STEP_MS } from "../engine/clock";
 import { createGameStore, type GameStore } from "../engine/store";
 import { createInitialGameState, type GameState } from "../engine/state";
 import { galacticTabUnlocked } from "../engine/galacticProgression";
+import { starTypeForSystem } from "../content/starCatalogue";
+import { O_TYPE_POWER_PLANT_IDS } from "../content/starTypeRules";
 import {
   selectAutobuyerBuyMax,
   selectHydrogenAutobuyerPurchase,
@@ -41,6 +43,7 @@ import {
   formatEconomyMessage,
 } from "../i18n/economyMessages";
 import { economyActionHelp } from "../i18n/economyActionHelpMessages";
+import { economyAutobuyerName } from "../i18n/economyAutobuyerNameMessages";
 import { GameErrorBoundary } from "../ui/GameErrorBoundary";
 import { useGameSnapshot } from "../ui/useGameSnapshot";
 import { currentWeatherForSystem } from "../engine/weather";
@@ -95,6 +98,7 @@ import { starshipText } from "../i18n/starshipMessages";
 import { localizedRocketUserName } from "../i18n/rocketMessages";
 import { technologyNotificationText } from "../i18n/technologyNotificationMessages";
 import { spaceNotificationText } from "../i18n/spaceNotificationMessages";
+import { oTypeStarTechAcquiredDialog } from "../i18n/spaceProgressionDialogMessages";
 import { createSpaceEventNoticeHandler } from "./spaceEventNotifications";
 import { createCasinoEventNoticeHandler } from "./casinoEventNotifications";
 import type { VoidSeerOutcome } from "../engine/galacticCasino";
@@ -106,6 +110,10 @@ import {
 } from "./cosmicRipEventNotifications";
 import { cosmicRipResearchResultDialog } from "../i18n/cosmicRipResearchResultDialogMessages";
 import { megastructureResearchResultCopy } from "../i18n/megastructureResearchResultMessages";
+import {
+  researchUnlockResultDialog,
+  researchUnlockResultDialogForTechnology,
+} from "../i18n/researchUnlockResultDialogMessages";
 import {
   createGalacticMarketEventNoticeHandler,
   galacticMarketLockdownEntryNotice,
@@ -146,6 +154,9 @@ const HydrogenAutobuyerTiers = lazy(() =>
 );
 const HydrogenAllocationControls = lazy(() =>
   import("./EconomyPanes").then((module) => ({ default: module.HydrogenAllocationControls })),
+);
+const HydrogenAllocationBreakdownTooltip = lazy(() =>
+  import("./EconomyPanes").then((module) => ({ default: module.HydrogenAllocationBreakdownTooltip })),
 );
 const HydrogenFusionDetails = lazy(() =>
   import("./EconomyPanes").then((module) => ({ default: module.HydrogenFusionDetails })),
@@ -697,6 +708,7 @@ function AppContent() {
               "space-unoccupied",
               "space-megastructure-attention",
               "meta-rebirth-ready",
+              "meta-o-type-rebirth-ready",
               "meta-market-ready",
               "meta-market-rebirth-ready",
               "meta-market-action-reasons",
@@ -704,6 +716,9 @@ function AppContent() {
               "meta-casino-ready",
               "meta-casino-timewarp",
               "meta-casino-finish-rocket-journey",
+              "meta-casino-telescope-asteroid-prize",
+              "meta-casino-telescope-star-study-prize",
+              "meta-casino-telescope-void-pillage-prize",
               "meta-post-rebirth-casino-access",
               "meta-black-hole-discovered",
               "meta-black-hole-underfunded",
@@ -1545,9 +1560,10 @@ function GameSession({
         });
         if (result.accepted) void persistCurrent();
       },
+      enqueueRandomEventResultDialog,
     );
     return store.subscribeEvents(routeSpaceEvents);
-  }, [notify, persistCurrent, store]);
+  }, [enqueueRandomEventResultDialog, notify, persistCurrent, store]);
 
   useEffect(() => {
     const routeCasinoEvents = createCasinoEventNoticeHandler(
@@ -1662,6 +1678,7 @@ function GameSession({
           announceScreenReader(notice.message);
           return;
         }
+        if (notice.resultDialog) enqueueRandomEventResultDialog(notice.resultDialog);
         notify(notice.message, {
           classification: notice.classification,
           type: notice.type,
@@ -1670,7 +1687,7 @@ function GameSession({
       },
     );
     return store.subscribeEvents(routeBlackHoleEvents);
-  }, [announceScreenReader, notify, store]);
+  }, [announceScreenReader, enqueueRandomEventResultDialog, notify, store]);
 
   useEffect(() => {
     const routeRandomEventInstabilityNotices = createRandomEventInstabilityNoticeHandler(
@@ -1741,6 +1758,25 @@ function GameSession({
     return store.subscribeEvents(routeStorageFullNotices);
   }, [notify, store]);
 
+  useEffect(
+    () =>
+      store.subscribeEvents((events) => {
+        if (store.getState().permanent.rebirthCount !== 0) return;
+        for (const event of events) {
+          if (
+            event.type === "meta.perk.purchased" &&
+            event.perkId === "nanoBrokers" &&
+            event.level === 2
+          ) {
+            enqueueRandomEventResultDialog(
+              researchUnlockResultDialog(currentLocaleRef.current, "compoundMachining"),
+            );
+          }
+        }
+      }),
+    [enqueueRandomEventResultDialog, store],
+  );
+
   const previousNotificationState = useRef({
     store,
     rebirthCount: currentState.permanent.rebirthCount,
@@ -1751,7 +1787,32 @@ function GameSession({
     const previous = previousNotificationState.current;
     const economyTechs = currentState.run.economy.researchedTechnologies;
     const cosmicRipTechs = currentState.permanent.cosmicRip.researchedTechnologyIds;
-    if (previous.store !== store || previous.rebirthCount !== currentState.permanent.rebirthCount) {
+    if (previous.store !== store) {
+      previousNotificationState.current = {
+        store,
+        rebirthCount: currentState.permanent.rebirthCount,
+        economyTechs,
+        cosmicRipTechs,
+      };
+      return;
+    }
+    if (previous.rebirthCount !== currentState.permanent.rebirthCount) {
+      const currentSystemId = currentState.run.space.currentSystemId;
+      const acquiredPlantId = O_TYPE_POWER_PLANT_IDS.find(
+        (plantId) => currentState.permanent.oTypePowerPlantAssignments[plantId] === currentSystemId,
+      );
+      if (
+        currentState.permanent.rebirthCount > previous.rebirthCount &&
+        starTypeForSystem(currentSystemId) === "O" &&
+        acquiredPlantId
+      ) {
+        enqueueRandomEventResultDialog(
+          oTypeStarTechAcquiredDialog(snapshot.locale, {
+            systemId: currentSystemId,
+            plantId: acquiredPlantId,
+          }),
+        );
+      }
       previousNotificationState.current = {
         store,
         rebirthCount: currentState.permanent.rebirthCount,
@@ -1773,6 +1834,10 @@ function GameSession({
       );
       const megastructureResult = megastructureResearchResultCopy(snapshot.locale, technologyId);
       if (megastructureResult) enqueueRandomEventResultDialog(megastructureResult);
+      if (currentState.permanent.rebirthCount === 0) {
+        const unlockResult = researchUnlockResultDialogForTechnology(snapshot.locale, technologyId);
+        if (unlockResult) enqueueRandomEventResultDialog(unlockResult);
+      }
     }
 
     for (const technologyId of cosmicRipTechs) {
@@ -2514,6 +2579,7 @@ function GameSession({
                                           )}
                                           <small>{"H\u2082/s"}</small>
                                         </strong>
+                                        <HydrogenAllocationBreakdownTooltip state={store.getState()} />
                                         {snapshot.hydrogenProductionBlockedByStorage && (
                                           <p
                                             className="red-disabled-text"
@@ -2739,7 +2805,7 @@ function GameSession({
                                       </div>
                                       <div className="card-copy">
                                         <h3 id="hydrogen-autobuyer-title">
-                                          {t("hydrogen.autobuyer.title")}
+                                          {economyAutobuyerName(snapshot.locale, "hydrogen", 1)}
                                         </h3>
                                         <p
                                           className="economy-action-description"

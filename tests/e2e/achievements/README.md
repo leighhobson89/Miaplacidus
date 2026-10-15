@@ -204,3 +204,31 @@ node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retrie
 npm.cmd run typecheck
 .\node_modules\.bin\oxfmt.cmd --check src\styles.css tests\e2e\achievements\p56-achievements-visual-matrix.spec.ts
 ```
+
+## Phase 8 V-59: selected-locale achievement state (authored only)
+
+`p7-achievement-state-locales.spec.ts` checks the Achievements route heading, description, localized unlocked count, and earned `Try All Themes` card in all six locales after earning it through the theme selector. Cosmic Forge builds an achievement badge grid and dims unearned tiles in `drawTab9Content.js`/`ui.js`; MIAPLACIDUS renders localized names and explicit earned status in `AchievementsPane`. The selected-locale copy is populated, so no renderer or catalogue fix was needed.
+
+Status: **NOT RUN**. No tests, build, or typecheck were run for this coverage addition.
+
+## Phase 7: achievement card metadata and active-time copy
+
+Cosmic Forge registers Settings > Achievements in
+`drawTab9Content.js#createAchievementsSectionRow`; `ui.js#setupAchievementTooltip`
+opens the card tooltip generated in `descriptions.js`. Each tooltip renders the
+achievement reward, reset-on-rebirth value, and achieved/not-achieved status.
+It also shows a `logged` active-time value on `have50HoursWithOnePioneer`. MIAPLACIDUS
+routes reward copy through the card's reward row, reset policy and state through
+the card metadata row, and the logged value through that achievement card's
+`state.statistics.lifetimeActiveMs` value formatted by `formatDuration`.
+The `AchievementsPane` uses the selected-locale messages for all of those
+values; the existing achievement reward calculation remains the source of the
+reward amount.
+
+`p7-achievement-state-locales.spec.ts` now covers all 70 cards in `en`, `es`,
+`pt`, `de`, `it`, and `fr`: reward label, reset-on-rebirth yes/no, achieved
+state, and the logged active-time row. Source `logged` is specific to the
+50-active-hours achievement and is not added to unrelated cards.
+
+Status: **AUTHORED, NOT RUN**. No tests, build, typecheck, formatter, or
+validation command was run for this Phase 7 slice.

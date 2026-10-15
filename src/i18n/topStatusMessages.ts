@@ -4,6 +4,7 @@ const en = {
   region: "Current expedition statistics",
   energy: "Energy",
   power: "Power",
+  powered: "Powered",
   battery: "Battery",
   antimatter: "Antimatter",
   ascendency: "Ascendency",
@@ -76,6 +77,7 @@ type StatusExtensionMessageKey =
   | "eventRemaining"
   | "eventLastRecorded"
   | "ascendencyPointsName"
+  | "ascendencyPointsShortLabel"
   | "casinoPointsName"
   | "galacticPointsName"
   | "researchPointsName"
@@ -114,6 +116,7 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     notCaptured: "Not captured",
     philosophy: "Philosophy",
     ascendencyPointsName: "Ascendency Points",
+    ascendencyPointsShortLabel: "AP",
     casinoPointsName: "Casino Points",
     galacticPointsName: "Galactic Points",
     researchPointsName: "Research Points",
@@ -142,6 +145,7 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     notCaptured: "No conquistada",
     philosophy: "Filosofía",
     ascendencyPointsName: "Puntos de ascendencia",
+    ascendencyPointsShortLabel: "AP",
     casinoPointsName: "Puntos de casino",
     galacticPointsName: "Puntos galácticos",
     researchPointsName: "Puntos de investigación",
@@ -170,6 +174,7 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     notCaptured: "Não conquistada",
     philosophy: "Filosofia",
     ascendencyPointsName: "Pontos de ascendência",
+    ascendencyPointsShortLabel: "AP",
     casinoPointsName: "Pontos do casino",
     galacticPointsName: "Pontos galácticos",
     researchPointsName: "Pontos de pesquisa",
@@ -198,6 +203,7 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     notCaptured: "Nicht erobert",
     philosophy: "Philosophie",
     ascendencyPointsName: "Aufstiegspunkte",
+    ascendencyPointsShortLabel: "AP",
     casinoPointsName: "Casino-Punkte",
     galacticPointsName: "Galaktische Punkte",
     researchPointsName: "Forschungspunkte",
@@ -226,6 +232,7 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     notCaptured: "Non conquistata",
     philosophy: "Filosofia",
     ascendencyPointsName: "Punti ascendenza",
+    ascendencyPointsShortLabel: "AP",
     casinoPointsName: "Punti del casinò",
     galacticPointsName: "Punti galattici",
     researchPointsName: "Punti ricerca",
@@ -254,6 +261,7 @@ const statusExtensions: Record<LocaleId, Record<StatusExtensionMessageKey, strin
     notCaptured: "Non conquise",
     philosophy: "Philosophie",
     ascendencyPointsName: "Points d'ascendance",
+    ascendencyPointsShortLabel: "AP",
     casinoPointsName: "Points de casino",
     galacticPointsName: "Points galactiques",
     researchPointsName: "Points de recherche",
@@ -275,6 +283,7 @@ const es: Record<StatusMessageKey, string> = {
   region: "Estadísticas de la expedición actual",
   energy: "Energía",
   power: "Potencia",
+  powered: "Alimentado",
   battery: "Batería",
   antimatter: "Antimateria",
   ascendency: "Ascendencia",
@@ -343,6 +352,7 @@ const pt: Record<StatusMessageKey, string> = {
   region: "Estatísticas da expedição atual",
   energy: "Energia",
   power: "Potência",
+  powered: "Alimentado",
   battery: "Bateria",
   antimatter: "Antimatéria",
   ascendency: "Ascendência",
@@ -411,6 +421,7 @@ const de: Record<StatusMessageKey, string> = {
   region: "Statistik des aktuellen Durchlaufs",
   energy: "Energie",
   power: "Strom",
+  powered: "Versorgt",
   battery: "Batterie",
   antimatter: "Antimaterie",
   ascendency: "Aufstieg",
@@ -479,6 +490,7 @@ const it: Record<StatusMessageKey, string> = {
   region: "Statistiche della spedizione attuale",
   energy: "Energia",
   power: "Potenza",
+  powered: "Alimentato",
   battery: "Batteria",
   antimatter: "Antimateria",
   ascendency: "Ascendenza",
@@ -547,6 +559,7 @@ const fr: Record<StatusMessageKey, string> = {
   region: "Statistiques de l'expédition actuelle",
   energy: "Énergie",
   power: "Puissance",
+  powered: "Alimenté",
   battery: "Batterie",
   antimatter: "Antimatière",
   ascendency: "Ascendance",

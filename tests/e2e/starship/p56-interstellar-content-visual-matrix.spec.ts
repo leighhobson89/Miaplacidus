@@ -5,6 +5,7 @@ import {
   type Page,
   type TestInfo,
 } from "../_harness/fixtures";
+import { confirmStarshipWarEntry } from "../_harness/war-mode";
 import { GALAXY_SEED_DEFAULT, LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
 import { THEME_IDS, type ThemeId } from "../../../src/content/themes";
 import { createStarCatalogue, distanceBetweenStars } from "../../../src/content/starCatalogue";
@@ -265,7 +266,7 @@ async function prepareColoniseBattle(page: Page, state: ColoniseState): Promise<
   const starship = page.getByTestId("starship-pane");
   if (state === "idle") return;
 
-  await starship.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(starship);
   await expect(starship.getByTestId("starship-war-mode")).toBeVisible();
   await starship.getByTestId("starship-battle-engage-button").click();
   await expect

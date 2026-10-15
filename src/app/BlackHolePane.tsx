@@ -191,6 +191,7 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
       ) : !hole.researched ? (
         <div className="black-hole-research" data-testid="black-hole-research">
           <p>{points}</p>
+          <div className="black-hole-interaction-help">{copy.interactionHelp}</div>
           <div className="space-action-help-group">
             <button
               type="button"
@@ -223,6 +224,8 @@ export function BlackHolePane({ state, store }: BlackHolePaneProps) {
       ) : (
         <>
           <p className="black-hole-summary">{copy.researched}</p>
+          <p className="black-hole-interaction-help">{copy.interactionHelp}</p>
+          <p className="black-hole-stats-help">{copy.statsHelp}</p>
           <dl className="black-hole-stats">
             <div>
               <dt>{copy.power}</dt>

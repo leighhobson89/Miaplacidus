@@ -38,6 +38,7 @@ import { MEGASTRUCTURE_TECHNOLOGY_IDS, TECHNOLOGY_CATALOG } from "../content/tec
 import { TECHNOLOGY_NAMES } from "../content/technologyNames";
 import { ECONOMY_BUILDING_NAMES } from "../content/economyBuildingNames";
 import { TECHNOLOGY_DESCRIPTIONS } from "../content/technologyDescriptions";
+import { technologySummary } from "../content/technologySummaries";
 import { starTypeForSystem } from "../content/starCatalogue";
 import { oTypePowerPlantMultiplier } from "../content/starTypeRules";
 import {
@@ -45,7 +46,10 @@ import {
   economyLabel,
   formatEconomyMessage,
 } from "../i18n/economyMessages";
+import { allocationTooltipMessages } from "../i18n/allocationTooltipMessages";
+import { resourceAllocationBreakdownCopy } from "../i18n/resourceAllocationBreakdownMessages";
 import { economyActionHelp } from "../i18n/economyActionHelpMessages";
+import { economyAutobuyerName } from "../i18n/economyAutobuyerNameMessages";
 import { researchActionHelp } from "../i18n/researchActionHelpMessages";
 import { translate } from "../i18n/messages";
 import { checkPreconditions, type CommandFailure } from "../engine/commands";
@@ -63,6 +67,9 @@ import { EconomicGoodEmblem } from "./EconomicGoodEmblem";
 import { EconomyStructureEmblem } from "./EconomyStructureEmblem";
 import { PageArtworkRow } from "./PageArtworkRow";
 import { InfoTooltip } from "./InfoTooltip";
+import { ResourceAllocationBreakdownTooltip } from "./ResourceAllocationBreakdownTooltip";
+import { compoundAutoCreateStatus, compoundsUsingMaterial } from "./compoundAutoCreateStatus";
+import { resourceAllocationBreakdown } from "./resourceAllocationBreakdown";
 import { economyGoodName, economyGoodPageTitle } from "./economyDisplay";
 import { RESOURCE_PANE_ORDER } from "./presentationNavigation";
 import { useGameNotifications } from "./NotificationStack";
@@ -228,6 +235,16 @@ function EconomicGoodHero({
             {format(state, Math.abs(rate), 2)}
             <small>{SYMBOL[id]}/s</small>
           </strong>
+          {MATERIAL_IDS.includes(id as MaterialId) && (
+            <ResourceAllocationBreakdownTooltip goodId={id as MaterialId} state={state} />
+          )}
+          {COMPOUND_IDS.includes(id as (typeof COMPOUND_IDS)[number]) && (
+            <CompoundProductionRateTooltip
+              goodId={id as (typeof COMPOUND_IDS)[number]}
+              rate={rate}
+              state={state}
+            />
+          )}
           {blocked && (
             <p className="red-disabled-text" data-testid={`production-blocked-${id}`}>
               {t("automaticProductionBlockedByStorage")}
@@ -237,6 +254,52 @@ function EconomicGoodHero({
       </div>
       {children}
     </div>
+  );
+}
+
+function CompoundProductionRateTooltip({
+  goodId,
+  rate,
+  state,
+}: {
+  readonly goodId: (typeof COMPOUND_IDS)[number];
+  readonly rate: number;
+  readonly state: GameState;
+}) {
+  const locale = state.settings.locale;
+  const copy = resourceAllocationBreakdownCopy(locale);
+  const sign = rate >= 0 ? "+" : "−";
+  const signedRate = `${sign}${format(state, Math.abs(rate), 2)} ${economyLabel(locale, "perSecond")}`;
+  const storageLine = copy.storage.split("{rate}").join(signedRate);
+  const autoCreateEnabled = state.run.economy.autoCreateEnabled[goodId];
+  const autoCreate = compoundAutoCreateStatus(state, goodId);
+  const autoCreateRate = `${format(state, autoCreate.rate)} ${economyLabel(locale, "perSecond")}`;
+  return (
+    <InfoTooltip
+      id={`compound-${goodId}-production-storage`}
+      label={`${name(locale, goodId)} — ${copy.heading}`}
+      content={
+        <div className="compound-production-rate-tooltip">
+          <p data-testid={`compound-${goodId}-production-storage-line`}>{storageLine}</p>
+          {autoCreateEnabled && (
+            <>
+              <p
+                className={autoCreate.rate > 0 ? "green-ready-text" : "red-disabled-text"}
+                data-testid={`compound-${goodId}-auto-create-rate-line`}
+              >
+                {copy.autoCreationLabel} {autoCreateRate}
+              </p>
+              {autoCreate.throttledBy && (
+                <p data-testid={`compound-${goodId}-auto-create-throttled-by-line`}>
+                  {copy.throttledBy.replace("{resource}", name(locale, autoCreate.throttledBy))}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      }
+      testId={`compound-${goodId}-production-storage`}
+    />
   );
 }
 
@@ -254,6 +317,8 @@ function GoodStorageCard({
   const t = (key: Parameters<typeof economyLabel>[1]) => economyLabel(locale, key);
   const good = state.run.goods[id];
   const storageHelp = economyActionHelp(locale, id, "storage");
+  const storageActionLabel =
+    id === "water" ? t("enlargeReservoir") : t("increaseStorage");
   const storage = selectEconomyAction(state, { type: "storage.purchase", goodId: id });
   const storageReason = economyActionReason(state, storage.failure);
   const efficientStoragePurchases = permanentPerkPurchaseCount(
@@ -287,7 +352,7 @@ function GoodStorageCard({
       </div>
       <div className="card-copy">
         <h3 id={titleId}>
-          {t("storage")}
+          {t(id === "water" ? "enlargeReservoir" : "storage")}
           <span className="sr-only">: {name(locale, id)}</span>
         </h3>
         {storageHelp && (
@@ -301,7 +366,7 @@ function GoodStorageCard({
         </p>
         <span className="cost-line" id={costId}>
           <span className="sr-only">
-            {t("increaseStorage")} {name(locale, id)}: {" "}
+            {storageActionLabel} {name(locale, id)}: {" "}
           </span>
           <strong>
             {format(state, storagePurchaseCost(good.storageCapacity))} {SYMBOL[id]}
@@ -324,7 +389,7 @@ function GoodStorageCard({
           aria-describedby={purchaseDescription}
           onClick={() => dispatchEconomyStoragePurchase(store, id, notify)}
         >
-          {t("increaseStorage")}
+          {storageActionLabel}
         </button>
         <span className="control-reason" id={reasonId}>
           {storageReason ?? ""}
@@ -712,6 +777,10 @@ export function HydrogenAllocationControls({
   return <AllocationControls id="hydrogen" state={state} store={store} />;
 }
 
+export function HydrogenAllocationBreakdownTooltip({ state }: { readonly state: GameState }) {
+  return <ResourceAllocationBreakdownTooltip goodId="hydrogen" state={state} />;
+}
+
 export function HydrogenFusionDetails({
   state,
   store,
@@ -771,6 +840,7 @@ function ResourceAutobuyerTiers({
           const autobuyerHelp = economyActionHelp(locale, id, "autobuyer", {
             tier: tier as 1 | 2 | 3 | 4,
           });
+          const autobuyerName = economyAutobuyerName(locale, id, tier as 1 | 2 | 3 | 4);
           const purchaseCommand = {
             type: "economy.autobuyer.purchase" as const,
             goodId: id,
@@ -798,7 +868,8 @@ function ResourceAutobuyerTiers({
           return (
             <div className="economy-tier" key={tier}>
               <span id={summaryId}>
-                {t("buyTier")} {tier}: {format(state, owned)} · +{format(state, effectiveRate, 2)}/s
+                {autobuyerName} · {t("buyTier")} {tier}: {t("quantity")}: {format(state, owned)} · +
+                {format(state, effectiveRate, 2)} {t("perSecondShort")}
               </span>
               {autobuyerHelp && (
                 <p className="economy-action-description" id={helpId}>
@@ -1045,6 +1116,42 @@ function AllocationControls({
   const available = isPerkAvailable(state, 1);
   const compoundBoundary = allocation.cashShare + allocation.compoundShare;
   const retained = Math.max(0, 100 - allocation.cashShare - allocation.compoundShare);
+  const allocationTooltip = allocationTooltipMessages(locale, {
+    cashPercent: allocation.cashShare,
+    compoundPercent: allocation.compoundShare,
+    storagePercent: retained,
+  });
+  const compoundIdsUsingResource = compoundsUsingMaterial(state, id);
+  const activeCompoundConsumers = compoundIdsUsingResource.filter(
+    (compoundId) => state.run.economy.autoCreateEnabled[compoundId],
+  );
+  const idleCompoundConsumers = compoundIdsUsingResource.filter(
+    (compoundId) => !state.run.economy.autoCreateEnabled[compoundId],
+  );
+  const resourceBreakdown = resourceAllocationBreakdown(state, id);
+  const compoundOffRate =
+    ((resourceBreakdown?.allocatable ?? 0) * allocation.compoundShare) / 100;
+  const compoundOffMessage = allocationTooltip.compoundOff
+    .replace(
+      "{compounds}",
+      idleCompoundConsumers.map((compoundId) => name(locale, compoundId)).join(", "),
+    )
+    .replace(
+      "{rate}",
+      `${format(state, compoundOffRate)} ${economyLabel(locale, "perSecond")}`,
+    );
+  const throttledCompoundMessages = activeCompoundConsumers.flatMap((compoundId) => {
+    const throttledBy = compoundAutoCreateStatus(state, compoundId).throttledBy;
+    if (!throttledBy || throttledBy === id) return [];
+    return [
+      {
+        compoundId,
+        message: allocationTooltip.compoundThrottled
+          .replace("{compound}", name(locale, compoundId))
+          .replace("{resource}", name(locale, throttledBy)),
+      },
+    ];
+  });
   const trackRef = useRef<HTMLFieldSetElement>(null);
   const draggingHandle = useRef<0 | 1 | null>(null);
   const helpId = `allocation-help-${id}`;
@@ -1143,6 +1250,46 @@ function AllocationControls({
   return (
     <details className="economy-details">
       <summary>{t("allocation")}</summary>
+      <InfoTooltip
+        id={`resource-${id}-allocation-tooltip`}
+        label={`${t("allocation")} ${name(locale, id)} — ${allocationTooltip.sliderHeading}`}
+        content={
+          <div className="allocation-tooltip-copy">
+            <strong>{allocationTooltip.sliderHeading}</strong>
+            <p>{allocationTooltip.introduction}</p>
+            <ul>
+              <li>{allocationTooltip.cash}</li>
+              <li>{allocationTooltip.compounds}</li>
+              <li>{allocationTooltip.storage}</li>
+            </ul>
+            <p>{allocationTooltip.cashHandle}</p>
+            <p>{allocationTooltip.cashOff}</p>
+            <p>{allocationTooltip.compoundHandle}</p>
+            <p>{allocationTooltip.compoundFallback}</p>
+            {allocation.enabled &&
+              allocation.compoundShare > 0 &&
+              activeCompoundConsumers.length === 0 &&
+              idleCompoundConsumers.length > 0 && (
+                <p data-testid={`allocation-tooltip-compound-off-${id}`}>
+                  {compoundOffMessage}
+                </p>
+              )}
+            {throttledCompoundMessages.map(({ compoundId, message }) => (
+              <p
+                key={compoundId}
+                data-testid={`allocation-tooltip-compound-throttled-${id}-${compoundId}`}
+              >
+                {message}
+              </p>
+            ))}
+            <p>{allocationTooltip.breakdownHint}</p>
+            {state.run.goods[id].quantity >= state.run.goods[id].storageCapacity && (
+              <p>{allocationTooltip.storageFull}</p>
+            )}
+          </div>
+        }
+        testId={`resource-${id}-allocation-tooltip`}
+      />
       {!available && (
         <p id={lockReasonId}>
           {t("lockedBy")}: {t("nanoBrokersRequirement").replace("{level}", "I")}
@@ -1189,7 +1336,7 @@ function AllocationControls({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={allocation.cashShare}
-            aria-valuetext={`${t("cashShare")}: ${allocation.cashShare}%`}
+            aria-valuetext={`${allocationTooltip.cashHandleLabel}: ${allocation.cashShare}%`}
             style={{ left: `${allocation.cashShare}%` }}
             onKeyDown={(event) => handleSliderKeyDown(0, event)}
           />
@@ -1206,7 +1353,7 @@ function AllocationControls({
             aria-valuemin={allocation.cashShare}
             aria-valuemax={100}
             aria-valuenow={compoundBoundary}
-            aria-valuetext={`${t("compoundShare")}: ${allocation.compoundShare}%`}
+            aria-valuetext={`${allocationTooltip.compoundHandleLabel}: ${allocation.compoundShare}%`}
             style={{ left: `${compoundBoundary}%` }}
             onKeyDown={(event) => handleSliderKeyDown(1, event)}
           />
@@ -1856,6 +2003,7 @@ function CompoundAutobuyerDetails({
         const autobuyerHelp = economyActionHelp(locale, id, "autobuyer", {
           tier: tierNumber,
         });
+        const autobuyerName = economyAutobuyerName(locale, id, tierNumber);
         const purchaseCommand = {
           type: "economy.autobuyer.purchase" as const,
           goodId: id,
@@ -1883,7 +2031,8 @@ function CompoundAutobuyerDetails({
         return (
           <div className="economy-tier" key={tier}>
             <span id={summaryId}>
-              {t("buyTier")} {tier}: {format(state, owned)} · +{format(state, effectiveRate, 2)}/s
+              {autobuyerName} · {t("buyTier")} {tier}: {t("quantity")}: {format(state, owned)} · +
+              {format(state, effectiveRate, 2)} {t("perSecondShort")}
             </span>
             {autobuyerHelp && (
               <p className="economy-action-description" id={helpId}>
@@ -2282,6 +2431,7 @@ function TechnologyPrerequisiteTree({
                             .join(" ") || t("lockedBy"));
                     const technologyLabel = techName(locale, technology.id);
                     const description = TECHNOLOGY_DESCRIPTIONS[technology.id][locale];
+                    const summary = technologySummary(locale, technology.id);
                     const tooltipDescription = description.replace(/\s*\/\s*\/\s*/g, "\n");
                     const prerequisites = technology.requires.length
                       ? technology.requires.map((required) => techName(locale, required)).join(", ")
@@ -2332,6 +2482,7 @@ function TechnologyPrerequisiteTree({
                           </span>
                           <span className="technology-map-tooltip" id={tooltipId} role="tooltip">
                             <strong>{technologyLabel}</strong>
+                            <span className="technology-map-tooltip-summary">{summary}</span>
                             <span className="technology-map-tooltip-description">
                               {tooltipDescription}
                             </span>

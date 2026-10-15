@@ -149,10 +149,26 @@ Cosmic Forge registers `infoTooltipRebirthLiquidation` but no source renderer
 uses its ID. The target places the related action in the Galactic > Rebirth
 child: the asset-liquidation card displays a live liquidation value/AP preview, and its
 localized confirmation prompt states that conversion uses the current AP
-price. There is no source-style tooltip repeating the base-rate and rounding
-formula. The existing E-57 Market locale case verifies preview and dialog copy
+price. The source UI has no formula-tooltip callsite; MIAPLACIDUS supplies that
+calculation help beside the action as described in the Phase 7 route below. The
+existing E-57 Market locale case verifies preview and dialog copy
 in all six locales at 320px/390px; the source/target distinction is recorded
 in the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+
+### Phase 7 liquidation calculation-help route
+
+Cosmic Forge `descriptions.js` registers `infoTooltipRebirthLiquidation`, but
+searching the active source renderers finds no matching `info_rebirthLiquidation`
+trigger. MIAPLACIDUS adapts that source-key topic to the visible calculation
+tooltip beside the liquidation action in Galactic > Rebirth:
+`metaMessages.ts#liquidationHelp`, rendered by `AssetLiquidationCard.tsx`. This
+tooltip explains current per-unit resource/compound value, cash at one tenth,
+division by the current AP purchase price, and rounding down. The separate
+source-action tooltip `marketMessages.ts#MARKET_SOURCE_HELP.liquidation` remains
+beside the same Rebirth action, including its once-per-run wording; it is not
+the formula-help destination. `p7-rebirth-liquidation-source-tooltip-locales.spec.ts`
+checks the formula tooltip and its Rebirth ownership in all six locales. It is
+**AUTHORED, NOT RUN** for Phase 8 V-59.
 
 ## P-56 Galactic Market content visual matrix (10 October 2026)
 
@@ -252,3 +268,73 @@ now waits for the native close event and verifies the next queued result or
 drained state. Playwright reports and any failure artifacts are under
 `%TEMP%\miaplacidus-playwright-2026-10-14T20-18-57-152Z` and
 `%TEMP%\miaplacidus-playwright-2026-10-14T20-20-08-471Z` respectively.
+
+## Phase 7 Galactic child title and description routing — NOT RUN
+
+`p7-galactic-child-copy-locales.spec.ts` uses the `meta-galactic-identity-matrix`
+fixture and checks the Galactic tab overview plus all six source-owned child
+pages in English, Spanish, Portuguese, German, Italian, and French. Cosmic
+Forge's `../cosmicForge/cosmicForge/index.html` identifies Galactic with
+`tabHeaderGalactic` and its children with `headerMainRebirth` (option1),
+`headerMainGalacticMarket` (option2), `headerMainAscendencyPerks` (option3),
+`headerMainMegastructures` (option4), `headerMainBlackHole` (option5), and
+`headerMainGalacticCasino` (option6). The current owner-directed navigation
+keeps Casino as its own child after Market; the separate `GalacticCasinoPane`
+route remains distinct from Market. The existing
+`tests/e2e/localization/p7-navigation-label-routing.spec.ts` checks the child
+IDs and source option identities.
+
+The page-copy targets are `tab.galaxy` and `economyLabel(...,
+"galacticOverviewHelp")` for `headerDescGalactic`; `rebirthText(..., "title")`,
+`metaText(..., "rebirthOverview")`, and `metaText(...,
+"rebirthMegastructureWarning")` for `headerMainRebirth`, `headerDescRebirth`,
+and `headerDescRebirthMega`; `marketText(..., "heading"|"description")` for
+the Market title and `headerDescGalacticMarket`; `casinoText(..., "title"|"headerHelp")`
+and `casinoHeaderDescription(...)` for the Casino title, source Casino info
+tooltip, and `headerDescGalacticCasino`; `metaText(...,
+"perksTitle"|"perksOverview")` for Ascendency Perks and
+`headerDescAscendencyPerks` (its AP balance is shown in the separate AP card);
+`megastructureText(...).title|headerHelp` for Megastructures and
+`headerDescMegastructures`; and `blackHoleText(...).title|headerHelp` for Black
+Hole and `headerDescBlackHole`. Active renderers are `App.tsx` routing to
+`RebirthPane`, `GalacticMarketPane`, `GalacticCasinoPane`, `AscendencyPane`,
+`MegastructurePane`, or `BlackHolePane`. All mapped title/help catalogues have
+explicit en/es/pt/de/it/fr entries; static comparison found no missing values
+requiring an application-copy change.
+
+The new selected-locale route spec asserts page headings and descriptions/help
+through the visible controls, including the megastructure-run Rebirth warning.
+It is authored and **NOT RUN**; no test, build, typecheck, formatter, or browser
+check was run for this Phase 7 slice.
+
+The same selected-locale spec now checks Cosmic Forge's eight Market bias and
+outlook fields through the dynamic Market help tooltip, the trade and AP-sale
+help routes, and the Rebirth liquidation help route. Source liquidation's
+already-used variant remains attached to the active one-per-run state. All
+assertions are **NOT RUN** for Phase 8 V-59.
+
+## Phase 7 Galactic Market row labels — AUTHORED, NOT RUN
+
+The same six-locale `p7-galactic-child-copy-locales.spec.ts` now checks the
+active Galactic Market child controls and summary against the localized
+`tradeRow`, `quantity`, `confirmRowLabel`, and `sellAp` fields in
+`metaMessages.ts`. These are the active renderings for Cosmic Forge's
+`tab7TradeRowLabel`, `tab7QuantityRowLabel`, `tab7ConfirmRowLabel`, and
+`tab7SellApRowLabel`: outgoing-good selector label, quantity input label,
+trade confirmation summary label, and AP-sale section/control label. Casino's
+`tab7PurchaseCpRowLabel` remains owned by the separate Galactic Casino child
+and its Casino spec. The additions are **AUTHORED, NOT RUN**; no tests, build,
+typecheck, formatter, or browser checks were run for this coverage.
+
+## Phase 7 Rebirth row-description route — AUTHORED, NOT RUN
+
+Cosmic Forge's `descriptions.js#rebirthContent1` is the active description for
+the Rebirth action row: `drawTab7Content.js` creates `rebirthRow`, and
+`ui.js#createOptionRow` renders that description from the row's content record.
+The remake now gives the same source concept a separate help tooltip beside the
+Rebirth action in `AscendencyPane.tsx`, using the six-locale
+`metaMessages.ts#rebirthSourceHelp` copy. This stays distinct from the Rebirth
+page overview and the confirmation dialog's more detailed reset summary.
+`p7-rebirth-source-help-locales.spec.ts` checks the active tooltip and its
+accessible relationship in all six locales. This coverage is AUTHORED, NOT
+RUN; no tests, build, typecheck, formatter, or browser checks were run.

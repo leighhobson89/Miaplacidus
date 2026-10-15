@@ -21,6 +21,11 @@ import {
   spaceNotificationText,
   type SpaceNotificationMessageKey,
 } from "../i18n/spaceNotificationMessages";
+import type { RandomEventDialogCopy } from "../i18n/randomEventDialogTypes";
+import {
+  galacticTabUnlockDialog,
+  oTypeStarReachedDialog,
+} from "../i18n/spaceProgressionDialogMessages";
 import type { GameNotificationType } from "./NotificationStack";
 
 export type SpaceNotificationClassification =
@@ -131,6 +136,7 @@ export function createSpaceEventNoticeHandler(
   getState: () => GameState,
   notify: (notice: SpaceEventNotice) => void,
   markOTypeArrivalNarrativeNotified?: (systemId: SystemId) => void,
+  enqueueProgressionDialog?: (dialog: RandomEventDialogCopy, onConfirm?: () => void) => void,
 ): (events: readonly EngineEvent[]) => void {
   const initialWeather = getState().run.space;
   let previousWeatherSystemId = initialWeather.weatherSystemId;
@@ -148,19 +154,36 @@ export function createSpaceEventNoticeHandler(
         previousWeatherCondition = event.condition;
         if (!changed) continue;
       }
-      if (state.settings.notificationsEnabled === false) continue;
       const locale = getLocale();
-      const notice = spaceEventNotice(locale, event, state);
-      if (notice) notify(notice);
-      if (event.type === "space.starship.arrived" && state.permanent.rebirthCount === 0) {
-        notify(formatNotice(locale, "galacticTabUnlocked", "special", "warning"));
+      const notificationsEnabled = state.settings.notificationsEnabled !== false;
+      if (notificationsEnabled) {
+        const notice = spaceEventNotice(locale, event, state);
+        if (notice) notify(notice);
       }
-      if (
-        event.type === "space.starship.arrived" &&
-        starTypeForSystem(event.systemId) === "O" &&
-        !state.permanent.oTypeArrivalNarrativesNotifiedSystemIds.includes(event.systemId)
-      ) {
-        markOTypeArrivalNarrativeNotified?.(event.systemId);
+      if (event.type === "space.starship.arrived") {
+        if (state.permanent.rebirthCount === 0) {
+          if (enqueueProgressionDialog) {
+            enqueueProgressionDialog(galacticTabUnlockDialog(locale), () => {
+              if (notificationsEnabled)
+                notify(formatNotice(locale, "galacticTabUnlocked", "special", "warning"));
+            });
+          } else if (notificationsEnabled) {
+            notify(formatNotice(locale, "galacticTabUnlocked", "special", "warning"));
+          }
+        }
+        if (
+          starTypeForSystem(event.systemId) === "O" &&
+          !state.permanent.oTypeArrivalNarrativesNotifiedSystemIds.includes(event.systemId)
+        ) {
+          if (enqueueProgressionDialog) {
+            enqueueProgressionDialog(
+              oTypeStarReachedDialog(locale, systemName(event.systemId)),
+              () => markOTypeArrivalNarrativeNotified?.(event.systemId),
+            );
+          } else if (notificationsEnabled) {
+            markOTypeArrivalNarrativeNotified?.(event.systemId);
+          }
+        }
       }
     }
   };

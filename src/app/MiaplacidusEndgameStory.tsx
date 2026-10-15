@@ -39,7 +39,7 @@ export function MiaplacidusEndgameStory({ state, store }: MiaplacidusEndgameStor
           .replace("{current}", String(page + 1))
           .replace("{total}", String(text.pages.length))}
       </p>
-      <h2 id="miaplacidus-story-title">{text.title}</h2>
+      <h2 id="miaplacidus-story-title">{text.pageTitles[page]}</h2>
       <div className={`miaplacidus-story-scene scene-${page + 1}`} aria-hidden="true">
         <span className="miaplacidus-story-world" />
         <span className="miaplacidus-story-rift" />
@@ -57,7 +57,7 @@ export function MiaplacidusEndgameStory({ state, store }: MiaplacidusEndgameStor
             } else setPage((current) => Math.min(current + 1, text.pages.length - 1));
           }}
         >
-          {text.continue}
+          {complete ? text.finish : text.continue}
         </button>
       </div>
     </dialog>

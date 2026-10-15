@@ -105,7 +105,7 @@ export function AscendencyBalance({ state, locale }: Pick<Props, "state" | "loca
     },
     {
       id: "ap",
-      label: "AP",
+      label: translated(locale, "ascendencyPointsShortLabel"),
       value: state.permanent.ascendencyPoints,
       name: translated(locale, "ascendencyPointsName"),
     },
@@ -556,6 +556,7 @@ export function TopStatusBar({ state, store, locale }: Props) {
         })}
       </div>
       {power.tripped && <div>{translated(locale, "tripped")}</div>}
+      <strong>{translated(locale, "battery")}</strong>
       {batteryCapacity > 0 ? (
         <>
           <div>
@@ -719,7 +720,7 @@ export function TopStatusBar({ state, store, locale }: Props) {
       {powerUnlocked && (
         <TopStat
           id="power"
-          label={translated(locale, "power")}
+          label={translated(locale, "powered")}
           value={powerValue}
           valueClassName={powerValueClassName}
           tooltip={powerTooltip}

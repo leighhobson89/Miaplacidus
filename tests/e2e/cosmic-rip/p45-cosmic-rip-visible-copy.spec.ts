@@ -76,8 +76,8 @@ test("P-45 Cosmic Rip pages render localized visible copy in all six locales @p4
     const situation = page.locator("#panel-cosmic-rip-situation");
     await expect(situation.locator("#cosmic-rip-situation-title")).toHaveText(copy.situationTitle);
     const foundSectorId = COSMIC_RIP_SECTOR_IDS[state.permanent.cosmicRip.ripLocationSectorIndex!]!;
-    await expect(situation.locator(":scope > p").first()).toHaveText(
-      copy.locatedInSector.replace("{sector}", foundSectorId),
+    await expect(situation.getByTestId("cosmic-rip-status-row")).toHaveText(
+      `${copy.statusRowLabel} ${copy.locatedInSector.replace("{sector}", foundSectorId)}`,
     );
 
     const scannerTab = page.locator("#tab-cosmic-rip-scanner-array");
@@ -85,6 +85,7 @@ test("P-45 Cosmic Rip pages render localized visible copy in all six locales @p4
     await dismissRandomEventResultIfPresent(page);
     await scannerTab.click();
     const scanner = page.locator("#panel-cosmic-rip-scanner-array");
+    await expect(scanner.getByTestId("cosmic-rip-sectors-title")).toHaveCount(0);
     await expect(scanner.locator("#cosmic-rip-scan-title")).toHaveText(copy.scannerArrayTitle);
     await expect(scanner.locator(":scope > p").nth(0)).toHaveText(copy.scannerRestored);
     await expect(scanner.getByTestId("cosmic-rip-found-sector")).toBeVisible();
@@ -200,6 +201,7 @@ test("P-45 Cosmic Rip scan status and notices are localized in all six locales @
     const sectorIndex = emptySectorIndexes[localeIndex]!;
     await selectLocale(page, locale);
     const copy = cosmicRipText(locale);
+    await expect(scanner.getByTestId("cosmic-rip-sectors-title")).toHaveText(copy.sectorsMapTitle);
     const sector = page.getByTestId(`cosmic-rip-sector-${sectorIndex}`);
     await sector.click();
 
@@ -224,7 +226,9 @@ test("P-45 Cosmic Rip scan status and notices are localized in all six locales @
 
     await dismissRandomEventResultIfPresent(page);
     await page.locator("#tab-cosmic-rip-situation").click();
-    await expect(situation.locator(":scope > p").first()).toHaveText(copy.ripMissing);
+    await expect(situation.getByTestId("cosmic-rip-status-row")).toHaveText(
+      `${copy.statusRowLabel} ${copy.ripMissing}`,
+    );
     await dismissRandomEventResultIfPresent(page);
     await page.locator("#tab-cosmic-rip-scanner-array").click();
   }

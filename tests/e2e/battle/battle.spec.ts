@@ -1,4 +1,5 @@
 import { expect, test } from "../_harness/fixtures";
+import { confirmStarshipWarEntry } from "../_harness/war-mode";
 
 declare global {
   interface Window {
@@ -51,7 +52,7 @@ test("wins a hostile battle through the starship controls and records settlement
 }) => {
   await startBattleFixture(page, "space-battle-victory");
   const pane = page.getByTestId("starship-pane");
-  await pane.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(pane);
   await pane.getByTestId("starship-battle-engage-button").click();
   await advanceBattle(page);
 
@@ -95,7 +96,7 @@ test("retains the starship and surviving enemy after defeat, then retries with r
   const destinationBefore = await page.evaluate(
     () => window.miaplacidusTest!.getState().run.space.starship.destinationSystemId,
   );
-  await pane.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(pane);
   await pane.getByTestId("starship-battle-engage-button").click();
   await advanceBattle(page);
 
@@ -120,7 +121,7 @@ test("retains the starship and surviving enemy after defeat, then retries with r
   expect(rebuilt.run.space.systemEncounters[0]?.battle.playerHealthPool.scout).toBe(100);
 
   await page.getByRole("tab", { name: "Colonise" }).click();
-  await pane.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(pane);
   await pane.getByTestId("starship-battle-engage-button").click();
   const retry = await page.evaluate(() => window.miaplacidusTest!.getState());
   expect(retry.run.space.systemEncounters[0]?.battle.phase).toBe("inProgress");
@@ -173,7 +174,7 @@ test("does not synthesize explosion cues from aggregate casualties without rende
     window.__battleAudioSources!.length = 0;
   });
   const pane = page.getByTestId("starship-pane");
-  await pane.getByTestId("starship-enter-war-button").click();
+  await confirmStarshipWarEntry(pane);
   await pane.getByTestId("starship-battle-engage-button").click();
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(1_000));
 

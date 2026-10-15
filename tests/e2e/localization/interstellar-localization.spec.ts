@@ -41,6 +41,24 @@ test("sweeps map, stable star names, telescope, fleet, and battle UI in all loca
     await expect(
       map.getByRole("searchbox", { name: starMapText(locale, "searchLabel") }),
     ).toBeVisible();
+    const mapModes = map.getByRole("group", { name: starMapText(locale, "mapModesLabel") });
+    for (const key of [
+      "mapModeNormal",
+      "mapModeDistance",
+      "mapModeStudied",
+      "mapModeInRange",
+    ] as const) {
+      await expect(mapModes.getByRole("button", { name: starMapText(locale, key) })).toBeVisible();
+    }
+    const mapModesHelpTrigger = map.getByTestId("star-map-modes-help-trigger");
+    await expect(mapModesHelpTrigger).toHaveAttribute(
+      "aria-label",
+      `${starMapText(locale, "mapModesLabel")} — ${starshipText(locale, "scanMoreInfoLabel")}`,
+    );
+    await mapModesHelpTrigger.focus();
+    await expect(map.getByTestId("star-map-modes-help")).toHaveText(
+      starMapText(locale, "mapModesHelp"),
+    );
     await expect(
       map.getByTestId("star-selection").getByRole("heading", { name: "Sirius" }),
     ).toBeVisible();

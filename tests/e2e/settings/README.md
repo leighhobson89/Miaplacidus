@@ -1316,3 +1316,252 @@ assertion changes were needed.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6512'; npm.cmd run test:e2e:focused -- tests/e2e/settings/phase6-tab-layout.spec.ts --project=chrome --grep 'Settings pages use the requested artwork, headings, and inline save controls' --workers=1 --retries=0 --trace=off --reporter=line --update-snapshots --output="$env:TEMP\miaplacidus-settings-p66-update-6512"
 $env:MIAPLACIDUS_TEST_PORT='6513'; npm.cmd run test:e2e:focused -- tests/e2e/settings/phase6-tab-layout.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-settings-p66-no-update-6513"
 ```
+
+## Phase 8 V-59: Saving & Loading locale and layout matrix
+
+[`p7-saving-loading-route-locales.spec.ts`](p7-saving-loading-route-locales.spec.ts) is authored-only Phase 8 V-59 coverage: it checks localized controls and interval options across all six locales, nine themes and 320, 390, 768 and 1280px widths, plus a 125% root-font-size submatrix at 320 and 390px. Both matrices check panel containment and horizontal page overflow.
+
+Status: **NOT RUN**. No tests, build, or typecheck were run for this coverage addition.
+
+## Phase 7: Settings destination and locale-name routes
+
+[`p7-settings-destination-locales.spec.ts`](p7-settings-destination-locales.spec.ts) is
+authored-only coverage for the visible Settings route labels and page titles.
+Across all six locales, it checks the source order and IDs for the six retained
+destinations (Achievements `option10`, Events `option14`, Statistics
+`option8`, Visual `option1`, Game Options `option3`, and Saving / Loading
+`option2`), then opens each destination and checks its localized heading. It
+also checks all six language names and the selected locale value in Game
+Options. Contact `option9`, the seven Miaplaedia documents, and Electron-only
+Exit Game `option15` remain outside these six Settings routes.
+
+The target Settings navigation preserves the two source index.html category
+headings without adding destinations: Achievements, Events, and Statistics are
+grouped under `categoryAchievementsAndStats`; Visual, Game Options, and Saving
+/ Loading are grouped under `categoryOptions`. The localized target group labels
+come from `settingsText(locale, "achievementsAndStatsSection")` and
+`settingsText(locale, "optionsSection")` in `settingsMessages.ts`. The route
+spec asserts the group labels, source option IDs, destination labels, and page
+headings across all six locales.
+
+Source evidence: [`drawTab9Content.js`](../../../../cosmicForge/cosmicForge/drawTab9Content.js)
+routes the Settings headings to their content, and
+[`localization.json`](../../../../cosmicForge/cosmicForge/localization.json)
+provides `headerMainAchievements`, `headerMainEvents`, `headerMainStatistics`,
+`headerMainVisual`, `headerMainGameOptions`, and `headerMainSavingLoading` in
+each supported language. The source language dropdown's six native names are
+listed in `drawTab9Content.js`. Target route labels use `settingsPaneItems()`;
+the page titles use `achievementText(locale, "title")`,
+`metaSignalText(locale, "title")`, `settingsSectionName()` for Events,
+Statistics, Visual and Game Options, and `settingsText(locale, "savingSection")`.
+Language names are rendered from `SettingsPane.tsx`'s `localeNames` map.
+
+Status: **NOT RUN** for Phase 7. Phase 8 owns execution. No tests, browser,
+build, typecheck, or format command was run for this coverage addition.
+
+## Phase 7: selected-locale Settings preference and help copy
+
+[p7-settings-preference-copy-locales.spec.ts](p7-settings-preference-copy-locales.spec.ts)
+checks the visible Visual and Game Options preference labels, descriptions,
+theme option names, Settings help tooltips, and selected language route against
+the active locale for all six locales. It changes and restores the currency
+choice and visible non-audio toggles. It does not exercise fullscreen or the
+audio playback toggles.
+
+The same six-locale pass asserts the Settings navigation label and tab overview
+description, then checks the Settings pane title and introduction. Cosmic Forge
+maps headerMainSettings in ui.js and headerDescSettings in descriptions.js.
+The remake maps these to translate(locale, "tab.settings"),
+economyLabel(locale, "settingsOverviewHelp"), settingsText(locale, "title"),
+and settingsText(locale, "description") in App.tsx and SettingsPane.tsx.
+All six source values are populated, and the inspected target catalogues carry
+the corresponding non-empty values.
+
+Source mappings were checked in read-only
+[drawTab9Content.js](../../../../cosmicForge/cosmicForge/drawTab9Content.js),
+[descriptions.js](../../../../cosmicForge/cosmicForge/descriptions.js), and
+[localization.json](../../../../cosmicForge/cosmicForge/localization.json).
+The source Visual rows map Theme (tab9ThemeRowLabel,
+tab9ThemeRowDescription, and dropdownTheme*), Currency
+(tab9CurrencyRowLabel and tab9CurrencyRowDescription), Notifications,
+Custom Pointer, Mouse Trail, and Weather Effects to the correspondingly named
+settingsMessages.ts fields and themeName(locale, themeId). The source
+Game Options rows map Full Screen, Language, News Ticker, Background Ambience,
+and Sound Effects to the respective settingsMessages.ts fields. The Visual
+and Game Options pane descriptions map headerDescVisual and
+headerDescGameOptions to visualDescription and gameOptionsDescription. The
+renderer paths are SettingsPane.tsx and settingsMessages.ts.
+
+The test also checks target-supplied notation choices, reduced-motion text,
+audio-volume labels, and supplemental InfoTooltip copy. These are asserted
+against the target catalogue. Cosmic Forge gates its two notation choices
+behind the debug/cheats setting, so the remake's three standard choices are
+not claimed as a match to the ordinary source page. The supplemental
+InfoTooltip copy and reduced-motion setting have no separate source keys. The
+source calls its custom cursor the Cosmic Forge cursor; the remake correctly
+names MIAPLACIDUS in its adapted text.
+
+Status: **NOT RUN**. This is Phase 7 authored-only coverage for Phase 8
+execution. No test, browser, build, typecheck, or formatter was run.
+
+## Phase 7: Settings currency choice and preference labels
+
+The all-six-locale [`p7-settings-preference-copy-locales.spec.ts`](p7-settings-preference-copy-locales.spec.ts)
+also checks every source currency choice. Cosmic Forge defines the localized
+`dropdownCurrencyDollar`, `dropdownCurrencyEuro`, `dropdownCurrencyPound`,
+`dropdownCurrencyYen`, `dropdownCurrencyRupee`, `dropdownCurrencyWon`,
+`dropdownCurrencyFranc`, and `dropdownCurrencyBitcoin` options in
+`drawTab9Content.js`. The target renders them in `SettingsPane.tsx` using
+`CURRENCY_IDS`, `CURRENCY_SYMBOLS`, and `CURRENCY_CODES` from
+`src/content/currency.ts`:
+
+| Source key | Target option | Visible target label |
+| --- | --- | --- |
+| `dropdownCurrencyDollar` | `usd` | `$ (USD)` |
+| `dropdownCurrencyEuro` | `eur` | `€ (EUR)` |
+| `dropdownCurrencyPound` | `gbp` | `£ (GBP)` |
+| `dropdownCurrencyYen` | `jpy` | `¥ (JPY)` |
+| `dropdownCurrencyRupee` | `inr` | `₹ (INR)` |
+| `dropdownCurrencyWon` | `krw` | `₩ (KRW)` |
+| `dropdownCurrencyFranc` | `chf` | `₣ (CHF)` |
+| `dropdownCurrencyBitcoin` | `btc` | `₿ (BTC)` |
+
+The test checks all eight option values and labels after selecting each of the
+six locales. The target labels use a currency symbol and stable ISO/code ID;
+Cosmic Forge uses translated currency names. The source row label, description,
+and help are already checked through `tab9CurrencyRowLabel`,
+`tab9CurrencyRowDescription`, `settingsCurrencySymbolContent1` and the target
+`currency`, `currencyDescription`, and `currencyHelpDescription` fields.
+
+That same spec covers source `tab9NotationRowLabel` and
+`tab9NotationRowDescription` through the target `notation` and
+`notationRowDescription` values, plus each visible target notation choice.
+Cosmic Forge exposes only `dropdownNotationNormalCondensed` and
+`dropdownNotationNormal` when its debug/cheats setting is enabled; the target's
+Condensed, Standard, and Scientific choices remain target-owned presentation
+options. Source `tab9ToggleNotificationsRowLabel` and
+`tab9ToggleNotificationsRowDescription` map to the localized Notifications
+label and description. The Game Options labels and descriptions map
+`tab9BackgroundAudioRowLabel`, `tab9BackgroundAudioRowDescription`,
+`tab9SfxRowLabel`, and `tab9SfxRowDescription` to the Background Audio and
+Sound Effects fields in `settingsMessages.ts`. The target adds two volume
+sliders with localized labels; Cosmic Forge has no corresponding volume
+controls.
+
+The same test maps source `settingsNotationContent1` to
+`notationHelpDescription`, and `settingsToggleNotificationsContent1` to
+`notificationsHelpDescription`. Together with `settingsCurrencySymbolContent1`
+and the three row-description keys noted above, these source instruction keys
+are checked through their visible target help or description text.
+
+The option assertions were authored for Phase 7 and are **NOT RUN**. No tests,
+browser, build, typecheck, or formatter were run for this addition.
+
+## Phase 7: Settings Events journal labels and help
+
+[`p7-settings-events-copy-locales.spec.ts`](p7-settings-events-copy-locales.spec.ts)
+checks the Settings Events page in all six selected locales. It covers the
+source Events help (`headerDescEvents`), active and history headings
+(`tab9EventsActiveTitle`, `tab9EventsHistoryTitle`), empty states
+(`tab9EventsNoneActive`, `tab9EventsNoneCompleted`), the active-until label
+(`tab9EventsColumnActiveUntil`), and the history total-duration label
+(`tab9EventsColumnTotalDuration`). The source help maps to
+`economyLabel(locale, "eventsOverviewHelp")` in the Events info tooltip;
+active/history labels and empty states map to `metaSignalText`, while the
+history duration maps to `journalLabel(locale, "totalDuration")`.
+
+Cosmic Forge also defines `tab9EventsColumnEvent` and
+`tab9EventsColumnEffect`. MIAPLACIDUS presents the event name and its
+event-specific description as paired content in each active effect and history
+entry instead of repeating those as table-column headings. The Settings locale
+spec forces a Galactic Market Lockdown and checks its localized event name and
+effect description in both visible entry types across all six locales. Target
+routes are rendered by `SettingsPane.tsx` and `MetaJournalPane.tsx`, with event
+names in `metaSignalMessages.ts` and effect descriptions in
+`randomEventDescriptionMessages.ts`.
+
+The other Tab 9 destination descriptions have separate selected-locale
+coverage: `headerDescAchievements` maps to the Achievements pane intro checked
+by [`p7-achievement-state-locales.spec.ts`](../achievements/p7-achievement-state-locales.spec.ts),
+and `headerDescStatistics` maps to the Statistics intro checked by
+[`p7-statistics-locale-routing.spec.ts`](../statistics/p7-statistics-locale-routing.spec.ts).
+The same Statistics spec checks the source group and event-row labels; the
+achievement-name locale case checks every achievement card name.
+
+Source evidence: [`drawTab9Content.js`](../../../../cosmicForge/cosmicForge/drawTab9Content.js)
+defines the Events section labels and empty rows;
+[`descriptions.js`](../../../../cosmicForge/cosmicForge/descriptions.js)
+maps `headerDescEvents`; and
+[`localization.json`](../../../../cosmicForge/cosmicForge/localization.json)
+contains the source values in all six locales. The inspected target catalogues
+also provide non-empty values in all six locales. This spec is **NOT RUN**;
+no test, browser, build, typecheck, or formatter was run for this addition.
+
+## Phase 7: Saving and Loading source-copy routes
+
+[`p7-settings-saving-copy-locales.spec.ts`](p7-settings-saving-copy-locales.spec.ts)
+checks the visible Save Manager export/import headings, fields, actions, and the
+autosave-off notification in all six locales. The active target route is
+Settings > Saving and Loading (`SettingsPane.tsx`), with controls split between
+its autosave section and the inline `SaveManager.tsx`.
+
+The source route description `headerDescSavingLoading` is defined in
+`descriptions.js` for the `saving / loading` heading and populated in all six
+`localization.json` language blocks. It maps to the target page's `.pane-intro`
+using `settingsText(locale, "savingSectionDescription")` in `SettingsPane.tsx`.
+The focused spec checks that visible description for each selected locale.
+
+Source `tab9AutoSaveRowLabel` maps to target `saveText(locale, "autoSave")`.
+Source `dropdownAutoSave2Minutes`, `dropdownAutoSave3Minutes`,
+`dropdownAutoSave5Minutes`, and `dropdownAutoSave10Minutes` lead to target
+`every5Minutes`, `every15Minutes`, `every30Minutes`, and `everyHour` labels;
+the existing [`p7-saving-loading-route-locales.spec.ts`](p7-saving-loading-route-locales.spec.ts)
+checks those selected-locale labels and target values. The source intervals are
+2, 3, 5, and 10 minutes; MIAPLACIDUS offers 5, 15, 30, and 60 minutes. Source
+`notificationAutoSaveOff` maps to target `autoSaveDisabledWarning`; the new
+Settings spec toggles autosave off and checks the visible notification per
+locale.
+
+Source `tab9ExportSaveRowLabel` maps to target `export`. The source
+`placeholderExportSaveArea` text is replaced by a read-only, already-populated
+portable-code field with the accessible name `export`. Source `buttonExport`
+maps to target clipboard action `copy`, while `buttonManualSave` maps to file
+action `download`. Source `tab9ImportSaveRowLabel` maps to `import`; its
+`placeholderImportSaveArea` is presented as the visible field label `importText`
+on the target's empty import textarea. Source `buttonManualLoad` maps to the
+target file picker label `file`. Target `buttonImport` equivalent `preview`
+validates the imported code first; the player then chooses `importNew` or
+`replace`. The focused P7 recovery spec in the
+[`save-slots` area](../save-slots/p7-save-import-recovery-locales.spec.ts)
+checks the selected-locale import error, conflict, and successful load routes.
+
+Source `notificationInvalidSaveString` maps to target `errInvalidSaveString`,
+and `notificationGameLoadedSuccessfully` maps to `loaded`. Source clipboard
+notices `notificationDataCopiedToClipboard` and
+`notificationErrorCopyingData` map to `clipboardCopied` and
+`clipboardCopyError`; the existing six-locale P-46 clipboard cases cover those
+target routes. Source `notificationErrorLoadingSaveString` also resolves to
+the target's localized invalid portable-save notice when preview decoding
+fails. `notificationNoSaveDataToExport` is used by the source Exit Game
+cloud-save branch, which has no target route.
+
+Cloud export/import rows (`tab9ExportCloudSaveRowLabel` and
+`tab9ImportCloudSaveRowLabel`), their service actions, and platform-only Exit
+Game remain excluded. Cosmic Forge's Hard Reset resolves the currently selected
+Pioneer name with `getSaveName()`, archives that one cloud row, and nulls its
+payload in `saveLoadGame.js`; it does not clear other Pioneer profiles. The
+owner-approved target adaptation maps `tab9HardResetRowLabel` to
+`saveText(locale, "delete")` and `tab9HardResetRowDescription` to
+`saveText(locale, "deletePrompt")` in the active Save Manager slot under
+Settings → Saving and Loading. Deleting the active local slot removes that
+Pioneer's progress, after which a new run can start with the same name. The
+target confirmation adds an export-first safeguard, and deletion returns to
+Pioneer selection instead of refreshing the browser. The existing six-locale
+target messages are covered by the authored-only
+[`p7-active-slot-delete-locales.spec.ts`](../save-slots/p7-active-slot-delete-locales.spec.ts)
+case; see the [Save Slots README](../save-slots/README.md#phase-7-hard-reset-adaptation-locale-coverage-authored-not-run)
+for the specific assertions and status.
+
+The extended selected-locale event name/effect coverage is **AUTHORED, NOT
+RUN**. No tests, browser, build, typecheck, or formatter were run for this
+addition.

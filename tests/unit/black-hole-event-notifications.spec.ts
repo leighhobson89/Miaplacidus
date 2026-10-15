@@ -5,7 +5,10 @@ import {
   blackHoleEventNotice,
   createBlackHoleEventNoticeHandler,
 } from "../../src/app/blackHoleEventNotifications";
-import { blackHoleWarpEndedNotification } from "../../src/i18n/blackHoleMessages";
+import {
+  blackHoleDiscoveryDialog,
+  blackHoleWarpEndedNotification,
+} from "../../src/i18n/blackHoleMessages";
 
 const SOURCE_COPY: Record<LocaleId, { readonly discovered: string; readonly charged: string }> = {
   en: {
@@ -60,6 +63,9 @@ describe("Black Hole event notifications", () => {
           classification: "special",
           type: "info",
           durationMs: 3000,
+          ...(event.type === "black-hole.discovery-checked"
+            ? { resultDialog: blackHoleDiscoveryDialog(locale) }
+            : {}),
         });
       }
     }
@@ -110,6 +116,7 @@ describe("Black Hole event notifications", () => {
         classification: "special",
         type: "info",
         durationMs: 3000,
+        resultDialog: blackHoleDiscoveryDialog("en"),
       },
       {
         route: "notification",

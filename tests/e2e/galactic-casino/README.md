@@ -85,6 +85,17 @@ $env:MIAPLACIDUS_TEST_PORT = "4215"
 npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "P-41 Casino special-prize quantities" tests/e2e/galactic-casino/galactic-casino.spec.ts
 ```
 
+## Phase 7 purchase-help locale route — AUTHORED, NOT RUN
+
+`p7-source-tooltip-locales.spec.ts` now explicitly covers Cosmic Forge
+`descriptions.js#galacticCasinoPurchaseCpContent1`. In each of the six locales,
+it focuses the purchase help trigger and checks the active tooltip text against
+`casinoMessages.ts#CASINO_SECTION_HELP[locale].purchase`, including the
+`aria-describedby` relationship. The tooltip is rendered in the purchase
+section by `GalacticCasinoPane.tsx` as `casino-purchase-source-help`. This
+addition is AUTHORED, NOT RUN; no tests, build, typecheck, formatter, or browser
+checks were run for it.
+
 **P-14 Wheel touch-action sequencing (9 October 2026):** the new Pixel 7
 touch-emulated journey checks that the special-prize selector and claim affordance
 stay unavailable while the visible wheel is spinning, then become usable after
@@ -171,7 +182,7 @@ needed.
 
 ## P-54 E-57 Casino tooltip, prices, and previews at narrow widths (10 October 2026)
 
-p54-e57-casino-locale-context.spec.ts checks every visible CP-purchase payment option at quantities 1 and 10, including the computed cost, available amount, and matching enabled/disabled state. It also checks variable Double-or-Nothing stakes, Wheel and Higher-or-Lower entry prices, all three Void Seer tier prices, translated counters/balance, and the header help tooltip at 390px and 320px in all six locales. Tooltip text and viewport bounds plus pane/document overflow are asserted. The Spanish 390px tooltip issue found during this work is fixed in GalacticCasinoPane.tsx; Spanish/390px and French/320px captures were visually reviewed. The case passed individually 1/1 in 16.5 seconds on port 4808 and in the combined installed-Chrome E-57 batch, 13/13 in 57.5 seconds on port 4809. No shared stylesheet changed.
+The former `p54-e57-casino-locale-context.spec.ts` checked visible CP-purchase options at quantities 1 and 10, computed cost and available amount, variable Double-or-Nothing stakes, Wheel and Higher-or-Lower entry prices, Void Seer tier prices, translated counters/balance, and the header help tooltip at 390px and 320px in all six locales. Its Spanish 390px tooltip issue was fixed in GalacticCasinoPane.tsx; Spanish/390px and French/320px captures were visually reviewed. That historical case passed individually 1/1 in 16.5 seconds on port 4808 and in the combined installed-Chrome E-57 batch, 13/13 in 57.5 seconds on port 4809. The former spec path is no longer present. Current related coverage lives in `p13-casino-narrow-context.spec.ts` (narrow balance/prices/actions) and `galactic-casino.spec.ts` (six-locale/theme visual matrix, header-help tooltip, and source-row help). No shared stylesheet changed.
 
 ## P-54 post-rebirth Casino clean rerun (10 October 2026)
 
@@ -329,3 +340,129 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_TEST_PORT='6460'
 npm.cmd run test:e2e:focused -- tests/e2e/galactic-casino --project=chrome --workers=1 --retries=0 --trace=retain-on-failure --reporter=line
 ```
+
+## Phase 8 V-59 warp-result locale coverage — NOT RUN
+
+`p7-warp-notification-locales.spec.ts` adds six-locale E2E cases for all four distinct results: Wheel Starship warp, Wheel Rocket warp, Hilo Starship journey finish, and Hilo Rocket journey finish. Rocket outcomes use the deterministic `meta-casino-finish-rocket-journey` fixture. Starship outcomes use `meta-megastructure-route`, then launch a Starship through the visible Star Map and Starship controls; test-gateway random draws select the required Wheel/Hilo result while the actual notice is asserted through the visible Casino flow. The new coverage is authored but NOT RUN for Phase 8 V-59; no tests, build, or typecheck were run for this change.
+
+## Phase 7 source-help locale routing — AUTHORED, NOT RUN
+
+`p7-source-tooltip-locales.spec.ts` traces Cosmic Forge's
+`infoTooltipGalacticCasinoHeader` from `descriptions.js` to the active Casino
+header tooltip (`casinoMessages.ts#headerHelp`). It also maps the registered
+`infoTooltipGalacticCasinoWheelOfFortune` copy to the remake's visible
+`casinoMessages.ts#wheelHelp`, which is associated with the Wheel prize select
+through `aria-describedby`. In the inspected source Casino DOM,
+`drawTab7Content.js` creates the header info icon but no matching Wheel info
+icon, so the remake exposes the Wheel guidance as visible accessible copy. The
+browser assertions select each of the six locales and check populated copy,
+the header tooltip route, the Wheel help text, and the select's accessible
+description. The remake keeps the Casino as a separate Galactic child page.
+The same spec checks the visible Casino section headings for Cosmic Forge's
+`tab7PurchaseCpRowLabel`, `tab7DoubleOrNothingRowLabel`,
+`tab7WheelOfFortuneRowLabel`, `tab7VisitingVoidSeerRowLabel`, and
+`tab7HigherOrLowerRowLabel`. Those source rows map to `casinoText(locale,
+"buyTitle")`, `doubleOrNothing`, `wheel`, `voidSeer`, and `higherLower` in the
+active `GalacticCasinoPane.tsx`. Casino labels remain owned by this Casino area;
+the Galactic Market row checks are documented separately in the Market README.
+This Phase 7 spec is AUTHORED, NOT RUN; no tests, build, typecheck, formatter,
+or browser checks were run for this addition.
+
+## Phase 7 Casino game and prize locale routes — AUTHORED, NOT RUN
+
+`p7-source-tooltip-locales.spec.ts` now checks the four populated source
+`galacticCasinoGame1Content1` through `galacticCasinoGame4Content1` descriptions
+on the Double or Nothing, Wheel, Higher or Lower, and Void Seer focusable help
+controls in all six locales. Their current remake routes are the corresponding
+`CASINO_SECTION_HELP` entries in `casinoMessages.ts`; Wheel and Higher or Lower
+replace the source `{price}` placeholder with their live entry prices.
+`casinoVoidSeerPrizeLabel1` through `casinoVoidSeerPrizeLabel3` appear as the
+three selectable tier names via `casinoVoidSeerPrizeName`; the remake appends
+localized cost and match-rate context in its option labels. The same spec
+checks the rendered help and tier routes in all six locales.
+
+`p7-source-prize-locales.spec.ts` checks visible pending-Wheel options for
+`casinoPrize100Cp`, `casinoPrize100kResearch`, `casinoPrizeDoubleMaterial`, and
+`casinoPrizeRocketWarp` across all six locales. The source's material template
+maps its five source choices (titanium, steel, silicon, iron, and sodium) to
+the remake's `doubleGood` string plus the selected localized economic good
+name. The remake also exposes double-good choices for other unlocked goods;
+those extra options have no matching source `casinoPrizeDoubleMaterial` choice
+and are not credited as source mappings. The active Rocket route uses
+`meta-casino-finish-rocket-journey`.
+The existing six-locale `p7-warp-notification-locales.spec.ts` also now checks
+the `casinoPrizeStarshipWarp` label on its active Starship route. The new source
+prize case is AUTHORED, NOT RUN; the label assertions added to the existing
+warp-result case are also not run.
+
+The source `casinoVoidSeerPrizeFallback1` through `casinoVoidSeerPrizeFallback3`
+keys are only used when a prize catalog item has no `labelKey`; the checked-in
+source catalog assigns `casinoVoidSeerPrizeLabel1` through `casinoVoidSeerPrizeLabel3`
+to every production tier, so those fallbacks have no normal visible route and
+are not counted as mapped.
+
+The source Wheel always lists telescope-completion prize labels. The remake
+offers each only while its corresponding Telescope timer is active. The
+`p7-telescope-prize-locales.spec.ts` cases cover all six locales with dedicated
+test fixtures for active asteroid scan, star study, and Void Pillage timers:
+`casinoPrizeTelescopeFinishAsteroidSearch` maps to
+`casinoMessages.ts#specialAsteroid`,
+`casinoPrizeTelescopeFinishStarStudy` to `#specialStarStudy`, and
+`casinoPrizeTelescopeFinishVoidPillage` to `#specialVoidPillage`. The fixtures
+reuse Casino-ready state and add one valid active survey timer per scenario;
+the Void Pillage case also selects the Voidborn philosophy required by the
+remake. The source-key options are checked through the active Wheel prize
+selector. These Phase 7 cases are AUTHORED, NOT RUN. No tests, build, typecheck,
+formatter, or browser checks were run for these additions.
+
+## Phase 7 Casino outcome and entry-error locale routes — AUTHORED, NOT RUN
+
+`p7-outcome-notification-locales.spec.ts` adds deterministic browser coverage in
+all six locales for the remaining reachable Casino notification families,
+excluding the Rocket/Starship warp notices and Telescope-completion prize
+labels covered by the neighboring Phase 7 specs. It advances only the test
+fixture RNG, then uses visible Casino controls for purchases, wagers, Wheel
+spins, and prize claims.
+
+The Double-or-Nothing cases route Cosmic Forge's
+`casinoNotificationDoubleOrNothingWin` and
+`casinoNotificationDoubleOrNothingLose` to
+`casinoMessages.ts#doubleOrNothingWinNotification` and
+`#doubleOrNothingLossNotification`. The source's invalid-stake and insufficient
+CP toasts (`casinoNotificationEnterValidStake` and
+`casinoNotificationNotEnoughCpStake`) are represented in the remake by the
+selected-locale disabled-control reasons from `casinoFailureText`; these cases
+assert the inline reasons and absence of a toast.
+
+The Wheel cases cover `casinoNotificationWheelLose`,
+`casinoNotificationWheelSpecialPrizeWin`, and every reachable regular-prize
+family: resource and compound quantities (`casinoNotificationWheelWonPrefix`),
+cash (`casinoNotificationWheelWonCashPrefix`), Research
+(`casinoNotificationWheelWonResearchPrefix`), timer reduction
+(`casinoNotificationWheelTimeReducedPrefix`,
+`casinoNotificationWheelTimeReducedMiddle`, and
+`casinoNotificationWheelTimeReducedTo`), and CP
+(`casinoNotificationWheelWonCpPrefix`). These resolve through
+`casinoEventNotifications.ts` to the six-locale Casino copy, localized good
+names, number formatting, and timer labels. The source's
+`casinoNotificationClaimPrizeBeforeSpin` and `casinoNotificationNotEnoughCpSpin`
+are kept as defensive failure-notice routes; the normal remake controls are
+disabled with localized pending-prize or insufficient-CP reasons instead of
+emitting those source toasts.
+
+Visible special claims cover `casinoNotificationSpecialPrize100Cp`,
+`casinoNotificationSpecialPrize100kResearch`, and
+`casinoNotificationSpecialPrizeDoubledPrefix` plus
+`casinoNotificationSpecialPrizeDoubledSuffix` through
+`wheelClaim100CpNotification`, `wheelClaimResearchNotification`, and the
+selected-locale good name. A non-100-CP special fallback is formatted through
+the same claim prefix plus localized CP unit, matching
+`casinoNotificationSpecialPrizeCpVariable` if such a typed award is delivered.
+The checked-in remake prize selector omits unavailable double-good prizes, so
+that fallback has no visible fixture route. `casinoNotificationWheelWonGeneric`
+has a populated `wheelGenericWinNotification` fallback, but the current reducer
+always emits one of the typed regular outcomes or the CP fallback; the E2E
+spec therefore does not inject an unreachable generic result.
+
+The new spec is AUTHORED, NOT RUN for Phase 8 V-59. No tests, build, typecheck,
+formatter, or browser checks were run for this change.

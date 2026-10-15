@@ -138,7 +138,7 @@ test("Cosmic Rip Situation, Scanner Array, and Rip have desktop and phone visual
   }
 });
 
-test("P-38 shows the source-gated next Cosmic Rip objective in six locales @p38-objectives", async ({
+test("P-38 shows the source-gated next Cosmic Rip objective in six locales @p38-objectives @p7-cosmic-rip-objective-locales", async ({
   freshGame,
 }) => {
   test.setTimeout(180_000);

@@ -1,8 +1,135 @@
-# Retired Economy E2E catchall (historical index)
+# Economy E2E index
 
-This folder has no runnable browser specs. The former `economy.spec.ts` and standalone cases have been moved into canonical feature areas. Current coverage lives in [Resources](../resources/README.md), [Compounds](../compounds/README.md), [Autobuyers](../autobuyers/README.md), [Energy](../energy/README.md), [Research](../research/README.md), [Technology](../technology/README.md), [Notifications](../notifications/README.md), [Notation](../notation/README.md), [Statistics](../statistics/README.md), [Localization](../localization/README.md), [UI Navigation](../ui-navigation/README.md), [Save/Load Local](../save-load-local/README.md), [Megastructures](../megastructures/README.md), and [Philosophies](../philosophies/README.md). Use their canonical specs and area READMEs for current commands and evidence. The folder retains 31 historical screenshot files: 24 differ from same-named canonical captures and 7 have no canonical counterpart. They are not referenced by runnable specs; 74 byte-identical duplicate files were removed after comparison.
+This folder is a retired general-purpose catchall; its current runnable specs are bounded Phase 7 locale routes for source row actions, allocation slider guidance, and autobuyer add-rate copy. The former `economy.spec.ts` and standalone cases have been moved into canonical feature areas. Current coverage lives in [Resources](../resources/README.md), [Compounds](../compounds/README.md), [Autobuyers](../autobuyers/README.md), [Energy](../energy/README.md), [Research](../research/README.md), [Technology](../technology/README.md), [Notifications](../notifications/README.md), [Notation](../notation/README.md), [Statistics](../statistics/README.md), [Localization](../localization/README.md), [UI Navigation](../ui-navigation/README.md), [Save/Load Local](../save-load-local/README.md), [Megastructures](../megastructures/README.md), and [Philosophies](../philosophies/README.md). Use their canonical specs and area READMEs for current commands and evidence. The folder retains 31 historical screenshot files: 24 differ from same-named canonical captures and 7 have no canonical counterpart. They are not referenced by runnable specs; 74 byte-identical duplicate files were removed after comparison.
 
-The material below is retained as an archive of earlier M-03 test scope, source comparisons, commands, results, and review notes. Commands shown there document past runs; paths and outcomes may no longer describe current runnable files.
+## Phase 7 Resource and Compound row-action locale route
+
+`p7-resource-row-action-locales.spec.ts` checks all six-locale target routes for
+the visible row-action families in Cosmic Forge tabs 1 and 4. The source
+localization keys are populated in all six locales; assertions compare the
+active target controls and their selected-locale action help:
+
+- Cosmic Forge `drawTab1Content.js` renders `buttonGainOne` in each Resource
+  header; MIAPLACIDUS routes collection to Hydrogen
+  `messages.ts#hydrogen.collect` or `economyMessages.ts#collect` on the other
+  seven Resource pages. Source `buttonFuse` maps to
+  `economyMessages.ts#fuse`: the fusion heading and the actual `Fuse {good}`
+  action on each of the six fusion-capable Resource pages. The six-locale spec
+  checks the heading, action, and populated labels.
+- The source keys `dropdownOptionAllStock`, `dropdownOption75Stock`,
+  `dropdownOption67Stock`, `dropdownOption50Stock`, and
+  `dropdownOption33Stock` map to the five corresponding
+  `economyMessages.ts#allStock`, `threeQuartersStock`, `twoThirdsStock`,
+  `halfStock`, and `oneThirdStock` options on the seven non-Hydrogen Resource
+  cards. Hydrogen routes its sale choices through `messages.ts#hydrogen.sell.*`
+  and currently offers All, 100, 10, and 1; Compound sale selectors expose All
+  plus fixed quantities. The four percentage choices are therefore not
+  rendered on Hydrogen or Compound routes, and no mapping is claimed there.
+- Source `buttonGain` is not a separate Resource action: `drawTab1Content.js`
+  renders `buttonGainOne`, while `onboarding.js` uses `buttonGain` only as a
+  localized text-matching needle for the old onboarding flow. The owner-directed
+  resumable tutorial has no separate Gain control, so this source key has no
+  active Resource route.
+  Hydrogen uses App.tsx-specific messages.ts#hydrogen.sell and storage keys;
+  the other seven pages use economyMessages.ts labels and EconomyPanes.tsx.
+  Sale/storage help uses
+  economyActionHelpMessages.ts#optionDesc{Good}{Sell|Storage}Content*.
+- Tab 4 source buttonTextCreate maps to the localized Create + good action.
+  Source textQuantity appears beside autobuyer building counts and maps to the
+  localized Quantity readout in each active Resource and Compound autobuyer
+  tier. The Compound creation Amount spinbutton is a separate remake control;
+  Cosmic Forge's batch presets are documented in the Compounds README. Sell
+  amount controls use the same localized sale keys. Creation, sale, and storage
+  help use economyActionHelpMessages.ts#optionDesc{Good}{Create|Sell|Storage}Content1.
+- Water uses source tab4WaterIncreaseStorageRowLabel and
+  buttonEnlargeReservoir for its storage card heading and purchase button.
+  The localized enlargeReservoir key routes both controls; the other
+  compounds use tab4IncreaseStorageRowLabel and buttonIncreaseStorage.
+
+- `drawTab1Content.js` supplies `tab1{Good}SellRowLabel` and
+  `tab1{Good}AllocateRowLabel` for Hydrogen, Helium, Carbon, Neon, Oxygen,
+  Sodium, Silicon, and Iron. Its `sellRowLabel()` selects Allocate after
+  Auto Sell unlocks. MIAPLACIDUS presents sale and production allocation as
+  separate actions: Hydrogen uses `messages.ts#hydrogen.sell`; the other
+  Resources use `economyMessages.ts#sell` plus `economyDisplay.ts` good
+  names, and the accessible allocation group uses
+  `economyMessages.ts#allocation` plus the good name.
+- The shared source `tab1IncreaseStorageRowLabel` maps to Hydrogen
+  `messages.ts#hydrogen.storage.title` / `hydrogen.storage.purchase` controls;
+  the seven other Resources use `[data-testid="storage-card-{good}"]` and
+  `economyMessages.ts#storage` / `increaseStorage`.
+- `drawTab4Content.js` supplies `labelTextCreate{Good}`,
+  `tab4{Good}SellRowLabel`, and `tab4IncreaseStorageRowLabel` for Diesel,
+  Glass, Steel, Concrete, and Titanium. MIAPLACIDUS renders Create/Sell
+  buttons from `economyMessages.ts#create` / `sell` and
+  `economyDisplay.ts` good names, with storage actions in the same storage
+  card route.
+- Water uses source `tab4WaterIncreaseStorageRowLabel` and
+  `buttonEnlargeReservoir` for its heading and purchase button. The six-locale
+  `economyMessages.ts#enlargeReservoir` value routes both; other compounds use the
+  shared `increaseStorage` action label from source `buttonIncreaseStorage`.
+
+The same six-locale row-action spec checks the active storage controls for
+these routes: source `tab1IncreaseStorageRowLabel` reaches Hydrogen's localized
+storage title and purchase control, while the other Resource cards use
+`economyMessages.ts#storage` / `increaseStorage`; Compound cards use the
+localized storage action, with Water routed through `enlargeReservoir`.
+Cosmic Forge `ui.js` binds its Resources and Compounds sell-all buttons to
+`buttonSellAll`, and its category storage buttons to
+`buttonIncreaseAllStorage`. MIAPLACIDUS maps these to
+`economyMessages.ts#sellAll` and `increaseAllStorage` in
+`EconomyPanes.tsx#EconomyBulkActions`; the spec checks the visible text and
+category-specific accessible name on the active Resources Hydrogen page and
+active Diesel Compound page in every locale.
+
+The category-name routes are already covered in all six locales by
+[`p7-navigation-label-routing.spec.ts`](../localization/p7-navigation-label-routing.spec.ts): source
+`categoryGases` and `categorySolids` map to the Resource group controls, while
+`categoryLiquids` and `categorySolids` map to Compound group controls. No
+navigation-spec change was needed. The row-action spec remains **AUTHORED, NOT
+RUN**; execution is deferred to Phase 8.
+
+The existing `full` economy fixture unlocks all eight resource pages, all six
+compound pages, and Nano Brokers III for allocation controls. It does not
+simulate those progression gates. The spec drives the actual tab controls and
+checks rendered sale, create, storage, and allocation labels in every locale,
+including that localized stock labels are populated. **AUTHORED, NOT RUN**;
+execution is deferred to Phase 8.
+
+## Phase 7 economy notification locale routes
+
+[`../notifications/p7-economy-notification-locales.spec.ts`](../notifications/p7-economy-notification-locales.spec.ts)
+checks the active `game.js#notificationStorageFull` route through
+`economyActionNotifications.ts#storageFullNotice` and its localized Increase
+Storage action across all six locales for both material and compound storage.
+It also checks the six-locale Fusion efficiency and storage-limited notice routes
+from `game.js#notificationFusionEnergyLoss` / `notificationFusionStorageLimited`
+through `EconomyPanes.tsx#fusionEfficiencyNotice` / `fusionStorageNotice`,
+including localized source/target names and formatted yields. Cosmic Forge's
+`notificationFusionDiscovered` / `notificationFusionStorageLimited` keys route
+through `fusionDiscoveredNotice` / `fusionStorageNotice` respectively. The new
+locale spec exercises efficiency-loss and storage-limited
+runtime branches in all six locales; `tests/unit/economy.spec.ts` already checks
+first-discovery template placeholders in all six locales, and the existing
+notification journey covers its English runtime route.
+
+`notificationCompoundCreatedWithWaste` is source-only as a floating notice:
+MIAPLACIDUS rejects a manual creation that would exceed compound storage and
+shows its inline inventory-full reason. Successful manual creation routes to
+`compoundCreatedNotice`, covered in all six locales by
+[`p45-compound-result-locale.spec.ts`](../compounds/p45-compound-result-locale.spec.ts).
+
+Cosmic Forge `ui.js` wires `#increaseAllStorageResourcesButton` and
+`#increaseAllStorageCompoundsButton` to `game.js#increaseAllStorage(category)`,
+which routes `notificationIncreasedAllStorage`; their shared label is
+`buttonIncreaseAllStorage`. MIAPLACIDUS renders the Resources category action
+in the Resources pane and the Compounds action in each active Compound child
+page, then routes accepted
+`storage.increased` events to `economyMessages.ts#storageIncreasedAllNotice`.
+The locale spec checks both category buttons and the exact aggregate list of
+goods whose capacities increased for every locale.
+
+The notification locale spec is **AUTHORED, NOT RUN**; run it in Phase 8.
 
 ## Historical runner commands
 
@@ -1295,3 +1422,83 @@ after the stale first-research screenshot was reviewed and refreshed from the
 current renderer. Autobuyer and research rates reached their expected values;
 the updated first-research screenshot passed a focused no-update confirmation
 (1/1).
+
+## Phase 7 resource allocation tooltip locale route
+
+[`p7-resource-allocation-tooltip-locales.spec.ts`](p7-resource-allocation-tooltip-locales.spec.ts)
+checks the active Resource allocation control in all six selected locales.
+Cosmic Forge `ui.js#buildAllocationSliderTooltip` supplies the slider heading,
+production split guidance, percentage legends, and separate cash and compound
+handle instructions. `tooltipSliderHeading` stays in that slider instruction
+tooltip; the distinct `tooltipAllocationHeading` is routed by the production
+rate breakdown documented below. MIAPLACIDUS routes the slider guidance through
+`allocationTooltipMessages.ts` and the Resource `AllocationControls` in
+`EconomyPanes.tsx`; the legend values use the control's current cash, compound,
+and retained shares. The remake also includes the source's storage-full warning
+when the current Resource stock has reached capacity. Source
+`allocationHandleCash` and `allocationHandleCompound` names are exposed in the
+active selected-locale ARIA value text while the existing stable Cash share and
+Compound share ARIA labels remain available to controls and automation. The
+copy is adapted to the remake's current slider and does not claim a
+translation-quality review.
+The all-locale E2E spec is **AUTHORED, NOT RUN**; execution is deferred to
+Phase 8.
+
+The same route covers source conditional rows: `tooltipSliderCompoundOff` names
+compounds with auto-creation disabled and the unused rate, while
+`tooltipSliderCompoundThrottled` names an enabled compound and the other
+ingredient limiting its draw. `tooltipSliderBreakdownHint` points to the
+separate Resource production-rate breakdown. Their locale templates are in
+`allocationTooltipMessages.ts`; the Resource allocation tooltip renderer uses
+the live one-second preview and active compound recipe. The spec checks the
+off and throttled branches in all six locales and is **AUTHORED, NOT RUN**.
+
+## Phase 7 Resource production-rate allocation breakdown
+
+Cosmic Forge `ui.js#setupProductionRateTooltips` attaches
+`buildProductionTooltipContent` to each Resource `{good}Rate` display;
+`buildAllocationLines` adds a separate dynamic breakdown when Auto Sell is
+unlocked or a compound is an active consumer. The MIAPLACIDUS route is the
+production-rate information button in Resource `EconomicGoodHero` and
+Hydrogen's dedicated rate readout. It uses
+`resourceAllocationBreakdownMessages.ts` and a one-second preview of the live
+economy tick to show allocatable production, accepted automatic sales, the
+compound ceiling, each compound's actual ingredient draw, the unused
+compound share, the remaining rate assigned to storage, and current
+automatic-sale income when those values apply. The current locale resolves
+compound names, rate units, and currency formatting. The ceiling-versus-draw
+rows expose when compound use is below its available share without assigning
+an unverified bottleneck cause.
+
+Source `tooltipAllocationHeading`, `tooltipAllocationAllocatable`,
+`tooltipAllocationToCash`, `tooltipAllocationCeiling`,
+`tooltipResourcesDivertedToCreate`, `tooltipAllocationToStorage`, and
+`tooltipAutoSellIncome` map to the corresponding target heading and dynamic
+rows. The unused-share line is an adaptation for the remake's separate
+allocation enable state; it describes the observed remainder without naming a
+specific limiting ingredient.
+
+The source also calls `buildAllocationLines` for Compound `{good}Rate` values,
+but there the only allocation line is `tooltipAllocationToStorage` populated
+with the net rate display; the resource-only allocatable, cash, ceiling,
+diversion, and autosell branches do not apply. This slice routes the resource
+breakdown only; the Compound production-rate breakdown remains open for
+inventory review. The focused all-six-locale spec is
+**AUTHORED, NOT RUN**; execution is deferred to Phase 8.
+
+## Phase 7 Resource and Compound autobuyer add-rate copy
+
+Cosmic Forge `drawTab1Content.js` uses `buttonAddPerSecond` for Resource
+autobuyer purchase actions and `textQuantity` for each owned-count readout.
+`drawTab4Content.js` builds Compound autobuyer purchase labels from `textAdd`,
+the Compound name, and `textPerSecond`, with `textQuantity` beside the count.
+MIAPLACIDUS routes the selected-locale Resource and Compound tier summaries
+through `EconomyPanes.tsx#ResourceAutobuyerTiers` and
+`EconomyPanes.tsx#CompoundAutobuyerDetails`: each shows
+`economyMessages.ts#quantity` and `economyMessages.ts#perSecondShort` using the
+selected locale, while the separate purchase button uses
+`economyMessages.ts#buy` and the current tier price.
+
+[`p7-autobuyer-add-rate-locales.spec.ts`](p7-autobuyer-add-rate-locales.spec.ts)
+checks the active Hydrogen and Diesel tier controls in all six locales. It is
+**AUTHORED, NOT RUN**; execution is deferred to Phase 8.

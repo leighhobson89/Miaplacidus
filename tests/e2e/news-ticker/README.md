@@ -314,3 +314,11 @@ The eight News Ticker screenshot cases named in the 14 October full-run manifest
 were re-run on isolated Chrome port 6399: all 8 passed without snapshot updates.
 I reviewed the seven wacky-effect captures; each shows its activated message at
 the centered capture position with its intended effect.
+
+## Phase 7 locale-routing coverage - 15 October 2026
+
+`p7-source-news-locale-routing.spec.ts` checks the indexed headline, wacky,
+prize, one-off, and manuscript-clue copy routes against the selected locale,
+including the dynamic reward amount/action and manuscript star-name slot. It is
+**NOT RUN** and is assigned to Phase 8 V-59. Existing browser results above are
+historical; no News Ticker test was run for this Phase 7 mapping update.

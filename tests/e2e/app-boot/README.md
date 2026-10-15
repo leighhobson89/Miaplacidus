@@ -1,5 +1,20 @@
 # App boot and navigation: Hydrogen slice
 
+## Phase 7 startup locale coverage (15 October 2026)
+
+[`p7-startup-locale-copy.spec.ts`](p7-startup-locale-copy.spec.ts) is authored to cover the welcome form, selected startup locale, Start action, and first Hydrogen page in all six locales. It also checks the stable MIAPLACIDUS brand heading and the absence of a briefing dialog before and after Start. Cosmic Forge `descriptions.js` localizes `gameIntroHeader` and `gameIntroText` for a one-screen briefing shown after name entry (`ui.js` around `gameIntroHeader`/`populateModal`). The owner decision in [`open-decisions.md`](../../../docs/plans/open-decisions.md#L9) removes that briefing permanently: the source header adapts to the MIAPLACIDUS brand heading, while the source body has no target route. The selected locale still routes to the save-start form and first Hydrogen page through `SaveStartScreen.tsx`, `App.tsx`, and the core message/save catalogues. **Coverage status: AUTHORED, NOT RUN.** Phase 8 V-59 owns execution and any failure review; no result or screenshot is claimed here.
+The source `newGame` action is adapted to `saveMessages.ts#startNewGame`; the same spec checks the selected-locale Start New Game button before entering play.
+
+Cosmic Forge `descriptions.js#gameSaveNameCollect` builds the localized
+code-name prompt immediately before the source player-name textarea, and
+`ui.js` supplies that content to the startup modal. MIAPLACIDUS adapts the
+player-facing prompt to the persistent name-field label in
+`SaveStartScreen.tsx`: `translate(locale, "app.pioneer")`. The same six-locale
+spec asserts the rendered label against that target key and fills the named
+field before starting each run. This preserves the source name-collection
+route while omitting the separate introductory modal body described above.
+Coverage is **AUTHORED, NOT RUN**; no test result is claimed.
+
 ## Rule matrix
 
 | Rule                     | Normal path                                                                                                                                                                                              | Failure/boundary path                                                                      | Evidence                                            |

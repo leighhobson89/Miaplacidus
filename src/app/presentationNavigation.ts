@@ -353,31 +353,43 @@ export function settingsPaneItems(locale: LocaleId): readonly PaneNavigationItem
       id: "settings-achievements",
       label: settingsText(locale, "achievements"),
       sourceOptionId: "option10",
+      groupId: "settings-achievements-and-stats",
+      groupLabel: settingsText(locale, "achievementsAndStatsSection"),
     },
     {
       id: "settings-events",
       label: settingsSectionName(locale, "events"),
       sourceOptionId: "option14",
+      groupId: "settings-achievements-and-stats",
+      groupLabel: settingsText(locale, "achievementsAndStatsSection"),
     },
     {
       id: "settings-statistics",
       label: settingsSectionName(locale, "statistics"),
       sourceOptionId: "option8",
+      groupId: "settings-achievements-and-stats",
+      groupLabel: settingsText(locale, "achievementsAndStatsSection"),
     },
     {
       id: "settings-visual",
       label: settingsSectionName(locale, "visual"),
       sourceOptionId: "option1",
+      groupId: "settings-options",
+      groupLabel: settingsText(locale, "optionsSection"),
     },
     {
       id: "settings-game-options",
       label: settingsSectionName(locale, "gameOptions"),
       sourceOptionId: "option3",
+      groupId: "settings-options",
+      groupLabel: settingsText(locale, "optionsSection"),
     },
     {
       id: "settings-saves",
       label: settingsText(locale, "savingSection"),
       sourceOptionId: "option2",
+      groupId: "settings-options",
+      groupLabel: settingsText(locale, "optionsSection"),
     },
   ];
 }

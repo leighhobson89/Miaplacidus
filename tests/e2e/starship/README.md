@@ -248,12 +248,27 @@ localization validation unit test (**4/4**), and Oxfmt check passed. Initial
 sandbox test starts returned `spawn EPERM` before startup; installed-Chrome and
 Vitest escalated retries completed normally.
 
-Still unresolved for P-44 are the source O-type arrival and factory-star
-arrival narratives (no matching target message). The six
-`infoTooltipStarShipScan*` strings are now mapped to AP/weather help in Star
-Data and civilization/threat/defense/enemy-fleet help in the Colonise scan
-report; see the [Star Map README](../star-map/README.md#p-44-star-data-and-scan-report-source-tooltips-10-october-2026)
-for the six-locale tooltip evidence.
+Still unresolved for P-44 is the source factory-star arrival narrative (no matching target message). The six
+`infoTooltipStarShipScan*` strings map to AP/weather help in the Star Data
+table and to AP, precipitation/weather, civilization, threat, defense, and
+enemy-fleet help in the Colonise scan report; see the [Star Map README](../star-map/README.md#p-44-star-data-and-scan-report-source-tooltips-10-october-2026)
+for the six-locale tooltip evidence. The Phase 7 route-complete assertions in
+that spec are **AUTHORED; NOT RUN** and include all six report fields.
+
+## Phase 7 O-type arrival result dialog (NOT RUN; Phase 8)
+
+Cosmic Forge `game.js` opens `modalOStarReachedHeader` and
+`modalOStarReachedText` after an O-type system arrival. MIAPLACIDUS already
+renders the six-locale narrative as a floating Starship notice through
+`spaceNotificationMessages.ts#oTypeStarReachedHeader|oTypeStarReachedText`;
+it now also presents that same copy in the source-style result dialog through
+`spaceProgressionDialogMessages.ts#oTypeStarReachedDialog`. The source `X`
+placeholder is replaced by the resolved system name, and source paragraph
+breaks are retained.
+
+`p44-arrival-narratives.spec.ts` now checks both the notice and result dialog
+for all six locales. The updated case is **NOT RUN** after adding the modal;
+the earlier P-44 pass predates this change.
 
 ## P-55 Star Ship Distance Travelled Statistics decision review (10 October 2026)
 
@@ -432,3 +447,203 @@ application change or baseline refresh was needed.
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6517'; npm.cmd run test:e2e:focused -- tests/e2e/starship/phase6-interstellar-visual-review.spec.ts tests/e2e/fleet-hangar/phase6-interstellar-visual-review.spec.ts tests/e2e/colonise/phase6-interstellar-visual-review.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-interstellar-split-p66-6517"
 ```
+
+## Phase 7 computed Starship and fleet names (AUTHORED; NOT RUN)
+
+[`p7-computed-starship-names-locales.spec.ts`](p7-computed-starship-names-locales.spec.ts)
+checks all five module card headings on the visible Starship page, then uses the
+existing `build-starship` test fixture action to reveal Fleet Hangar and checks
+the Envoy heading and all four fleet names there in each of the six locales.
+Cosmic Forge constructs the names in `drawTab5Content.js` with
+`starShipModule${id.slice(2)}` and `fleetShip${id.slice('fleet'.length)}`. The
+source keys are `starShipModuleStructural`, `starShipModuleLifeSupport`,
+`starShipModuleAntimatterEngine`, `starShipModuleFleetHangar`,
+`starShipModuleStellarScanner`, `fleetShipEnvoy`, `fleetShipScout`,
+`fleetShipMarauder`, `fleetShipLandStalker`, and `fleetShipNavalStrafer`.
+MIAPLACIDUS renders module names through `starshipText(locale, moduleId)` in
+`[data-testid="starship-module-${moduleId}"] h3`; the Fleet Hangar route renders
+`starshipText(locale, "envoyTitle")` in its heading and the four mapped
+`fleetScout`, `fleetMarauder`, `fleetLandStalker`, and `fleetNavalStrafer` keys
+in `[data-testid="starship-fleet-${fleetId}"] h4`.
+
+## Phase 7 Colonise and Fleet Hangar source help (AUTHORED; NOT RUN)
+
+`p7-colonise-and-fleet-source-help-locales.spec.ts` checks the selected-locale
+Colonise diplomacy and reception help, plus the Envoy and four fleet-unit
+descriptions on the separate Fleet Hangar child page. The six-locale assertions
+also require explicit target catalogue values for every mapped message.
+
+Source evidence: `descriptions.js` defines `diplomacyOptionsRow` and
+`receptionStatusRow` help content, and `drawTab5Content.js` creates those rows
+on the Colonise view; the target routes these separately to the Colonise
+diplomacy help tooltip and the scan report's Attitude help tooltip. The same
+source file defines the five `spaceFleet*BuildRow` descriptions, while
+`game.js#getFleetResourceDescriptionElements` attaches those descriptions to
+the Fleet Hangar purchase rows. MIAPLACIDUS keeps all five descriptions under
+its distinct Fleet Hangar page: `envoyDescription` and each unit's
+`fleet*Description` appear beside their matching Envoy or fleet card. The
+Envoy wording is adapted to its current target action, which opens diplomacy
+channels rather than exposing a separate information-gathering mission.
+`diplomacyOptionsHelp`, `receptionStatusHelp`, `envoyDescription`, and the four
+unit descriptions have explicit values in all six target locales. No browser
+test, build, typecheck, or validation command was run for this authored spec.
+
+This route coverage is authored for Phase 8 V-59 and marked **NOT RUN**. It
+leaves Interstellar's Starship and Fleet Hangar as separate child destinations.
+
+## Phase 7 Starship, Fleet Hangar, and Colonise page copy (AUTHORED; NOT RUN)
+
+[`p7-interstellar-page-copy-locales.spec.ts`](p7-interstellar-page-copy-locales.spec.ts)
+covers the three distinct source tab-5 destinations across `LOCALE_IDS` (`en`,
+`es`, `pt`, `de`, `it`, and `fr`). Cosmic Forge declares them separately in
+`index.html` as `headerMainStarShip` / `option3`, `headerMainFleetHangar` /
+`option4`, and `headerMainColonise` / `option5`; MIAPLACIDUS keeps separate
+`interstellar-starship`, `interstellar-fleet-hangar`, and `interstellar-colonise`
+routes, rendered by `StarshipPane` with distinct `view` values.
+The separate navigation labels are checked in
+[`p7-navigation-label-routing.spec.ts`](../localization/p7-navigation-label-routing.spec.ts):
+`headerMainStarShip` maps to `title`, `headerMainFleetHangar` to `fleetHangar`,
+and `headerMainColonise` to `coloniseTabLabel`.
+
+The same all-locale spec follows Cosmic Forge's `launchStarShipWarningHeader`
+and `launchStarShipWarningText` from the confirmed destination's Travel action
+into the source warning modal. The active MIAPLACIDUS launch dialog uses
+`pointOfNoReturnTitle` and `pointOfNoReturn` for its heading and irreversible
+run-reset warning. These are populated selected-locale adaptations; the target
+also adds its current destination fuel quote and optional megastructure warning.
+This route coverage is **AUTHORED, NOT RUN**.
+
+This spec checks the Starship heading (`title`) and source header help
+(`headerDescStarShip` maps to `starshipHeaderHelp`),
+travel and scan labels (`tab5TravellingToRowLabel` maps to `travellingTo`,
+`tab5PerformSystemScanRowLabel` maps to `performSystemScan`, and source
+`buttonScanSystem` maps to `scanSystem`), plus scan help. Cosmic Forge's
+`tab5ScanSystemDescription` is covered by the selected-locale target
+`scanActionHelp` tooltip. For Fleet Hangar it checks the heading,
+`fleetHangarHelpLabel`, and `infoTooltipFleetHangarHeader` maps to
+`fleetHangarHeaderHelp`. It also checks source
+`headerDescFleetHangar` / `tab5FleetHangarDescription` copy through
+`fleetHangarDescription`, including the locale-formatted live fleet strength.
+For Colonise it checks the heading, dynamic
+`headerDescColonise` maps to `coloniseHeaderHelp`, source
+`tab5ColoniseDescription` maps to `coloniseDescription` with the fixture star
+and fleet strength, and `tab5RelationsRowLabel` maps to the target diplomacy
+section heading `diplomacyTitle`.
+
+The same spec scans the fixture's orbiting Sirius destination and checks the
+reachable Colonise report in all six locales. Source `tab5StarNameRowLabel`
+maps to the target Star Map `sortName` label; `tab5CivilizationRowLabel` and
+`labelType` map to the report's separate race-name and `civilization` fields.
+`tab5PopulationRowLabel` and `labelTraits` map to `population` and
+`lifeformTraits`; `tab5ThreatLevelRowLabel` and `labelDefense` map to
+`threat` and `defense`. `tab5EnemyFleetsRowLabel`,
+`tab5AnomaliesRowLabel`, and `tab5AttitudeRowLabel` map to `enemyFleets`,
+`anomalies`, and `attitude`; nested source `labelThreat` becomes its own
+`threat` report row. Source
+`tab5IntelligenceRowLabel` is a grouped row; the remake presents its
+civilization, defense, and trait readings as separate report fields with no
+standalone “Intelligence” heading. Source `labelFleetAir`, `labelFleetLand`,
+and `labelFleetSea` are represented by the localized air/land/sea order in the
+target `enemyFleets` label. Source `tab5AttitudeRowLabel` combines attitude
+with a nested threat reading; the target gives them separate `attitude` and
+`threat` rows and also retains separate `impression` and `patience` fields.
+Source `tab5RelationsRowLabel` continues to map to the target diplomacy
+section heading `diplomacyTitle`. The scan outcome uses target `lifeDetected`
+/ `noLifeDetected` statuses instead of a bare Yes/No label. The test checks
+visible report labels, system and race names, localized readings, and scan
+outcome for each locale. Coverage is **AUTHORED, NOT RUN** for Phase 8 V-59.
+
+Fixture routes are `space-starship-scanning` for the Starship page, then the
+existing `build-starship` setup action to expose Fleet Hangar, and
+`space-battle-victory` for the scanned Sirius Colonise destination. Locale
+values are populated in `starshipMessages.ts` and `starMapMessages.ts` for all
+six IDs. This spec is
+authored for Phase 7 and **NOT RUN**; no test, browser, build, or type check was
+performed for this slice.
+
+The same Phase 7 spec also covers source scan and Colonise description branches
+where the remake has deterministic active routes. Cosmic Forge's
+`game.js` writes `tab5ScanResultsAnalyse` or `tab5ScanResultsNoScanner` into
+`descriptionContentTab5` after a completed scan, selected by whether a Stellar
+Scanner is fitted. The scanner-present text is an instructional prompt; the
+remake has no direct equivalent prompt. Its Colonise route presents the
+structured `scanReport` heading and report fields instead, so no new
+instructional copy is inferred. The blind-scan fixture checks the existing
+`scanLimited` notice on both the Starship scan and Colonise report routes, plus
+the report's unknown `???` outcome, in all six locales. This maps
+`tab5ScanResultsNoScanner` to the remake's explicit limited-reading notice.
+
+For battle, source `tab5BattleDescription` is set in the `getWarMode()` branch
+with player and enemy fleet power values. The test enters war from the existing
+`space-battle-victory` fixture and checks the live Colonise description in each
+locale; the active target renderer uses `coloniseBattleDescription` and formats
+the enemy value from the current enemy-fleet composition. Source
+`tab5SettleNoResistance` is set when civilization is None/Unsentient or the
+enemy fleet total is zero. The `space-unoccupied` route checks the current
+`coloniseNoResistance` description and title in all locales. Although the
+target message catalog also contains `settleNoResistance`, the active
+`StarshipPane` renderer uses `coloniseNoResistance` for this branch.
+
+Source `tab5BuildFleetsToEngage` is selected when patience is exhausted and
+player fleet attack power is zero. The active target branch maps to
+`coloniseBuildFleets` under the same state condition and renders the localized
+zero fleet-power value alongside it, but current deterministic fixtures do not
+produce both exhausted patience and zero player attack power while resistance
+remains. This branch is documented but has no runtime locale assertion in this
+slice. The added no-scanner, battle-description, and no-resistance route
+assertions are **AUTHORED, NOT RUN**; no test, browser, build, or type check was
+performed.
+
+Cosmic Forge `spaceStarShipStellarScannerContent1` is the help copy on the
+Starship system-scan row. It maps to the selected-locale `scanActionHelp`
+InfoTooltip beside the target's scan action; the same control also covers the
+separately keyed `tab5ScanSystemDescription`. Source
+`spaceStarShipDestinationReminderContent1` maps to `noDestination` in the
+Starship travel summary when the player has not selected a destination. The
+all-locale destination-reminder assertion is in this spec and is **AUTHORED,
+NOT RUN**. Both target strings already have populated values in all six
+locales.
+
+## Phase 7 war-entry confirmation (AUTHORED; NOT RUN)
+
+Cosmic Forge `ui.js#showEnterWarModeModal` receives the `chooseWar` and
+`noScanner` paths from its diplomacy caller. The all-six-locale
+[`p7-war-mode-confirmation-locales.spec.ts`](p7-war-mode-confirmation-locales.spec.ts)
+checks the active Colonise route for both states. The target dialog uses the
+source `enterWarModeModalHeader` and the distinct
+`enterwarModeModalBackOutText` or `enterwarModeModalNoBackOutText` copy, with
+the source `battleAttackingBlind` notice on the no-scanner branch. Confirm
+dispatches the existing `space.diplomacy.enter-war` command; cancelling the
+scanner-complete dialog leaves diplomacy and combat state unchanged. Like the
+source modal, the blind branch has no cancel action. All six locale values are
+authored in `src/i18n/warModeMessages.ts`.
+
+The ten remaining `showEnterWarModeModal` result keys are not routed through
+source-style dialogs:
+
+- `enterWarModeModalPatience`: the source adjusts enemy fleet counts from the
+  total impression delta and enters war; the target only reaches `warReady`
+  and records the latest impression change.
+- `enterWarModeInsultedText`: the target's `bullyAttack` analogue boosts
+  defense by 10%, but renders its own diplomacy message and leaves war entry
+  to the explicit action.
+- `enterWarModeScaredText`: the target also halves enemy fleets, but the source
+  describes desertion and immediately continues into war.
+- `enterWarModeSurrenderText`: the target disbands enemy fleets but waits for
+  the separate settlement action instead of settling immediately.
+- `enterWarModeNotVassalizedText`: the target has a `vassalizationFailed`
+  message, while the source confirmation also starts war.
+- `enterWarModeModalLaughAtProspect`: the target's `bullyLaugh` message covers
+  the impression loss, but there is no source-style result dialog.
+- `enterWarModeModalLaughAndEnterWar`: the source closes diplomacy and starts
+  war; the target keeps war entry explicit.
+- `enterWarModeModalImproveToReceptive`, `enterWarModeModalNeutral`, and
+  `enterWarModeModalReserved`: the target has corresponding diplomacy outcomes,
+  persistent messages, and impression readings, but no result dialogs.
+
+These branches need a separate owner-directed behavior mapping before their
+source result-dialog keys can be routed without changing or misrepresenting
+gameplay.
+
+The spec is **AUTHORED, NOT RUN**. No test, build, typecheck, formatter,
+validation, or browser check was run for this slice.

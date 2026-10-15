@@ -92,3 +92,25 @@ test("Compound creation success feedback is rendered in all locales @p45-compoun
       );
   }
 });
+
+test("Cosmic Forge textAuto reaches the Compound automatic-creation label in all locales @p7-text-auto @compounds @localization", async ({
+  page,
+}) => {
+  await startEconomyFixture(page, "full");
+  await page.locator("#tab-compounds").click();
+  await page.locator("#tab-compounds-diesel").click();
+
+  const diesel = page.locator('#panel-compounds-diesel [data-compound-id="diesel"]');
+  const autoCreateSection = diesel.locator(".compound-autobuyer-section");
+  const summary = autoCreateSection.locator("summary");
+  if (!(await autoCreateSection.evaluate((element) => element.hasAttribute("open"))))
+    await summary.click();
+  const autoCreateLabel = autoCreateSection.locator("label.economy-toggle");
+
+  for (const locale of LOCALE_IDS) {
+    await setLocale(page, locale);
+    const targetLabel = economyLabel(locale, "automaticCreation");
+    expect(targetLabel.trim(), `${locale} automaticCreation should be populated`).not.toBe("");
+    await expect(autoCreateLabel).toContainText(targetLabel);
+  }
+});

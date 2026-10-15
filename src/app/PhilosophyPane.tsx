@@ -72,7 +72,7 @@ export function PhilosophyPane({ state, store }: PhilosophyPaneProps) {
             const path = PHILOSOPHY_PATHS[id];
             const ability = copy.abilities[path.abilityId];
             return (
-              <article className="philosophy-choice-card" key={id}>
+              <article className="philosophy-choice-card" key={id} data-philosophy-id={id}>
                 <div className="philosophy-choice-card-heading">
                   <PhilosophyPathArtwork id={id} />
                   <div>

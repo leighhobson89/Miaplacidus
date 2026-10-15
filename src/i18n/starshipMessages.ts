@@ -18,7 +18,8 @@ const en = {
   coloniseDescription:
     "Engage in Diplomacy and War to establish your new colony at {system} - Fleet Power: {playerPower}",
   coloniseBuildFleets: "Build Your Fleets to Engage the Enemy! - Fleet Power:",
-  coloniseNoResistance: "Simply Settle at {system} with no resistance!",
+  coloniseNoResistance:
+    "There is no sentient life in {system}, so you can settle right away!",
   coloniseBattleDescription:
     "Defeat The Enemy! - Fleet Power: {playerPower} Enemy Fleet Power: {enemyPower}",
   fleetHangarDescription: "Build your fleets to conquer visited Systems - Fleet Strength:",
@@ -116,16 +117,19 @@ const en = {
   enterWar: "Conquest",
   warModeActive: "War mode is active for this system.",
   battleTitle: "System battle",
+  battleResultTitle: "Outcome of conquest",
   battleidle: "No battle has started.",
   battleinProgress: "Battle in progress; fleets are exchanging fire.",
-  battlevictory: "Victory. The enemy fleet has been defeated.",
-  battledefeat: "Defeat. Rebuild ships and re-enter war to retry.",
+  battlevictory: "You have won the battle! The enemy fleet has been defeated.",
+  battledefeat:
+    "You have lost the battle. Your fleet was destroyed and must be rebuilt before you can try to conquer this system again.",
   battleRound: "Round {round}",
   playerBattleHealth: "Player fleet hull",
   enemyBattleHealth: "Enemy fleet hull",
   engageBattle: "Begin battle",
   settleSystem: "Settle",
   settleNoResistance: "Simply settle at {system} with no resistance!",
+  coloniseNoResistanceTitle: "Settle new system!",
   alreadySettled: "This system is already part of your settled territory.",
   settlementComplete: "System settled. Ascendency and Galactic Point rewards have been recorded.",
   messageReceptive: "The race welcomes your Envoy. Its impression of you has improved.",
@@ -195,7 +199,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       coloniseDescription:
         "Emplea la diplomacia y la guerra para establecer tu nueva colonia en {system} - Poder de flota: {playerPower}",
       coloniseBuildFleets: "¡Construye tus flotas para enfrentarte al enemigo! - Poder de flota:",
-      coloniseNoResistance: "¡Coloniza {system} sin ninguna resistencia!",
+      coloniseNoResistance:
+        "No hay vida consciente en {system}, así que puedes colonizarlo ahora mismo.",
       coloniseBattleDescription:
         "¡Derrota al enemigo! - Poder de flota: {playerPower} Poder de flota enemiga: {enemyPower}",
       fleetHangarDescription:
@@ -294,16 +299,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       enterWar: "Conquista",
       warModeActive: "El modo de guerra está activo en este sistema.",
       battleTitle: "Batalla del sistema",
+      battleResultTitle: "Resultado de la conquista",
       battleidle: "No ha comenzado ninguna batalla.",
       battleinProgress: "Batalla en curso; las flotas intercambian fuego.",
-      battlevictory: "Victoria. La flota enemiga ha sido derrotada.",
-      battledefeat: "Derrota. Reconstruye naves y vuelve a la guerra para intentarlo de nuevo.",
+      battlevictory: "¡Has ganado la batalla! La flota enemiga ha sido derrotada.",
+      battledefeat:
+        "Has perdido la batalla. Tu flota ha sido destruida y debes reconstruirla antes de intentar conquistar este sistema de nuevo.",
       battleRound: "Ronda {round}",
       playerBattleHealth: "Casco de la flota propia",
       enemyBattleHealth: "Casco de la flota enemiga",
       engageBattle: "Iniciar batalla",
       settleSystem: "Colonizar",
       settleNoResistance: "¡Coloniza {system} sin ninguna resistencia!",
+      coloniseNoResistanceTitle: "¡Coloniza un nuevo sistema!",
       alreadySettled: "Este sistema ya forma parte de tu territorio colonizado.",
       settlementComplete:
         "Sistema colonizado. Se han registrado las recompensas de Ascendencia y Puntos Galácticos.",
@@ -373,7 +381,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       coloniseDescription:
         "Usa a diplomacia e a guerra para estabeleceres a tua nova colónia em {system} - Poder da frota: {playerPower}",
       coloniseBuildFleets: "Constrói as tuas frotas para enfrentares o inimigo! - Poder da frota:",
-      coloniseNoResistance: "Coloniza {system} sem qualquer resistência!",
+      coloniseNoResistance:
+        "Não há vida senciente em {system}, por isso podes estabelecer-te imediatamente.",
       coloniseBattleDescription:
         "Derrota o inimigo! - Poder da frota: {playerPower} Poder da frota inimiga: {enemyPower}",
       fleetHangarDescription:
@@ -472,16 +481,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       enterWar: "Conquista",
       warModeActive: "O modo de guerra está ativo neste sistema.",
       battleTitle: "Batalha do sistema",
+      battleResultTitle: "Resultado da conquista",
       battleidle: "Ainda não começou nenhuma batalha.",
       battleinProgress: "Batalha em curso; as frotas estão a trocar fogo.",
-      battlevictory: "Vitória. A frota inimiga foi derrotada.",
-      battledefeat: "Derrota. Reconstrói as naves e volta à guerra para tentar de novo.",
+      battlevictory: "Venceste a batalha! A frota inimiga foi derrotada.",
+      battledefeat:
+        "Perdeste a batalha. A tua frota foi destruída e tem de ser reconstruída antes de tentares conquistar este sistema novamente.",
       battleRound: "Ronda {round}",
       playerBattleHealth: "Casco da frota do jogador",
       enemyBattleHealth: "Casco da frota inimiga",
       engageBattle: "Iniciar batalha",
       settleSystem: "Colonizar",
       settleNoResistance: "Coloniza {system} sem qualquer resistência!",
+      coloniseNoResistanceTitle: "Estabelece-te num novo sistema!",
       alreadySettled: "Este sistema já faz parte do teu território colonizado.",
       settlementComplete:
         "Sistema colonizado. As recompensas de Ascendência e Pontos Galácticos foram registadas.",
@@ -550,7 +562,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       coloniseDescription:
         "Nutze Diplomatie und Krieg, um deine neue Kolonie bei {system} zu gründen - Flottenstärke: {playerPower}",
       coloniseBuildFleets: "Baue deine Flotten, um den Feind anzugreifen! - Flottenstärke:",
-      coloniseNoResistance: "Siedle einfach bei {system} ohne Widerstand!",
+      coloniseNoResistance:
+        "In {system} gibt es kein empfindungsfähiges Leben, daher kannst du dich sofort dort niederlassen.",
       coloniseBattleDescription:
         "Besiege den Feind! - Flottenstärke: {playerPower} Feindliche Flottenstärke: {enemyPower}",
       fleetHangarDescription:
@@ -649,16 +662,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       enterWar: "Eroberung",
       warModeActive: "Der Kriegsmodus ist in diesem System aktiv.",
       battleTitle: "Systemschlacht",
+      battleResultTitle: "Ausgang der Eroberung",
       battleidle: "Es hat noch keine Schlacht begonnen.",
       battleinProgress: "Schlacht läuft; die Flotten erwidern das Feuer.",
-      battlevictory: "Sieg. Die feindliche Flotte wurde besiegt.",
-      battledefeat: "Niederlage. Baue Schiffe nach und starte den Krieg erneut.",
+      battlevictory: "Du hast die Schlacht gewonnen! Die feindliche Flotte wurde besiegt.",
+      battledefeat:
+        "Du hast die Schlacht verloren. Deine Flotte wurde zerstört und muss wieder aufgebaut werden, bevor du erneut versuchen kannst, dieses System zu erobern.",
       battleRound: "Runde {round}",
       playerBattleHealth: "Hülle der eigenen Flotte",
       enemyBattleHealth: "Hülle der feindlichen Flotte",
       engageBattle: "Schlacht beginnen",
       settleSystem: "Besiedeln",
       settleNoResistance: "Siedle einfach bei {system} ohne Widerstand!",
+      coloniseNoResistanceTitle: "Neues System besiedeln!",
       alreadySettled: "Dieses System gehört bereits zu deinem besiedelten Gebiet.",
       settlementComplete:
         "System besiedelt. Belohnungen für Aszendenz und galaktische Punkte wurden verbucht.",
@@ -733,7 +749,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       coloniseDescription:
         "Usa diplomazia e guerra per fondare la tua nuova colonia su {system} - Potenza della flotta: {playerPower}",
       coloniseBuildFleets: "Costruisci le tue flotte per affrontare il nemico! - Potenza della flotta:",
-      coloniseNoResistance: "Colonizza semplicemente {system} senza alcuna resistenza!",
+      coloniseNoResistance:
+        "Non c'è vita senziente in {system}, quindi puoi insediarti subito.",
       coloniseBattleDescription:
         "Sconfiggi il nemico! - Potenza della flotta: {playerPower} Potenza della flotta nemica: {enemyPower}",
       fleetHangarDescription:
@@ -832,16 +849,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       enterWar: "Conquista",
       warModeActive: "La modalità guerra è attiva in questo sistema.",
       battleTitle: "Battaglia del sistema",
+      battleResultTitle: "Esito della conquista",
       battleidle: "Non è ancora iniziata alcuna battaglia.",
       battleinProgress: "Battaglia in corso; le flotte si scambiano colpi.",
-      battlevictory: "Vittoria. La flotta nemica è stata sconfitta.",
-      battledefeat: "Sconfitta. Ricostruisci le navi e torna in guerra per riprovare.",
+      battlevictory: "Hai vinto la battaglia! La flotta nemica è stata sconfitta.",
+      battledefeat:
+        "Hai perso la battaglia. La tua flotta è stata distrutta e deve essere ricostruita prima che tu possa tentare di conquistare di nuovo questo sistema.",
       battleRound: "Turno {round}",
       playerBattleHealth: "Scafo della flotta del giocatore",
       enemyBattleHealth: "Scafo della flotta nemica",
       engageBattle: "Inizia la battaglia",
       settleSystem: "Colonizza",
       settleNoResistance: "Colonizza semplicemente {system} senza alcuna resistenza!",
+      coloniseNoResistanceTitle: "Colonizza un nuovo sistema!",
       alreadySettled: "Questo sistema fa già parte del tuo territorio.",
       settlementComplete:
         "Sistema colonizzato. Le ricompense di Ascendenza e Punti galattici sono state registrate.",
@@ -911,7 +931,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       coloniseDescription:
         "Usez de diplomatie et de guerre pour établir votre nouvelle colonie à {system} - Puissance de flotte: {playerPower}",
       coloniseBuildFleets: "Construisez vos flottes pour affronter l'ennemi! - Puissance de flotte:",
-      coloniseNoResistance: "Colonisez simplement {system} sans aucune résistance!",
+      coloniseNoResistance:
+        "Il n'y a pas de vie consciente dans {system}, vous pouvez donc vous y installer tout de suite.",
       coloniseBattleDescription:
         "Vainquez l'ennemi! - Puissance de flotte: {playerPower} Puissance de la flotte ennemie: {enemyPower}",
       fleetHangarDescription:
@@ -1010,16 +1031,19 @@ const messages: Readonly<Record<LocaleId, Readonly<Partial<Record<StarshipMessag
       enterWar: "Conquête",
       warModeActive: "Le mode guerre est actif dans ce système.",
       battleTitle: "Bataille du système",
+      battleResultTitle: "Résultat de la conquête",
       battleidle: "Aucune bataille n'a commencé.",
       battleinProgress: "Bataille en cours ; les flottes échangent des tirs.",
-      battlevictory: "Victoire. La flotte ennemie a été vaincue.",
-      battledefeat: "Défaite. Reconstruisez vos vaisseaux et relancez la guerre pour réessayer.",
+      battlevictory: "Tu as gagné la bataille ! La flotte ennemie a été vaincue.",
+      battledefeat:
+        "Tu as perdu la bataille. Ta flotte a été détruite et doit être reconstruite avant de pouvoir tenter à nouveau de conquérir ce système.",
       battleRound: "Manche {round}",
       playerBattleHealth: "Coque de la flotte du joueur",
       enemyBattleHealth: "Coque de la flotte ennemie",
       engageBattle: "Commencer la bataille",
       settleSystem: "Coloniser",
       settleNoResistance: "Colonisez simplement {system} sans aucune résistance!",
+      coloniseNoResistanceTitle: "Coloniser un nouveau système !",
       alreadySettled: "Ce système fait déjà partie de votre territoire colonisé.",
       settlementComplete:
         "Système colonisé. Les récompenses d'Ascendance et de points galactiques ont été enregistrées.",

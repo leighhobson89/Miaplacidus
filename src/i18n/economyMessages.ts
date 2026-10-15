@@ -54,13 +54,16 @@ type EconomyLabel =
   | "energyPower"
   | "energySummary"
   | "increaseStorage"
+  | "enlargeReservoir"
   | "autobuyers"
   | "autobuyerToggleLabel"
   | "buyTier"
   | "pause"
   | "resume"
   | "owned"
+  | "quantity"
   | "perSecond"
+  | "perSecondShort"
   | "lockedBy"
   | "unlocked"
   | "fuse"
@@ -236,13 +239,16 @@ const en: Record<EconomyLabel, string> = {
     "Here you can buy upgrades for generating power which is needed for more advanced buildings.",
   energySummary: "Energy Summary",
   increaseStorage: "Increase Storage",
+  enlargeReservoir: "Enlarge Reservoir",
   autobuyers: "Autobuyers",
   autobuyerToggleLabel: "Autobuyer for {good}, tier {tier}",
   buyTier: "Buy tier",
   pause: "Pause",
   resume: "Resume",
   owned: "Owned",
+  quantity: "Quantity",
   perSecond: "per second",
+  perSecondShort: "/s",
   lockedBy: "Locked by",
   unlocked: "Unlocked",
   fuse: "Fuse",
@@ -442,13 +448,16 @@ const es: Record<EconomyLabel, string> = {
     "Aquí puedes comprar mejoras para generar energía que se necesita para edificios más avanzados.",
   energySummary: "Resumen de energía",
   increaseStorage: "Aumentar Almacenamiento",
+  enlargeReservoir: "Ampliar Embalse",
   autobuyers: "Compradores automáticos",
   autobuyerToggleLabel: "Comprador automático de {good}, nivel {tier}",
   buyTier: "Comprar nivel",
   pause: "Pausar",
   resume: "Reanudar",
   owned: "Comprados",
+  quantity: "Cantidad",
   perSecond: "por segundo",
+  perSecondShort: "/s",
   lockedBy: "Requiere",
   unlocked: "Desbloqueado",
   fuse: "Fusionar",
@@ -646,13 +655,16 @@ const pt: Record<EconomyLabel, string> = {
     "Aqui podes comprar melhorias para gerar energia, necessária para edifícios mais avançados.",
   energySummary: "Resumo de energia",
   increaseStorage: "Aumentar Armazenamento",
+  enlargeReservoir: "Ampliar Reservatório",
   autobuyers: "Compradores automáticos",
   autobuyerToggleLabel: "Compra automática de {good}, nível {tier}",
   buyTier: "Comprar nível",
   pause: "Pausar",
   resume: "Retomar",
   owned: "Adquiridos",
+  quantity: "Quantidade",
   perSecond: "por segundo",
+  perSecondShort: "/s",
   lockedBy: "Requer",
   unlocked: "Desbloqueado",
   fuse: "Fundir",
@@ -856,13 +868,16 @@ const de: Record<EconomyLabel, string> = {
     "Hier kannst du Upgrades zum Erzeugen von Energie kaufen, die für fortgeschrittenere Gebäude benötigt wird.",
   energySummary: "Energieübersicht",
   increaseStorage: "Lager Erhöhen",
+  enlargeReservoir: "Reservoir vergrößern",
   autobuyers: "Automatische Käufer",
   autobuyerToggleLabel: "Automatischer Käufer für {good}, Stufe {tier}",
   buyTier: "Stufe kaufen",
   pause: "Pausieren",
   resume: "Fortsetzen",
   owned: "Im Besitz",
+  quantity: "Menge",
   perSecond: "pro Sekunde",
+  perSecondShort: "/s",
   lockedBy: "Benötigt",
   unlocked: "Freigeschaltet",
   fuse: "Fusionieren",
@@ -1061,13 +1076,16 @@ const it: Record<EconomyLabel, string> = {
     "Qui puoi acquistare potenziamenti per generare energia necessaria per edifici più avanzati.",
   energySummary: "Riepilogo energia",
   increaseStorage: "Aumenta Stoccaggio",
+  enlargeReservoir: "Ingrandisci Serbatoio",
   autobuyers: "Acquisti automatici",
   autobuyerToggleLabel: "Acquisto automatico di {good}, livello {tier}",
   buyTier: "Compra livello",
   pause: "Pausa",
   resume: "Riprendi",
   owned: "Posseduti",
+  quantity: "Quantità",
   perSecond: "al secondo",
+  perSecondShort: "/s",
   lockedBy: "Richiede",
   unlocked: "Sbloccato",
   fuse: "Fondi",
@@ -1269,13 +1287,16 @@ const fr: Record<EconomyLabel, string> = {
     "Ici tu peux acheter des améliorations pour générer de l'énergie nécessaire pour des bâtiments plus avancés.",
   energySummary: "Résumé énergétique",
   increaseStorage: "Augmenter Stockage",
+  enlargeReservoir: "Agrandir le réservoir",
   autobuyers: "Achats automatiques",
   autobuyerToggleLabel: "Automatisme de {good}, niveau {tier}",
   buyTier: "Acheter le niveau",
   pause: "Mettre en pause",
   resume: "Reprendre",
   owned: "Possédés",
+  quantity: "Quantité",
   perSecond: "par seconde",
+  perSecondShort: "/s",
   lockedBy: "Nécessite",
   unlocked: "Débloqué",
   fuse: "Fusionner",

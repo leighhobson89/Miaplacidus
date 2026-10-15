@@ -1,6 +1,7 @@
 import type { LocaleId } from "../content/ids";
 
 const en = {
+  antimatterBoostHelp: "Hold the boost button to increase Antimatter production.",
   miningHeaderHelp: "This shows Antimatter being produced, where, and by which Rocket Miner.",
   miningLayoutHelp:
     "This page shows combined production; open a Rocket page to see its destination and mining status.",
@@ -14,6 +15,8 @@ const en = {
   telescopeHeaderHelp:
     "Here you can build a telescope to search for asteroids to mine Antimatter, and to Study The Stars for potential Colonisation trips.",
   telescopeBuildHelp: "Build the space telescope to search for Asteroids to mine.",
+  launchPadBuildHelp:
+    "Build the Launch Pad to launch completed rockets and mine asteroids for Antimatter.",
   telescopeScanHelp: "Search and discover Asteroids - Power: {power}kJ / s",
   telescopeStudyHelp: "Study the Stars! - Power: {power}kJ / s",
   telescopePillageHelp: "Target beam at the Void, and pillage its riches! - Power: {power}kJ / s",
@@ -35,6 +38,9 @@ const en = {
   studyStars: "Study Stars",
   pillageVoid: "Pillage the Void",
   surveyIdle: "Ready",
+  surveyReadySearch: "Ready To Search",
+  surveyReadyStudy: "Ready To Study",
+  surveyReadyPillage: "Ready To Pillage",
   surveySearching: "Scanning Asteroids",
   surveyStudying: "Studying Stars",
   surveyPillaging: "Pillaging the Void",
@@ -107,6 +113,7 @@ export type SpaceMessageKey = keyof typeof en;
 const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, string>>>> = {
   en,
   es: {
+    antimatterBoostHelp: "Mantén pulsado el botón de impulso para aumentar la producción de antimateria.",
     miningHeaderHelp: "Esto muestra Antimateria siendo producida, dónde, y por qué Minero Cohete.",
     miningLayoutHelp:
       "Esta página muestra la producción combinada; abre la página de un cohete para ver su destino y estado de extracción.",
@@ -120,6 +127,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     telescopeHeaderHelp:
       "Aquí puedes construir un telescopio para buscar asteroides para minar Antimateria, y para estudiar las estrellas para posibles viajes de colonización.",
     telescopeBuildHelp: "Construye el telescopio espacial para buscar Asteroides para minar.",
+    launchPadBuildHelp:
+      "Construye la Plataforma de Lanzamiento para lanzar cohetes terminados y minar asteroides en busca de Antimateria.",
     telescopeScanHelp: "Busca y descubre Asteroides - Energía: {power}kJ / s",
     telescopeStudyHelp: "¡Estudia las Estrellas! - Energía: {power}kJ / s",
     telescopePillageHelp: "¡Apunta el haz al Vacío y saquea sus riquezas! - Energía: {power}kJ / s",
@@ -144,6 +153,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     studyStars: "Estudiar Estrellas",
   pillageVoid: "Saquear el Vacío",
     surveyIdle: "Listo",
+    surveyReadySearch: "Listo para buscar",
+    surveyReadyStudy: "Listo para estudiar",
+    surveyReadyPillage: "Listo para saquear",
     surveySearching: "Escaneando asteroides",
     surveyStudying: "Estudiando estrellas",
     surveyPillaging: "Saqueando el vacío",
@@ -211,6 +223,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "No hay suficiente {material}. Necesitas: {amount}.",
   },
   pt: {
+    antimatterBoostHelp: "Mantém o botão de impulso premido para aumentar a produção de antimatéria.",
     miningHeaderHelp: "Isto mostra Antimatéria a ser produzida, onde, e por qual Minero Cohete.",
     miningLayoutHelp:
       "Esta página mostra a produção combinada; abre a página de um foguete para ver o seu destino e estado de extração.",
@@ -224,6 +237,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     telescopeHeaderHelp:
       "Aqui podes construir um telescópio para procurar asteroides para minerar Antimatéria, e para estudar as estrelas para possíveis viagens de colonização.",
     telescopeBuildHelp: "Construa o telescópio espacial para procurar Asteroides para minerar.",
+    launchPadBuildHelp:
+      "Constrói a Plataforma de Lançamento para lançar foguetes concluídos e minerar asteroides em busca de Antimatéria.",
     telescopeScanHelp: "Procure e descubra Asteroides - Energia: {power}kJ / s",
     telescopeStudyHelp: "Estude as Estrelas! - Energia: {power}kJ / s",
     telescopePillageHelp: "Aponte o feixe para o Vazio e saqueie suas riquezas! - Energia: {power}kJ / s",
@@ -249,6 +264,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     studyStars: "Estudar Estrelas",
   pillageVoid: "Saquear o Vazio",
     surveyIdle: "Pronto",
+    surveyReadySearch: "Pronto para procurar",
+    surveyReadyStudy: "Pronto para estudar",
+    surveyReadyPillage: "Pronto para saquear",
     surveySearching: "A digitalizar asteroides",
     surveyStudying: "A estudar estrelas",
     surveyPillaging: "Pilhando o vazio",
@@ -316,6 +334,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Quantidade insuficiente de {material}. Necessário: {amount}.",
   },
   de: {
+    antimatterBoostHelp: "Halte die Boost-Taste gedrückt, um die Antimaterieproduktion zu steigern.",
     miningHeaderHelp: "Dies zeigt Antimaterie, die produziert wird, wo und von welchem Raketenminer.",
     miningLayoutHelp:
       "Hier wird die Gesamtproduktion angezeigt; auf einer Raketenseite siehst du das Ziel und den Abbaustatus.",
@@ -329,6 +348,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     telescopeHeaderHelp:
       "Hier kannst du ein Teleskop bauen, um nach Asteroiden zum Abbau von Antimaterie zu suchen, und die Sterne für potenzielle Kolonisationsreisen zu studieren.",
     telescopeBuildHelp: "Baue das Weltraumteleskop, um nach Asteroiden zum Abbauen zu suchen.",
+    launchPadBuildHelp:
+      "Baue die Startrampe, um fertige Raketen zu starten und Asteroiden nach Antimaterie abzubauen.",
     telescopeScanHelp: "Suche und entdecke Asteroiden - Energie: {power}kJ / s",
     telescopeStudyHelp: "Studiere die Sterne! - Energie: {power}kJ / s",
     telescopePillageHelp: "Ziele den Strahl auf die Leere und plündere ihre Reichtümer! - Energie: {power}kJ / s",
@@ -354,6 +375,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     studyStars: "Sterne Untersuchen",
     pillageVoid: "Die Leere plündern",
     surveyIdle: "Bereit",
+    surveyReadySearch: "Bereit zur Suche",
+    surveyReadyStudy: "Bereit zur Untersuchung",
+    surveyReadyPillage: "Bereit zur Plünderung",
     surveySearching: "Scanne Asteroiden",
     surveyStudying: "Studiere Sterne",
     surveyPillaging: "Die Leere wird geplündert",
@@ -421,6 +445,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Nicht genug {material}. Benötigt: {amount}.",
   },
   it: {
+    antimatterBoostHelp: "Tieni premuto il pulsante di potenziamento per aumentare la produzione di antimateria.",
     miningHeaderHelp: "Questo mostra Antimateria prodotta, dove, e da quale Minatore Razzo.",
     miningLayoutHelp:
       "Questa pagina mostra la produzione complessiva; apri la pagina di un razzo per vedere la destinazione e lo stato di estrazione.",
@@ -434,6 +459,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     telescopeHeaderHelp:
       "Qui puoi costruire un telescopio per cercare asteroidi da estrarre per Antimateria, e per studiare le stelle per potenziali viaggi di colonizzazione.",
     telescopeBuildHelp: "Costruisci il telescopio spaziale per cercare Asteroidi da estrarre.",
+    launchPadBuildHelp:
+      "Costruisci la piattaforma di lancio per lanciare razzi completati ed estrarre Antimateria dagli asteroidi.",
     telescopeScanHelp: "Cerca e scopri Asteroidi - Energia: {power}kJ / s",
     telescopeStudyHelp: "Studia le Stelle! - Energia: {power}kJ / s",
     telescopePillageHelp: "Punta il raggio al Vuoto e saccheggia le sue ricchezze! - Energia: {power}kJ / s",
@@ -457,6 +484,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     studyStars: "Studia Stelle",
     pillageVoid: "Saccheggia il Vuoto",
     surveyIdle: "Pronto",
+    surveyReadySearch: "Pronto alla ricerca",
+    surveyReadyStudy: "Pronto allo studio",
+    surveyReadyPillage: "Pronto al saccheggio",
     surveySearching: "Scansione asteroidi",
     surveyStudying: "Studio delle stelle",
     surveyPillaging: "Saccheggio del Vuoto in corso",
@@ -524,6 +554,7 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     reasonInsufficientMaterial: "Quantità insufficiente di {material}. Richiesti: {amount}.",
   },
   fr: {
+    antimatterBoostHelp: "Maintiens le bouton de boost pour augmenter la production d'antimatière.",
     miningHeaderHelp: "Ceci montre l'Antimatière produite, où, et par quel Mineur Fusée.",
     miningLayoutHelp:
       "Cette page affiche la production totale ; ouvrez la page d'une fusée pour consulter sa destination et son état d'extraction.",
@@ -537,6 +568,8 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     telescopeHeaderHelp:
       "Ici tu peux construire un télescope pour chercher des astéroïdes à extraire pour de l'Antimatière, et pour étudier les étoiles pour des voyages de colonisation potentiels.",
     telescopeBuildHelp: "Construisez le télescope spatial pour chercher des Astéroïdes à miner.",
+    launchPadBuildHelp:
+      "Construisez la rampe de lancement pour lancer des fusées terminées et extraire de l'Antimatière des astéroïdes.",
     telescopeScanHelp: "Recherchez et découvrez des Astéroïdes - Énergie: {power}kJ / s",
     telescopeStudyHelp: "Étudiez les Étoiles! - Énergie: {power}kJ / s",
     telescopePillageHelp: "Visez le Vide avec le faisceau et pillez ses richesses! - Énergie: {power}kJ / s",
@@ -563,6 +596,9 @@ const messages: Readonly<Record<LocaleId, Readonly<Record<SpaceMessageKey, strin
     studyStars: "Étudier les Étoiles",
     pillageVoid: "Piller le Vide",
     surveyIdle: "Prêt",
+    surveyReadySearch: "Prêt à chercher",
+    surveyReadyStudy: "Prêt à étudier",
+    surveyReadyPillage: "Prêt à piller",
     surveySearching: "Scan des astéroïdes",
     surveyStudying: "Étude des étoiles",
     surveyPillaging: "Pillage du Vide en cours",

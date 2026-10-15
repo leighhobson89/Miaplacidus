@@ -2,6 +2,31 @@
 
 The first completed star study opens a permanent one-path choice. The Research tab then exposes the selected path's run ability and four repeatables.
 
+## Phase 7 source leader-intro mapping — AUTHORED, NOT RUN
+
+Cosmic Forge loads `modalPlayerLeaderIntroHeaderText` and `modalPlayerLeaderIntroContentText1` through `modalPlayerLeaderIntroContentText4` from `descriptions.js:257-261`. `game.js:15317-15321` selects the matching body for the chosen philosophy after an Ascendency Point is awarded in the first two runs. `ui.js:4854-4857` also uses those four bodies as the choice-button hover copy.
+
+MIAPLACIDUS has no equivalent post-award leader-intro modal. Its localized equivalent is the mandatory first-star-study choice in Space Mining → Telescope, rendered by `PhilosophyPane.tsx` as `data-testid="philosophy-choice"`; the route presents all four philosophy cards before selection. The crosswalk is `modalPlayerLeaderIntroHeaderText` → `philosophyText(locale).choiceTitle`; each `modalPlayerLeaderIntroContentTextN` → that path's localized name, summary, ability name, and ability effect in the matching card. The selected path remains available under Research → Philosophy through the same localized name, summary, and ability content. This keeps the path explanation at the decision point and does not add a second modal after the AP award.
+
+`p45-philosophy-copy-locales.spec.ts` now carries the `@p7-player-leader-intro` tag and identifies this source-to-target adaptation; its rendered choice-card assertions cover all four paths in `en`, `es`, `pt`, `de`, `it`, and `fr`. The Phase 7 mapping update is **AUTHORED, NOT RUN**. No new source values were needed because the existing `philosophyMessages.ts` route supplies non-empty localized content for every mapped field.
+
+## Phase 7 philosophy choice names (16 October 2026; AUTHORED, NOT RUN)
+
+Cosmic Forge `game.js:11569-11572` loads `philosophyNameConstructor`,
+`philosophyNameSupremacist`, `philosophyNameVoidborn`, and
+`philosophyNameExpansionist` as the four choice-modal button labels; the
+corresponding callbacks at `game.js:11525-11567` set those exact four path
+identities. MIAPLACIDUS routes each source label to
+`philosophyText(locale).paths.<id>.name`. `PhilosophyPane.tsx` renders that same
+identity-specific name in the matching choice card heading and selection
+button, keyed by `data-philosophy-id`, and reuses it as the selected path title.
+The six existing locale records already provide four non-empty, distinct names
+per locale, so no catalogue value change was needed.
+
+`p7-philosophy-choice-name-locales.spec.ts` asserts all four card identities,
+headings, and selection controls in `en`, `es`, `pt`, `de`, `it`, and `fr`.
+This Phase 7 route assertion is **AUTHORED, NOT RUN**.
+
 ## Evidence
 
 - `philosophies.spec.ts` checks all four path illustrations and choice controls fit the viewport, then uses the telescope and study controls, selects Expansionist, researches Rapid Expansion and Warp Drive, saves, reloads, and checks that the path, active ability and permanent rank return.
@@ -121,3 +146,28 @@ npm.cmd run test:e2e:focused -- tests/e2e/philosophies/philosophies.spec.ts test
 
 ## Economy catchall migration (14 October 2026)
 The Philosophy cost-context case formerly in the Economy catchall now lives in [`e57-philosophy-cost-context.spec.ts`](e57-philosophy-cost-context.spec.ts).
+
+## Phase 7 Philosophy source-choice copy (16 October 2026; AUTHORED, NOT RUN)
+
+Cosmic Forge opens its permanent-path choice after the first Star Study with
+`modalPlayerLeaderPhilosophyHeaderText` and `modalPlayerLeaderPhilosophyContentText`.
+The active MIAPLACIDUS choice dialog routes these to
+`philosophyMessages.ts#choiceTitle` and `#choicePrompt`; the prompt adapts the
+source narrative to the permanent-choice guidance and review prompt. The
+six-locale `p7-philosophy-choice-name-locales.spec.ts` checks both fields along
+with each distinct path name in the same first-study modal. It is **AUTHORED,
+NOT RUN** for Phase 8.
+
+## Phase 7 Philosophy help copy (16 October 2026; AUTHORED, NOT RUN)
+
+Cosmic Forge `techPhilosophy…Content1` rows map to the selected philosophy
+ability's `philosophyText(locale).abilities.<abilityId>.effect` and its 16
+repeatable entries' `philosophyText(locale).upgrades.<repeatableId>.effect`.
+These render in the Philosophy choice cards and the selected path's Research →
+Philosophy page. The existing `p45-philosophy-copy-locales.spec.ts` checks all
+four ability effects and all 16 repeatable effects in each of the six locales.
+
+Source `infoTooltipPhilosophyHeader` maps to the three populated
+`philosophyText(locale).headerHelp` paragraphs. The same spec now opens the
+selected-path page tooltip and checks each paragraph after switching through
+all six locales. These assertions are **AUTHORED; NOT RUN** for Phase 8.

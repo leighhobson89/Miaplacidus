@@ -16,6 +16,7 @@ npm.cmd run test:e2e:focused -- tests/e2e/notifications/floating-notifications.s
 npm.cmd run test:e2e:focused -- tests/e2e/notifications/autosave-off-notifications.spec.ts --workers=1
 npm.cmd run test:unit:focused -- tests/unit/space-event-notifications.spec.ts tests/unit/audio-event-dispatch.spec.ts
 npm.cmd run test:e2e:focused -- tests/e2e/notifications/economy-notifications.spec.ts -g "first fusion discovery reports stored yield" --workers=1
+npx.cmd playwright test tests/e2e/notifications/p7-economy-notification-locales.spec.ts --workers=1
 npm.cmd run test:e2e:focused -- tests/e2e/notifications/space-event-notifications.spec.ts tests/e2e/starship/starship.spec.ts tests/e2e/battle/battle.spec.ts -g "announces hazardous weather|cancels the point-of-no-return|wins a hostile battle|retains the starship and surviving enemy" --workers=1
 ```
 
@@ -397,6 +398,18 @@ storage and global sell-all actions have no current remake action to notify.
 Cloud/offline-save callsites remain excluded by the local-save contract. P-08
 remains open pending the rest of the source-route and layering/preference audit.
 
+The Phase 7 locale route in `p7-economy-notification-locales.spec.ts` checks
+selected-locale Storage Full copy and Increase Storage actions across six
+locales for both resource and compound storage. It checks active Fusion
+efficiency and storage-limited notices' localized names and yields, and the
+category-level Increase All actions' exact aggregate result across both
+categories in all locales. It is **AUTHORED, NOT RUN**; execution is deferred to Phase 8. Cosmic Forge's
+`notificationCompoundCreatedWithWaste` has no floating-notice counterpart:
+MIAPLACIDUS rejects manual creation that would exceed compound capacity and
+renders the existing inline inventory-full reason. Invalid Fusion previews are
+also rejected by the typed command path instead of showing the source's
+internal parsing-error toast.
+
 ```powershell
 npm.cmd run test:unit:focused -- tests/unit/compound-created-notifications.spec.ts tests/unit/save-notification-messages.spec.ts tests/unit/space-event-notifications.spec.ts tests/unit/localization-validation.spec.ts
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4569'; npm.cmd run test:e2e:focused -- tests/e2e/notifications/compound-create-notifications.spec.ts tests/e2e/notifications/autosave-off-notifications.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
@@ -432,3 +445,20 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; n
 Fusion, research-completion, power-trip, and related notification cases formerly in the Economy catchall now live in [`economy-notifications.spec.ts`](economy-notifications.spec.ts) and [`p45-early-research-notification.spec.ts`](p45-early-research-notification.spec.ts).
 
 The canonical Notifications folder passed **34/34** in installed Chrome on 14 October 2026 with snapshot updates disabled. Visual review found the English Research completion capture's Tech Tree viewport had grown by 110px in the current renderer while all content and controls remained visible; that single stale baseline was refreshed, and the complete area passed on rerun.
+
+## Phase 7 first-arrival Galactic unlock dialog (NOT RUN; Phase 8)
+
+Cosmic Forge `game.js` shows `modalGalacticTabUnlockHeader` and
+`modalGalacticTabUnlockText` when the first Starship reaches orbit; confirming
+that modal then emits `notificationGalacticTabUnlocked`. MIAPLACIDUS now routes
+the six-locale dialog through `spaceProgressionDialogMessages.ts` and
+`spaceEventNotifications.ts`, then emits the existing localized
+`spaceNotificationMessages.ts#galacticTabUnlocked` toast after confirmation.
+The ordinary Starship arrival notice remains separate. Source
+`buttonConfirmUpper` maps to the dialog catalogue's `confirmLabel`.
+
+`space-milestone-notifications.spec.ts` now verifies the visible modal,
+localized paragraphs and confirm action in all six locales. Its existing
+English first-arrival case also checks that the unlock toast follows the
+confirmation. These authored assertions are **NOT RUN**; Phase 8 owns browser
+execution.

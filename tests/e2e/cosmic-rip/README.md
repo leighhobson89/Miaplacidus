@@ -189,18 +189,24 @@ $env:MIAPLACIDUS_TEST_PORT='4894'
 npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/cosmic-rip/cosmic-rip.spec.ts --grep '@p38-objectives'
 ```
 
-## P-44 Cosmic Rip help inventory (10 October 2026)
+## Cosmic Rip source help and child-page introductions (16 October 2026)
 
 The source `infoTooltipCosmicRipHeader`,
 `infoTooltipNearSpaceScannerArrayHeader`, and `infoTooltipSituationHeader` are
-localized in all six source locales. The remake has no corresponding info
-icons: it distributes state, cost, duration, and next-objective guidance beside
-the relevant controls. The scanner route adapts source science-vessel telemetry
-collection to its Sensor Buoy/Rip Research Orbiter telemetry network. Situation
-shows current status/stability and the next objective; the final close action
-is on the separate Cosmic Rip page. Existing E-57 and P-38 cases cover the
-localized controls/objectives, but they do not assert a translation of the
-source's long header help. See the [P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
+localized in all six source locales and map to the active
+`cosmicRipMessages.ts#headerHelp`, `#scannerArrayHelp`, and `#situationHelp`
+InfoTooltip routes. Their source `headerDescCosmicRipTab`,
+`headerDescNearSpaceScannerArray`, and `headerDescSituation` strings are
+separate child-page introductions. The remake now renders those introductions
+in their own Cosmic Rip, Near Space Scanner Array, and Situation panels. The
+source-appended live GP balance is omitted from each static introduction because
+the remake presents the current GP balance in its page wallet. The outer-tab
+`headerDescCosmicRip` remains adapted to the shared `cosmicRipMessages.ts#introduction`
+paragraph and uses the remake player identity. Scanner help adapts source
+science-vessel telemetry collection to the Sensor Buoy/Rip Research Orbiter
+telemetry network. Situation also shows current status/stability and the next
+objective; the final close action is on the separate Cosmic Rip page. See the
+[P-44 handoff](../../../docs/archive/audits/phase-6-handoff-2026-10-07.md#p-44-remaining-cosmic-forge-infotooltip-inventory-10-october-2026).
 
 ## P-56 Cosmic Rip visual matrix (10 October 2026)
 
@@ -257,6 +263,94 @@ not edited.
 Focused installed-Chrome coverage passed **5/5 in 34.9 seconds** on port 5574.
 `npm.cmd run typecheck` and the focused Oxfmt check passed.
 
+## Phase 7 Cosmic Rip closure result and ending locale state — NOT RUN
+
+`p7-cosmic-rip-ending-locales.spec.ts` adds six cases, one per supported
+locale. Each selects the locale before closing the Rip, checks the localized
+closure result title, body, and confirmation action, then confirms into the
+reduced-motion cinematic and checks its visible victory, secured-future,
+identity, game-name, and end-card copy, live announcement, and Continue action.
+The earlier P-45 cases continue to cover the localized closed-state and
+achievement notices.
+
+The source route in `drawTab8Content.js` opens a confirm-only closure result
+before `ui.js` starts the ending cinematic; its result, credits, victory, and
+end-card text use the selected source locale. MIAPLACIDUS routes
+`cosmic-rip.closed` through its localized result dialog and starts
+`CosmicRipEndingCinematic` only after confirmation. The renderer reads the
+selected locale from the app state. Its Mia'Plac/MIAPLACIDUS identity and
+omission of source-specific creator credits follow the recorded owner decision.
+Static comparison found no empty ending copy or selected-locale routing defect
+in the Cosmic Rip closure result or cinematic; their copy was not changed. This
+coverage is authored and **NOT RUN**; no tests, build, or typecheck were run.
+
+## Phase 7 homecoming story source-key route - AUTHORED, NOT RUN
+
+Cosmic Forge's `descriptions.js` supplies four `storyHeader*` / `storyContent*`
+pairs in this order: MIAPLACIDUS, RECLAMATION, THE HUNT BEGINS, and ONE LAST
+THING. In `game.js#showMiaplacidusEndgameStory`, the first three popups precede
+the homecoming `playWinCinematic()`; the last popup follows it. MIAPLACIDUS
+adapts these as four source-order pages in `MiaplacidusEndgameStory`, shown
+after settlement, with each source header on its own page and the source's
+final `confirmLabelLetsFinish` value localized separately from Continue. Story
+acknowledgement reveals Cosmic Rip. The later Cosmic Rip closure uses its own
+`CosmicRipEndingCinematic`; it is a separate route from the homecoming story
+and its source cinematic.
+
+The existing all-locale homecoming journey in
+[`megastructures.spec.ts`](../megastructures/megastructures.spec.ts) checks the
+selected-locale page heading, body, chapter counter, and page action across all
+four source-order pages in each of the six locales, then verifies story
+acknowledgement reveals Cosmic Rip. The coverage was updated with the distinct
+source headers and final action and is **AUTHORED, NOT RUN** for Phase 7; no
+test, build, typecheck, or browser check was run for this update.
+
+## Phase 7 Situation and sector-map source labels — NOT RUN
+
+The selected-locale assertions in `p45-cosmic-rip-visible-copy.spec.ts` now
+include the source `tab8CosmicRipStatusRowLabel` beside the Situation status,
+and `tab8SectorsMapRowLabel` above the unlocated sector grid. The active
+`CosmicRipPane.tsx` renders these as `cosmicRipText(locale).statusRowLabel`
+and `.sectorsMapTitle`, both populated in all six locales. The source
+`tab8CosmicRipSectorRowLabel` found-state treatment remains mapped to the
+selected-locale sector-found label under the located sector; the stability,
+upgrade, next-objective, scanner-array, and closure labels remain on their
+owning child routes. These are authored assertions and implementation; they
+are **NOT RUN** for Phase 8 V-59. No test, build, typecheck, formatter, or
+browser check was run for this update.
+
+## Phase 7 located-sector status locale route — AUTHORED, NOT RUN
+
+Cosmic Forge `game.js` uses `textLocatedInSector` in the Situation status when
+the scanner is restored, the Rip is found, and no stabilization technology has
+been completed; it replaces `{sector}` with the found sector ID. MIAPLACIDUS
+renders the same state through `CosmicRipPane.tsx`:
+`cosmicRipText(locale).locatedInSector` is selected into the Situation
+`cosmic-rip-status-row`.
+
+`p7-cosmic-rip-located-sector-locales.spec.ts` reaches this state through the
+visible controls. The deterministic `meta-cosmic-rip-objective-scan` fixture
+has 20 GP and places the Rip in sector index 4; the spec clicks Restore Scanner
+and scans sectors 0 through 4 in the Scanner Array, then checks the Situation
+status in all six locales. The spec is **AUTHORED, NOT RUN**; execution is
+deferred to Phase 8 V-59.
+
 ## 14 October 2026 focused regression recovery
 
 The saved full-run failures for Cosmic Rip were re-resolved by current test titles and rerun in installed Chrome. The focused batch passed 10/11: both Cosmic Rip announcement/scan notification cases, P-41 notation, all three P-45 copy cases, both P-54 phone-width cases, the Cosmic Rip theme surface, and the P-65 Cosmic Rip child-page matrix passed. P-66 alone exposed stale visual baselines: the current Scanner Array and Rip pages now include the restored scanner/located-sector states, telemetry upgrades, and containment research. I reviewed the five changed desktop/mobile captures; their content and bounds match the current renderer. The P-66 update run passed 1/1 on port 4252, then the no-update confirmation passed 1/1 in 7.7 seconds on port 4253. Thus all 11 assigned saved failure cases pass across the focused batch and confirmation runs. Reports and actual screenshots are in system Temp under `miaplacidus-cosmic-rip-focused-20261014`, `miaplacidus-cosmic-rip-p66-update-20261014`, and `miaplacidus-cosmic-rip-p66-confirm-20261014`.
+
+## Phase 7 page-help locale routes — NOT RUN
+
+The Cosmic Rip locale spec checks the distinct page introductions and help
+tooltips on Cosmic Rip, Situation, and Near Space Scanner Array in all six
+locales. `headerDescCosmicRipTab`, `headerDescSituation`, and
+`headerDescNearSpaceScannerArray` map to
+`cosmicRipMessages.ts#ripIntroduction`, `#situationIntroduction`, and
+`#scannerArrayIntroduction`. The separate source `infoTooltip*Header` keys map
+to `#headerHelp`, `#situationHelp`, and `#scannerArrayHelp`. The outer-tab
+`headerDescCosmicRip` maps to `#introduction`, with the source player identity
+adapted to Mia'Plac. These assertions are AUTHORED, NOT RUN for Phase 8 V-59.
+
+## Phase 7 objective and completed-technology status routes — NOT RUN
+
+The existing `@p38-objectives` flow is also tagged `@p7-cosmic-rip-objective-locales`. It checks each source next-objective state in all six locales as the player restores the scanner, locates the rip, researches the five technologies, and reaches the closure objective. The result-dialog locale spec now also checks the status-row tooltip, two upgrade and five technology help tooltips, each completed technology status on its card, and the final stabilization status in the Situation row for all six locales. The generated crosswalk maps the seven source objective keys, six source completion/final-status keys, and eight source action-help keys to their active `cosmicRipMessages.ts` routes; these specs are **NOT RUN** for Phase 8 V-59.

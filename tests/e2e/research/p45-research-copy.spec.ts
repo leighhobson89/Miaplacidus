@@ -60,10 +60,37 @@ test("Research actions and Tech Tree status stay localized in all six locales @p
     await page.locator("#tab-research").click();
     await page.locator("#tab-research-science-buildings").click();
 
+    const scienceBuildingsPanel = page.locator("#panel-research-science-buildings");
+    const scienceBuildingsTitle = economyLabel(locale, "scienceBuildings");
+    const scienceBuildingsHelp = economyLabel(locale, "scienceBuildingsHelp");
+    expect(
+      scienceBuildingsTitle.trim(),
+      `${locale} Science Buildings section title`,
+    ).not.toBe("");
+    expect(
+      scienceBuildingsHelp.trim(),
+      `${locale} Science Buildings section help`,
+    ).not.toBe("");
+    await expect(scienceBuildingsPanel.locator("#research-buildings-title")).toHaveText(
+      scienceBuildingsTitle,
+    );
+    await expect(scienceBuildingsPanel.locator(".pane-intro")).toHaveText(
+      scienceBuildingsHelp,
+    );
+
     const scienceKit = page.locator(
       '#panel-research-science-buildings [data-building-id="scienceKit"]',
     );
-    await expect(scienceKit.locator("h4")).toHaveText(ECONOMY_BUILDING_NAMES.scienceKit[locale]);
+    const scienceKitLabel = ECONOMY_BUILDING_NAMES.scienceKit[locale];
+    expect(scienceKitLabel.trim(), `${locale} Science Kit row label`).not.toBe("");
+    await expect(scienceKit.locator("h4")).toHaveText(scienceKitLabel);
+    for (const buildingId of ["scienceClub", "scienceLab"] as const) {
+      const rowLabel = ECONOMY_BUILDING_NAMES[buildingId][locale];
+      expect(rowLabel.trim(), `${locale} ${buildingId} row label`).not.toBe("");
+      await expect(
+        scienceBuildingsPanel.locator(`[data-building-id="${buildingId}"] h4`),
+      ).toHaveText(rowLabel);
+    }
     const buy = scienceKit.locator(".economy-building-actions button").first();
     await expect(buy).toBeEnabled();
     await expect(buy).toHaveAccessibleName(/\S/);
@@ -131,12 +158,24 @@ test("Research actions and Tech Tree status stay localized in all six locales @p
     );
     await expect(buy).toHaveAttribute("aria-describedby", /research-building-scienceKit-reason/);
 
-    const autobuyer = page.getByRole("checkbox", {
-      name: economyLabel(locale, "researchAutobuyer"),
+    const unlockedResearchState = (await page.evaluate(() =>
+      window.miaplacidusTest!.getState(),
+    )) as GameState;
+    expect(unlockedResearchState.permanent.acquiredPerks).toContain(
+      "roboticResearchAutomation",
+    );
+    const researchAutobuyerLabel = economyLabel(locale, "researchAutobuyer");
+    expect(
+      researchAutobuyerLabel.trim(),
+      `${locale} Research AutoBuyer source-row target copy`,
+    ).not.toBe("");
+    const autobuyer = scienceBuildingsPanel.getByRole("checkbox", {
+      name: researchAutobuyerLabel,
       exact: true,
     });
     await expect(autobuyer).toBeVisible();
     await expect(autobuyer).toBeEnabled();
+    await expect(autobuyer).toHaveAccessibleName(researchAutobuyerLabel);
     await autobuyer.check();
     await expect(autobuyer).toBeChecked();
 

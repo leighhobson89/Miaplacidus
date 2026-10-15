@@ -276,3 +276,33 @@ node .\node_modules\playwright\cli.js test tests/e2e/energy/p45-energy-locales.s
 
 ## Economy catchall migration (14 October 2026)
 Localized Resource, Compound, and early-economy cases formerly in the Economy catchall now live in [`economy-localization.spec.ts`](economy-localization.spec.ts), [`p45-early-economy-locales.spec.ts`](p45-early-economy-locales.spec.ts), [`p45-resource-compound-copy.spec.ts`](p45-resource-compound-copy.spec.ts), and [`p51-e57-economy-phone-locale.spec.ts`](p51-e57-economy-phone-locale.spec.ts).
+# Phase 7 Interstellar locale-route extension (15 October 2026)
+
+`interstellar-localization.spec.ts` now checks the four localized Star Map
+mode labels and the Star Map modes help tooltip in each supported locale,
+while retaining separate Star Map and Star Data child-route assertions. This
+updated route coverage is **NOT RUN** for Phase 7; Phase 8 V-59 owns execution.
+The separate Star Data Weather tooltip now uses `starMapText(...,
+"starDataWeatherHelp")`; its focused all-locale assertion is recorded in the
+[Star Map area README](../star-map/README.md).
+
+## Phase 7 source navigation labels (15 October 2026)
+
+`p7-navigation-label-routing.spec.ts` compares player-visible remake
+navigation labels with the Cosmic Forge source menu mapping in `index.html`
+and `ui.js` `localizeTabLabels`. It sweeps all six `LOCALE_IDS`, checks the
+owner-approved top-level order and localized labels, and verifies source
+option IDs stay attached to distinct resource, compound, Energy, Research,
+Interstellar, Space Mining, Galactic, Cosmic Rip, Settings, and Miaplaedia
+child destinations. Separate deterministic fixtures reach Star Data,
+Starship, Fleet Hangar, Colonise, asteroids, rockets, Galactic Casino,
+Megastructures, Black Hole, and Research Philosophy; the Casino assertion
+keeps its own `panel-galactic-casino` destination. This Phase 7 spec is
+**NOT RUN**; execution is deferred to Phase 8.
+
+The source-level exclusions are Cosmic Forge's Settings `Contact` and `Exit
+Game` options, which are not remake destinations under the current owner
+decisions. The test checks destination labels and source option ownership; it
+does not cover the source's decorative Settings category headings or verify
+full-page copy beneath each route.
+
