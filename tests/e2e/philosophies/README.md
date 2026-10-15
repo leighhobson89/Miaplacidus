@@ -69,12 +69,15 @@ phone width without horizontal page overflow. Terminal desktop and Light and
 Supernova phone captures were visually reviewed, including the lower phone
 cards. The five-family installed-Chrome P-28 batch passed 5/5 on port 4980.
 
-The existing full-page choice checkpoint was refreshed after visual review:
-the current telescope page makes the capture 1280 x 1422. The refreshed choice
-and selected-path screenshots were both reviewed; the four choice cards and
-selected-path artwork fit their panels. Named matrix captures are attached in
-the generated Playwright report at `playwright-report/index.html`; this focused
-art matrix does not replace P-56's broader screenshot review.
+The full-page choice checkpoint was refreshed after visual review; at that
+time, the telescope page made the capture 1280 x 1422. On 14 October, the
+telescope layout produced a 1280 x 1165 capture. Review found that the new
+checked-in baseline omitted the visible choice-card text and buttons, so it
+was replaced with the fresh capture showing all four complete choice cards.
+The no-update path-choice rerun passed 1/1 in 11.7 seconds on port 6455. Named
+matrix captures are attached in the generated Playwright report at
+`playwright-report/index.html`; this focused art matrix does not replace P-56's
+broader screenshot review.
 
 ## P-45 Philosophy purchase results (10 October 2026)
 
@@ -93,3 +96,28 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5668'
 node .\node_modules\playwright\cli.js test --pass-with-no-tests --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-philosophy-purchases-5668 tests/e2e/philosophies/p45-philosophy-purchase-results.spec.ts --project=chrome
 ```
+
+**Saved full-run recovery (14 October 2026):** the P-45 purchase check now
+uses the localized `abilityAction` label, and the copy check selects the
+Expansionist summary paragraph specifically. These correct the old Research
+button label and ambiguous paragraph locator; no gameplay or locale values
+changed. The saved path-choice image used the earlier 1422px layout; its
+replacement was visually reviewed at 1165px and includes all choice content.
+The focused Chrome run of `philosophies.spec.ts`,
+`p45-philosophy-copy-locales.spec.ts`, and
+`p45-philosophy-purchase-results.spec.ts` passed **4/4 in 21.1 seconds** on
+port 6453. The count includes the P-16 focus case in the shared
+`philosophies.spec.ts` file.
+After refreshing the path-choice image, its targeted no-update rerun passed
+**1/1 in 11.7 seconds** on port 6455. No source changes were needed.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+$env:MIAPLACIDUS_TEST_PORT='6453'
+npm.cmd run test:e2e:focused -- tests/e2e/philosophies/philosophies.spec.ts tests/e2e/philosophies/p45-philosophy-copy-locales.spec.ts tests/e2e/philosophies/p45-philosophy-purchase-results.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+```
+
+
+## Economy catchall migration (14 October 2026)
+The Philosophy cost-context case formerly in the Economy catchall now lives in [`e57-philosophy-cost-context.spec.ts`](e57-philosophy-cost-context.spec.ts).

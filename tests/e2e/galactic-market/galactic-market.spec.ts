@@ -1,4 +1,5 @@
 import { expect, test } from "../_harness/fixtures";
+import type { Locator, Page } from "@playwright/test";
 import { startMetaFixture } from "../_harness/meta-fixture";
 import { captureVisualCheckpoint } from "../_harness/visual-checkpoints";
 import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
@@ -69,6 +70,41 @@ const galacticIdentityViewports = [
   { width: 390, height: 844 },
   { width: 320, height: 740 },
 ] as const;
+
+async function dismissRandomEventResultDialog(
+  page: Page,
+  dialog: Locator,
+): Promise<string | null> {
+  const dismissedContent = (await dialog.innerText()).trim();
+  const dialogClosed = dialog.evaluate(
+    (element) =>
+      new Promise<void>((resolve) => {
+        element.addEventListener("close", () => resolve(), { once: true });
+      }),
+  );
+  await dialog.getByRole("button").click();
+  await dialogClosed;
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => resolve());
+        });
+      }),
+  );
+  const replacementContent = await page.evaluate(() => {
+    const nextDialog = document.querySelector<HTMLDialogElement>(
+      '[data-testid="random-event-result-dialog"]',
+    );
+    return nextDialog?.open ? nextDialog.innerText.trim() : null;
+  });
+  if (replacementContent) {
+    expect(replacementContent).not.toBe(dismissedContent);
+  } else {
+    await expect(dialog).toBeHidden();
+  }
+  return replacementContent;
+}
 
 test("previews and settles an exact Galactic Market trade", async ({ page }, testInfo) => {
   await startMetaFixture(page, "meta-market-rebirth-ready");
@@ -213,8 +249,11 @@ test("disabled Galactic Market actions describe live selector reasons", async ({
   expect(lockdownAccepted).toBe(true);
   const lockdownDialog = page.getByTestId("random-event-result-dialog");
   await expect(lockdownDialog).toBeVisible();
-  await lockdownDialog.getByRole("button").click();
-  await expect(lockdownDialog).toBeHidden();
+  let initialReplacementContent = await dismissRandomEventResultDialog(page, lockdownDialog);
+  for (let pendingIndex = 0; initialReplacementContent && pendingIndex < 12; pendingIndex += 1) {
+    initialReplacementContent = await dismissRandomEventResultDialog(page, lockdownDialog);
+  }
+  expect(initialReplacementContent).toBeNull();
   const lockDuration = await page.evaluate(
     () => window.miaplacidusTest!.getState().run.marketLockdownRemainingMs,
   );
@@ -264,9 +303,9 @@ test("disabled Galactic Market actions describe live selector reasons", async ({
 
     const heading = (await lockdownDialog.getByRole("heading").innerText()).trim();
     sawMarketRestoration ||= heading === "GALACTIC MARKET RESTORED!";
-    await lockdownDialog.getByRole("button").click();
-    await expect(lockdownDialog).toBeHidden();
+    await dismissRandomEventResultDialog(page, lockdownDialog);
   }
+  await expect(lockdownDialog).toBeHidden();
   expect(sawMarketRestoration).toBe(true);
   await page.getByRole("tab", { name: "Galactic Market" }).click();
   await expect(page.getByText(/in lockdown/)).toHaveCount(0);
@@ -368,9 +407,13 @@ test("Galactic child pages keep localized identity, artwork, and bounds across t
             pane.locator(`.page-artwork-row [data-celestial-illustration='${child.artwork}']`),
           ).toBeVisible();
 
-          const expectedTitleSize = await page
+          const baseTitleSize = await page
             .locator("#panel-resources-hydrogen .pane-heading h2")
             .evaluate((element) => getComputedStyle(element).fontSize);
+          const expectedTitleSize =
+            child.id === "galactic-rebirth" && viewport.width <= 360
+              ? "24px"
+              : baseTitleSize;
           await expect(
             title,
             `${theme}/${locale}/${viewport.width}px ${child.id} title scale`,

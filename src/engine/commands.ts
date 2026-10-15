@@ -2581,6 +2581,7 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
             nextState.run.cash,
             elapsedMs,
             tickPlan,
+            { floorProducedAmounts: step.phase === "offline" },
           );
           const seconds = elapsedMs / 1000;
           const previousPower = nextState.run.economy.power;
@@ -2615,7 +2616,9 @@ function transitionRaw(state: GameState, command: GameCommand): EngineResult {
             events.push({ type: "economy.power.tripped" });
             nextState = incrementEnergyTripHistory(nextState);
           }
-          const researchGain = (tickPlan.researchPerSecond ?? 0) * seconds;
+          const rawResearchGain = (tickPlan.researchPerSecond ?? 0) * seconds;
+          const researchGain =
+            step.phase === "offline" ? Math.floor(rawResearchGain) : rawResearchGain;
           researchPointsEarned += researchGain;
           let researchPoints = nextState.run.researchPoints + researchGain;
           const researchedTechnologies = [...nextState.run.economy.researchedTechnologies];

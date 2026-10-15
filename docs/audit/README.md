@@ -1,5 +1,7 @@
 # Cosmic Forge audit: scope and method
 
+The current implementation gate review is the [Phase 7 readiness audit (15 October 2026)](phase-7-readiness-2026-10-15.md). It confirms Phase 6 is closed, identifies Phase 7's remaining L-tasks, and records the localization validator's scope and fallback behavior.
+
 **Audit date:** 2 October 2026. **Reference:** `../../../cosmicForge/cosmicForge/`, Git HEAD `93e3266` dated 17 September 2026. The parent `../../../cosmicForge/` also contains migration and prompt notes; the playable application and its `.git` directory are in the nested folder.
 
 ## What was inspected

@@ -237,3 +237,40 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $
 ```
 
 **P-20 purchase-reason source audit addendum (11 October 2026):** the underfunded research reason remains visible and linked to the disabled research action with `aria-describedby`, but its balance-derived text is no longer a live region. The 9 October status-role browser assertions describe the previous implementation and need reconciliation in the deferred regression pass. Command-level rejection feedback remains politely announced. No checks were run; manual spoken assistive-technology review remains open.
+
+### Saved regression failure replay (14 October 2026)
+
+The two saved Black Hole failures were rerun against the current specs in
+installed Chrome: P-06 action affordances and the P-56 localized charging
+content matrix. Both passed (**2/2 in 43.8 seconds**) on port 6715 with no
+snapshot updates.
+The saved P-06 context predates the source-aligned upgrade locators; the saved
+P-56 timeout predates its explicit five-minute case timeout. No further
+product or test changes were needed. Playwright artifacts are in
+`%TEMP%\miaplacidus-black-hole-saved-two-20261014\test-results`.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6715'; npm.cmd run test:e2e:focused -- tests/e2e/black-hole/p06-black-hole-action-affordances.spec.ts tests/e2e/black-hole/p56-black-hole-content-visual-matrix.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'Black Hole Recharge shortfall, recovery, charge, and warp actions match engine selection|P-56 Black Hole charging content fits all locales, themes, and viewports'
+```
+
+## P-65 Galactic Black Hole page identity
+
+`p65-meta-identity.spec.ts` verifies the Black Hole child heading, shared title
+treatment, Black Hole illustration, Hydrogen title scale, and bounds at 1280px
+and 390px. It uses the discovered-hole fixture because the megastructure-route
+fixture leaves the Black Hole child locked. The corrected owner-area case
+passed 1/1 in 6.4 seconds in installed Chrome on port 6717, without snapshot
+updates. The desktop and phone diagnostics are Playwright output attachments
+under `%TEMP%\miaplacidus-p65-black-hole-identity-20261014`; no checked-in
+snapshot baseline exists for the former catch-all.
+
+### Complete area rerun (14 October 2026)
+
+The canonical Black Hole folder passed **27/27** in installed Chrome in 3.0
+minutes on port 6461 with snapshot updates disabled. Screenshot expectations
+were checked, and no test or baseline changes were needed. Artifacts are under
+`%TEMP%\miaplacidus-black-hole-focused-6461-r1-20261014`.
+
+```powershell
+npm.cmd run test:e2e:focused -- tests/e2e/black-hole --project=chrome --workers=1 --retries=0 --update-snapshots=none --trace=retain-on-failure --reporter=line
+```

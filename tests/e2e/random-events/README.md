@@ -182,3 +182,21 @@ node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retrie
 npm.cmd run typecheck
 .\node_modules\.bin\oxfmt.cmd --check tests\e2e\random-events\p56-events-visual-matrix.spec.ts
 ```
+
+## Saved 14 October full-run failure recovery
+
+Both saved Random Events failures with error contexts are recovered by the current tree. The P-45 locale test previously used a non-exact accessible-name match for the Events heading, which also matched Active Events; the assertion now uses exact heading names. It checks the event names, journal labels, and prize row in all six locales. The saved artwork failure was a stale screenshot size: its expected image was 1280 by 819 while the current captured page was 1280 by 810. The current checkpoint is 1280 by 810. Visual review confirms the event artwork and journal content fit without clipping; the no-update rerun confirms this baseline.
+
+Focused installed-Chrome reruns passed **2/2 total**, with no retries and no snapshot updates:
+
+| Saved case | Result | Output |
+| --- | --- | --- |
+| P-45 event names, journal labels, and prize notice in every locale | 1/1 passed in 9.8 seconds | `%TEMP%\miaplacidus-random-events-p45-6507` |
+| Event journal artwork, prize claim, save/reload, and six locale changes | 1/1 passed in 7.7 seconds | `%TEMP%\miaplacidus-random-events-journal-6508` |
+
+No app behavior or locale values were changed for these recoveries.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6507'; npm.cmd run test:e2e:focused -- tests/e2e/random-events/p45-event-catalogue-locale.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-random-events-p45-6507"
+$env:MIAPLACIDUS_TEST_PORT='6508'; npm.cmd run test:e2e:focused -- tests/e2e/random-events/random-events.spec.ts --project=chrome --grep 'records an event and guarded news prize across locale changes and reload' --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-random-events-journal-6508"
+```

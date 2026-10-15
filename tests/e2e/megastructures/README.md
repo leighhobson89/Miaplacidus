@@ -117,6 +117,12 @@ Chrome passed the snapshot run and clean no-update rerun, 2/2 each, on ports
 uses English Terminal and a seeded stage state; it does not cover long
 translated labels or every theme.
 
+**P-13 saved full-run recovery (14 October 2026):** the 14:06 saved failure
+compared the rendered page with the earlier 2,590px snapshot, which still
+contained transient achievement banners. Commit `38a2938` refreshed that
+baseline to the current 2,434px layout. The focused installed-Chrome rerun
+passed 1/1 in 12.0 seconds on port 6452 with no snapshot update.
+
 **P-47 stage-progress plural localization (9 October 2026):** the Megastructure
 track used the plural “stages researched” for every progress count, including
 1/5. Its typed message catalogue now has singular and other forms in all six
@@ -218,3 +224,18 @@ npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace
 npm.cmd run typecheck
 npm.cmd exec -- oxfmt --check tests/e2e/megastructures/p56-megastructure-content-visual-matrix.spec.ts
 ```
+
+## P-65 Megastructures page identity
+
+`p65-meta-identity.spec.ts` checks the Galactic Megastructures child heading
+and shared title treatment, megastructure illustration, Hydrogen title scale,
+and bounds at 1280px and 390px. It preserves the
+`p65-megastructures-{1280,390}.png` diagnostic captures as Playwright output
+attachments. The owner-area case passed in the seven-case installed-Chrome
+split batch on port 6716 without snapshot updates; the separate Black Hole
+fixture failure was corrected and passed in its own rerun. Outputs are under
+`%TEMP%\miaplacidus-p65-meta-identity-split-20261014`.
+
+
+## Economy catchall migration (14 October 2026)
+The Dyson-stage research case formerly in the Economy catchall now lives in [`economy-megastructures.spec.ts`](economy-megastructures.spec.ts).

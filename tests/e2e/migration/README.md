@@ -1,12 +1,15 @@
 # `migration` evidence
 
-The test-only v0 envelope omits the statistics block and declares schema version 0. The one-way migration validates its exact fields and checksum, adds the v1 statistics defaults, recalculates the current envelope checksum and returns a playable Hydrogen state. Unit coverage checks this ladder; browser coverage imports the same kind of code and starts the resulting slot directly into gameplay.
+Installed Chrome passed the area-owned v54-to-v55 migration case 1/1 on 14
+October 2026 (7.6 seconds, port 6448), with no snapshot update.
+
+The browser case imports a synthetic version 54 save through the live Save Manager and exercises the v54→v55 migration. It verifies that the missing Megastructure availability-notice guard defaults to `false`, survives a reload, and leaves a playable Hydrogen run. The older synthetic v0 import journey belongs to [`save-migration`](../save-migration/README.md); focused unit coverage in [`local-saves.spec.ts`](../../unit/local-saves.spec.ts) exercises the migration ladder.
 
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
-npx.cmd playwright test tests/e2e/save-slots/save-slots.spec.ts --grep migration --workers=1
+npx.cmd playwright test tests/e2e/migration/migration.spec.ts --workers=1
 npm.cmd run test:unit:focused -- tests/unit/local-saves.spec.ts
 ```
 
-No MIAPLACIDUS release schema has shipped yet. The current development schema is version 32; its v31 migration adds run and all-time random-event counts. Existing v31 saves can restore only the latest 100 event records for the active run, and start all-time event totals at zero. When a release schema ships, add a sanitized, versioned fixture for it before changing the migration ladder.
+Schema 55 is the current development format. The v54→v55 migration adds the persisted Megastructure availability-notice guard. The browser fixture is generated from a deterministic current state with that field removed; it does not claim to represent a previously released user save.

@@ -4,9 +4,9 @@ The F-35/F-36 harness is implemented for the M-01 Hydrogen slice. Playwright run
 
 The wider F-01–F-10 [source-derived acceptance matrix](../audit/foundation-test-plan.md) remains planning input for later phases. Current Hydrogen evidence does not close the full `resources`, `autobuyers`, `precision`, `localization`, or `ui-navigation` areas. Save behavior starts in M-02.
 
-The suite-wide functional-area ownership, missing-area coverage, catch-all folder split, and per-area regression work are tracked in the active [E2E functional-area plan](e2e-functional-area-coverage-and-refactor.md). Its baseline inventory is historical until specs have been moved and the dedicated area runs are recorded. Keep failures tied to source or owner-approved behavior; do not revise assertions only to get a green run.
+The completed suite-wide functional-area ownership, missing-area coverage, catch-all folder split, and per-area regression work are recorded in the [archived E2E functional-area plan](../archive/plans/2026-10-15-e2e-functional-area-coverage-and-refactor.md). Its starting inventory is historical; the final structure and single full-run/focused-recovery evidence are recorded there. Keep future failures tied to source or owner-approved behavior; do not revise assertions only to get a green run.
 
-`tests/e2e/functional-areas.json` is the canonical area manifest. `scripts/run-e2e-areas.mjs` runs each area folder in a separate Playwright process, records an aggregate JSON report, and places reports, traces, and failure output in a timestamped directory under the OS Temp folder. `--populated` is useful during the refactor; the full `test:e2e` command fails if an in-scope area has no runnable specs.
+`tests/e2e/functional-areas.json` is the canonical area manifest. `scripts/run-e2e-areas.mjs` runs each area folder in a separate Playwright process, records an aggregate JSON report, and places reports, traces, and failure output in a timestamped directory under the OS Temp folder. Direct focused Playwright runs also use a fresh Temp directory by default. `--populated` is useful during the refactor; the full `test:e2e` command fails if an in-scope area has no runnable specs.
 
 ## Current package commands
 
@@ -28,6 +28,8 @@ The suite-wide functional-area ownership, missing-area coverage, catch-all folde
 | `npm run test:e2e:focused -- <area-or-spec>`     | Select focused specs directly with Playwright.                                       |
 
 The default browser project is Playwright Chromium. Set `MIAPLACIDUS_BROWSER_CHANNEL=chrome` to use an installed Chrome channel. Set `MIAPLACIDUS_DISABLE_VIDEO=1` only when the local machine lacks Playwright's video/ffmpeg support; screenshots and traces remain enabled on failure.
+
+Playwright defaults to one worker locally and two workers in CI. Set `MIAPLACIDUS_E2E_WORKERS` to a positive integer to override either default; invalid values stop config loading. Snapshot updates are disabled by default (`updateSnapshots: "none"`); refresh a reviewed baseline only with an explicit focused update run.
 
 For the recorded Windows run, Vite was started in a separate terminal with `npm run dev:test -- --host 127.0.0.1 --port 4173 --strictPort`; Playwright reused `http://127.0.0.1:4173` and exited cleanly after the focused run. The current Playwright config defaults to port 4174 and starts its own test server; set `MIAPLACIDUS_TEST_PORT=4173` when reproducing the recorded run.
 

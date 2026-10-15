@@ -181,6 +181,10 @@ function megastructureAntimatterRatePerSecond(state: GameState): number {
   return permanentMegastructureAntimatterRate(state);
 }
 
+function currentStarAntimatterMiningMultiplier(state: GameState): number {
+  return antimatterStarTypeMultiplier(starTypeForSystem(state.run.space.currentSystemId));
+}
+
 function rocketJourneyTimerId(rocketId: RocketId) {
   return createTimerId("travel", `${rocketId}-asteroid-journey`);
 }
@@ -2256,6 +2260,7 @@ export function antimatterMiningRatePerSecond(state: GameState): number {
     "enhancedMining",
   );
   const boostMultiplier = state.run.space.antimatterBoostActive ? ANTIMATTER_BOOST_MULTIPLIER : 1;
+  const starTypeMultiplier = currentStarAntimatterMiningMultiplier(state);
   const rocketRate = ROCKET_IDS.reduce((total, rocketId) => {
     const breakdown = state.run.randomEvents.activeEffects.find(
       (effect) => effect.id === "minerBrokeDown",
@@ -2270,7 +2275,7 @@ export function antimatterMiningRatePerSecond(state: GameState): number {
     return (
       total +
       asteroidExtractionRatePerSecond(asteroid.extractionEase) *
-        antimatterStarTypeMultiplier(starTypeForSystem(asteroid.systemId)) *
+        starTypeMultiplier *
         (1 + 0.25 * miningUpgradeLevel) *
         boostMultiplier
     );
@@ -2318,7 +2323,7 @@ export function advanceSpaceMining(
       : 1;
     const ratePerSecond =
       asteroidExtractionRatePerSecond(asteroid.extractionEase) *
-      antimatterStarTypeMultiplier(starTypeForSystem(asteroid.systemId)) *
+      currentStarAntimatterMiningMultiplier(nextState) *
       (1 + 0.25 * miningUpgradeLevel) *
       boostMultiplier;
     const amount = Math.min(asteroid.remainingAntimatter, ratePerSecond * (rocketElapsedMs / 1000));

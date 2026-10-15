@@ -131,7 +131,7 @@ Run the combined notation subset with installed Chrome:
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 $env:MIAPLACIDUS_TEST_PORT = "4217"
-npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "P-41" tests/e2e/economy/economy.spec.ts tests/e2e/news-ticker/news-ticker.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "P-41" tests/e2e/notation/economy-notation.spec.ts tests/e2e/news-ticker/news-ticker.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts
 ```
 
 The timing unit check is `npm.cmd run test:unit:focused -- tests/unit/meta-signals.spec.ts`.

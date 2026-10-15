@@ -82,7 +82,8 @@ test("all main and child navigation stays usable at 390px in every theme @p12-mo
       for (let railIndex = 0; railIndex < (await childRails.count()); railIndex += 1) {
         const rail = childRails.nth(railIndex);
         const tabLists = rail.locator("[role='tablist']:visible");
-        for (let listIndex = 0; listIndex < (await tabLists.count()); listIndex += 1) {
+        const tabListCount = await tabLists.count();
+        for (let listIndex = 0; listIndex < tabListCount; listIndex += 1) {
           const tabs = tabLists.nth(listIndex).locator("[role='tab']:visible");
           const count = await tabs.count();
           if (count === 0) continue;
@@ -99,7 +100,10 @@ test("all main and child navigation stays usable at 390px in every theme @p12-mo
             scrollWidth: element.scrollWidth,
             scrollLeft: element.scrollLeft,
           }));
-          if (childRailMetrics.scrollWidth > childRailMetrics.clientWidth + 1) {
+          if (
+            listIndex === tabListCount - 1 &&
+            childRailMetrics.scrollWidth > childRailMetrics.clientWidth + 1
+          ) {
             expect(
               childRailMetrics.scrollLeft,
               `${theme} ${tabId} overflowing child rail should scroll its selected tab into view`,

@@ -15,13 +15,17 @@ npm.cmd run test:unit:focused -- tests/unit/notificationScheduler.spec.ts
 npm.cmd run test:e2e:focused -- tests/e2e/notifications/floating-notifications.spec.ts --workers=1
 npm.cmd run test:e2e:focused -- tests/e2e/notifications/autosave-off-notifications.spec.ts --workers=1
 npm.cmd run test:unit:focused -- tests/unit/space-event-notifications.spec.ts tests/unit/audio-event-dispatch.spec.ts
-npm.cmd run test:e2e:focused -- tests/e2e/economy/economy.spec.ts -g "first fusion discovery reports stored yield" --workers=1
+npm.cmd run test:e2e:focused -- tests/e2e/notifications/economy-notifications.spec.ts -g "first fusion discovery reports stored yield" --workers=1
 npm.cmd run test:e2e:focused -- tests/e2e/notifications/space-event-notifications.spec.ts tests/e2e/starship/starship.spec.ts tests/e2e/battle/battle.spec.ts -g "announces hazardous weather|cancels the point-of-no-return|wins a hostile battle|retains the starship and surviving enemy" --workers=1
 ```
 
 The scheduler unit cases cover the global two-card cap, FIFO promotion across classifications, manual dismissal, and queue clearing. The floating-notification browser case checks fixed bottom-right placement, side-by-side geometry, stacking order, no document-height change, three-second fade delay, and promotion/dismissal of a queued notice. Space event unit coverage checks localized starship/rocket/weather/battle notices in all six locales, event routing through dispatch, batch, and timer advancement, weather-entry de-duplication, and silent progress/ordinary-weather events. Cosmic Forge source references are `ui.js` (`showNotification`, `processNotificationQueue`, classification queues, row promotion) and `constantsAndGlobalVars.js` (`MAX_STACKS`, `MAX_NOTIFICATION_COLUMNS`, category sets); source is read-only.
 
 **Floating-notification acceptance (14 October 2026):** the focused Chromium run of `floating-notifications.spec.ts` and `autosave-off-notifications.spec.ts` passed 2/2 with a clean exit. It confirms the viewport-fixed bottom-right stack, two side-by-side notices, no page-height change, high stacking order, a three-second visible period followed by a 300ms fade, FIFO promotion, and the autosave warning's three-second lifetime.
+
+**14 October saved-failure recovery:** the 14 notification failures from the full regression artifact were rerun as focused installed-Chrome cases. Thirteen passed in the first focused batch; the Starship arrival focus case passed 1/1 on a clean rerun after it was made to wait for and dismiss the separate asynchronous `random-event-result-dialog`. That native modal correctly takes focus while open; the toast itself leaves the selected Starship tab focused. Across the two focused runs, all 14 saved cases passed. No notification implementation change was needed. The saved contexts are under `%TEMP%\miaplacidus-full-regression-20261014\notifications-*`; focused outputs are under `%TEMP%\miaplacidus-notifications-recovery-6426` and `%TEMP%\miaplacidus-arrival-focus-fixed-6429`.
+
+**14 October full-regression screenshot recovery:** `research completion notifications have a value for all six player languages` passed 1/1 after visual review and refresh of its stale English full-page baseline. The floating notification no longer adds document height; the focused rerun matched with snapshot updates disabled.
 
 The focused scheduler unit run passed 4/4 and TypeScript checking passed. The browser command was:
 
@@ -180,7 +184,7 @@ announcement behavior remain unverified; P-20 stays open.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4632'
-node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'announces Cosmic Rip research completion|normal research completion reaches the polite atomic' tests/e2e/cosmic-rip/cosmic-rip.spec.ts tests/e2e/economy/economy.spec.ts
+node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'announces Cosmic Rip research completion|normal research completion reaches the polite atomic' tests/e2e/cosmic-rip/cosmic-rip.spec.ts tests/e2e/notifications/economy-notifications.spec.ts
 ```
 
 **P-16 toast focus coverage (9 October 2026):** the clean tagged P-16 Chrome
@@ -422,3 +426,9 @@ Cosmic Forge advances weather in `game.js:10562-10603` and calls `showWeatherNot
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/notifications/space-event-notifications.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g "announces timer-triggered severe weather"
 ```
+
+
+## Economy catchall migration (14 October 2026)
+Fusion, research-completion, power-trip, and related notification cases formerly in the Economy catchall now live in [`economy-notifications.spec.ts`](economy-notifications.spec.ts) and [`p45-early-research-notification.spec.ts`](p45-early-research-notification.spec.ts).
+
+The canonical Notifications folder passed **34/34** in installed Chrome on 14 October 2026 with snapshot updates disabled. Visual review found the English Research completion capture's Tech Tree viewport had grown by 110px in the current renderer while all content and controls remained visible; that single stale baseline was refreshed, and the complete area passed on rerun.

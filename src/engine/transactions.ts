@@ -70,6 +70,11 @@ export interface ResourceTransactionResult {
   readonly events: readonly ResourceTransactionEvent[];
 }
 
+export interface ResourceTransactionOptions {
+  /** Floors direct production gains for source-compatible offline settlement. */
+  readonly floorProducedAmounts?: boolean;
+}
+
 function checkedRate(value: number, description: string): number {
   if (!Number.isFinite(value) || value < 0) {
     throw new RangeError(`${description} must be a finite non-negative rate.`);
@@ -93,6 +98,7 @@ export function transactResources(
   cash: number,
   elapsedMs: number,
   plan: TickPlan,
+  options: ResourceTransactionOptions = {},
 ): ResourceTransactionResult {
   checkedAmount(cash, "Cash");
   checkedAmount(elapsedMs, "Elapsed time");
@@ -125,8 +131,12 @@ export function transactResources(
 
   // 1. Land each producer's output. Keep excess available to consumers until the final clamp.
   for (const goodId of ECONOMIC_GOOD_IDS) {
-    const amount =
+    const rawAmount =
       checkedRate(plan.productionPerSecond?.[goodId] ?? 0, `Production for ${goodId}`) * seconds;
+    const roundingTolerance = Number.EPSILON * Math.max(1, Math.abs(rawAmount));
+    const amount = options.floorProducedAmounts
+      ? Math.floor(rawAmount + roundingTolerance)
+      : rawAmount;
     if (amount > 0) {
       const actualGain = Math.min(
         amount,

@@ -1,10 +1,10 @@
-# Economy browser coverage (M-03)
+# Retired Economy E2E catchall (historical index)
 
-This area uses Playwright in Chrome with real clicks through the Resources, Energy, Research, and Compounds panels. Most later-system cases start from a named, deterministic fixture so the test can focus on the action under test. Fresh progression begins with a real Hydrogen save, buys the Science Kit and compressor through their controls, unlocks Energy and Compounds, and reaches the first Helium and Carbon child pages through the resource rail. That path checks source order, Energy's initial Energy Storage page, `New` badge clearing, and child-page restoration after switching main tabs. Automatic-sale and compound-creation cases buy/enable producers, operate the source-style two-handle segmented allocation slider with pointer/touch dragging or 5% keyboard steps, and advance the injected clock.
+This folder has no runnable browser specs. The former `economy.spec.ts` and standalone cases have been moved into canonical feature areas. Current coverage lives in [Resources](../resources/README.md), [Compounds](../compounds/README.md), [Autobuyers](../autobuyers/README.md), [Energy](../energy/README.md), [Research](../research/README.md), [Technology](../technology/README.md), [Notifications](../notifications/README.md), [Notation](../notation/README.md), [Statistics](../statistics/README.md), [Localization](../localization/README.md), [UI Navigation](../ui-navigation/README.md), [Save/Load Local](../save-load-local/README.md), [Megastructures](../megastructures/README.md), and [Philosophies](../philosophies/README.md). Use their canonical specs and area READMEs for current commands and evidence. The folder retains 31 historical screenshot files: 24 differ from same-named canonical captures and 7 have no canonical counterpart. They are not referenced by runnable specs; 74 byte-identical duplicate files were removed after comparison.
 
-Standalone tests now live with their functional area: [Energy](../energy/README.md), [Resources](../resources/README.md), [Automation](../automation/README.md), [Notation](../notation/README.md), [Precision](../precision/README.md), and [Audio](../audio/README.md). This folder keeps `economy.spec.ts` and specs whose journeys still span multiple areas; those tests were not decomposed as part of the file move.
+The material below is retained as an archive of earlier M-03 test scope, source comparisons, commands, results, and review notes. Commands shown there document past runs; paths and outcomes may no longer describe current runnable files.
 
-## Run
+## Historical runner commands
 
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
@@ -12,7 +12,7 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 npx.cmd playwright test tests/e2e/economy/economy.spec.ts --workers=1
 ```
 
-To run the repository's complete click-driven browser suite with the same Chrome settings, use `npx.cmd playwright test tests/e2e --workers=1` instead.
+The complete-suite command shown above is retained as historical usage; current area runs are listed in the canonical READMEs.
 
 The shared browser fixture records page errors, console errors, and external requests. `captureVisualCheckpoint` attaches a full-page screenshot, requires the app-ready surface to have a non-white background, and compares the screenshot to its checked-in baseline with a 5% pixel-difference allowance.
 
@@ -263,7 +263,7 @@ The durable images are in
 Run the focused screenshot cases in installed Chrome with:
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4181'; node ./node_modules/playwright/cli.js test --pass-with-no-tests --workers=1 --retries=0 --trace=off --reporter=line -g '@p66-visual-review' tests/e2e/space-telescope/space-mining-presentation.spec.ts tests/e2e/energy/energy-presentation-matrix.spec.ts
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4181'; node ./node_modules/playwright/cli.js test --pass-with-no-tests --workers=1 --retries=0 --trace=off --reporter=line -g '@p66-visual-review' tests/e2e/space-mining/space-mining-presentation.spec.ts tests/e2e/energy/energy-presentation-matrix.spec.ts
 ```
 
 9 October 2026 P-66 durable Energy review: `energy-presentation-matrix.spec.ts`
@@ -382,7 +382,7 @@ npx.cmd oxfmt --check tests/e2e/notation/p41-timer-presentation.spec.ts
 
 `p65-research-visual-review.spec.ts` adds six checked-in page captures for Science Buildings, Tech Tree, and the Expansionist Philosophy destination. Each destination has a desktop and 390px phone capture, sampled across Terminal, Light, Dark, Galaxy, and Space themes and English, French, German, Portuguese, Spanish, and Italian locales. I reviewed all six images: the laboratory, technology, and Expansionist artwork rows match their titles; the 390px cards stack without page-level clipping; and the Tech Tree graph stays inside its horizontally scrollable viewport. The fixture disables notifications before its setup journey so achievements and build notices cannot perturb the screenshots. The Tech Tree's localized pan instruction appears directly above its viewport; adding it increases the German desktop page capture by 24px, with no overlap or page-width overflow. The screenshot baseline was refreshed after visual review. The focused installed-Chrome snapshot run passed 1/1, followed by a clean no-update run at 1/1. The final paired no-update Research/Black Hole Chrome run passed 2/2; the Galactic child/Cosmic Rip identity checks passed 2/2. I also reviewed the existing Energy Summary/Batteries captures and both Power switch states from the durable P-66 evidence: Summary remains readable at phone width, the battery cards stack, and all three Power stations fit desktop columns and phone cards with the lightning row retained. Their sample themes/locales are Terminal English desktop, Light English phone, and Dark phone. No presentation defect requiring a source change was found.
 
-Durable Research images are in `tests/e2e/economy/p65-research-visual-review.spec.ts-snapshots/`:
+Durable Research images are in `tests/e2e/research/p65-research-visual-review.spec.ts-snapshots/`:
 
 - `p65-research-science-buildings-terminal-en-desktop.png`
 - `p65-research-science-buildings-light-fr-phone.png`
@@ -415,7 +415,7 @@ overflow. The earlier screenshots without that cue are superseded by the
 refreshed six-image set above.
 
 The reviewed files are in
-`tests/e2e/economy/p65-research-visual-review.spec.ts-snapshots/`:
+`tests/e2e/research/p65-research-visual-review.spec.ts-snapshots/`:
 
 - `p65-research-science-buildings-terminal-en-desktop.png`
 - `p65-research-science-buildings-light-fr-phone.png`
@@ -1068,7 +1068,7 @@ the page-family overlay checked here. No app-code fix was needed.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5056'
-node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/p51-space-mining-visual.spec.ts tests/e2e/economy/p51-research-energy-narrow-visual.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p51-space-research-visual
+node .\node_modules\playwright\cli.js test tests/e2e/space-mining/p51-space-mining-visual.spec.ts tests/e2e/economy/p51-research-energy-narrow-visual.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p51-space-research-visual
 ```
 
 ## P-44 Research and Energy source tooltip crosswalk (10 October 2026)
@@ -1113,7 +1113,7 @@ source families.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5349'
-node .\node_modules\playwright\cli.js test tests/e2e/economy/p44-research-philosophy-help.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p44-research-energy-help
+node .\node_modules\playwright\cli.js test tests/e2e/research/p44-research-philosophy-help.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p44-research-energy-help
 ```
 
 ## P-55 Energy Times Tripped Statistics row (10 October 2026)

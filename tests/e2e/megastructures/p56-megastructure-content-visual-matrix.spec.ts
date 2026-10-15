@@ -71,105 +71,53 @@ for (const activeTrackId of TRACK_IDS) {
       for (const theme of THEME_IDS) {
         for (const viewport of VIEWPORTS) {
           await page.setViewportSize(viewport);
-          await page.evaluate(
-            ({ nextLocale, nextTheme }) =>
-              window.miaplacidusTest!.dispatch({
-                type: "settings.update",
-                patch: { locale: nextLocale, themeId: nextTheme },
-              }),
-            { nextLocale: locale, nextTheme: theme },
-          );
           const context = `${activeTrackId}/${locale}/${theme}/${viewport.width}px`;
-          await expect(page.locator("html"), `${context} language`).toHaveAttribute("lang", locale);
-          await expect(page.locator(".game-frame:not(.notification-portal)"), `${context} theme`).toHaveAttribute(
-            "data-theme",
-            theme,
-          );
-          await expect(pane.getByRole("heading", { level: 2 }), `${context} title`).toHaveText(
-            copy.title,
-          );
-          await expect(
-            pane.locator(".economy-section-heading > p").first(),
-            `${context} intro`,
-          ).toHaveText(copy.introduction);
-
           const number = (value: number) => formatNumber(locale, value, 0, state.settings.notation);
-          await expect(
-            pane.getByTestId("megastructure-force-field"),
-            `${context} force field`,
-          ).toContainText(
-            (miaplacidusForceFieldLevel(state) >= 4 ? copy.forceFieldCleared : copy.forceField)
-              .replace("{level}", number(miaplacidusForceFieldLevel(state)))
-              .replace("{total}", number(4)),
-          );
-
-          for (const [index, record] of manuscripts.entries()) {
-            const message = copy.manuscriptReported
-              .replace("{number}", String(record.position))
-              .replace("{manuscript}", starName(record.manuscriptSystemId))
-              .replace("{structure}", copy.structureNames[record.megastructureId])
-              .replace("{factory}", starName(record.factorySystemId));
-            await expect(
-              pane.getByTestId(`manuscript-${index + 1}`),
-              `${context} manuscript ${index + 1}`,
-            ).toHaveText(message);
-          }
-
-          for (const trackId of TRACK_IDS) {
-            const stageIds = MEGASTRUCTURE_TRACKS[trackId];
-            const card = pane.getByTestId(`megastructure-track-${trackId}`);
-            const trackContext = `${context}/${trackId}`;
-            const researchedCount = stageIds.filter((id) => completedIds.includes(id)).length;
-            await expect(
-              card.getByRole("heading", { level: 3 }),
-              `${trackContext} heading`,
-            ).toHaveText(copy.structureNames[trackId]);
-            await expect(card.locator("p").first(), `${trackContext} progress`).toHaveText(
-              megastructureStageProgress(locale, researchedCount, stageIds.length, number),
-            );
-            for (const [stageIndex, technologyId] of stageIds.entries()) {
-              const row = card.locator("ol li").nth(stageIndex);
-              await expect(
-                row.locator("span").first(),
-                `${trackContext} stage ${stageIndex + 1}`,
-              ).toHaveText(
-                `${copy.stage.replace("{number}", String(stageIndex + 1))}: ${TECHNOLOGY_NAMES[technologyId][locale]}`,
-              );
-              if (completedIds.includes(technologyId)) {
-                await expect(
-                  row.locator(".status-pill"),
-                  `${trackContext} researched stage ${stageIndex + 1}`,
-                ).toHaveText(copy.researched);
-              }
-            }
-
-            const action = card.getByRole("button", {
-              name: copy.researchAction,
-              exact: true,
+          const presentation = await page.evaluate(async ({ trackIds, nextLocale, nextTheme }) => {
+            window.miaplacidusTest!.dispatch({
+              type: "settings.update",
+              patch: { locale: nextLocale, themeId: nextTheme },
             });
-            await expect(action, `${trackContext} action`).toBeVisible();
-            if (trackId === activeTrackId) {
-              const expectedCost = copy.researchCost.replace("{cost}", number(activePrice));
-              const expectedActiveStage = `${copy.stage.replace("{number}", String(activeStageNumber))}: ${TECHNOLOGY_NAMES[activeNextStage!][locale]}`;
-              await expect(
-                card.getByTestId("megastructure-next-stage"),
-                `${trackContext} cost`,
-              ).toContainText(expectedActiveStage);
-              await expect(
-                card.getByTestId("megastructure-next-stage"),
-                `${trackContext} price`,
-              ).toContainText(expectedCost);
-              await expect(action, `${trackContext} enabled action`).toBeEnabled();
-            } else {
-              await expect(
-                card.getByTestId(`megastructure-research-reason-${trackId}`),
-                `${trackContext} inactive reason`,
-              ).toHaveText(copy.notAtFactory);
-              await expect(action, `${trackContext} disabled action`).toBeDisabled();
-            }
-          }
-
-          const bounds = await pane.evaluate((root) => {
+            await new Promise<void>((resolve) => {
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+            });
+            const normalizeText = (element: Element | null): string | null =>
+              element?.textContent?.replace(/\s+/g, " ").trim() ?? null;
+            const pane = document.querySelector<HTMLElement>('[data-testid="megastructure-pane"]')!;
+            const frame = document.querySelector<HTMLElement>(".game-frame:not(.notification-portal)");
+            const tracks = Object.fromEntries(
+              trackIds.map((trackId) => {
+                const card = pane.querySelector<HTMLElement>(
+                  `[data-testid="megastructure-track-${trackId}"]`,
+                );
+                const buttons = Array.from(card?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+                const button = buttons[0] ?? null;
+                return [
+                  trackId,
+                  {
+                    heading: normalizeText(card?.querySelector("h3") ?? null),
+                    progress: normalizeText(card?.querySelector("p") ?? null),
+                    stages: Array.from(card?.querySelectorAll("ol li") ?? [], (row) => ({
+                      label: normalizeText(row.querySelector("span")),
+                      status: normalizeText(row.querySelector(".status-pill")),
+                    })),
+                    nextStage: normalizeText(card?.querySelector('[data-testid="megastructure-next-stage"]') ?? null),
+                    reason: normalizeText(
+                      card?.querySelector(`[data-testid="megastructure-research-reason-${trackId}"]`) ?? null,
+                    ),
+                    actionName: normalizeText(button),
+                    actionCount: buttons.length,
+                    actionVisible: Boolean(
+                      button &&
+                        button.getClientRects().length > 0 &&
+                        getComputedStyle(button).visibility !== "hidden" &&
+                        getComputedStyle(button).display !== "none",
+                    ),
+                    actionDisabled: button?.disabled ?? null,
+                  },
+                ];
+              }),
+            );
             const rect = (element: Element) => {
               const box = element.getBoundingClientRect();
               return {
@@ -180,11 +128,11 @@ for (const activeTrackId of TRACK_IDS) {
                 clientWidth: (element as HTMLElement).clientWidth,
               };
             };
-            const paneRect = root.getBoundingClientRect();
-            const cards = Array.from(root.querySelectorAll<HTMLElement>(".megastructure-track"));
-            const controls = Array.from(root.querySelectorAll<HTMLElement>("button"));
+            const paneRect = pane.getBoundingClientRect();
+            const cards = Array.from(pane.querySelectorAll<HTMLElement>(".megastructure-track"));
+            const controls = Array.from(pane.querySelectorAll<HTMLElement>("button"));
             const textRects: { left: number; right: number }[] = [];
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            const walker = document.createTreeWalker(pane, NodeFilter.SHOW_TEXT);
             while (walker.nextNode()) {
               const textNode = walker.currentNode;
               if (!textNode.textContent?.trim()) continue;
@@ -199,17 +147,85 @@ for (const activeTrackId of TRACK_IDS) {
               }
             }
             return {
+              lang: document.documentElement.lang,
+              theme: frame?.dataset.theme ?? null,
+              title: normalizeText(pane.querySelector("h2")),
+              introduction: normalizeText(pane.querySelector(".economy-section-heading > p")),
+              forceField: normalizeText(pane.querySelector('[data-testid="megastructure-force-field"]')),
+              manuscripts: Array.from(
+                pane.querySelectorAll('[data-testid^="manuscript-"]'),
+                normalizeText,
+              ),
+              tracks,
               documentWidth: document.documentElement.scrollWidth,
               viewportWidth: document.documentElement.clientWidth,
-              pane: rect(root),
+              pane: rect(pane),
               paneLeft: paneRect.left,
               paneRight: paneRect.right,
               cards: cards.map(rect),
               controls: controls.map(rect),
               textRects,
             };
-          });
+          }, { trackIds: TRACK_IDS, nextLocale: locale, nextTheme: theme });
 
+          expect(presentation.lang, `${context} language`).toBe(locale);
+          expect(presentation.theme, `${context} theme`).toBe(theme);
+          expect(presentation.title, `${context} title`).toBe(copy.title);
+          expect(presentation.introduction, `${context} intro`).toBe(copy.introduction);
+          expect(presentation.forceField, `${context} force field`).toContain(
+            (miaplacidusForceFieldLevel(state) >= 4 ? copy.forceFieldCleared : copy.forceField)
+              .replace("{level}", number(miaplacidusForceFieldLevel(state)))
+              .replace("{total}", number(4)),
+          );
+
+          for (const [index, record] of manuscripts.entries()) {
+            const message = copy.manuscriptReported
+              .replace("{number}", String(record.position))
+              .replace("{manuscript}", starName(record.manuscriptSystemId))
+              .replace("{structure}", copy.structureNames[record.megastructureId])
+              .replace("{factory}", starName(record.factorySystemId));
+            expect(presentation.manuscripts[index], `${context} manuscript ${index + 1}`).toBe(
+              message,
+            );
+          }
+
+          for (const trackId of TRACK_IDS) {
+            const stageIds = MEGASTRUCTURE_TRACKS[trackId];
+            const track = presentation.tracks[trackId];
+            const trackContext = `${context}/${trackId}`;
+            const researchedCount = stageIds.filter((id) => completedIds.includes(id)).length;
+            expect(track?.heading, `${trackContext} heading`).toBe(copy.structureNames[trackId]);
+            expect(track?.progress, `${trackContext} progress`).toBe(
+              megastructureStageProgress(locale, researchedCount, stageIds.length, number),
+            );
+            for (const [stageIndex, technologyId] of stageIds.entries()) {
+              const row = track?.stages[stageIndex];
+              expect(row?.label, `${trackContext} stage ${stageIndex + 1}`).toBe(
+                `${copy.stage.replace("{number}", String(stageIndex + 1))}: ${TECHNOLOGY_NAMES[technologyId][locale]}`,
+              );
+              if (completedIds.includes(technologyId)) {
+                expect(row?.status, `${trackContext} researched stage ${stageIndex + 1}`).toBe(
+                  copy.researched,
+                );
+              }
+            }
+
+            expect(track?.actionName, `${trackContext} action`).toBe(copy.researchAction);
+            expect(track?.actionCount, `${trackContext} action count`).toBe(1);
+            expect(track?.actionVisible, `${trackContext} action visibility`).toBe(true);
+            if (trackId === activeTrackId) {
+              const expectedCost = copy.researchCost.replace("{cost}", number(activePrice));
+              const expectedActiveStage = `${copy.stage.replace("{number}", String(activeStageNumber))}: ${TECHNOLOGY_NAMES[activeNextStage!][locale]}`;
+              expect(track?.nextStage, `${trackContext} next stage`).toContain(expectedActiveStage);
+              expect(track?.nextStage, `${trackContext} cost`).toContain(expectedCost);
+              expect(track?.actionDisabled, `${trackContext} enabled action`).toBe(false);
+            } else {
+              expect(track?.reason, `${trackContext} inactive reason`).toBe(copy.notAtFactory);
+              expect(track?.actionDisabled, `${trackContext} disabled action`).toBe(true);
+            }
+          }
+
+          const bounds = presentation;
           expect(bounds.documentWidth, `${context} document overflow`).toBeLessThanOrEqual(
             bounds.viewportWidth,
           );

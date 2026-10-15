@@ -866,8 +866,9 @@ describe("M-03 economy catalogue and shared rules", () => {
       offlineTickPlan: { productionPerSecond: { hydrogen: 2 } },
     });
     expect(offline.accepted).toBe(true);
-    expect(offline.state.run.goodsProducedThisRun.hydrogen).toBeCloseTo(0.668, 8);
-    expect(offline.state.statistics.lifetimeGoodsProducedByGood.hydrogen).toBeCloseTo(0.668, 8);
+    expect(offline.state.run.goods.hydrogen.quantity).toBe(0);
+    expect(offline.state.run.goodsProducedThisRun.hydrogen).toBe(0);
+    expect(offline.state.statistics.lifetimeGoodsProducedByGood.hydrogen).toBe(0);
   });
 
   it("reports fuel-limited plant output and a one-second power shortage accurately", () => {

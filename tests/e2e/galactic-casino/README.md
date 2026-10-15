@@ -188,7 +188,7 @@ This supersedes the older unclean runner status.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4826'
-node .\node_modules\playwright\cli.js test tests/e2e/economy/economy.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p54-energy-casino-4826 --grep 'Energy compares live generator mix with consumption accessibly|rebirth restores the source Casino marker before this run awards AP'
+node .\node_modules\playwright\cli.js test tests/e2e/energy/economy-energy.spec.ts tests/e2e/galactic-casino/galactic-casino.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p54-energy-casino-4826 --grep 'Energy compares live generator mix with consumption accessibly|rebirth restores the source Casino marker before this run awards AP'
 ```
 
 ## P-56 all-theme Casino visual review (10 October 2026)
@@ -290,3 +290,42 @@ and the refreshed Casino visual case in the final no-update batch on port 6827.
 The four refreshed Terminal/French/Light captures were visually reviewed; the
 cards and disabled-reason copy fit the pane. No Casino source code changed in
 this recovery.
+
+The seven saved failure cases were also rerun together in a focused no-update
+installed-Chrome batch on port 6521. All **7/7 passed in 1.2 minutes**. The
+notification cases matched the current Casino event routing and rendered
+outcomes; the help-row assertions matched the visible section guidance; the
+visual checkpoint matched the reviewed baselines. No application or snapshot
+changes were needed. Output is under
+`%TEMP%\miaplacidus-galactic-casino-recovery-6521-20261014`.
+
+```powershell
+$env:MIAPLACIDUS_TEST_PORT='6521'
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-galactic-casino-recovery-6521-20261014" tests/e2e/galactic-casino/galactic-casino.spec.ts -g "plays all four casino games|Wheel result notice waits for the spin|Hilo finish-rocket prize|Wheel rocket warp claim announces|Casino pane presentation stays clear|Casino source row help is attached|keeps the Double or Nothing control focused"
+```
+
+## P-65 Galactic Casino page identity
+
+`p65-meta-identity.spec.ts` checks the Casino child heading and shared title
+treatment, star-system illustration, Hydrogen title scale, and bounds at 1280px
+and 390px. It keeps the `p65-galactic-casino-{1280,390}.png` diagnostic
+captures as Playwright output attachments. The owner-area case passed in the
+seven-case installed-Chrome split batch on port 6716 without snapshot updates.
+The batch's separate Black Hole fixture failure passed after correction.
+Outputs are under `%TEMP%\miaplacidus-p65-meta-identity-split-20261014`.
+
+## Complete area rerun (14 October 2026)
+
+The complete canonical Casino folder passed **23/23** in installed Chrome on
+port 6460, with no snapshot updates. This includes all four games, notice and
+help cases, and the full theme/locale presentation matrix. No code or baseline
+changes were needed. Artifacts are under
+`%TEMP%\miaplacidus-galactic-casino-focused-6460-r2-20261014`.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_TEST_PORT='6460'
+npm.cmd run test:e2e:focused -- tests/e2e/galactic-casino --project=chrome --workers=1 --retries=0 --trace=retain-on-failure --reporter=line
+```

@@ -74,5 +74,6 @@
 - [ ] **V-56** Seek project approval before the repository's **full** test-suite run, as required by [AGENTS.md](../../../AGENTS.md); then run and record it. Defer implementation changes caused by failures to Phase 9 after reproducing them.
 - [ ] **V-57** Review the release candidate from a clean browser profile and an existing MIAPLACIDUS save.
 - [ ] **V-58** Record release version, artifact hash, known deviations, test summary and owner acceptance in a final release note.
+- [ ] **V-59** Execute the Phase 7 localization specs marked `NOT RUN`: cover all six locales across player-facing routes and representative dynamic states, plus 320/390/768/1280 CSS-pixel layout review across nine themes; record results and reconcile L-05 through L-09.
 
 **Exit gate:** the default full browser release is playable on desktop and mobile, current save data is recoverable, feature coverage and testing evidence are linked, and all critical defects are resolved. A demo is a separate, explicitly flagged deliverable if chosen.

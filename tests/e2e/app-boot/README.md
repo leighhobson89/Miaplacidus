@@ -177,7 +177,7 @@ At the time of this 9 October entry, P-12 remained open for broader touch,
 visual, theme, and locale review; its later sign-off is recorded below.
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4386'; node .\node_modules\playwright\cli.js test tests/e2e/app-boot/p12-settings-miaplaedia-responsive-navigation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4386'; node .\node_modules\playwright\cli.js test tests/e2e/ui-navigation/p12-settings-miaplaedia-responsive-navigation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **P-12 responsive stress-width sign-off evidence (9 October 2026):** the
@@ -232,3 +232,16 @@ screenshots matched without another snapshot update. I reviewed the 1280px
 source-order, 390px source-order, unlock-state, and selected-phone captures.
 Miaplaedia remains last in the visible source order and selection scrolls its
 full label into view. No navigation implementation defect was found.
+
+**Saved full-run app-boot failure recovery (14 October 2026):** the saved
+P-65 `progressive unlock states keep main tabs in source order` failure was a
+visual-baseline mismatch: the old expected screenshot was 1280×1436 while the
+current rendered page was 1280×1637. The README's earlier note records the
+reviewed current baseline and a clean 4/4 rerun on port 6401. I reran only this
+case without updating snapshots; installed Chrome passed **1/1 in 15.9 seconds**
+on port 6506. No app or assertion change was needed, and the current baseline
+matched.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6506'; npm.cmd run test:e2e:focused -- tests/e2e/app-boot/navigation-progression.spec.ts --project=chrome --grep 'progressive unlock states keep main tabs in source order' --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-app-boot-p65-6506"
+```

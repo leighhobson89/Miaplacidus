@@ -1,8 +1,24 @@
 # Cosmic Rip browser area
 
+## P-65 Meta page identity
+
+`p65-meta-identity.spec.ts` contains both Cosmic Rip identity cases moved from
+the theme-presentation catch-all. The desktop/phone case checks the shared page
+title, Cosmic Rip artwork, Hydrogen title scale, and content bounds; it keeps
+the `p65-cosmic-rip-{1280,390}.png` diagnostic captures as Playwright output
+attachments. The child-page matrix checks Situation, Near Space Scanner Array,
+and Cosmic Rip in six locales, nine themes, and three viewport widths (486
+combinations), including tab/title identity and pane/page/document bounds.
+Both cases passed in the seven-case installed-Chrome split batch on port 6716;
+the matrix completed without snapshot updates. The combined batch had one
+separate Black Hole fixture failure, which passed after its fixture correction.
+Outputs are under `%TEMP%\miaplacidus-p65-meta-identity-split-20261014`.
+
 `cosmic-rip.spec.ts` drives the normal tab and command path from a deterministic, already-located Rip. It restores the in-game telemetry network, completes all five timed technologies through the test clock, closes the Rip, and verifies the saved ending after reload. `cosmic-rip.spec.ts` also captures the closed state for the visual checkpoint.
 
 The fixture skips the long Miaplacidus route while leaving scanner, research, GP spending, save, and closure controls in the production UI. The route gate itself is covered by the Miaplacidus journey in `tests/e2e/megastructures/` and the acknowledgement command unit test.
+
+The Cosmic Rip theme case now lives here rather than in the theme-presentation catch-all. It verifies sector controls follow the active theme surface and passed at its canonical path in default Chromium: **1/1 in 6.6 seconds** on port 6557.
 
 P-06 affordance coverage is also in `cosmic-rip.spec.ts`: deterministic fixtures check the 10 GP scanner restore and 1 GP closure costs, and visible localized precondition reasons with `aria-describedby` for scanner restore, sector scans, telemetry purchases, locked technology research, and closure. Source ownership is preserved: the disabled 10-GP restore reason is on Situation; Near Space Scanner Array stays hidden before restoration and, after restoration, contains scanning/sector controls and their precondition reason; Cosmic Rip actions appear after discovery. Sector accessible names include the 1 GP scan cost in all six locales. Upgrade cash uses the selected currency and material names localize in all six locales; the rapidly changing telemetry wallet is not an `aria-live` region.
 
@@ -86,7 +102,7 @@ semantics only; no spoken screen-reader behavior was evaluated.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4632'
-node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'announces Cosmic Rip research completion|normal research completion reaches the polite atomic' tests/e2e/cosmic-rip/cosmic-rip.spec.ts tests/e2e/economy/economy.spec.ts
+node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line -g 'announces Cosmic Rip research completion|normal research completion reaches the polite atomic' tests/e2e/cosmic-rip/cosmic-rip.spec.ts tests/e2e/notifications/economy-notifications.spec.ts
 ```
 
 ## P-54 E-57 localized Cosmic Rip costs and actions (10 October 2026)
@@ -160,7 +176,7 @@ Combined regression command:
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5127'
-node .\node_modules\playwright\cli.js test --pass-with-no-tests --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/cosmic-rip/cosmic-rip.spec.ts tests/e2e/economy/economy.spec.ts tests/e2e/megastructures/megastructures.spec.ts --grep '(@p38-objectives|Tech Tree reveals affordable prerequisite-locked research|shows the research point requirement and shortfall for a disabled next stage)'
+node .\node_modules\playwright\cli.js test --pass-with-no-tests --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/cosmic-rip/cosmic-rip.spec.ts tests/e2e/technology/technology.spec.ts tests/e2e/megastructures/megastructures.spec.ts --grep '(@p38-objectives|Tech Tree reveals affordable prerequisite-locked research|shows the research point requirement and shortfall for a disabled next stage)'
 ```
 
 Focused installed-Chrome run passed **1/1** in 9.7 seconds on isolated test

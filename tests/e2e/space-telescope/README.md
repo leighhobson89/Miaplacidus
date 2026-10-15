@@ -1,6 +1,6 @@
 # Space Telescope and combined Space Mining journeys
 
-Rocket-only browser specs and their snapshots live in [Rockets](../rockets/README.md). Asteroid, Mining, and Launch Pad specs live in [Space Mining](../space-mining/README.md). This folder keeps Telescope-specific specs and journeys that combine Telescope with other space pages.
+Rocket-only browser specs and their snapshots live in [Rockets](../rockets/README.md). Space Mining child-page viewport, copy, and presentation specs live in [Space Mining](../space-mining/README.md). This folder keeps Telescope gameplay specs and journeys that combine Telescope with other space pages.
 
 ## Rule matrix
 
@@ -72,7 +72,7 @@ Run the matrix from PowerShell:
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
 $env:MIAPLACIDUS_BROWSER_CHANNEL = 'chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO = '1'
-npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g '@space-mining-presentation-matrix' tests/e2e/space-telescope/space-mining-presentation.spec.ts
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g '@space-mining-presentation-matrix' tests/e2e/space-mining/space-mining-presentation.spec.ts
 ```
 
 ## P-05 Star Study keyboard access (9 October 2026)
@@ -143,13 +143,13 @@ P-65 page-heading spacing follow-up (9 October 2026): a focused installed-Chrome
 Run the visual-review sample in installed Chrome:
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/space-telescope/space-mining-presentation.spec.ts -g '@p65-visual-review' --workers=1 --retries=0 --trace=off --reporter=line
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/space-mining/space-mining-presentation.spec.ts -g '@p65-visual-review' --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 P-66 Space Mining identity recheck (9 October 2026): Cosmic Forge `index.html:573-656` owns the Space Mining parent and its Mining, Space Telescope, Asteroids, and Launch Pad options; `localization.json` supplies the six-locale child labels. The remake renders one selected-child `h2.game-page-title` from `spaceMiningPaneItems`, labels the shared tabpanel with the selected child tab, and does not render a Space Mining parent heading in the pane. The Telescope route uses the `radio-telescope` SVG artwork. The existing page matrix covers the Telescope, Asteroids, Launch Pad, and Mining pages across six locales, nine themes, and desktop/phone/stress widths, asserting child-tab/title agreement and horizontal fit. Its expected labels are now pinned independently to the source localization values, and it explicitly guards against a duplicate parent heading. The review found localized title drift: German Mining used `Abbau` instead of source `Bergbau`, German Launch Pad used `Startrampe` instead of `Startplattform`, French Launch Pad used `Plateforme de lancement` instead of `Pas de Tir`, and several title labels differed in source capitalization. Those child labels now match the source values. The existing `phase6-space-telescope-dark-desktop.png` capture was reviewed: it shows one Space Telescope heading, the radio-telescope illustration, and no duplicate parent heading. The capture is a visual sample only; the matrix provides the broader locale/theme/viewport checks. The first Chrome matrix run caught the German Launch Pad drift; after correction, the focused installed-Chrome matrix passed 2/2 in 4.2 minutes across all 648 standard/Mining locale-theme-viewport combinations:
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/space-telescope/space-mining-presentation.spec.ts -g 'Space Telescope, Asteroids|Mining identity' --workers=1 --retries=0 --trace=off --reporter=line
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/space-mining/space-mining-presentation.spec.ts -g 'Space Telescope, Asteroids|Mining identity' --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 P-65/P-66 Space Mining visual-review expansion (9 October 2026): the focused
@@ -166,7 +166,7 @@ visual case. These samples add page-specific screenshots but do not replace the
 full theme/locale visual review.
 
 Durable snapshots are in
-`tests/e2e/space-telescope/space-mining-presentation.spec.ts-snapshots/`:
+`tests/e2e/space-mining/space-mining-presentation.spec.ts-snapshots/`:
 
 - `phase6-asteroids-terminal-desktop.png`
 - `phase6-asteroids-light-mobile.png`
@@ -295,7 +295,7 @@ disabled repeat-scan reason at 320px. Both cases verify the relevant content
 stays within the viewport and the document has no horizontal overflow.
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4482'; node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/p13-space-mining-narrow-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4482'; node .\node_modules\playwright\cli.js test tests/e2e/space-mining/p13-space-mining-narrow-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line
 ```
 
 **P-13 outbound Rocket trip at narrow widths (9 October 2026):** the focused
@@ -312,9 +312,9 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $
 
 **E-57 Space Mining narrow-locale review (10 October 2026):** the focused Chrome review checks the Space Telescope's discounted multi-good quote and localized material shortfall, all four Rocket assembly part quotes and the one-material disabled reason, and active progress/countdown on Rockets 1–4. Each surface is checked at 390px and 320px in `en`, `es`, `pt`, `de`, `it`, and `fr`; visible quotes, actions, status text, and progress remain inside the viewport with no page-level horizontal overflow. The Telescope and Rocket checks passed 2/2 as part of the six-case E-57 run (6/6 in 1.8 minutes, port 4679). No page-component or shared-CSS correction was needed.
 
-Visual checkpoint: [e57-space-telescope-cost-fr-320.png](e57-space-telescope-cost-fr-320.png), captured in the follow-up focused Chrome run (5/5 in 34.2 seconds, port 4680). The full-page French 320px capture shows the telescope quote wrapping into rows and its localized disabled reason; neither extends past the card or viewport. The build quote has no hover tooltip in this UI, so this checkpoint records the visible quote and shortfall context.
+Visual checkpoint: [e57-space-telescope-cost-fr-320.png](../space-mining/e57-space-telescope-cost-fr-320.png), captured in the follow-up focused Chrome run (5/5 in 34.2 seconds, port 4680). The full-page French 320px capture shows the telescope quote wrapping into rows and its localized disabled reason; neither extends past the card or viewport. The build quote has no hover tooltip in this UI, so this checkpoint records the visible quote and shortfall context.
 
-Focused command: `$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4679'; node .\node_modules\playwright\cli.js test --pass-with-no-tests tests/e2e/space-telescope/e57-space-mining-narrow-locale-context.spec.ts tests/e2e/star-map/e57-star-map-data-narrow-locale-context.spec.ts tests/e2e/starship/e57-interstellar-narrow-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line`
+Focused command: `$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4679'; node .\node_modules\playwright\cli.js test --pass-with-no-tests tests/e2e/space-mining/e57-space-mining-narrow-locale-context.spec.ts tests/e2e/star-map/e57-star-map-data-narrow-locale-context.spec.ts tests/e2e/starship/e57-interstellar-narrow-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line`
 
 **E-57 Launch Pad construction context (10 October 2026):**
 [`e57-launch-pad-cost-locale-context.spec.ts`](../space-mining/e57-launch-pad-cost-locale-context.spec.ts) checks the exact localized cash
@@ -484,7 +484,7 @@ typecheck and focused Oxfmt checks passed. Rerun this slice with:
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5097'
-node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/p45-space-mining-copy.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-space-mining-copy-5097
+node .\node_modules\playwright\cli.js test tests/e2e/space-mining/p45-space-mining-copy.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-space-mining-copy-5097
 ```
 
 An independent no-update Chrome rerun passed **3/3 in 1.6 minutes** on port
@@ -494,7 +494,7 @@ An independent no-update Chrome rerun passed **3/3 in 1.6 minutes** on port
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5181'
-npm.cmd run test:e2e:focused -- tests/e2e/space-telescope/p45-space-mining-copy.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-space-mining-copy-5181
+npm.cmd run test:e2e:focused -- tests/e2e/space-mining/p45-space-mining-copy.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-space-mining-copy-5181
 ```
 
 The same spec now covers the completed asteroid scan in each of the six
@@ -520,7 +520,7 @@ recorded in the [Settings Statistics README](../settings/README.md#p-55-space-mi
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5627'
-npm.cmd run test:e2e:focused -- tests/e2e/space-telescope/p45-space-mining-copy.spec.ts -g "Asteroid scan result feedback" --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-scan-completion-5627
+npm.cmd run test:e2e:focused -- tests/e2e/space-mining/p45-space-mining-copy.spec.ts -g "Asteroid scan result feedback" --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-scan-completion-5627
 ```
 
 ## P-51 Space Telescope phone visual sample (10 October 2026)
@@ -539,7 +539,7 @@ needed.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5056'
-node .\node_modules\playwright\cli.js test tests/e2e/space-telescope/p51-space-mining-visual.spec.ts tests/e2e/economy/p51-research-energy-narrow-visual.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p51-space-research-visual
+node .\node_modules\playwright\cli.js test tests/e2e/space-mining/p51-space-mining-visual.spec.ts tests/e2e/research/p51-research-energy-narrow-visual.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p51-space-research-visual
 ```
 
 ## P-55 Total Asteroids Discovered cap boundary (10 October 2026)
@@ -659,11 +659,11 @@ Verification commands and results:
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5265'
-npm.cmd run test:e2e:focused -- tests/e2e/space-telescope/space-mining-presentation.spec.ts -g p56-space-mining-content --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p56-space-mining-visual-5265
+npm.cmd run test:e2e:focused -- tests/e2e/space-mining/space-mining-presentation.spec.ts -g p56-space-mining-content --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p56-space-mining-visual-5265
 # 2 passed (4.9m)
 
 $env:MIAPLACIDUS_TEST_PORT='5266'
-npm.cmd run test:e2e:focused -- tests/e2e/space-telescope/space-mining-presentation.spec.ts -g "Space Telescope, Asteroids, and Launch Pad" --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p56-space-mining-standard-5266
+npm.cmd run test:e2e:focused -- tests/e2e/space-mining/space-mining-presentation.spec.ts -g "Space Telescope, Asteroids, and Launch Pad" --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p56-space-mining-standard-5266
 # 1 passed (2.9m)
 
 npm.cmd run typecheck
@@ -722,3 +722,49 @@ Chrome confirmation passed **7/7 in 36.2 seconds** on port 4224, with output in
 The full regression suite was not rerun in this telescope recovery. Firefox,
 WebKit, and spoken screen-reader verification also remain unrun; the latter
 was already an open P-20 follow-up.
+
+### Saved `space-telescope.spec.ts` failure replay (14 October 2026)
+
+The nine saved failure contexts in this spec were rerun against the current
+implementation in installed Chrome, with no snapshot updates. All **9/9
+passed** on port 6714:
+
+- `announces asteroid-search completion while another tab is selected`
+- `shows telescope survey power loss as a pause and resumes the countdown`
+- `exposes live Star Study and Void Pillage progress across all locales`
+- `keeps launch-pad weather separate from the telescope and shows precipitation in the header tooltip`
+- `explains the one-unit rocket-part shortfall through its associated reason`
+- `builds a rocket part at exact stock and charges every quoted cost`
+- `unlocked Auto Telescope starts the selected survey mode`
+- `an orbiting rocket explains the missing asteroid target and travels after one is selected`
+- `assembles a rocket, buys its powered fuel pump, and reports fuel progress`
+
+The previously failing expectations now match the current source contract and
+accessible controls, so no code or test change was needed in this replay.
+Playwright artifacts are in
+`%TEMP%\miaplacidus-space-telescope-saved-nine-20261014\test-results`.
+
+## Space Mining child-page test ownership (14 October 2026)
+
+Narrow-width, visible-copy, and presentation checks for Space Mining child
+pages now live in [Space Mining](../space-mining/README.md), with the matching
+11 presentation snapshots. The Telescope gameplay suite and genuinely mixed
+Telescope journeys remain here. In the 15-context saved Space Mining recovery,
+the Rocket audio-cue case, P-05 Star Study keyboard case, and P-20 Star Study
+cross-tab notice case passed as three of the eight green titles in the initial
+nine-case functional run (port 6741); the other six are recorded in the Space
+Mining README. The functional failures and six presentation contexts all have
+clean focused passes now. The full regression suite was not rerun for this
+recovery.
+
+# Complete area rerun (14 October 2026)
+
+The canonical Space Telescope folder passed **26/26** in installed Chrome on
+port 6857 with one worker and snapshot updates disabled. The folder currently
+has no screenshot assertions, so no visual baselines were compared. No test or
+gameplay changes were needed. Artifacts are under
+`%TEMP%\miaplacidus-space-telescope-full-area-20261014`.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6857'; playwright.cmd test tests/e2e/space-telescope --workers=1 --project=chrome --retries=0
+```

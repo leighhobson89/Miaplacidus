@@ -1,5 +1,10 @@
 # Localization browser checks
 
+The current Localization folder passed **36/36** in installed Chrome on 14
+October 2026 (3.9 minutes, port 6443) with no snapshot updates. These checks
+cover populated locale values, live label changes, and numeric/state invariants;
+translation quality refinement remains deferred to Phase 7.
+
 ## P-49 live locale invariants
 
 `p49-cosmic-rip-invariants.spec.ts` starts the Cosmic Rip's first timed research
@@ -267,3 +272,7 @@ $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5072'
 node .\node_modules\playwright\cli.js test tests/e2e/energy/p45-energy-locales.spec.ts tests/e2e/localization/p45-space-interstellar-results.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p45-route-locales-5072
 ```
+
+
+## Economy catchall migration (14 October 2026)
+Localized Resource, Compound, and early-economy cases formerly in the Economy catchall now live in [`economy-localization.spec.ts`](economy-localization.spec.ts), [`p45-early-economy-locales.spec.ts`](p45-early-economy-locales.spec.ts), [`p45-resource-compound-copy.spec.ts`](p45-resource-compound-copy.spec.ts), and [`p51-e57-economy-phone-locale.spec.ts`](p51-e57-economy-phone-locale.spec.ts).

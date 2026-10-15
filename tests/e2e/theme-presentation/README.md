@@ -1,5 +1,7 @@
 # Theme presentation checks
 
+> Historical migration record. This catch-all contains no runnable specs now; its Settings, Miaplaedia, navigation, Star Map, Interstellar, Technology, Casino and save cases were moved into their canonical area folders. The commands and paths below describe the earlier combined layout. Use the current area READMEs for runnable checks: [Settings](../settings/README.md), [Miaplaedia](../miaplaedia/README.md), [UI Navigation](../ui-navigation/README.md), [Star Map](../star-map/README.md), [Starship](../starship/README.md), [Fleet Hangar](../fleet-hangar/README.md), [Colonise](../colonise/README.md), [Technology](../technology/README.md), [Galactic Casino](../galactic-casino/README.md), and [Save Slots](../save-slots/README.md).
+
 The focused `@theme-dropdowns` browser area checks native select controls and
 their option menus in all nine themes. It covers representative selectors used
 by startup, Settings, Galactic Market, Galactic Casino, telescopes, economy
@@ -50,11 +52,11 @@ overflow internally, and the document does not scroll horizontally. The
 expanded Chrome check passed 1/1 in the 49.9-second two-test run. It creates no
 visual snapshot baselines.
 
-The `@phase6-tab-layout` Miaplaedia case also compares all seven guide headings
-with Hydrogen's title font size at the same three widths. It passed 1/1 in the
-same 49.9-second Chrome run. Both checks cover layout and title scale; they do
-not replace broader visual review across locales and intermediate viewport
-widths.
+The Miaplaedia-owned `@phase6-tab-layout` case in
+`tests/e2e/miaplaedia/phase6-tab-layout.spec.ts` compares all seven guide
+headings with Hydrogen's title font size at 1280px, 390px, and 320px. It passed
+1/1 in the earlier 49.9-second Chrome run. The broader all-theme and visual
+checks are recorded in the Miaplaedia area README.
 
 The `@miaplaedia-locale-matrix` case checks the localized child tab and guide
 heading identity, shared Hydrogen title scale, and pane/content/document bounds
@@ -63,29 +65,36 @@ focused installed-Chrome run passed 1/1 in 10 seconds. This complements the
 all-theme layout sweep, which covers all three widths in each theme using the
 English locale.
 
-The `@phase6-tab-layout` cases in `phase6-tab-layout.spec.ts` check page-specific
-titles and artwork, including one visible cog illustration on the Settings
-header when entering Settings, no artwork on Achievements/Events/Statistics,
-and the inline save controls. The Saving and Loading check also guards against
-duplicating the local-pioneer heading in the inline Save Manager. On 8 October,
-the focused Chrome file passed 4/4 in 12.6 seconds with the duplicate-heading
-assertion. At that point the durable desktop/phone review was still pending; the completed P-66 evidence sweep is recorded below. Cross-theme, locale, and 320px matrix breadth remains tracked under P-56/P-65.
+The original combined `@phase6-tab-layout` spec has been split by page owner.
+The Miaplaedia title-scale case lives in
+`tests/e2e/miaplaedia/phase6-tab-layout.spec.ts`; the two Settings layout and
+visual cases live in `tests/e2e/settings/phase6-tab-layout.spec.ts`; the
+unlaunched Starship case lives in `tests/e2e/starship/phase6-tab-layout.spec.ts`;
+and the Space Mining page-title case lives in
+`tests/e2e/space-mining/phase6-tab-layout.spec.ts`. The launched Starship and
+Colonise transition stays combined below. The historical combined-file runs
+passed 4/4 in 12.6 seconds on 8 October and 5/5 in 15.1 seconds on 9 October.
+The current owner commands are recorded in their area READMEs; no tests were
+run during the structural split.
 
-8 October 2026 P-66 Interstellar follow-up: the `@phase6-tab-layout` cases now
-check that an unlaunched Starship keeps its title, illustration, and framed
-border; the orbiting Starship keeps the `Starship` heading ahead of its
-`Orbiting Sirius` status, while hiding its illustration and border; and
-Colonise shows the surface illustration with its flag. The focused installed-
-Chrome file passed 5/5 in 11.7 seconds. The orbiting scan/report ownership path remains covered by the Starship browser area; the P-66 desktop/phone review was completed in the 9 October evidence sweep below.
+8 October 2026 P-66 Interstellar follow-up: the original combined
+`@phase6-tab-layout` file checked that an unlaunched Starship keeps its title,
+illustration, and framed border; the orbiting Starship keeps the `Starship`
+heading ahead of its `Orbiting Sirius` status while hiding its illustration and
+border; and Colonise shows the surface illustration with its flag. That
+combined Chrome file passed 5/5 in 11.7 seconds. The unlaunched Starship case is
+now in the Starship area; the launched Starship and Colonise checks remain one
+combined test because they share the scan transition and fixture. The P-66
+visual review was completed in the 9 October evidence sweep below.
 
-9 October 2026 P-66 durable visual evidence: `phase6-tab-layout.spec.ts` now
-keeps Terminal desktop screenshot baselines for Settings > Visual Options,
-unlaunched Starship, launched Starship, and Colonise with the surface flag.
-The capture hides only the global animated weather and pointer-trail overlays
-so the page artwork and layout compare deterministically. All four snapshots
-were visually reviewed. The focused installed-Chrome spec passed 5/5 in 15.1
-seconds without snapshot updates after formatting; the preceding baseline
-generation run passed 5/5 in 14.5 seconds. Files are in
+9 October 2026 P-66 durable visual evidence: the original combined spec held
+Terminal desktop baselines for Settings > Visual Options, unlaunched Starship,
+launched Starship, and Colonise with the surface flag. The global animated
+weather and pointer-trail overlays were hidden for deterministic captures. All
+four snapshots were visually reviewed; the combined run passed 5/5 without
+snapshot updates after formatting (baseline generation passed 5/5). In this
+split, the Settings and unlaunched Starship baselines moved with their cases;
+launched Starship and Colonise remain in
 `tests/e2e/theme-presentation/phase6-tab-layout.spec.ts-snapshots/`.
 
 The `@p65 @p66` Interstellar presentation matrix exercises Star Map, Star Data,
@@ -109,7 +118,7 @@ Run it with:
 ```powershell
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
-npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/theme-presentation/cosmic-rip-theme.spec.ts
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/cosmic-rip/cosmic-rip-theme.spec.ts
 ```
 
 Run it with:
@@ -120,8 +129,9 @@ $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line -g "Interstellar child page identity fits" tests/e2e/theme-presentation/interstellar-presentation-matrix.spec.ts
 ```
 
-The `@p65-meta-identity` cases check Galactic Market, Galactic Casino, Ascendency
-Perks, Megastructures, and Cosmic Rip at 1280px and 390px. Each page must have
+P-65 Meta page identity cases now live in their owner areas: Galactic Market,
+Galactic Casino, Ascendency Perks, Megastructures, Black Hole, and Cosmic Rip
+at 1280px and 390px. Each page must have
 one visible heading that matches its child-tab name, its expected illustration,
 the Hydrogen title size, and no document-level horizontal overflow. On 8
 October, this two-case Chrome run passed 2/2 in 10.0 seconds. Ten diagnostic
@@ -130,6 +140,17 @@ child tab said “Ascendency Perks” while the page heading said “Ascendency�
 heading now uses the full tab name and shared page-title class. No further
 title/artwork mismatch appeared in the reviewed pages. Broader P-65 theme and
 locale review remains open.
+
+On 14 October, the split's four pre-existing Galactic page cases and both
+Cosmic Rip cases passed in the seven-case installed-Chrome run (6/7 in 1.4
+minutes); Black Hole alone failed
+because the shared megastructure fixture does not unlock it. Its owner case
+now uses the discovered-hole fixture and passed 1/1 in 6.4 seconds on port
+6717. Thus all seven cases pass across the focused runs, with snapshot updates
+disabled. The run artifacts include the 12 desktop/phone diagnostic captures
+and are under `%TEMP%\miaplacidus-p65-meta-identity-split-20261014` and
+`%TEMP%\miaplacidus-p65-black-hole-identity-20261014`. These are output
+attachments, not checked-in snapshots.
 
 The `@p65-cosmic-rip-matrix` case expands Cosmic Rip coverage to Situation, Near
 Space Scanner Array, and Cosmic Rip at 1280px, 390px, and 320px across all nine
@@ -143,13 +164,13 @@ or document overflow remained. An earlier pre-fix sweep found document-level
 overflow from status-bar tooltips outside the Cosmic Rip pane. This matrix does
 not capture visual snapshots.
 
-Run the focused P-65 meta identity check with:
+Run the P-65 owner-area identity checks with:
 
 ```powershell
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
-npm.cmd run test:e2e:focused -- --workers=1 --trace=off tests/e2e/theme-presentation/p65-meta-identity.spec.ts
+npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/galactic-market/p65-meta-identity.spec.ts tests/e2e/galactic-casino/p65-meta-identity.spec.ts tests/e2e/ascendency/p65-meta-identity.spec.ts tests/e2e/megastructures/p65-meta-identity.spec.ts tests/e2e/black-hole/p65-meta-identity.spec.ts tests/e2e/cosmic-rip/p65-meta-identity.spec.ts -g "P-65"
 ```
 
 Run only the Cosmic Rip child-page matrix with:
@@ -158,7 +179,7 @@ Run only the Cosmic Rip child-page matrix with:
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
-npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line --grep "Cosmic Rip child pages keep localized identity" tests/e2e/theme-presentation/p65-meta-identity.spec.ts
+npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --grep "Cosmic Rip child pages keep localized identity" tests/e2e/cosmic-rip/p65-meta-identity.spec.ts
 ```
 
 The Settings check also compares the Achievements, Events, Statistics, Game
@@ -203,7 +224,7 @@ $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --workers=1 tests/e2e/theme-presentation/theme-presentation.spec.ts
 ```
 
-Run the tab-specific layout checks with:
+Run the remaining combined launched-Starship and Colonise layout check with:
 
 ```powershell
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:TEMP 'miaplacidus-playwright-browsers'
@@ -211,6 +232,15 @@ $env:MIAPLACIDUS_TEST_AREA = "phase6-tab-layout"
 $env:MIAPLACIDUS_BROWSER_CHANNEL = "chrome"
 $env:MIAPLACIDUS_DISABLE_VIDEO = "1"
 npm.cmd run test:e2e:focused -- --workers=1 tests/e2e/theme-presentation/phase6-tab-layout.spec.ts
+```
+
+The owner-specific page checks now run from their respective areas:
+
+```powershell
+npm.cmd run test:e2e:focused -- tests/e2e/miaplaedia/phase6-tab-layout.spec.ts
+npm.cmd run test:e2e:focused -- tests/e2e/settings/phase6-tab-layout.spec.ts
+npm.cmd run test:e2e:focused -- tests/e2e/starship/phase6-tab-layout.spec.ts
+npm.cmd run test:e2e:focused -- tests/e2e/space-mining/phase6-tab-layout.spec.ts
 ```
 
 Run the all-tabs responsive matrix with:
@@ -342,7 +372,7 @@ eyebrow; the other pages keep the cog artwork, and their page headings and
 controls remain visible without clipping. Existing theme/locale matrices still
 cover identity and bounds; these representative screenshots do not replace that
 breadth. Files are in
-`tests/e2e/theme-presentation/phase6-tab-layout.spec.ts-snapshots/` with the
+`tests/e2e/settings/phase6-tab-layout.spec.ts-snapshots/` with the
 `phase6-settings-{achievements,events,statistics,game-options,visual,saves}-{terminal-desktop,light-mobile}.png`
 names.
 
@@ -366,3 +396,19 @@ and fleet cards remain visible in the selected 1280px Terminal and 390px Light
 states. The P-66 case passed 1/1 in the combined **7/7 no-update** Interstellar
 visual run on port 6424 (4.1 minutes). Captures remain under
 `phase6-interstellar-visual-review.spec.ts-snapshots/`.
+
+14 October 2026 saved theme-palette case recovery: the old failure expected the
+Terminal status-bar value to be lime (`--ink`), while the current theme contract
+uses ready/success text for these status values. That role is white in Terminal
+and green in Dark; the implementation and current assertion both use
+`--ready-text`. The named focused case passed **1/1 in 17.0s** in installed
+Chrome on port 6576, without snapshot updates. No code or test edits were
+needed; the saved failure does not reproduce against the current contract.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+$env:MIAPLACIDUS_TEST_PORT='6576'
+$testOutput = Join-Path $env:TEMP 'miaplacidus-theme-palette-20261014'
+npm.cmd run test:e2e:focused -- tests/e2e/theme-presentation/theme-presentation.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$testOutput" --grep 'economy headings, stock, and rates use the active theme'
+```

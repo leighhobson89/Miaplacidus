@@ -29,3 +29,14 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $
 ```
 
 This adds Ascendency content/theme evidence; P-56 remains open for other screen families.
+
+## P-65 Ascendency Perks page identity
+
+`p65-meta-identity.spec.ts` checks the Ascendency Perks child heading and
+shared title treatment, megastructure illustration, Hydrogen title scale, and
+bounds at 1280px and 390px. It preserves the `p65-ascendency-perks-{1280,390}.png`
+diagnostic captures as Playwright output attachments. The owner-area case
+passed in the seven-case installed-Chrome split batch on port 6716 without
+snapshot updates; the separate Black Hole fixture failure was corrected and
+passed in its own rerun. Outputs are under
+`%TEMP%\miaplacidus-p65-meta-identity-split-20261014`.

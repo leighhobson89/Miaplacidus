@@ -329,3 +329,36 @@ theme, locale, and viewport matrices remain open.
 ```powershell
 $env:MIAPLACIDUS_TEST_PORT='6401'; $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; npm.cmd run test:e2e:focused -- tests/e2e/miaplaedia/miaplaedia.spec.ts tests/e2e/app-boot/navigation-progression.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-miaplaedia-focused-6401" --grep 'Miaplaedia maps each guide option|Remaining Miaplaedia guides|Early Concepts has durable|progressive unlock states keep main tabs in source order'
 ```
+
+## P-66 Miaplaedia tab-title scale
+
+`phase6-tab-layout.spec.ts` checks all seven guide headings against Hydrogen's
+page-title font size at 1280px, 390px, and 320px. It creates no screenshot
+baselines. The case moved from the combined Theme Presentation spec without
+changing assertions; its earlier focused result is summarized above. No tests
+were run during this move.
+
+```powershell
+npm.cmd run test:e2e:focused -- tests/e2e/miaplaedia/phase6-tab-layout.spec.ts
+```
+
+## 14 October saved-failure confirmation
+
+The three saved screenshot failures in `miaplaedia.spec.ts` were checked against
+the current guide contract: each guide description is visible above its source
+articles. One remaining Early Concepts Terminal desktop baseline was stale; I
+refreshed and visually reviewed
+`miaplaedia.spec.ts-snapshots/phase6-guide-concepts-early-terminal-desktop.png`.
+The other saved captures already matched the current visuals. The three
+affected cases passed without updates in installed Chrome (**3/3 in 14.5s**,
+port 6523) and the original default Chromium project (**3/3 in 13.8s**, port
+6524). The refresh run passed **3/3 in 17.5s** on port 6522. No app behavior or
+test assertions changed. Outputs are under `%TEMP%\miaplacidus-miaplaedia-snapshot-refresh-6522-20261014`,
+`%TEMP%\miaplacidus-miaplaedia-regression-6523-20261014`, and
+`%TEMP%\miaplacidus-miaplaedia-chromium-check-6524-20261014`.
+
+```powershell
+$env:MIAPLACIDUS_TEST_PORT='6524'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+npm.cmd run test:e2e:focused -- --project=chromium --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-miaplaedia-chromium-check-6524-20261014" tests/e2e/miaplaedia/miaplaedia.spec.ts -g "Miaplaedia maps each guide option|Remaining Miaplaedia guides have reviewed|Early Concepts has durable"
+```

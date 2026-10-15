@@ -1,16 +1,16 @@
 # Battle and settlement
 
-Chrome coverage follows the diplomacy, war, attrition and colonization controls from an orbiting starship. The fixtures exercise hostile victory, hostile defeat and rebuild/retry, both bully outcomes, vassalization success and failure, forced war, and an unoccupied settlement.
+Chrome coverage follows hostile battle, attrition, settlement rewards, and rebuild/retry from an orbiting starship. Standalone diplomacy outcomes live in the [Diplomacy area](../diplomacy/README.md), and the unoccupied-arrival settlement case lives in the [Colonise area](../colonise/README.md). The battle-owned cases retain the mixed war, battle, and settlement journeys.
 
 Battle fixtures keep ships and hull grouped by fleet class. Advancing the injected clock runs the same saved timer path used during play, so these cases verify that outcomes, destination identity, fleet losses and settlement rewards survive engine state transitions.
 
-Cosmic Forge settles a destination with no sentient defenders directly from the Conquest action (`game.js:14760`), without checking for a player fleet. MIAPLACIDUS now permits the same empty-system settlement path; the unit and browser fixtures verify an unoccupied arrival with zero ships can be settled without starting battle. Browser locators for diplomacy, war, and fleet rebuilding use their stable test IDs, while AP assertions measure the award added to the fixture's starting balance.
+Cosmic Forge settles a destination with no sentient defenders directly from the Conquest action (`game.js:14760`), without checking for a player fleet. MIAPLACIDUS now permits the same empty-system settlement path; the Colonise area verifies an unoccupied arrival with zero ships can be settled without starting battle. Battle locators for war and fleet rebuilding use their stable test IDs, while AP assertions measure the award added to the fixture's starting balance.
 
 **Current P-29 implementation (14 October 2026):** the visible battle renderer calls the laser audio callback for each eligible source-shaped shot and the explosion callback when a transient unit crosses zero health. Both callbacks use the captured `performance.now()` time with Cosmic Forge's strict `>80 ms` laser and `>140 ms` explosion guards; audio selection occurs only after a callback passes its guard. Explosion playback no longer waits for an aggregate engine death event or matches synthetic fleet-slot identities. Aggregate battle events continue to govern saved combat outcomes and confirmed death visuals; they do not create audio callbacks. The renderer remains a transient combat sidecar, so its per-unit crossings can differ from the pooled engine health and fleet losses. This changes neither engine damage nor combat outcomes.
 
 **Owner P-29 review closeout (13 October 2026):** the owner manually reviewed and passed the cadence, cooldown-boundary, audio-state, and source-timing acceptance items. P-29 is closed in Phase 6 on that review. The pooled-health and transient per-unit limitations above remain documented behavior; this closeout does not report an automated test or browser run by the agent.
 
-**Focused regression update (14 October 2026):** `tests/unit/battle.spec.ts` and `tests/unit/audio-event-dispatch.spec.ts` passed **35/35**. `tests/e2e/battle/battle.spec.ts` passed **7/7**, `tests/e2e/space-telescope/audio-cues.spec.ts` passed **6/6**, and the focused battle-completion notification case passed **1/1**. Project typecheck passed. The battle audio unit case checks source callback timing at and beyond the strict cooldown boundary. The aggregate-only browser case confirms that engine casualty events without rendered death callbacks do not invent explosion cues. The saved notification failure came from startup notices in the test fixture; the saved rocket click failure was blocked by queued random-event dialogs, not by cue playback. Both focused cases pass with their fixture queues cleared. These are focused checks, not a full regression run.
+**Focused regression update (14 October 2026, before area split):** `tests/unit/battle.spec.ts` and `tests/unit/audio-event-dispatch.spec.ts` passed **35/35**. At that point `tests/e2e/battle/battle.spec.ts` passed **7/7**, `tests/e2e/space-telescope/audio-cues.spec.ts` passed **6/6**, and the focused battle-completion notification case passed **1/1**. Project typecheck passed. The battle audio unit case checks source callback timing at and beyond the strict cooldown boundary. The aggregate-only browser case confirms that engine casualty events without rendered death callbacks do not invent explosion cues. The saved notification failure came from startup notices in the test fixture; the saved rocket click failure was blocked by queued random-event dialogs, not by cue playback. Both focused cases pass with their fixture queues cleared. These are focused checks, not a full regression run.
 
 ## Historical P-29 source and aggregate implementation record (10 October 2026; later paths are marked superseded)
 
@@ -43,7 +43,14 @@ Source references: `../../../../cosmicForge/cosmicForge/game.js:15036,
 15137-15152`; `../../../../cosmicForge/cosmicForge/ui.js:13440-13454,
 13488-13519`.
 
-Run the area with `npm run test:e2e:focused -- tests/e2e/battle/battle.spec.ts`. The broader I-37–I-47 checkpoint also includes the unit and browser suite after the remaining Phase 4 work is complete.
+Run the area with `npm.cmd run test:e2e:focused -- tests/e2e/battle/battle.spec.ts`. Diplomacy and unoccupied-arrival cases now run from their canonical area specs; focused results are recorded in those READMEs.
+
+14 October 2026 area split: the three diplomacy outcomes and the unoccupied
+arrival settlement case moved to `tests/e2e/diplomacy/diplomacy.spec.ts` and
+`tests/e2e/colonise/colonise.spec.ts`, preserving their fixture setup and
+assertions. Only these four moved cases were run; see the two area READMEs for
+their focused Chrome evidence. The remaining Battle cases were not rerun as
+part of the split.
 
 P-29 verification on 10 October 2026: the focused installed-Chrome audio regression passed **1/1**, the focused battle/audio unit files passed **31/31**, and project typecheck passed. The broader battle spec completed **4/7**. Its three unrelated existing suite failures were: victory settlement expected **10 AP** but received **15 AP**; unoccupied settlement expected **5 AP** but received **6 AP**; and defeat/rebuild could not find `starship-fleet-scout` on the Colonise screen. These findings are outside the casualty event/audio slice; no settlement reward or Fleet Hangar selector changes were made here.
 

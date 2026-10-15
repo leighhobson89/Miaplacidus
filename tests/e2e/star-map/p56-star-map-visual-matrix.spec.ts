@@ -40,23 +40,32 @@ async function setPresentation(
   locale: LocaleId,
   theme: ThemeId,
 ): Promise<void> {
-  await page.evaluate(
-    ({ nextLocale, nextTheme }) => {
+  const actual = await page.evaluate(
+    async ({ nextLocale, nextTheme }) => {
       window.miaplacidusTest!.dispatch({
         type: "settings.update",
         patch: { locale: nextLocale, themeId: nextTheme },
       });
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      return {
+        lang: document.documentElement.lang,
+        theme: document.querySelector<HTMLElement>(".game-frame:not(.notification-portal)")
+          ?.dataset.theme,
+      };
     },
     { nextLocale: locale, nextTheme: theme },
   );
-  await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await expect(page.locator(".game-frame:not(.notification-portal)")).toHaveAttribute("data-theme", theme);
+  expect(actual.lang).toBe(locale);
+  expect(actual.theme).toBe(theme);
 }
 
 test("Star Map route presentation fits all locales, themes, and viewport widths @p56-visual-matrix", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(120_000);
+  // This runs every locale/theme/viewport combination and captures three visual baselines.
+  test.setTimeout(300_000);
   await startFixture(page);
 
   const reviewed = new Set(["en:terminal:desktop", "fr:frosty:phone", "de:space:narrow"]);
@@ -69,29 +78,19 @@ test("Star Map route presentation fits all locales, themes, and viewport widths 
         await page.locator("#tab-interstellar-star-map").click();
 
         const map = page.getByTestId("star-map-pane");
-        await expect(map).toBeVisible();
-        await expect(map.locator(":scope > .pane-heading h2")).toHaveText(
-          starMapText(locale, "title"),
-        );
         const search = map.getByRole("searchbox", {
           name: starMapText(locale, "searchLabel"),
         });
         await search.fill("Sirius");
         await map.locator(".star-map-search-results button").filter({ hasText: "Sirius" }).click();
-        await expect(
-          map.getByTestId("star-selection").getByRole("heading", {
-            name: "Sirius",
-            exact: true,
-          }),
-        ).toBeVisible();
-        await expect(map.getByTestId("star-distance")).toBeVisible();
-        await expect(map.getByTestId("star-route-antimatter")).toBeVisible();
-        await expect(map.getByTestId("star-map-selected-route-label")).toBeVisible();
-        await expect(
-          map.getByRole("button", { name: starMapText(locale, "zoomIn"), exact: true }),
-        ).toBeVisible();
 
-        const geometry = await page.evaluate(() => {
+        const zoomInLabel = starMapText(locale, "zoomIn");
+        const geometry = await page.evaluate((expectedZoomLabel) => {
+          const visible = (element: Element | null): boolean => {
+            if (!element || element.getClientRects().length === 0) return false;
+            const style = getComputedStyle(element);
+            return style.display !== "none" && style.visibility !== "hidden";
+          };
           const rect = (element: Element) => {
             const { left, right, top, bottom } = element.getBoundingClientRect();
             return { left, right, top, bottom };
@@ -101,9 +100,16 @@ test("Star Map route presentation fits all locales, themes, and viewport widths 
           const selection = mapElement?.querySelector<HTMLElement>(
             '[data-testid="star-selection"]',
           );
+          const selectedHeading = selection?.querySelector<HTMLElement>("h3");
+          const distance = selection?.querySelector('[data-testid="star-distance"]');
+          const antimatter = selection?.querySelector('[data-testid="star-route-antimatter"]');
+          const routeLabel = mapElement?.querySelector('[data-testid="star-map-selected-route-label"]');
           const powerCard = document.querySelector<HTMLElement>('[data-testid="top-stat-power"]');
           const powerValue = powerCard?.querySelector<HTMLElement>(".top-stat-value");
           const powerDuration = powerValue?.querySelector<HTMLElement>("small");
+          const zoomButton = Array.from(
+            mapElement?.querySelectorAll<HTMLButtonElement>("button[aria-label]") ?? [],
+          ).find((button) => button.getAttribute("aria-label") === expectedZoomLabel);
           return {
             documentWidth: Math.max(
               document.documentElement.scrollWidth,
@@ -112,11 +118,31 @@ test("Star Map route presentation fits all locales, themes, and viewport widths 
             map: mapElement ? rect(mapElement) : null,
             heading: heading ? rect(heading) : null,
             selection: selection ? rect(selection) : null,
+            mapVisible: visible(mapElement ?? null),
+            headingText: heading?.textContent?.replace(/\s+/g, " ").trim() ?? null,
+            headingVisible: visible(heading ?? null),
+            selectionHeading: selectedHeading?.textContent?.trim() ?? null,
+            selectionHeadingVisible: visible(selectedHeading ?? null),
+            distanceVisible: visible(distance),
+            antimatterVisible: visible(antimatter),
+            routeLabelVisible: visible(routeLabel),
+            zoomLabel: zoomButton?.getAttribute("aria-label") ?? null,
+            zoomButtonVisible: visible(zoomButton ?? null),
             powerCard: powerCard ? rect(powerCard) : null,
             powerValue: powerValue ? rect(powerValue) : null,
             powerDuration: powerDuration ? rect(powerDuration) : null,
           };
-        });
+        }, zoomInLabel);
+        expect(geometry.mapVisible).toBe(true);
+        expect(geometry.headingText).toBe(starMapText(locale, "title"));
+        expect(geometry.headingVisible).toBe(true);
+        expect(geometry.selectionHeading).toBe("Sirius");
+        expect(geometry.selectionHeadingVisible).toBe(true);
+        expect(geometry.distanceVisible).toBe(true);
+        expect(geometry.antimatterVisible).toBe(true);
+        expect(geometry.routeLabelVisible).toBe(true);
+        expect(geometry.zoomLabel).toBe(zoomInLabel);
+        expect(geometry.zoomButtonVisible).toBe(true);
         expect(
           geometry.documentWidth,
           `${locale}/${theme}/${viewport.width} document width`,

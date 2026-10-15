@@ -1,6 +1,8 @@
 # Phase 7 — localization audit and sweep
 
-**Status:** active for correction and audit work (13 October 2026). The owner directed that localization remain held while non-localization Phase 6 implementation proceeded. The current non-localization work has passed its owner-reviewed evidence gates; M-06 remains open for P-31 asset optimization, while this package owns the transferred localization coverage. L-04 is closed on mapped-catalogue value-presence evidence; L-01 through L-03 and L-05 through L-09 remain open.
+**Status:** active, with broad coverage work remaining (15 October 2026). M-06/Phase 6 is complete at 0 open / 66 closed, including P-31. M-07 is the earliest open master gate. L-04 is closed for the currently registered catalogues; L-01 through L-03 and L-05 through L-09 remain open. See the [Phase 7 readiness and scope audit](../../audit/phase-7-readiness-2026-10-15.md) for the current code coverage and recommended entry order.
+
+**Owner direction (15 October 2026):** continue Phase 7 implementation without running tests, builds, or typechecks. Add E2E specs where they provide needed route/state/layout coverage, but do not require them to pass before Phase 7 closes. Complete Phase 7 from source/catalogue/call-site evidence and authored coverage specs; Phase 8 V-59 owns executing the deferred runtime and layout matrix. Mark authored specs as `NOT RUN` and never report them as passing.
 
 **Outcome:** every applicable player-facing message is mapped to its active MIAPLACIDUS catalogue and renderer, has a non-empty value in all six supported locales (`en`, `es`, `pt`, `de`, `it`, `fr`), and is available on its intended route. Locale-specific layout is reviewed separately as a presentation concern.
 
@@ -17,18 +19,18 @@ This phase resumes the held localization scope already tracked under **P-44**, *
 
 ## Player-facing route sweep
 
-- [ ] **L-05** Complete the remaining visible-copy route coverage in each locale from startup through ordinary play, Settings/save/import, notifications and dialogs, gameplay action results, achievements/events/news, and both ending routes. Record the route and states covered for each locale and confirm required strings are populated there.
-- [ ] **L-06** Exercise dynamic and state-dependent copy with representative values and outcomes, including zero/maximum values, named entities, unavailable actions, success/failure, expiry, save conflict, rebirth, and ending states where applicable. Confirm the selected locale's populated value is rendered; language quality is not assessed for closure.
-- [ ] **L-07** Review locale-sensitive layout at 320, 390, 768, and 1280 CSS-pixel widths with enlarged text and the longest available locale strings across the nine themes. Include startup and Save & Loading/import screens, dialogs, tooltips, tables, and dynamic result cards. Fix only reproduced clipping, overflow, overlap, focus, or readability defects and record the affected locale/theme/viewport/state.
+- [ ] **L-05** Map remaining visible-copy routes in each locale from startup through ordinary play, Settings/save/import, notifications/dialogs, gameplay results, achievements/events/news, and both endings; confirm locale values and active renderer ownership from source/code, and author any missing route specs without running them.
+- [ ] **L-06** Map dynamic copy states and locale keys for zero/maximum values, named entities, unavailable actions, success/failure, expiry, save conflict, rebirth, and endings; author missing E2E assertions, but defer execution and observed-result claims to Phase 8.
+- [ ] **L-07** Complete the locale/layout test matrix for 320, 390, 768, and 1280 CSS-pixel widths, enlarged text, longest strings, and nine themes; include startup, Save & Loading/import, dialogs, tooltips, tables, and dynamic cards. Author missing visual coverage without running it; fix only defects already reproduced in existing evidence, and leave execution results to Phase 8 V-59.
 
 ## Corrections and acceptance evidence
 
-- [ ] **L-08** For each confirmed missing/empty locale value, locale-routing, or rendering correction, record the corrected key, locale values, and intended route. Use existing validation where available, inspect the affected result in all six locales, and recapture the relevant visual state where layout changed. Adding tests is not a closure requirement under current owner direction.
-- [ ] **L-09** Update the source-to-target crosswalk and parity ledger with key coverage, corrections, intentional adaptations/exclusions, route/layout evidence, commands/results, and remaining owner decisions. Link dated audits from the relevant work packages.
+- [ ] **L-08** For each confirmed missing/empty locale value or routing correction, record the corrected key, six values, intended route, static evidence, and any authored spec path; mark unrun specs `NOT RUN`. Do not run checks or claim observed rendering during Phase 7.
+- [ ] **L-09** Update the source-to-target crosswalk and parity ledger with key coverage, corrections, intentional adaptations/exclusions, static route/layout ownership, authored spec paths, deferred Phase 8 execution, and remaining owner decisions. Link dated audits from the relevant work packages.
 
 ## Exit gate
 
-Phase 7 closes when all applicable source messages have a documented disposition; every required key has a non-empty value in all six locales and is available on its intended route; every planned route and dynamic outcome has recorded coverage; locale-sensitive layouts have no unresolved reproduced defects in the reviewed matrix; and the crosswalk, parity ledger, and evidence agree. Translation quality, exact source phrasing, placeholder style, and linguistic sign-off are not closure gates. Source files under `../cosmicForge/cosmicForge/` remain read-only.
+Phase 7 closes when all applicable source messages have a documented disposition; every required key has a non-empty value in all six locales and a statically verified active route; route/state/layout coverage specs are authored or explicitly marked as already covered; and the crosswalk, parity ledger, and evidence agree. Test execution, passing results, and newly observed visual findings are deferred to Phase 8 V-59. Translation quality, exact source phrasing, placeholder style, and linguistic sign-off are not closure gates. Source files under `../cosmicForge/cosmicForge/` remain read-only.
 
 ## Active correction slices — 13 October 2026
 

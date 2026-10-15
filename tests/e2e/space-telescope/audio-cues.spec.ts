@@ -129,16 +129,17 @@ test("telescope build, asteroid search, and star study play their source cues @s
   await expectCues(page, ["clickButton.mp3", "buildTelescope.mp3"]);
 
   await clearCues(page);
-  await page
-    .getByRole("button", { name: spaceText("en", "scanAsteroids"), exact: true })
-    .click();
+  await page.getByRole("button", { name: spaceText("en", "scanAsteroids"), exact: true }).click();
   await expectCues(page, ["clickButton.mp3", "asteroidScan.mp3"]);
   const scanRemainingMs = await page.evaluate(() => {
     const timer = window.miaplacidusTest!.getState().run.timers["survey:asteroid-scan"]!;
     return timer.durationMs - timer.elapsedMs;
   });
   await clearCues(page);
-  await page.evaluate((remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1), scanRemainingMs);
+  await page.evaluate(
+    (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1),
+    scanRemainingMs,
+  );
   await expect
     .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.activeSurvey))
     .toBeNull();
@@ -226,7 +227,9 @@ test("rocket pump, launch, outbound travel and outbound arrival follow source cu
   await page.evaluate(() => window.miaplacidusTest!.advanceBy(6_000_000));
   await expect
     .poll(() =>
-      page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.fuelQuantity),
+      page.evaluate(
+        () => window.miaplacidusTest!.getState().run.space.rockets.rocket1.fuelQuantity,
+      ),
     )
     .toBe(10_000);
   expect((await cueFiles(page)).filter((cue) => cue === "fuelRocket.mp3")).toEqual([
@@ -247,6 +250,7 @@ test("rocket pump, launch, outbound travel and outbound arrival follow source cu
     exact: true,
   });
   await expect(launchRocket).toBeEnabled();
+  await dismissRandomEventResultIfPresent(page);
   await launchRocket.click();
   await expectCues(page, ["rocketLaunch.mp3"]);
 
@@ -270,7 +274,10 @@ test("rocket pump, launch, outbound travel and outbound arrival follow source cu
     const timer = state.run.timers[state.run.space.rockets.rocket1.timerId!]!;
     return timer.durationMs - timer.elapsedMs;
   });
-  await page.evaluate((remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1), outboundRemainingMs);
+  await page.evaluate(
+    (remainingMs) => window.miaplacidusTest!.advanceBy(remainingMs + 1),
+    outboundRemainingMs,
+  );
   await expect
     .poll(() =>
       page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.phase),
@@ -292,13 +299,20 @@ test("returning rocket arrival plays rocketLand @space-telescope @audio @p29-aud
     return timer.durationMs - timer.elapsedMs;
   });
   await expect
-    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.phase))
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.phase),
+    )
     .toBe("returning");
 
   await clearCues(page);
-  await page.evaluate((durationMs) => window.miaplacidusTest!.advanceBy(durationMs + 1), remainingMs);
+  await page.evaluate(
+    (durationMs) => window.miaplacidusTest!.advanceBy(durationMs + 1),
+    remainingMs,
+  );
   await expect
-    .poll(() => page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.phase))
+    .poll(() =>
+      page.evaluate(() => window.miaplacidusTest!.getState().run.space.rockets.rocket1.phase),
+    )
     .toBe("ready");
   await expectCues(page, ["rocketLand.mp3"]);
 });

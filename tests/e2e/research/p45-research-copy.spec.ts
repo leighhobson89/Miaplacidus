@@ -1,0 +1,163 @@
+import { expect, test } from "../_harness/fixtures";
+import { formatCurrency } from "../../../src/app/currencyFormatting";
+import { formatNumber } from "../../../src/app/numberFormatting";
+import { ENERGY_BUILDINGS } from "../../../src/content/economy";
+import { ECONOMY_BUILDING_NAMES } from "../../../src/content/economyBuildingNames";
+import { LOCALE_IDS, type LocaleId } from "../../../src/content/ids";
+import { TECHNOLOGY_NAMES } from "../../../src/content/technologyNames";
+import { buildingCost } from "../../../src/engine/commands";
+import { createEconomyTickPlan } from "../../../src/engine/economySimulation";
+import { displayCurrency } from "../../../src/engine/precision";
+import { selectEconomyAction } from "../../../src/engine/selectors";
+import type { GameState } from "../../../src/engine/state";
+import { economyLabel, formatEconomyMessage } from "../../../src/i18n/economyMessages";
+import { translate } from "../../../src/i18n/messages";
+
+async function startEconomyFixture(
+  page: import("@playwright/test").Page,
+  fixture: "research" | "bulk-energy",
+  locale: LocaleId,
+): Promise<void> {
+  await page.addInitScript(() => {
+    const prefix = "miaplacidus:v1:";
+    const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+    for (const key of keys) if (key?.startsWith(prefix)) localStorage.removeItem(key);
+  });
+  await page.goto(`/?testSeed=20261010&testLocale=${locale}&economyFixture=${fixture}`);
+  await page.getByLabel(translate(locale, "app.pioneer")).fill(`P-45 Research Energy ${locale}`);
+  await page.getByTestId("start-game").click();
+  await expect(page.locator("[data-app-ready]")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
+}
+
+function insufficientCashReason(
+  locale: LocaleId,
+  state: GameState,
+  buildingId: "scienceKit" | "powerPlant1" | "battery1",
+): string {
+  const purchase = selectEconomyAction(state, {
+    type: "economy.building.purchase",
+    buildingId,
+  });
+  expect(purchase.enabled).toBe(false);
+  expect(purchase.failure?.code).toBe("insufficient-cash");
+  const requiredCash = formatCurrency(
+    locale,
+    Number(displayCurrency(purchase.failure!.required)),
+    state.settings.currencyId ?? "usd",
+    2,
+    state.settings.notation,
+  );
+  return formatEconomyMessage(locale, "needCashAmount", { amount: requiredCash });
+}
+
+test("Research actions and Tech Tree status stay localized in all six locales @p45-research-energy-copy @research", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  for (const locale of LOCALE_IDS) {
+    await startEconomyFixture(page, "research", locale);
+    await page.locator("#tab-research").click();
+    await page.locator("#tab-research-science-buildings").click();
+
+    const scienceKit = page.locator(
+      '#panel-research-science-buildings [data-building-id="scienceKit"]',
+    );
+    await expect(scienceKit.locator("h4")).toHaveText(ECONOMY_BUILDING_NAMES.scienceKit[locale]);
+    const buy = scienceKit.locator(".economy-building-actions button").first();
+    await expect(buy).toBeEnabled();
+    await expect(buy).toHaveAccessibleName(/\S/);
+
+    const buildingToggle = scienceKit.locator(":scope > .text-button");
+    const startsEnabled = (await buildingToggle.getAttribute("aria-pressed")) === "true";
+    await expect(buildingToggle).toHaveText(
+      economyLabel(locale, startsEnabled ? "pause" : "resume"),
+    );
+    await buildingToggle.click();
+    await expect(buildingToggle).toHaveAttribute("aria-pressed", String(!startsEnabled));
+    await expect(buildingToggle).toHaveText(
+      economyLabel(locale, startsEnabled ? "resume" : "pause"),
+    );
+
+    const beforePurchase = (await page.evaluate(() =>
+      window.miaplacidusTest!.getState(),
+    )) as GameState;
+    const startingOwned = beforePurchase.run.upgrades.scienceKit ?? 0;
+    const price = buildingCost(beforePurchase, "scienceKit").cash;
+    const formattedPrice = formatCurrency(
+      locale,
+      Number(displayCurrency(price)),
+      beforePurchase.settings.currencyId ?? "usd",
+      2,
+      beforePurchase.settings.notation,
+    );
+    await expect(scienceKit.locator(":scope > p").nth(3)).toHaveText(formattedPrice);
+
+    await buy.click();
+    const afterPurchase = (await page.evaluate(() =>
+      window.miaplacidusTest!.getState(),
+    )) as GameState;
+    expect(afterPurchase.run.upgrades.scienceKit).toBe(startingOwned + 1);
+    expect(beforePurchase.run.cash - afterPurchase.run.cash).toBe(price);
+    await expect(scienceKit.locator(":scope > p").nth(2)).toHaveText(
+      `${economyLabel(locale, "researchQuantity")}: ${formatNumber(
+        locale,
+        startingOwned + 1,
+        0,
+        afterPurchase.settings.notation,
+      )}`,
+    );
+    await expect(page.getByTestId("cash-balance")).toContainText(
+      formatCurrency(
+        locale,
+        Number(displayCurrency(afterPurchase.run.cash)),
+        afterPurchase.settings.currencyId ?? "usd",
+        2,
+        afterPurchase.settings.notation,
+      ),
+    );
+    await expect(page.getByTestId("research-rate")).toHaveText(
+      formatNumber(
+        locale,
+        createEconomyTickPlan(afterPurchase).researchPerSecond,
+        2,
+        afterPurchase.settings.notation,
+      ),
+    );
+    await expect(buy).toBeDisabled();
+    const state = (await page.evaluate(() => window.miaplacidusTest!.getState())) as GameState;
+    await expect(page.locator("#research-building-scienceKit-reason")).toHaveText(
+      insufficientCashReason(locale, state, "scienceKit"),
+    );
+    await expect(buy).toHaveAttribute("aria-describedby", /research-building-scienceKit-reason/);
+
+    const autobuyer = page.getByRole("checkbox", {
+      name: economyLabel(locale, "researchAutobuyer"),
+      exact: true,
+    });
+    await expect(autobuyer).toBeVisible();
+    await expect(autobuyer).toBeEnabled();
+    await autobuyer.check();
+    await expect(autobuyer).toBeChecked();
+
+    await page.locator("#tab-research-tech-tree").click();
+    const knowledgeSharing = page.locator('[data-technology-id="knowledgeSharing"]');
+    const knowledgeName = TECHNOLOGY_NAMES.knowledgeSharing[locale];
+    await expect(knowledgeSharing.locator(".technology-map-status")).toHaveText(
+      economyLabel(locale, "ready"),
+    );
+    await expect(knowledgeSharing).toHaveAttribute(
+      "aria-label",
+      `${economyLabel(locale, "researchTech")}: ${knowledgeName}`,
+    );
+    await expect(knowledgeSharing).toHaveAttribute("aria-disabled", "false");
+    await knowledgeSharing.click();
+    await expect(knowledgeSharing.locator(".technology-map-researched")).toHaveText(
+      economyLabel(locale, "researchTechResearched"),
+    );
+    await expect(knowledgeSharing).toHaveAttribute(
+      "aria-label",
+      `${economyLabel(locale, "researchTechResearched")}: ${knowledgeName}`,
+    );
+  }
+});

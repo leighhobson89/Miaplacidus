@@ -12,7 +12,7 @@ P-04 remains open for its wider destination gate, attention-marker, history, and
 
 ## Interaction audit and unverified work
 
-The interaction agent recorded its P-05/P-06/P-14/P-20/P-21 findings in [the interaction handoff](../../audit/phase6-interaction-handoff-2026-10-07.md). On 8 October, the revised Casino test passed cleanly for both purchase-shortfall announcement semantics and the expanded 390px touch journey through all four games. Starship scan-result status semantics also passed a focused Chrome journey after correcting the test to use the Starship construction page. A broader assistive-technology review has not been run.
+The interaction agent recorded its P-05/P-06/P-14/P-20/P-21 findings in [the archived interaction handoff](phase6-interaction-handoff-2026-10-07.md). On 8 October, the revised Casino test passed cleanly for both purchase-shortfall announcement semantics and the expanded 390px touch journey through all four games. The former E-57 tooltip case now lives at [`technology/e57-tech-tree-tooltip-locale.spec.ts`](../../../tests/e2e/technology/e57-tech-tree-tooltip-locale.spec.ts). Starship scan-result status semantics also passed a focused Chrome journey after correcting the test to use the Starship construction page. A broader assistive-technology review has not been run.
 
 The 7 October checkpoint recorded the Casino purchase-status and expanded touch edits as unverified because earlier browser runs did not exit cleanly. That note is superseded: on 8 October the focused Chrome command passed 2/2 with a clean exit, covering status semantics and the 390px journey through Wheel/claim, Double or Nothing, Higher or Lower/cash-out, and Void Seer. The same day, a focused Starship scan journey passed 1/1 after it was corrected to select Starship construction; its localized life-detection summary now updates a persistent polite atomic status region. Typecheck, targeted lint and formatting checks passed for the Starship change. The Black Hole activation path now also announces the localized warp-active state through a mounted polite atomic region after the accepted engine event and clears it at expiry; its focused Chrome journey passed 1/1 and the all-locale announcement unit suite passed 3/3. A broader assistive-technology review remains open.
 
@@ -1153,11 +1153,11 @@ There is no standalone Batteries or Energy Summary source page to map.
 
 Existing focused browser evidence covers the target-native explanatory surfaces:
 the Tech Tree node tooltip and localized dynamic costs in
-[`e57-tech-tree-tooltip-locale.spec.ts`](../../../tests/e2e/economy/e57-tech-tree-tooltip-locale.spec.ts),
+[`e57-tech-tree-tooltip-locale.spec.ts`](../../../tests/e2e/technology/e57-tech-tree-tooltip-locale.spec.ts),
 and the Research Points production tooltip across locales in
 [`status-bar.spec.ts`](../../../tests/e2e/status-bar/status-bar.spec.ts#L526).
 These do not claim exact source-tooltip parity. The new
-[`p44-research-philosophy-help.spec.ts`](../../../tests/e2e/economy/p44-research-philosophy-help.spec.ts)
+[`p44-research-philosophy-help.spec.ts`](../../../tests/e2e/research/p44-research-philosophy-help.spec.ts)
 case verifies the adapted Philosophy summary, ability and repeatable content
 in all six locales at 320px; it does not claim exact source-copy parity. No new
 source-tooltip browser assertion was added for the five named pages because

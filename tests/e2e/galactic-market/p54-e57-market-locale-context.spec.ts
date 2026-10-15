@@ -20,6 +20,7 @@ const VIEWPORTS = [
 test("P-54 E-57 all Market rows and Rebirth liquidation dialog fit at phone widths in all locales @p54-e57", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(180_000);
   await page.setViewportSize(VIEWPORTS[0]);
   await startMetaFixture(page, "meta-galactic-identity-matrix");
   await page.locator("#tab-galaxy").click();

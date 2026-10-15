@@ -881,8 +881,13 @@ test("keeps global context borderless and preserves relative stat widths on desk
         renderedCash: metrics.renderedWidths["top-stat-cash"],
       }),
     );
-    for (const id of ["top-stat-time", "top-stat-cash"]) {
-      expect(metrics.relativeWidths[id]).toBeCloseTo(0.5, 2);
+    expect(metrics.relativeWidths["top-stat-time"]).toBeCloseTo(0.5, 2);
+    if (viewport.width > 600) {
+      expect(metrics.relativeWidths["top-stat-cash"]).toBeGreaterThan(
+        metrics.relativeWidths["top-stat-time"],
+      );
+    } else {
+      expect(metrics.relativeWidths["top-stat-cash"]).toBeCloseTo(0.5, 2);
     }
     for (const id of ["top-stat-rp", "top-stat-energy", "top-stat-power", "top-stat-antimatter"]) {
       expect(metrics.relativeWidths[id]).toBeCloseTo(0.6, 2);

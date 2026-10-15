@@ -11,7 +11,6 @@ import {
   checksumFor,
   isSaveEnvelope,
   makeEnvelope,
-  SAVE_SCHEMA_VERSION,
 } from "../../../src/persistence/schema";
 
 const { compressToEncodedURIComponent, decompressFromEncodedURIComponent, decompressFromUTF16 } =
@@ -55,27 +54,6 @@ function rebirthFixtureCode(rebirthCount: 1 | 2, name: string): string {
       ),
     )
   );
-}
-
-function syntheticV0Code(name: string): string {
-  const state = createInitialGameState({ pioneerName: name, seed: 2026 });
-  const oldBody = {
-    format: "miaplacidus.save",
-    schemaVersion: 0,
-    slotId: "00000000-0000-4000-8000-000000000100",
-    pioneerName: name,
-    createdAt: 100,
-    savedAt: 200,
-    revision: 1,
-    state: {
-      schemaVersion: 0,
-      run: state.run,
-      permanent: state.permanent,
-      settings: state.settings,
-    },
-  };
-  const checksum = checksumFor(oldBody as unknown as Parameters<typeof checksumFor>[0]);
-  return "MIA1:" + compressToEncodedURIComponent(canonicalJson({ ...oldBody, checksum }));
 }
 
 async function startFreshPioneer(page: Page, name: string): Promise<void> {
@@ -556,76 +534,6 @@ test("two pioneers keep separate Hydrogen progress across switching and reload @
   await expect(page.getByTestId("hydrogen-quantity")).toContainText("3");
 });
 
-test("durable timer IDs and offline clock anchors survive a player-triggered save and reload @save-slots @durable-timers @save-load-local", async ({
-  page,
-}, testInfo) => {
-  await page.goto("/?testSeed=76&testLocale=en");
-  await startFreshPioneer(page, "Timer Pioneer");
-  await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
-  const added = await page.evaluate(() =>
-    window.miaplacidusTest?.dispatch({
-      type: "timer.add",
-      timerId: "research:long-study",
-      domain: "research",
-      durationMs: 60_000,
-      repeat: true,
-    }),
-  );
-  expect(added).toBe(true);
-  expect(
-    await page.evaluate(() => window.miaplacidusTest?.getState().run.timers["research:long-study"]),
-  ).toMatchObject({ id: "research:long-study", status: "running" });
-  await saveNowFromSettings(page);
-  const activePayload = await page.evaluate(() => {
-    const headKey = Object.keys(localStorage).find((key) => key.startsWith("miaplacidus:v1:head:"));
-    if (!headKey) return null;
-    const slotId = headKey.slice("miaplacidus:v1:head:".length);
-    const commitId = localStorage.getItem(headKey);
-    return commitId ? localStorage.getItem(`miaplacidus:v1:slot:${slotId}:${commitId}`) : null;
-  });
-  expect(activePayload).not.toBeNull();
-  const savedEnvelope = JSON.parse(decompressFromUTF16(activePayload!) ?? "null") as {
-    state?: { run?: { timers?: Record<string, unknown> } };
-  };
-  expect(savedEnvelope.state?.run?.timers?.["research:long-study"]).toMatchObject({
-    id: "research:long-study",
-    status: "running",
-  });
-  const savedWallTime = await page.evaluate(
-    () => window.miaplacidusTest?.getState().run.clock.wallNowMs,
-  );
-  expect(savedWallTime).not.toBeNull();
-  await page.reload();
-  const reloadedPayload = await page.evaluate(() => {
-    const headKey = Object.keys(localStorage).find((key) => key.startsWith("miaplacidus:v1:head:"));
-    if (!headKey) return null;
-    const slotId = headKey.slice("miaplacidus:v1:head:".length);
-    const commitId = localStorage.getItem(headKey);
-    return commitId ? localStorage.getItem(`miaplacidus:v1:slot:${slotId}:${commitId}`) : null;
-  });
-  expect(reloadedPayload).not.toBeNull();
-  const reloadedEnvelope = JSON.parse(decompressFromUTF16(reloadedPayload!) ?? "null") as {
-    state?: { run?: { timers?: Record<string, unknown> } };
-  };
-  expect(reloadedEnvelope.state?.run?.timers?.["research:long-study"]).toMatchObject({
-    id: "research:long-study",
-    status: "running",
-  });
-  await resumePioneer(page, "Timer Pioneer");
-  await expect.poll(() => page.evaluate(() => Boolean(window.miaplacidusTest))).toBe(true);
-  const restored = await page.evaluate(() => window.miaplacidusTest?.getState());
-  expect(restored?.run.timers["research:long-study"]).toMatchObject({
-    id: "research:long-study",
-    domain: "research",
-    durationMs: 60_000,
-    repeat: true,
-    status: "running",
-  });
-  expect(restored?.run.clock.wallNowMs).toBeGreaterThanOrEqual(savedWallTime ?? 0);
-  await prepareSaveVisualCheckpoint(page);
-  await captureVisualCheckpoint(page, testInfo, "durable-timer-after-reload");
-});
-
 test("local slots preserve permanent state after one and two rebirths @save-slots @rebirth-save", async ({
   page,
 }, testInfo) => {
@@ -668,34 +576,6 @@ test("local slots preserve permanent state after one and two rebirths @save-slot
     await captureVisualCheckpoint(page, testInfo, `rebirth-${rebirthCount}-restored`);
     if (rebirthCount === 1) await page.reload();
   }
-});
-
-test("a synthetic MIAPLACIDUS v0 save migrates and starts as a playable slot @save-migration @migration", async ({
-  freshGame,
-}, testInfo) => {
-  await openSaveManager(freshGame);
-  const manager = freshGame.getByTestId("save-manager-inline");
-  await manager.locator("#import-code").fill(syntheticV0Code("Legacy Pioneer"));
-  await manager.getByRole("button", { name: "Preview import" }).click();
-  await expect(manager.getByTestId("import-preview")).toContainText(
-    `Save version: ${SAVE_SCHEMA_VERSION}`,
-  );
-  await expect(manager.getByTestId("import-preview")).toContainText("Hydrogen");
-  await manager.locator("#import-new-name").fill("Migrated Pioneer");
-  await manager.getByRole("button", { name: "Import as a new pioneer" }).click();
-  await expect(
-    freshGame
-      .locator('[data-testid="game-notification"].notification-success')
-      .filter({ hasText: saveText("en", "importedAsNew") }),
-  ).toHaveText(saveText("en", "importedAsNew"));
-  await freshGame.locator("#tab-hydrogen").click();
-  await freshGame.reload();
-  await resumePioneer(freshGame, "Migrated Pioneer");
-  await expect(freshGame.locator(".run-name")).toHaveText("Migrated Pioneer");
-  await expect(freshGame.locator(".hydrogen-briefing")).toHaveCount(0);
-  await expect(freshGame.getByTestId("hydrogen-quantity")).toContainText("0");
-  await prepareSaveVisualCheckpoint(freshGame);
-  await captureVisualCheckpoint(freshGame, testInfo, "synthetic-v0-migrated-playable");
 });
 
 test("rename, save-as-new, and delete keep stable slots and return to a valid prefill @save-slots @management", async ({

@@ -1,5 +1,11 @@
 # Local save slots browser coverage
 
+The current Save Slots area passed **29/29** in installed Chrome in 58.5 seconds
+on 14 October 2026 (port 6453), with snapshot updates disabled. The P-46
+six-locale import-error case now uses a direct fake-clock jump to expire each
+toast, keeping timer behavior under test without replaying every animation
+frame; it passed alone 1/1 on port 6452 before the full-area rerun.
+
 5 October 2026 keyboard/touch follow-up: the startup picker was exercised without mouse activation. Keyboard-only create/search/select/resume and a 390×844 touch-only create/select/resume path both passed. In the combined one-worker Chrome run, these two cases and the Casino cost-preview case passed 3/3; the runner exited 0 after its test-owned Vite server was stopped.
 
 These player flows use real Chrome controls. Layout-focused journeys also capture and compare screenshots. They cover:
@@ -7,11 +13,11 @@ These player flows use real Chrome controls. Layout-focused journeys also captur
 - `START NEW GAME` creates a local slot immediately. A loadable last-started save is preselected on startup and shows `RESUME GAME`; editing the name clears that selection, and resuming another save still requires choosing its search result. Two pioneers retain independent Hydrogen balances.
 - A fresh slot opens directly into gameplay; Miaplaedia has no first-run briefing replay control. First-access badges appear on available destinations, including Settings and Miaplaedia sections, and clear when each is opened. Pending badges survive save/reload and resume.
 - Save-manager selection that returns to startup; rename collision, save-as-new, and confirmed delete.
-- Reload and prefill, durable timer recovery, and permanent state carrying one or two rebirth counts.
+- Reload and prefill, and permanent state carrying one or two rebirth counts. Durable timer IDs and offline clock anchors are covered in the dedicated [`save-load-local` area](../save-load-local/README.md).
 - Save status, save controls, slot management, export and import stay inline in Settings → Saving and Loading; no manager dialog or opener remains.
 - Startup can be completed from the keyboard: create a pioneer, search saved names, select a match with ArrowDown/Enter, then resume with Tab/Enter. Editing the name without choosing a suggestion starts a new game.
 - Portable code from the live run through clipboard, text, `.txt` upload, and download; validate each export as a save with the same pioneer and Hydrogen balance while the live clock continues. Also cover replace/new/cancel choices and restore into a separate empty browser profile.
-- Synthetic schema migration, damaged-generation recovery, quota failure preserving the old generation, blocked storage export/exit, and two-tab writer ownership.
+- Damaged-generation recovery, quota failure preserving the old generation, blocked storage export/exit, and two-tab writer ownership. Synthetic versioned-save upgrades are tested in the dedicated [`save-migration`](../save-migration/README.md) and [`migration`](../migration/README.md) areas.
 
 The shared harness checks that the app surface is visible and non-white and reports page/console errors or external requests.
 
@@ -77,8 +83,8 @@ npm.cmd run test:e2e:focused -- tests/e2e/save-slots/save-slots.spec.ts -g '@p22
 ```
 
 **P-51 Save & Loading visual spot check (9 October 2026):** I reviewed the
-existing [390px Light Settings capture](../theme-presentation/phase6-tab-layout.spec.ts-snapshots/phase6-settings-saves-light-mobile.png)
-and [1280px Terminal capture](../theme-presentation/phase6-tab-layout.spec.ts-snapshots/phase6-settings-saves-terminal-desktop.png).
+existing [390px Light Settings capture](../settings/phase6-tab-layout.spec.ts-snapshots/phase6-settings-saves-light-mobile.png)
+and [1280px Terminal capture](../settings/phase6-tab-layout.spec.ts-snapshots/phase6-settings-saves-terminal-desktop.png).
 At 390px, Save & Loading and the inline Save Manager stay inside the page;
 the save-status card, rename/save-as controls, portable-code controls, and
 import form stack vertically without visible card or button clipping. At
@@ -377,7 +383,7 @@ P-46 coverage above.
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='4975'
-node .\node_modules\playwright\cli.js test --pass-with-no-tests --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/save-slots/p50-start-picker-date-locale.spec.ts tests/e2e/economy/p45-early-economy-locales.spec.ts --grep '@p45-'
+node .\node_modules\playwright\cli.js test --pass-with-no-tests --project=chrome --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/save-slots/p50-start-picker-date-locale.spec.ts tests/e2e/localization/p45-early-economy-locales.spec.ts --grep '@p45-'
 ```
 
 ## P-44 Save/Import source-key crosswalk (10 October 2026)

@@ -34,7 +34,37 @@ are scoped to the Resources rail because the Compounds rail has its own group
 controls with the same test IDs. The full spec passed 2/2 without snapshot
 updates on rerun.
 
+14 October 2026 P-05 area split: the combined Resource/Compound mobile case is
+now two independently runnable specs. Resources checks all eight materials;
+Compounds checks all six compound pages. The original shared setup attempted
+to sell from an empty fixture, where the Sell action was correctly disabled.
+The Resources case now prepares stock through the test engine gateway and
+disables automatic Compound creation before checking sell/collect behavior.
+The Compounds case prepares stock before checking sell/create behavior. Each
+case passed 1/1 in installed Chrome (Resources 14.4s on port 6552; Compounds
+11.9s on port 6553). Both passed together in default Chromium, 2/2 in 21.6s
+on port 6554. Both widths, 320px and 390px, passed the hit-area and overflow
+checks. No gameplay implementation changed.
+
+```powershell
+npm.cmd run test:e2e:focused -- tests/e2e/resources/p05-resource-actions.spec.ts
+npm.cmd run test:e2e:focused -- tests/e2e/compounds/p05-compound-actions.spec.ts
+```
+
 ```powershell
 $navigationOutput = Join-Path $env:TEMP 'miaplacidus-resource-navigation-full-20261014'
 .\node_modules\.bin\playwright.cmd test tests/e2e/resources/navigation-hierarchy.spec.ts --workers=1 --reporter=list --output=$navigationOutput
+```
+
+
+## Economy catchall migration (14 October 2026)
+Resource-owned cases from the retired Economy catchall now live in [`economy-resources.spec.ts`](economy-resources.spec.ts), [`p13-resource-compound-narrow-context.spec.ts`](p13-resource-compound-narrow-context.spec.ts), [`p45-hydrogen-collection-result.spec.ts`](p45-hydrogen-collection-result.spec.ts), and [`p56-resource-compound-visual-matrix.spec.ts`](p56-resource-compound-visual-matrix.spec.ts).
+
+The canonical Resources folder passed **23/23** in installed Chrome on 14 October 2026, with snapshot updates disabled. This includes the six-locale result cases and the full P-56 locale/theme/viewport matrix.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+$env:MIAPLACIDUS_TEST_PORT='6430'
+npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=line tests/e2e/resources
 ```

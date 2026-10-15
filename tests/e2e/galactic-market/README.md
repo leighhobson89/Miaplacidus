@@ -219,3 +219,36 @@ captures were refreshed and reviewed; the liquidation card remains on Rebirth.
 The P-56 Market matrix measures its two Market cards, with liquidation owned by
 the separate Rebirth page. The complete 162-combination P-56 Market and Rebirth
 matrices passed in the focused recovery.
+
+## P-65 Galactic Market page identity
+
+`p65-meta-identity.spec.ts` checks the Galactic Market child heading and shared
+title treatment, asteroid illustration, Hydrogen title scale, and bounds at
+1280px and 390px. It preserves the `p65-galactic-market-{1280,390}.png`
+diagnostic captures as Playwright output attachments. This owner-area case
+passed in the seven-case installed-Chrome split batch on port 6716 with no
+snapshot updates; the focused batch's only failure was the separate Black Hole
+fixture, which passed after correction. Outputs are under
+`%TEMP%\miaplacidus-p65-meta-identity-split-20261014`.
+
+## Market responsive identity and locale reruns (14 October 2026)
+
+The broad Galactic child identity matrix passed **1/1** in installed Chrome in
+6.1 minutes on port 6461 with snapshot updates disabled. It checks all six
+source-owned child pages, their source option order, localized names, artwork,
+responsive title sizing, and pane/document bounds across nine themes, six
+locales, and three viewports. Rebirth uses its existing 24px title rule at
+320px; other child pages retain the shared title scale.
+
+The P-54/E-57 Market and Rebirth case passed **1/1** on port 6460 in 1.1
+minutes with snapshot updates disabled. Its all-locale, two-phone-width
+catalogue sweep exceeded Playwright's default 30-second test deadline during
+the concurrent area run despite the controls being present and accessible; the
+case now has a 180-second budget. The complete Galactic Market area rerun was
+not repeated after the one full regression; all other Market cases passed in
+that run, and its single queued-dialog failure subsequently passed focused
+1/1 in installed Chrome on port 6463 with snapshots disabled. The dialog helper
+now waits for the native close event and verifies the next queued result or
+drained state. Playwright reports and any failure artifacts are under
+`%TEMP%\miaplacidus-playwright-2026-10-14T20-18-57-152Z` and
+`%TEMP%\miaplacidus-playwright-2026-10-14T20-20-08-471Z` respectively.

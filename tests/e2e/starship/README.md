@@ -1,18 +1,18 @@
 # Starship
 
-Coverage for starship module cost display and payment, required-module readiness, the optional stellar scanner, diplomacy, and Fleet Hangar controls. The Cosmic Forge Fleet Hangar is a separate Interstellar page with a build button for each fleet class; the remake keeps that one-button-per-class flow while using native buttons with visible keyboard focus and full-width touch targets. `space-starship` and `space-diplomacy` are test-only fixtures with ample stock so the UI and engine can exercise real purchases.
+Coverage for Starship module cost display and payment, required-module readiness, the optional Stellar Scanner, travel, diplomacy, and mixed Interstellar journeys. Standalone Fleet Hangar construction and keyboard/touch cases live in [Fleet Hangar](../fleet-hangar/README.md). The Fleet Hangar remains a separate Interstellar page with a build button for each fleet class. `space-starship` and `space-diplomacy` are test-only fixtures with ample stock so the UI and engine can exercise real purchases.
 
-Run all cases with `npm.cmd run test:e2e:focused -- tests/e2e/starship/starship.spec.ts`. Fleet keyboard and touch cases only: `npm.cmd run test:e2e:focused -- tests/e2e/starship/starship.spec.ts --grep @fleet-controls`.
+Run the Starship and mixed-route cases with `npm.cmd run test:e2e:focused -- tests/e2e/starship/starship.spec.ts`. Fleet Hangar keyboard and touch cases only: `npm.cmd run test:e2e:focused -- tests/e2e/fleet-hangar/fleet-hangar.spec.ts --grep @fleet-controls`.
 
 ## Current evidence
 
-The `@fleet-controls` cases passed in Chrome (2/2) with `MIAPLACIDUS_BROWSER_CHANNEL=chrome`, `MIAPLACIDUS_DISABLE_VIDEO=1`, and one worker. The keyboard case verified Tab reachability, `:focus-visible`, Enter activation, and the 44px target. The mobile emulation case verified touch activation at 390px, the same target height, and no horizontal overflow. The default Chromium launch was unavailable in this environment, so the passing run used the installed Chrome channel.
+The relocated `@fleet-controls` cases passed in Chrome (2/2) with `MIAPLACIDUS_BROWSER_CHANNEL=chrome`, `MIAPLACIDUS_DISABLE_VIDEO=1`, and one worker; see the [Fleet Hangar README](../fleet-hangar/README.md). The keyboard case verified Tab reachability, `:focus-visible`, Enter activation, and the 44px target. The mobile emulation case verified touch activation at 390px, the same target height, and no horizontal overflow. The default Chromium launch was unavailable in this environment, so the passing run used the installed Chrome channel.
 
 5 October 2026 P-06 affordance follow-up: module parts, Envoy, fleet ships, starship launch, scan, diplomacy, battle and settlement controls now expose localized selector/precondition reasons through `aria-describedby` when disabled; existing engine-computed purchase/travel costs remain visible. The `builds an Envoy and records message and harmony effects @starship` case now asserts that a locked diplomacy button references its localized reason. Focused unit coverage for the Casino purchase selector lives in `tests/unit/action-affordance-selectors.spec.ts`. Browser verification is queued with the root agent; no browser was run for this slice.
 
 8 October 2026 P-20 follow-up (historical layout, superseded by P-64): scanning an orbiting destination replaced the scan action with a localized life-detection summary on Starship. That earlier placement has since been superseded: Starship retains the scan action and generic completion notice, while the saved life-detection details are shown on Colonise. P-64 focused validation is pending.
 
-6 October 2026 P-06 affordability follow-up: the focused `@starship-affordability` journey passed 1/1 in installed Chrome using `MIAPLACIDUS_BROWSER_CHANNEL=chrome`, `MIAPLACIDUS_DISABLE_VIDEO=1`, and one worker. At 7,999 Hydrogen against the 8,000 Envoy cost, the disabled Build Envoy button points to the visible Hydrogen shortfall with `aria-describedby`; collecting one Hydrogen through the UI reaches exact material stock, enables the button, and building the Envoy consumes all three materials and the 2,000 cash cost. The first reporter attempt asserted no gameplay failure but hit a Playwright trace-cleanup `ENOENT`; the clean line-reporter rerun passed 1/1 in 8.6 seconds.
+6 October 2026 P-06 affordability follow-up: the focused `@starship-affordability` journey passed 1/1 in installed Chrome using `MIAPLACIDUS_BROWSER_CHANNEL=chrome`, `MIAPLACIDUS_DISABLE_VIDEO=1`, and one worker. At 7,999 Hydrogen against the 8,000 Envoy cost, the disabled Build Envoy button points to the visible Hydrogen shortfall with `aria-describedby`; collecting one Hydrogen through the UI reaches exact material stock, enables the button, and building the Envoy consumes all three materials and the 2,000 cash cost. The first reporter attempt asserted no gameplay failure but hit a Playwright trace-cleanup `ENOENT`; the clean line-reporter rerun passed 1/1 in 8.6 seconds. The case now lives in the [Fleet Hangar area](../fleet-hangar/README.md).
 
 6 October 2026 P-06 Starship fuel boundary follow-up: `@starship-fuel-shortfall` passed 1/1 in installed Chrome in 14.4 seconds with one worker. Starting from the ready Starship fixture and selecting Sirius, the case checks that one antimatter below the displayed travel requirement disables Launch and points to the localized shortfall through `aria-describedby`. At exact stock, Launch enables; cancelling its warning leaves the ship unlaunched and preserves all antimatter. The test shapes two isolated, checksummed copies of the saved fixture through the UI boundary, without changing production code or shared fixtures.
 
@@ -107,7 +107,7 @@ $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $
 
 Three focused browser cases check all six locales at 390px and 320px: current Starship module-part quotes; the live travel distance/Antimatter quote and localized point-of-no-return modal; Fleet Envoy and all fleet-unit quotes plus localized build actions; and the full Colonise scan-report labels/readings, diplomacy actions, and disabled reasons. The modal stays inside the viewport, Fleet rows remain legible, and the Colonise report and diplomacy controls stay within the page. Existing `p49-starship-invariants.spec.ts` also confirms travel cost does not change when switching locales; the new cases add narrow-width modal, quote, Fleet, report, and diplomacy checks. The full six-case E-57 installed-Chrome group passed 6/6 in 1.8 minutes on port 4679. No page-component or shared-CSS change was needed.
 
-Focused command: `$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4679'; node .\node_modules\playwright\cli.js test --pass-with-no-tests tests/e2e/space-telescope/e57-space-mining-narrow-locale-context.spec.ts tests/e2e/star-map/e57-star-map-data-narrow-locale-context.spec.ts tests/e2e/starship/e57-interstellar-narrow-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line`
+Focused command: `$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4679'; node .\node_modules\playwright\cli.js test --pass-with-no-tests tests/e2e/space-mining/e57-space-mining-narrow-locale-context.spec.ts tests/e2e/star-map/e57-star-map-data-narrow-locale-context.spec.ts tests/e2e/starship/e57-interstellar-narrow-locale-context.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line`
 
 Visual checkpoint: [e57-starship-launch-modal-fr-390.png](e57-starship-launch-modal-fr-390.png), generated by the follow-up focused Chrome Starship run (3/3 in 22.5 seconds, port 4681). Review confirms the French point-of-no-return heading, body, fuel quote, and both actions fit within the 390px modal without clipping.
 
@@ -161,8 +161,9 @@ prices and gameplay gates are unchanged. The new
 part quote and its localized shortfall at a below-quote Silicon balance,
 recovery after collecting enough Silicon, and exact material/cash deductions.
 The Scout case performs the same shortfall/recovery and exact-purchase checks
-for Fleet Hangar. Unit tests
-also check that one-unit-short balances return the expected material failure
+for Fleet Hangar; that browser case now lives in the [Fleet Hangar area]
+(../fleet-hangar/README.md). Unit tests also check that one-unit-short
+balances return the expected material failure
 and that exact stock enables both actions.
 
 Validation: focused installed-Chrome browser run passed **2/2** on isolated
@@ -172,7 +173,7 @@ attempt exposed test setup issues (fractional sale amount and a non-unique
 locator); the corrected fresh-port run passed cleanly.
 
 ```powershell
-$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4834'; node .\node_modules\playwright\cli.js test tests/e2e/starship/starship.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --grep '@p06-starship-purchase-affordances' --output=test-results-p06-starship-affordance-4834
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='4834'; node .\node_modules\playwright\cli.js test tests/e2e/starship/starship.spec.ts tests/e2e/fleet-hangar/fleet-hangar.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --grep '@p06-starship-purchase-affordances' --output=test-results-p06-starship-affordance-4834
 ```
 
 ## P-29 Starship launch and arrival audio (10 October 2026)
@@ -407,3 +408,27 @@ captures. Review found single-letter final-line wraps beside the status pill in
 French `Vaisseau Stellaire` and `Coloniser` headings; all text remains inside
 the pane, but those wraps need a source-level layout follow-up. No game source
 was changed in this test-only recovery slice.
+
+## P-66 unlaunched Starship presentation
+
+`phase6-tab-layout.spec.ts` checks the unlaunched Starship title, artwork, and
+framed card at desktop width. Its reviewed baseline is in
+`phase6-tab-layout.spec.ts-snapshots/`. The case moved from Theme Presentation
+without assertion changes; no tests were run during the move.
+
+```powershell
+npm.cmd run test:e2e:focused -- tests/e2e/starship/phase6-tab-layout.spec.ts
+```
+
+14 October 2026 P-66 canonical visual split: the Starship capture case now
+lives in `phase6-interstellar-visual-review.spec.ts` with its four reviewed
+snapshots in the adjacent snapshot directory. The focused three-area run passed
+**3/3 in 16.3 seconds** in installed Chrome on port 6517. Starship passed 1/1;
+all four snapshots matched without updates. Colonise setup scans the selected
+destination before the page becomes available. The previous combined run's
+single Colonise failure was caused by the split setup omitting that scan; no
+application change or baseline refresh was needed.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6517'; npm.cmd run test:e2e:focused -- tests/e2e/starship/phase6-interstellar-visual-review.spec.ts tests/e2e/fleet-hangar/phase6-interstellar-visual-review.spec.ts tests/e2e/colonise/phase6-interstellar-visual-review.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-interstellar-split-p66-6517"
+```

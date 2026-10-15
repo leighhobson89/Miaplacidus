@@ -51,10 +51,10 @@ focused Oxfmt, and `git diff --check` passed. Command:
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5764'
-npm.cmd run test:e2e:focused -- tests/e2e/settings/settings-statistics.spec.ts tests/e2e/space-telescope/p45-space-mining-copy.spec.ts -g "maps source Statistics groups|Telescope and Launch Pad actions" --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p55-space-status-5764
+npm.cmd run test:e2e:focused -- tests/e2e/settings/settings-statistics.spec.ts tests/e2e/space-mining/p45-space-mining-copy.spec.ts -g "maps source Statistics groups|Telescope and Launch Pad actions" --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p55-space-status-5764
 npm.cmd run test:unit:focused -- tests/unit/statistics-display.spec.tsx --reporter=dot
 npm.cmd run typecheck
-.\node_modules\.bin\oxfmt.cmd --check src/app/SettingsStatisticsPane.tsx tests/e2e/settings/settings-statistics.spec.ts tests/e2e/space-telescope/p45-space-mining-copy.spec.ts tests/unit/statistics-display.spec.tsx
+.\node_modules\.bin\oxfmt.cmd --check src/app/SettingsStatisticsPane.tsx tests/e2e/settings/settings-statistics.spec.ts tests/e2e/space-mining/p45-space-mining-copy.spec.ts tests/unit/statistics-display.spec.tsx
 git diff --check
 ```
 
@@ -1044,9 +1044,9 @@ npx.cmd vitest run tests/unit/random-event-statistics.spec.tsx --reporter=verbos
 $env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
 $env:MIAPLACIDUS_DISABLE_VIDEO='1'
 $env:MIAPLACIDUS_TEST_PORT='5920'
-node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p55-random-event-stats-5920 tests/e2e/settings/p55-random-event-stat-values.spec.ts
+node .\node_modules\playwright\cli.js test --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output=test-results-p55-random-event-stats-5920 tests/e2e/statistics/p55-random-event-stat-values.spec.ts
 npm.cmd run typecheck
-npx.cmd oxfmt --check tests/unit/random-event-statistics.spec.tsx tests/e2e/settings/p55-random-event-stat-values.spec.ts
+npx.cmd oxfmt --check tests/unit/random-event-statistics.spec.tsx tests/e2e/statistics/p55-random-event-stat-values.spec.ts
 ```
 
 ## P-55 Galactic Casino current-run/lifetime counters (10 October 2026)
@@ -1264,3 +1264,55 @@ npm.cmd run typecheck
 roundtrip across two local pioneers passed **1/1** on port 4192 alongside four
 focused Save and Loading cases. All artifacts were written under system Temp;
 the full suite was not rerun.
+
+## P-66 Settings page layout and visual captures
+
+`phase6-tab-layout.spec.ts` now owns the Settings-only layout checks. One case
+checks the Settings cog artwork, page headings, no-artwork pages, title scale,
+and inline Save Manager controls. The other captures Achievements, Events,
+Statistics, Game Options, Visual Options, and Saving and Loading in Terminal
+desktop and Light phone views. Its baselines are in
+`phase6-tab-layout.spec.ts-snapshots/`; the twelve durable page captures were
+visually reviewed before the split. This case was moved from Theme Presentation
+without assertion changes, and no tests were run during the move.
+
+```powershell
+npm.cmd run test:e2e:focused -- tests/e2e/settings/phase6-tab-layout.spec.ts
+```
+
+**Repeat focused recovery run (14 October 2026):** the saved
+`audio and visual preferences restore independently for each local pioneer`
+case passed again in installed Chrome, **1/1 in 9.0 seconds**, on port 6510.
+The saved error was a missing `miaplacidusTest` gateway during a settings-state
+read; the current spec waits for that gateway after resuming each pioneer
+before reading the restored preferences. Both pioneers' independent audio and
+visual settings matched. No Settings or audio behavior change was needed.
+Artifacts are in `%TEMP%\miaplacidus-settings-preferences-recovery-6510`;
+there was no full-suite rerun.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6510'; npm.cmd run test:e2e:focused -- tests/e2e/settings/settings-preferences.spec.ts --project=chrome --grep 'audio and visual preferences restore independently for each local pioneer' --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-settings-preferences-recovery-6510"
+```
+
+## P-66 canonical Settings layout recovery (14 October 2026)
+
+The two canonical cases in `phase6-tab-layout.spec.ts` were run in installed
+Chrome. No saved full-run error context matched these Settings cases; the saved
+P-66 failure under Theme Presentation is Interstellar-owned and was left
+untouched. The first case initially differed from
+`p66-settings-visual-desktop.png` by five threshold-exceeding pixels. Visual
+review of the expected and received captures showed matching content, geometry,
+and control states with only minute rasterization differences. I refreshed that
+single reviewed baseline. The second case's twelve durable Settings page
+captures already matched, so they were not updated.
+
+The baseline update case passed **1/1 in 7.4 seconds** on port 6512. The
+subsequent no-update rerun passed both canonical cases **2/2 in 15.5 seconds**
+on port 6513. Artwork, headings, title sizing, inline Save controls, and the
+Terminal desktop / Light phone page captures all passed. No app behavior or
+assertion changes were needed.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'; $env:MIAPLACIDUS_DISABLE_VIDEO='1'; $env:MIAPLACIDUS_TEST_PORT='6512'; npm.cmd run test:e2e:focused -- tests/e2e/settings/phase6-tab-layout.spec.ts --project=chrome --grep 'Settings pages use the requested artwork, headings, and inline save controls' --workers=1 --retries=0 --trace=off --reporter=line --update-snapshots --output="$env:TEMP\miaplacidus-settings-p66-update-6512"
+$env:MIAPLACIDUS_TEST_PORT='6513'; npm.cmd run test:e2e:focused -- tests/e2e/settings/phase6-tab-layout.spec.ts --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-settings-p66-no-update-6513"
+```

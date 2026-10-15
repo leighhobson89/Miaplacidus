@@ -1,6 +1,6 @@
 # MIAPLACIDUS asset manifest
 
-This manifest records original MIAPLACIDUS assets and the 30 Cosmic Forge audio files that the project owner authorized for unchanged reuse on 2026-10-04. No source image or video is reused; see the [source coverage inventory](cosmic-forge-asset-coverage.md).
+This manifest records original MIAPLACIDUS assets and the 30 Cosmic Forge audio files that the project owner authorized for unchanged reuse on 2026-10-04. No source image or video is reused; see the [archived source coverage inventory](../archive/audits/cosmic-forge-asset-coverage-2026-10-04.md) and its [path-level CSV](../archive/audits/cosmic-forge-asset-inventory.csv).
 
 | Asset | Format / variants | Source and license | Usage |
 | --- | --- | --- | --- |

@@ -10,6 +10,9 @@ notation behavior they verify.
   cover accepted sale previews/results across all three notations.
 - `p41-timer-presentation.spec.ts` covers Rocket, Starship, and Space Mining
   countdowns and ETAs across all three notations.
+- `p41-statistics-notation-layout.spec.ts` covers Resource Stock, Lifetime Cash,
+  and Active Time in all three notations at 320px without document, pane, or card
+  overflow.
 
 Run these cases with:
 
@@ -18,3 +21,13 @@ npm.cmd run test:e2e:focused -- tests/e2e/notation --project=chrome --workers=1 
 ```
 
 Historical results and scenario notes are retained in the [economy README](../economy/README.md).
+
+
+## Economy catchall migration (14 October 2026)
+Economy notation and number-format cases now live in [`economy-notation.spec.ts`](economy-notation.spec.ts). Achievement reward and notice notation remains in [Achievements](../achievements/README.md).
+
+## Focused area verification (14 October 2026)
+
+The complete Notation folder passed **14/14** in installed Chrome on 14 October
+2026 (27.5 seconds, port 6444), with snapshot updates disabled. Diagnostic
+Rocket artwork captures were written only under `%TEMP%`.

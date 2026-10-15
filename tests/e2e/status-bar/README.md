@@ -93,15 +93,14 @@ npm.cmd run test:e2e:focused -- tests/e2e/status-bar/status-bar.spec.ts --worker
 ## P-51 Standard Cash visibility (9 October 2026)
 
 The large Standard Cash balance was clipped in the desktop status row. The Cash
-card keeps the owner's same 50% flex basis and growth as Run Time. A desktop-only
-142px minimum and 12.48px Cash value size let the full text fit while keeping
-the status row compact; the phone-width flex and value rules and Cash tooltip
-placement remain unchanged. The focused browser case checks the full formatted
-live balance (over $1 billion) against the value's measured text width in
-Terminal and Light themes at 1280px. It also verifies both stats keep their
-shared flex sizing, all status cards stay on one desktop row, the tooltip
-contains the full current amount, and the 390px tooltip stays within the phone
-viewport without document overflow.
+card keeps the same flex growth as Run Time and uses a wider 152px desktop basis
+and a 12.48px value size so the full text fits while keeping the status row
+compact. At phone widths, Cash and Run Time use the same flex basis and the
+responsive value rules and tooltip placement remain unchanged. The focused
+browser case checks the full formatted live balance (over $1 billion) against
+the value's measured text width in Terminal and Light themes at 1280px. It also
+verifies the matching flex growth, wider desktop Cash basis, one-row desktop
+layout, full tooltip amount, and 390px tooltip bounds without document overflow.
 
 The focused installed-Chrome check passed **1/1** during snapshot generation
 (port 4273, `--update-snapshots=all`) and again without updates after formatting.
@@ -116,8 +115,9 @@ npm.cmd run test:e2e:focused -- --workers=1 --retries=0 --trace=off --reporter=l
 
 The refreshed 1280px captures were visually reviewed in both themes. Cash is
 fully visible and the status cards remain on one row; Event retains its full
-label/value, and the compact RP, GP, and AP cards remain readable. Run Time
-measures 102.6/103.0px and Cash 142px (Terminal/Light); Event measures
+label/value, and the compact RP, GP, and AP cards remain readable. The P-51
+focused case measures Run Time at 80.2/80.5px and Cash at 172.2/172.5px
+(Terminal/Light); Event measures
 307.9/309.1px, RP 123.2/123.6px, GP 22.9/24.5px, and AP 22.9/24.2px. The
 separate header RUN/GP/AP indicators also remain visible. The reviewed
 images are `status-bar.spec.ts-snapshots/p51-cash-standard-terminal-desktop.png`
@@ -197,3 +197,22 @@ localized status ordering at 390px and 320px, and full Standard Cash balance
 layout passed **3/3** on port 4205 without snapshot updates. The P-41 battery
 countdown, Cosmic Rip theme-surface, and economy theme-palette cases passed
 **3/3** in a separate focused run. Artifacts were redirected to system Temp.
+
+## 14 October 2026 saved-failure recovery
+
+The four saved Status Bar failures were rerun with the full Status Bar area in
+installed Chrome. That run exposed one additional stale assertion: the shared
+width check still required Cash to use Run Time's desktop basis, although P-51
+now gives Cash a wider desktop basis and preserves equal bases on phones. The
+check now follows those desktop and phone contracts. The final no-update run
+passed **16/16 in 2.1 minutes** on port 6520, including the P-41 battery and
+Cash notation cases, the P-56 visual matrix, and the four recovered failures.
+No product code or snapshots changed; artifacts are under
+`%TEMP%\miaplacidus-status-bar-recovery-final-6520-20261014`.
+
+```powershell
+$env:MIAPLACIDUS_BROWSER_CHANNEL='chrome'
+$env:MIAPLACIDUS_DISABLE_VIDEO='1'
+$env:MIAPLACIDUS_TEST_PORT='6520'
+npm.cmd run test:e2e:focused -- --project=chrome --workers=1 --retries=0 --trace=off --reporter=line --output="$env:TEMP\miaplacidus-status-bar-recovery-final-6520-20261014" tests/e2e/status-bar
+```

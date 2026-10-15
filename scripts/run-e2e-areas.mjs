@@ -12,6 +12,16 @@ const areas = manifest.areas;
 const requested = process.argv[2] ?? "--all";
 const require = createRequire(import.meta.url);
 const playwrightCli = require.resolve("@playwright/test/cli");
+if (!Array.isArray(areas) || new Set(areas).size !== areas.length || areas.some((area) => typeof area !== "string" || !/^[a-z0-9-]+$/.test(area))) {
+  throw new Error("The E2E functional-area manifest must contain unique lowercase folder IDs.");
+}
+const groupAreas = Object.keys(manifest.groups ?? {}).sort();
+if (groupAreas.join("\n") !== [...areas].sort().join("\n")) {
+  throw new Error("Every canonical E2E area must have exactly one source group mapping.");
+}
+if (Object.values(manifest.aliases ?? {}).some((target) => !areas.includes(target))) {
+  throw new Error("Every area alias must point to a canonical target folder.");
+}
 
 if (requested === "--list") {
   process.stdout.write(`${areas.join("\n")}\n`);
@@ -42,6 +52,25 @@ function countSpecs(directory) {
 const selected = requested === "--all" || requested === "--populated"
   ? areas
   : [requested];
+const includesDemoBuild = selected.includes("demo-build");
+if (includesDemoBuild) {
+  process.stdout.write("\n=== demo-build: compiling production demo artifact ===\n");
+  const build = spawnSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "build:demo"],
+    {
+      cwd: repoRoot,
+      stdio: "inherit",
+      windowsHide: true,
+      shell: process.platform === "win32",
+    },
+  );
+  if (build.error || build.status !== 0) {
+    if (build.error) process.stderr.write(`${build.error.message}\n`);
+    process.stderr.write("Demo build failed; demo-build E2E was not started.\n");
+    process.exit(build.status ?? 1);
+  }
+}
 const rows = [];
 let failures = 0;
 const testRoot = path.join(repoRoot, "tests", "e2e");
@@ -52,14 +81,20 @@ if (rootSpecs.length > 0) {
   process.stderr.write(`E2E specs must be inside an area folder; found at tests/e2e root: ${rootSpecs.join(", ")}\n`);
   failures += 1;
 }
-if (requested === "--all") {
-  const unlisted = readdirSync(testRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name !== "_harness" && !areas.includes(entry.name))
-    .filter((entry) => countSpecs(path.join(testRoot, entry.name)) > 0)
-    .map((entry) => entry.name);
-  if (unlisted.length > 0) {
-    process.stderr.write(`Populated E2E folders missing from the canonical manifest: ${unlisted.join(", ")}\n`);
+const unlisted = readdirSync(testRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== "_harness" && !areas.includes(entry.name))
+  .map((entry) => ({ area: entry.name, specCount: countSpecs(path.join(testRoot, entry.name)) }))
+  .filter((entry) => entry.specCount > 0);
+if (unlisted.length > 0) {
+  const unlistedNames = unlisted.map((entry) => entry.area);
+  if (requested === "--all") {
+    process.stderr.write(`Populated E2E folders missing from the canonical manifest: ${unlistedNames.join(", ")}\n`);
     failures += 1;
+  } else if (requested === "--populated") {
+    for (const entry of unlisted) {
+      process.stdout.write(`UNOWNED: ${entry.area} (${entry.specCount} spec files)\n`);
+      rows.push({ ...entry, status: "UNOWNED" });
+    }
   }
 }
 
@@ -84,6 +119,7 @@ for (const area of selected) {
       env: {
         ...process.env,
         MIAPLACIDUS_TEST_AREA: "",
+        MIAPLACIDUS_E2E_DEMO_PREVIEW: area === "demo-build" ? "1" : "",
         MIAPLACIDUS_TEST_OUTPUT_DIR: path.join(areaArtifacts, "test-results"),
         MIAPLACIDUS_TEST_REPORT_DIR: path.join(areaArtifacts, "report"),
       },

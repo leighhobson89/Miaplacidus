@@ -26,7 +26,7 @@ async function expectSaveNotification(
   await expect(
     page.locator(".save-manager-inline .save-error, .save-manager-inline .save-notice"),
   ).toHaveCount(0);
-  await page.clock.runFor(3_300);
+  await page.clock.fastForward(3_300);
 }
 
 test("import errors and success copy stay localized across six locales @p46-import-errors-locale", async ({

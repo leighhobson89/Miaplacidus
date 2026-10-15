@@ -77,6 +77,22 @@ export function PaneNavigation({
     document.getElementById(`tab-${pendingId}`)?.focus();
   }, [selectedId]);
 
+  useLayoutEffect(() => {
+    const selectedTab = document.getElementById(`tab-${selectedId}`);
+    const navigation = selectedTab?.closest<HTMLElement>(".pane-nav-scroll");
+    if (!selectedTab || !navigation || navigation.clientWidth === 0) return;
+
+    const navigationRect = navigation.getBoundingClientRect();
+    const visibleLeft = navigationRect.left + navigation.clientLeft;
+    const visibleRight = visibleLeft + navigation.clientWidth;
+    const selectedRect = selectedTab.getBoundingClientRect();
+    if (selectedRect.left < visibleLeft) {
+      navigation.scrollLeft += selectedRect.left - visibleLeft;
+    } else if (selectedRect.right > visibleRight) {
+      navigation.scrollLeft += selectedRect.right - visibleRight;
+    }
+  }, [selectedId]);
+
   useEffect(() => {
     if (!hasCollapsibleSections || typeof window === "undefined") return;
     writeCollapsedGroupIds(storageScope, collapsedGroupIds);

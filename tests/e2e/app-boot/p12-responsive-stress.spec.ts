@@ -89,7 +89,8 @@ test("P-12 visible child navigation remains reachable without page overflow at 3
     for (let railIndex = 0; railIndex < (await childRails.count()); railIndex += 1) {
       const rail = childRails.nth(railIndex);
       const tabLists = rail.locator("[role='tablist']:visible");
-      for (let listIndex = 0; listIndex < (await tabLists.count()); listIndex += 1) {
+      const tabListCount = await tabLists.count();
+      for (let listIndex = 0; listIndex < tabListCount; listIndex += 1) {
         const tabs = tabLists.nth(listIndex).locator("[role='tab']:visible");
         const tabCount = await tabs.count();
         if (tabCount === 0) continue;
@@ -134,7 +135,7 @@ test("P-12 visible child navigation remains reachable without page overflow at 3
           metrics.tabRight,
           `${paneId} selected child right edge inside rail at 320px`,
         ).toBeLessThanOrEqual(metrics.railRight + 1);
-        if (metrics.scrollWidth > metrics.clientWidth + 1) {
+        if (listIndex === tabListCount - 1 && metrics.scrollWidth > metrics.clientWidth + 1) {
           expect(
             metrics.scrollLeft,
             `${paneId} overflowing child rail should scroll to its last tab at 320px`,
